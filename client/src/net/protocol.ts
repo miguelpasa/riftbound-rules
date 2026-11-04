@@ -65,6 +65,17 @@ function isIntent(v: unknown): boolean {
   );
 }
 
+/** Max legal-hint entries accepted on the wire (the host sends at most 300). */
+export const MAX_LEGAL_HINT = 400;
+
+function isLegalHint(v: unknown, viewer: 'p0' | 'p1'): boolean {
+  return (
+    Array.isArray(v) &&
+    v.length <= MAX_LEGAL_HINT &&
+    v.every((i) => isIntent(i) && (i as Obj).playerId === viewer)
+  );
+}
+
 /** Validate an untrusted value as a guest -> host message. Intent payloads are checked for type/player only; the engine re-validates the rest. */
 export function parseC2S(raw: unknown): C2S | null {
   if (!isObj(raw) || hasForbiddenKeys(raw)) return null;
@@ -105,6 +116,12 @@ export function parseS2C(raw: unknown): S2C | null {
       if (!Array.isArray(raw.events)) return null;
       for (const e of raw.events) {
         if (!isObj(e) || !isStr(e.type, 64) || !isSeq(e.seq)) return null;
+      }
+      if (raw.legalHint !== undefined && !isLegalHint(raw.legalHint, view.viewer)) {
+        // The hint is advisory: drop a malformed one instead of rejecting the whole state.
+        const { legalHint: _dropped, ...rest } = raw;
+        void _dropped;
+        return rest as unknown as S2C;
       }
       return raw as unknown as S2C;
     }

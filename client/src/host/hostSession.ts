@@ -63,7 +63,9 @@ export interface HostSessionOptions {
   guestSeatToken?: string | null;
   onCommit?: (entry: CommitEntry) => void;
   /** Host UI refresh: the host's own sanitized view and events after every commit. */
-  onLocalUpdate?: (view: ClientGameState, events: GameEvent[]) => void;
+  onLocalUpdate?: (view: ClientGameState, events: GameEvent[], legal: Intent[]) => void;
+  /** The guest seat was just claimed by a first guest (persist the token so they can rejoin). */
+  onSeatClaimed?: (seatToken: string) => void;
   onOpponentStatus?: (connected: boolean) => void;
   onGameOver?: (winner: PlayerId | null) => void;
   /** Clock, injectable for tests (rate limiting). */
@@ -82,6 +84,7 @@ export interface CreateHostOptions {
   mode: 'MULTIPLAYER' | 'SOLO';
   onCommit?: HostSessionOptions['onCommit'];
   onLocalUpdate?: HostSessionOptions['onLocalUpdate'];
+  onSeatClaimed?: HostSessionOptions['onSeatClaimed'];
   onOpponentStatus?: HostSessionOptions['onOpponentStatus'];
   onGameOver?: HostSessionOptions['onGameOver'];
   now?: () => number;
@@ -161,6 +164,7 @@ export class HostSession {
       hostSeat: seatOfDeck[0],
       onCommit: o.onCommit,
       onLocalUpdate: o.onLocalUpdate,
+      onSeatClaimed: o.onSeatClaimed,
       onOpponentStatus: o.onOpponentStatus,
       onGameOver: o.onGameOver,
       now: o.now,
@@ -183,8 +187,32 @@ export class HostSession {
     this.state = state;
     this.version++;
     this.syncGuest();
-    this.opts.onLocalUpdate?.(this.getView(this.hostSeat), []);
+    this.emitLocal([]);
     this.scheduleBot();
+  }
+
+  /** Intents the engine would accept from the given seat right now (never throws; [] on internal error). */
+  getLegal(seat: PlayerId): Intent[] {
+    try {
+      return getLegalActions(this.state, this.cards, seat);
+    } catch (e) {
+      console.error('[host] getLegalActions threw', e);
+      return [];
+    }
+  }
+
+  private emitLocal(events: GameEvent[]): void {
+    const cb = this.opts.onLocalUpdate;
+    if (!cb) return;
+    try {
+      cb(
+        sanitizeFor(this.state, this.hostSeat),
+        sanitizeEvents(events, this.hostSeat),
+        this.getLegal(this.hostSeat),
+      );
+    } catch (e) {
+      console.error('[host] onLocalUpdate threw', e);
+    }
   }
 
   getActor(): PlayerId {
@@ -301,6 +329,11 @@ export class HostSession {
       }
       this.guestToken = mintSeatToken();
       this.lastClientSeq = -1;
+      try {
+        this.opts.onSeatClaimed?.(this.guestToken);
+      } catch (e) {
+        console.error('[host] onSeatClaimed threw', e);
+      }
     } else if (msg.seatToken === undefined || !tokensEqual(msg.seatToken, this.guestToken)) {
       this.refuse(conn, 'NOT_FOUND', 'seat already claimed');
       return;
@@ -336,6 +369,7 @@ export class HostSession {
       type: 'STATE',
       view: sanitizeFor(this.state, this.guestSeat),
       events: sanitizeEvents(events, this.guestSeat),
+      legalHint: this.getLegal(this.guestSeat),
     });
     if (this.state.gameStatus !== 'IN_PROGRESS') this.sendGameOver(conn);
   }
@@ -402,14 +436,7 @@ export class HostSession {
       console.error('[host] onCommit threw', e);
     }
     if (this.conn && this.conn.hello) this.sendState(this.conn, res.events);
-    try {
-      this.opts.onLocalUpdate?.(
-        sanitizeFor(this.state, this.hostSeat),
-        sanitizeEvents(res.events, this.hostSeat),
-      );
-    } catch (e) {
-      console.error('[host] onLocalUpdate threw', e);
-    }
+    this.emitLocal(res.events);
     if (!wasOver && this.state.gameStatus !== 'IN_PROGRESS') {
       this.opts.onGameOver?.(this.state.winner ?? null);
     }

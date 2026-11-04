@@ -7,6 +7,7 @@ import {
   decodeS2C,
   encode,
   MAX_FRAME_CHARS,
+  MAX_LEGAL_HINT,
   parseC2S,
   parseS2C,
 } from './protocol.js';
@@ -108,6 +109,39 @@ describe('parseS2C', () => {
       parseS2C(JSON.parse('{"type":"OPPONENT_STATUS","connected":true,"__proto__":{}}')),
     ).toBeNull();
     expect(parseS2C(null)).toBeNull();
+  });
+});
+
+// Tests: the legal hint is advisory, strictly validated, and dropped (not fatal) when malformed.
+describe('parseS2C legalHint', () => {
+  const ok = { type: 'END_TURN', playerId: 'p1' };
+  it('accepts a well-formed hint and an empty one', () => {
+    expect(parseS2C({ ...state, legalHint: [ok] })).toEqual({ ...state, legalHint: [ok] });
+    expect(parseS2C({ ...state, legalHint: [] })).toEqual({ ...state, legalHint: [] });
+    expect(parseS2C(state)).not.toHaveProperty('legalHint');
+  });
+  it('drops (but keeps the state of) malformed hints', () => {
+    const bad: unknown[] = [
+      'x',
+      {},
+      [{ type: 'NOT_AN_INTENT', playerId: 'p1' }],
+      [{ type: 'END_TURN' }],
+      [{ type: 'END_TURN', playerId: 'p0' }], // not the recipient's seat
+      [ok, null],
+      new Array(MAX_LEGAL_HINT + 1).fill(ok),
+    ];
+    for (const legalHint of bad) {
+      const m = parseS2C({ ...state, legalHint });
+      expect(m).toEqual(state);
+      expect(m).not.toHaveProperty('legalHint');
+    }
+    expect(parseS2C({ ...state, legalHint: new Array(MAX_LEGAL_HINT).fill(ok) })).not.toBeNull();
+  });
+  it('rejects prototype pollution inside a hint', () => {
+    const raw = JSON.parse(
+      '{"type":"STATE","events":[],"legalHint":[{"type":"END_TURN","playerId":"p1","__proto__":{}}]}',
+    );
+    expect(parseS2C({ ...raw, view })).toBeNull();
   });
 });
 

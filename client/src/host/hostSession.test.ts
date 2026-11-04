@@ -439,6 +439,73 @@ describe('restore', () => {
   });
 });
 
+describe('legal hints', () => {
+  // Tests: every STATE carries the engine's legal actions for the recipient (leak-checked by the rig's
+  // send wrapper, which scans whole messages), the host's own callback gets its own list, and the
+  // seat claim callback fires exactly once.
+  it('ships recipient-specific legal hints on every STATE and to the host UI', async () => {
+    const hostLegal: Intent[][] = [];
+    const claims: string[] = [];
+    const rig = makeRig('hints');
+    const host = HostSession.create({
+      cards: FIXTURE_CARDS,
+      hostDeck: FIXTURE_DECK_A,
+      guestDeck: FIXTURE_DECK_B,
+      seed: 'hints',
+      mode: 'MULTIPLAYER',
+      onLocalUpdate: (view, _e, l) => {
+        expect(view.viewer).toBe(host.hostSeat);
+        hostLegal.push(l);
+        expect(l).toEqual(
+          getLegalActions(host.getFullStateForPersistence(), FIXTURE_CARDS, host.hostSeat),
+        );
+        expect(l.every((i) => i.playerId === host.hostSeat)).toBe(true);
+      },
+      onSeatClaimed: (t) => claims.push(t),
+    });
+    void rig;
+    const sent: S2C[] = [];
+    const hub = createLoopbackHub<S2C, C2S>();
+    hub.hostOnConnection((t) => {
+      const orig = t.send.bind(t);
+      t.send = (m: S2C) => {
+        sent.push(JSON.parse(JSON.stringify(m)) as S2C);
+        const leaks = findLeaks(m, host.getFullStateForPersistence(), host.guestSeat);
+        expect(leaks).toEqual([]);
+        orig(m);
+      };
+      host.acceptGuest(t);
+    });
+    const guest = new GuestSession({ transport: hub.connectGuest(), storage: memStorage() });
+    await flush();
+    expect(claims).toEqual([host.getGuestSeatToken()]);
+    const rng = mulberry32(99);
+    let sawNonEmpty = false;
+    for (let i = 0; i < 400 && host.getTurnInfo().status === 'IN_PROGRESS'; i++) {
+      const actor = host.getActor();
+      const list = legal(host, actor);
+      if (list.length === 0) break;
+      if (actor === host.hostSeat) host.localIntent(pick(rng, list));
+      else guest.sendIntent(pick(rng, list));
+      await flush();
+      const last = [...sent].reverse().find((m) => m.type === 'STATE');
+      const expected = legal(host, host.guestSeat);
+      expect(last && last.type === 'STATE' ? last.legalHint : undefined).toEqual(expected);
+      expect(guest.legal).toEqual(expected);
+      expect(expected.length).toBeLessThanOrEqual(300);
+      if (expected.length > 0) sawNonEmpty = true;
+    }
+    expect(sawNonEmpty).toBe(true);
+    expect(hostLegal.length).toBeGreaterThan(10);
+    expect(claims).toHaveLength(1);
+    // A resync request re-sends the hint too.
+    guest.requestResync();
+    await flush();
+    expect(guest.legal).toEqual(legal(host, host.guestSeat));
+    expect(host.getLegal(host.hostSeat)).toEqual(legal(host, host.hostSeat));
+  }, 60_000);
+});
+
 describe('solo bot', () => {
   const firstLegal = (host: HostSession): BotLike => ({
     decide: (view) => {

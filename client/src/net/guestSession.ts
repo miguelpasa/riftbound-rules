@@ -79,6 +79,7 @@ export class GuestSession {
 
   private _seat: PlayerId | null = null;
   private _view: ClientGameState | null = null;
+  private _legal: Intent[] = [];
   private _status: GuestStatus;
   private _welcomed = false;
   private _opponentConnected = true;
@@ -88,7 +89,7 @@ export class GuestSession {
   private nextSeq: number;
   private readonly offs: Array<() => void> = [];
 
-  private readonly stateBus = new Bus<[ClientGameState, GameEvent[]]>();
+  private readonly stateBus = new Bus<[ClientGameState, GameEvent[], Intent[]]>();
   private readonly rejectedBus = new Bus<[RejectionInfo]>();
   private readonly gameOverBus = new Bus<[PlayerId | null, boolean]>();
   private readonly opponentBus = new Bus<[boolean]>();
@@ -135,6 +136,10 @@ export class GuestSession {
   get view(): ClientGameState | null {
     return this._view;
   }
+  /** Host-computed legal intents for this seat (a hint for the UI; the host still validates). */
+  get legal(): Intent[] {
+    return this._legal;
+  }
   get opponentConnected(): boolean {
     return this._opponentConnected;
   }
@@ -146,7 +151,7 @@ export class GuestSession {
     return this._refused;
   }
 
-  onState(cb: (view: ClientGameState, events: GameEvent[]) => void): () => void {
+  onState(cb: (view: ClientGameState, events: GameEvent[], legal: Intent[]) => void): () => void {
     return this.stateBus.add(cb);
   }
   onRejected(cb: (r: RejectionInfo) => void): () => void {
@@ -275,7 +280,8 @@ export class GuestSession {
         return;
       case 'STATE':
         this._view = msg.view;
-        this.stateBus.emit(msg.view, msg.events);
+        this._legal = msg.legalHint ?? [];
+        this.stateBus.emit(msg.view, msg.events, this._legal);
         return;
       case 'REJECTED': {
         const info: RejectionInfo = {

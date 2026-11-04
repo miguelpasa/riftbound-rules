@@ -15,7 +15,13 @@ export type C2S =
 /** Host -> guest. */
 export type S2C =
   | { type: 'WELCOME'; seat: PlayerId; seatToken: string }
-  | { type: 'STATE'; view: ClientGameState; events: GameEvent[]; legalHint?: unknown }
+  | {
+      type: 'STATE';
+      view: ClientGameState;
+      events: GameEvent[];
+      /** Intents the recipient may legally submit now (a hint only; the host re-validates). */
+      legalHint?: Intent[];
+    }
   | { type: 'REJECTED'; clientSeq: number; code: RuleErrorCode; message: string }
   | { type: 'OPPONENT_STATUS'; connected: boolean }
   | { type: 'GAME_OVER'; winner: PlayerId | null; replayAvailable: boolean };

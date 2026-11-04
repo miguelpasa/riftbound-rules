@@ -101,6 +101,46 @@ describe('GuestSession', () => {
     expect(g.status).toBe('connected');
   });
 
+  // Tests: the host's legal hint reaches the guest via .legal and onState; bad hints degrade to [].
+  it('exposes the host-computed legal hint', async () => {
+    const { host, hub } = setup();
+    const g = new GuestSession({ transport: hub.connectGuest(), storage: memStorage() });
+    const seen: Intent[][] = [];
+    g.onState((_v, _e, legal) => seen.push(legal));
+    await flush();
+    expect(g.legal).toEqual(host.getLegal(host.guestSeat));
+    expect(seen.at(-1)).toEqual(g.legal);
+    // Make the guest's turn come: play until it has something legal, then compare after a commit.
+    for (let i = 0; i < 50 && g.legal.length === 0; i++) {
+      const actor = host.getActor();
+      const first = host.getLegal(actor)[0] as Intent;
+      if (actor === host.hostSeat) host.localIntent(first);
+      else g.sendIntent(first);
+      await flush();
+    }
+    expect(g.legal.length).toBeGreaterThan(0);
+    expect(g.legal.every((i) => i.playerId === host.guestSeat)).toBe(true);
+    expect(g.legal).toEqual(host.getLegal(host.guestSeat));
+  });
+
+  it('treats a malformed hint as no hint', async () => {
+    const pair = createLoopbackPair<C2S, unknown>();
+    const g = new GuestSession({ transport: pair.a, storage: memStorage() });
+    const view = { viewer: 'p1', players: [{}, {}], objects: {}, battlefields: [] };
+    pair.b.send({
+      type: 'STATE',
+      view,
+      events: [],
+      legalHint: [{ type: 'END_TURN', playerId: 'p1' }],
+    });
+    await flush();
+    expect(g.legal).toHaveLength(1);
+    pair.b.send({ type: 'STATE', view, events: [], legalHint: 'nope' });
+    await flush();
+    expect(g.view).not.toBeNull();
+    expect(g.legal).toEqual([]);
+  });
+
   // Tests: invalid inbound frames are ignored without throwing or changing state.
   it('drops invalid inbound frames', async () => {
     const pair = createLoopbackPair<C2S, unknown>();
