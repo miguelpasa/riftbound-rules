@@ -9,3 +9,4 @@ export * from './sanitize.js';
 export * from './burnout.js';
 export * from './phases.js';
 export * from './play.js';
+export * from './scoring.js';
