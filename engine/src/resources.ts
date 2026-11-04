@@ -87,7 +87,10 @@ export function computeTotalCost(card: CardDef, opts: ComputeCostOptions = {}): 
   let energy = card.cost.energy;
   const power: PowerRequirement[] = [];
   for (const d of card.cost.domain ?? []) addReq(power, { domain: d.element, amount: d.amount });
-  if (card.cost.power) addReq(power, genericPower(card, card.cost.power));
+  // `domain` is a breakdown of `power` (card data carries both); only the uncovered remainder is generic.
+  const covered = (card.cost.domain ?? []).reduce((n, d) => n + d.amount, 0);
+  const genericRemainder = (card.cost.power ?? 0) - covered;
+  if (genericRemainder > 0) addReq(power, genericPower(card, genericRemainder));
 
   if (opts.accelerate) {
     energy += 1;
