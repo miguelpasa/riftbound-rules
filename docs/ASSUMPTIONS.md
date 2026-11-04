@@ -8,3 +8,7 @@ Decisions made where the Core Rules (rev 2026-10-09) or the PRD are ambiguous.
 4. **PRD "Rule 607.1" does not exist.** Use Rules 432 and 473.1.b instead; never cite 607.1.
 5. **Rune board is part of the base** (Rule 107.1.c): channeled runes are `RUNE` CardInstances in zone `base`.
 6. **Scoring is a step of the BEGINNING phase**, modelled by `turn.step = 'SCORING'`.
+
+- Exhausted runes may still be recycled for Power: the cost of the rune's Power ability is Recycle, not Exhaust (164.2.b). Only the Energy ability requires a ready rune. A recycled rune returns to the bottom of the Rune Deck.
+- Universal Power ([A]) is not modelled in the Rune Pool; a cost's "any domain" Power is paid with Power of any single domain. Revisit if a card needs to add [A] to the pool.
+- Hidden cards placed facedown must not emit a public CARD_PLAYED (it would leak cardId); use visibleTo:[controller] or a dedicated facedown event.
