@@ -129,7 +129,11 @@ export class ReplayRecorder {
   private winner: PlayerId | null = null;
 
   constructor(init: ReplayRecorderInit) {
-    if (typeof init.seed !== 'string' || init.seed.length === 0 || init.seed.length > MAX_SEED_LENGTH) {
+    if (
+      typeof init.seed !== 'string' ||
+      init.seed.length === 0 ||
+      init.seed.length > MAX_SEED_LENGTH
+    ) {
       throw new TypeError('seed must be a non-empty string');
     }
     if (!isSeat(init.hostSeat)) throw new TypeError('hostSeat must be p0 or p1');
@@ -290,7 +294,8 @@ export function parseReplay(text: string): RecordedReplay {
     winner: raw.winner as PlayerId | null,
     hostSeat: raw.hostSeat,
   };
-  if (checksumOf(log) !== raw.checksum) fail('checksum mismatch: the replay file was modified or corrupted');
+  if (checksumOf(log) !== raw.checksum)
+    fail('checksum mismatch: the replay file was modified or corrupted');
   return log;
 }
 

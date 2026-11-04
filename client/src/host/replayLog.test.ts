@@ -42,7 +42,10 @@ function mulberry32(seed: number): () => number {
 }
 
 /** Play pseudo-random legal moves from the same setup replayGame uses. Returns the accepted intents. */
-function playRandomly(steps: number, rand = mulberry32(7)): { intents: Intent[]; state: GameState } {
+function playRandomly(
+  steps: number,
+  rand = mulberry32(7),
+): { intents: Intent[]; state: GameState } {
   let state = createGameWithEvents(FIXTURE_CARDS, [FIXTURE_DECK_A, FIXTURE_DECK_B], SEED).state;
   const intents: Intent[] = [];
   for (let i = 0; i < steps; i++) {
@@ -65,7 +68,11 @@ function finishedGame(steps = 40) {
   const end = reduce(state, FIXTURE_CARDS, concede);
   if (!end.ok) throw new Error('concede must be accepted');
   const all = [...intents, concede];
-  const rec = new ReplayRecorder({ seed: SEED, decks: [FIXTURE_DECK_A, FIXTURE_DECK_B], hostSeat: 'p0' });
+  const rec = new ReplayRecorder({
+    seed: SEED,
+    decks: [FIXTURE_DECK_A, FIXTURE_DECK_B],
+    hostSeat: 'p0',
+  });
   for (const i of all) rec.record(i);
   rec.finish('p0');
   return { rec, all, final: end.state };
@@ -84,18 +91,31 @@ describe('ReplayRecorder', () => {
   });
 
   it('refuses to record after finish and to finish twice', () => {
-    const rec = new ReplayRecorder({ seed: SEED, decks: [FIXTURE_DECK_A, FIXTURE_DECK_B], hostSeat: 'p0' });
+    const rec = new ReplayRecorder({
+      seed: SEED,
+      decks: [FIXTURE_DECK_A, FIXTURE_DECK_B],
+      hostSeat: 'p0',
+    });
     rec.finish(null);
     expect(() => rec.record({ type: 'PASS_PRIORITY', playerId: 'p0' })).toThrow(/finish/);
     expect(() => rec.finish('p1')).toThrow(/already/);
   });
 
   it('rejects malformed intents and empty seeds', () => {
-    const rec = new ReplayRecorder({ seed: SEED, decks: [FIXTURE_DECK_A, FIXTURE_DECK_B], hostSeat: 'p0' });
-    expect(() => rec.record({ type: 'NOPE', playerId: 'p0' } as unknown as Intent)).toThrow(TypeError);
-    expect(() => rec.record({ type: 'END_TURN', playerId: 'p9' } as unknown as Intent)).toThrow(TypeError);
+    const rec = new ReplayRecorder({
+      seed: SEED,
+      decks: [FIXTURE_DECK_A, FIXTURE_DECK_B],
+      hostSeat: 'p0',
+    });
+    expect(() => rec.record({ type: 'NOPE', playerId: 'p0' } as unknown as Intent)).toThrow(
+      TypeError,
+    );
+    expect(() => rec.record({ type: 'END_TURN', playerId: 'p9' } as unknown as Intent)).toThrow(
+      TypeError,
+    );
     expect(
-      () => new ReplayRecorder({ seed: '', decks: [FIXTURE_DECK_A, FIXTURE_DECK_B], hostSeat: 'p0' }),
+      () =>
+        new ReplayRecorder({ seed: '', decks: [FIXTURE_DECK_A, FIXTURE_DECK_B], hostSeat: 'p0' }),
     ).toThrow(TypeError);
   });
 
@@ -115,7 +135,11 @@ describe('ReplayRecorder', () => {
   });
 
   it('exports an unfinished recording that imports as unfinished', () => {
-    const rec = new ReplayRecorder({ seed: SEED, decks: [FIXTURE_DECK_A, FIXTURE_DECK_B], hostSeat: 'p1' });
+    const rec = new ReplayRecorder({
+      seed: SEED,
+      decks: [FIXTURE_DECK_A, FIXTURE_DECK_B],
+      hostSeat: 'p1',
+    });
     rec.record({ type: 'PASS_PRIORITY', playerId: 'p0' });
     const imported = importReplay(rec.toJSON());
     expect(imported.ok && imported.log.finished).toBe(false);
@@ -172,7 +196,9 @@ describe('ReplayPlayer', () => {
 
     const end = player.stepTo(player.totalSteps);
     expect(end.hash).toBe(stateHash(final));
-    expect(end.hash).toBe(stateHash(replayGame(FIXTURE_CARDS, [...DECKS], SEED, rec.toLog().intents).state));
+    expect(end.hash).toBe(
+      stateHash(replayGame(FIXTURE_CARDS, [...DECKS], SEED, rec.toLog().intents).state),
+    );
     expect(end.state.gameStatus).toBe('FINISHED');
   });
 
@@ -184,13 +210,17 @@ describe('ReplayPlayer', () => {
 
     const atMid = player.stepTo(mid);
     expect(atMid.step).toBe(mid);
-    expect(atMid.hash).toBe(stateHash(replayGame(FIXTURE_CARDS, [...DECKS], SEED, log.intents.slice(0, mid)).state));
+    expect(atMid.hash).toBe(
+      stateHash(replayGame(FIXTURE_CARDS, [...DECKS], SEED, log.intents.slice(0, mid)).state),
+    );
 
     const atStart = player.stepTo(0);
     expect(atStart.hash).toBe(stateHash(replayGame(FIXTURE_CARDS, [...DECKS], SEED, []).state));
 
     expect(player.current().step).toBe(0);
-    expect(player.stepTo(player.totalSteps).hash).toBe(stateHash(replayGame(FIXTURE_CARDS, [...DECKS], SEED, log.intents).state));
+    expect(player.stepTo(player.totalSteps).hash).toBe(
+      stateHash(replayGame(FIXTURE_CARDS, [...DECKS], SEED, log.intents).state),
+    );
   });
 
   it('rejects out-of-range steps', () => {
@@ -209,7 +239,11 @@ describe('ReplayPlayer', () => {
   });
 
   it('refuses to play an unfinished game', () => {
-    const rec = new ReplayRecorder({ seed: SEED, decks: [FIXTURE_DECK_A, FIXTURE_DECK_B], hostSeat: 'p0' });
+    const rec = new ReplayRecorder({
+      seed: SEED,
+      decks: [FIXTURE_DECK_A, FIXTURE_DECK_B],
+      hostSeat: 'p0',
+    });
     rec.record({ type: 'PASS_PRIORITY', playerId: 'p0' });
     expect(() => new ReplayPlayer(FIXTURE_CARDS, rec.toLog())).toThrow(/in progress/);
   });

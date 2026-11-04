@@ -118,7 +118,8 @@ interface Armed extends Desired {
 }
 
 function assertPositive(name: string, v: number): void {
-  if (!Number.isFinite(v) || v <= 0) throw new RangeError(`${name} must be a positive number, got ${v}`);
+  if (!Number.isFinite(v) || v <= 0)
+    throw new RangeError(`${name} must be a positive number, got ${v}`);
 }
 
 export class TurnTimer {
@@ -227,10 +228,14 @@ export class TurnTimer {
 
   private describe(s: TimerSituation): Desired | null {
     if (s.gameOver) return null;
-    if (s.mulliganPlayer !== null) return { kind: 'MULLIGAN', player: s.mulliganPlayer, ms: this.mulliganMs };
-    if (s.combatAwaiting !== null) return { kind: 'ASSIGNMENT', player: s.combatAwaiting, ms: this.assignmentMs };
-    if (s.chainLength > 0 || s.showdown) return { kind: 'REACTION', player: s.actor, ms: this.reactionWindowMs };
-    if (s.phase === 'MAIN' && this.turnMs !== null) return { kind: 'TURN', player: s.actor, ms: this.turnMs };
+    if (s.mulliganPlayer !== null)
+      return { kind: 'MULLIGAN', player: s.mulliganPlayer, ms: this.mulliganMs };
+    if (s.combatAwaiting !== null)
+      return { kind: 'ASSIGNMENT', player: s.combatAwaiting, ms: this.assignmentMs };
+    if (s.chainLength > 0 || s.showdown)
+      return { kind: 'REACTION', player: s.actor, ms: this.reactionWindowMs };
+    if (s.phase === 'MAIN' && this.turnMs !== null)
+      return { kind: 'TURN', player: s.actor, ms: this.turnMs };
     return null;
   }
 
