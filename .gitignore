@@ -218,3 +218,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Riftbound local data and build output
+data/
+client/public/cards.json
+saves/
+*.tsbuildinfo
+.vite/
+playwright-report/
+test-results/
+
+node_modules/
