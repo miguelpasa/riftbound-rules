@@ -14,3 +14,4 @@ export * from './movement.js';
 export * from './showdown.js';
 export * from './combat.js';
 export * from './keywords.js';
+export * from './cleanup.js';
