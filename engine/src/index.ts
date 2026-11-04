@@ -19,3 +19,7 @@ export * from './reducer.js';
 export * from './validator.js';
 export * from './legalActions.js';
 export * from './invariants.js';
+export * from './replay.js';
+export * from './ai/determinize.js';
+export * from './ai/evaluate.js';
+export * from './ai/bot.js';

@@ -1,8 +1,6 @@
 import type { CardDatabase } from '@riftbound/engine';
 
-export type LoadCardsResult =
-  | { ok: true; cards: CardDatabase }
-  | { ok: false; message: string };
+export type LoadCardsResult = { ok: true; cards: CardDatabase } | { ok: false; message: string };
 
 const CARDS_URL = '/cards.json';
 const ALIASES_URL = '/card-aliases.json';

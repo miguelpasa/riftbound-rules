@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadCards } from './cards/loadCards';
+import { CardGallery } from './dev/CardGallery';
 import { dismissToast, setState, useGameStore } from './store/gameStore';
 
 const PLACEHOLDER_ACTIONS = ['Host Game', 'Join Game', 'Play vs AI', 'Tutorial'];
@@ -10,6 +11,7 @@ interface Banner {
 }
 
 export function App() {
+  if (new URLSearchParams(location.search).has('gallery')) return <CardGallery />;
   const status = useGameStore((s) => s.status);
   const toasts = useGameStore((s) => s.toasts);
   const [banner, setBanner] = useState<Banner | null>(null);
