@@ -26,6 +26,8 @@ export interface ChainItem {
   choices: Record<string, ChoiceValue>;
   /** Set when the effect text is not implemented (supportLevel 'partial'); resolves as a no-op + event. */
   unimplementedEffect?: boolean;
+  /** Triggered or Add ability: Focus does not pass when its chain resolves (Rules 340.2.a, 346.1). */
+  triggered?: boolean;
   /** For ABILITY items: index into the source's abilities. */
   abilityIndex?: number;
   /** Location chosen when playing a unit/gear. */
