@@ -47,6 +47,11 @@ export interface ShowdownState {
 }
 
 export interface CombatState {
+  /** Battlefield where this combat takes place (316.7). */
+  battlefieldId: string;
+  /** Attacker / Defender designations (466.2.c): attacker = player whose units applied Contested. */
+  attacker: PlayerId;
+  defender: PlayerId;
   step: 'SHOWDOWN' | 'DAMAGE' | 'RESOLUTION';
   /** Pending damage assignments, per damage-dealing player. */
   damageAssignment?: Partial<Record<PlayerId, { unitId: string; amount: number }[]>>;

@@ -145,7 +145,7 @@ describe('standardMove illegal moves', () => {
     sd.flow.showdown = { battlefieldId: 'bf0', isCombat: false, passesInRow: 0 };
     fails(sd, mv([grunt], BF('bf0')), 'MOVE_NOT_ALLOWED_IN_SHOWDOWN');
     const cb = structuredClone(s);
-    cb.flow.combat = { step: 'DAMAGE' };
+    cb.flow.combat = { step: 'DAMAGE', battlefieldId: 'bf0', attacker: 'p0', defender: 'p1' };
     fails(cb, mv([grunt], BF('bf0')), 'MOVE_NOT_ALLOWED_IN_SHOWDOWN');
   });
 

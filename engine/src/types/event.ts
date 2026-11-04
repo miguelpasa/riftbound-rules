@@ -15,6 +15,9 @@ export type GameEvent = EventBase &
     | { type: 'RUNE_CHANNELED'; player: PlayerId; runeId: string }
     | { type: 'PHASE_CHANGED'; player: PlayerId; turn: number; phase: Phase }
     | { type: 'CARD_PLAYED'; player: PlayerId; cardInstanceId: string; cardId: string }
+    | { type: 'CARD_HIDDEN'; player: PlayerId; battlefieldId: string }
+    | { type: 'FACEDOWN_REMOVED'; battlefieldId: string; cardId: string }
+    | { type: 'EQUIPPED'; equipmentId: string; unitId: string }
     | { type: 'CHAIN_ITEM_ADDED'; chainItemId: string; controller: PlayerId }
     | { type: 'CHAIN_ITEM_RESOLVED'; chainItemId: string }
     | { type: 'EFFECT_UNIMPLEMENTED'; cardId: string }

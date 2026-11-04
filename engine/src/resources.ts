@@ -34,6 +34,8 @@ export interface CostMod {
   energy?: number;
   /** Generic Power (any of the card's domains). */
   power?: number;
+  /** Power payable with any single domain (e.g. Deflect surcharge). */
+  anyPower?: number;
 }
 
 /**
@@ -99,6 +101,7 @@ export function computeTotalCost(card: CardDef, opts: ComputeCostOptions = {}): 
   for (const inc of opts.increases ?? []) {
     energy += inc.energy ?? 0;
     if (inc.power) addReq(power, genericPower(card, inc.power));
+    if (inc.anyPower) addReq(power, { domain: 'ANY', amount: inc.anyPower });
   }
   for (const dis of opts.discounts ?? []) {
     energy = Math.max(0, energy - (dis.energy ?? 0));

@@ -1,0 +1,362 @@
+/**
+ * MVP keywords owned by E10: Temporary, Hidden, Deflect, Equip, Quick-Draw (+ keyword helpers).
+ * (Tank, Backline, Assault, Shield live in combat.ts; Ganking in movement.ts; Accelerate in play.ts;
+ * Unique in deckValidation.ts.)
+ *
+ * Pure and isomorphic: every state-changing function structuredClones its input (or, where the
+ * name says "working", mutates the state the caller already owns).
+ *
+ * Decisions:
+ *  - Temporary (glossary): killed at the start of its controller's Beginning Phase, before Scoring.
+ *    Killed = moved to the OWNER's trash, UNIT_KILLED emitted, attached Equipment is detached.
+ *  - Hidden (811, 422.2.a): HIDE_CARD has no payment field, so the 1 Power (any domain) is paid with
+ *    `autoPlan`. A hidden card records `enteredTurn = turn.number`; it is playable only on a LATER
+ *    turn. From then it has Reaction and base cost 0 (additional costs such as Accelerate / Deflect
+ *    still apply). A unit played from the facedown zone enters at that battlefield.
+ *  - PRIVACY: hiding emits CARD_PLAYED with visibleTo:[controller] only. There is no public event
+ *    type without a cardId; the opponent learns of the facedown card from sanitized state.
+ *  - Deflect (809, 356.2.a.2): the surcharge is Power. `CostMod.power` is "generic Power of the
+ *    played card's domains", so it cannot yet express "any domain" (see report).
+ *  - Equip value is an ENERGY cost (missing value = 0). Equip has no payment field either: autoPlan.
+ *    Equip is an activated ability: your turn, Neutral Open, Main phase, with priority (145.2).
+ *  - Equipment Might bonus (137.3) = sum of attached Equipment `stats.might`; see attachedMightBonus.
+ *  - Quick-Draw: `quickDrawAttach` attaches (free) after the gear is in play; the Reaction speed
+ *    comes from the card's own Reaction keyword in CardDef.keywords.
+ */
+import { canPlayNow, deriveTurnState } from './chain.js';
+import type { ChainResolver } from './chain.js';
+import { playCard } from './play.js';
+import type { PlayHooks } from './play.js';
+import { autoPlan, payCost } from './resources.js';
+import type { CostMod, TotalCost } from './resources.js';
+import { stampEvents } from './setup.js';
+import { DEFERRED_KEYWORDS, MVP_KEYWORDS, playerIndex, ruleError } from './types/index.js';
+import type {
+  CardDatabase,
+  CardDef,
+  CardInstance,
+  EquipIntent,
+  GameEventInput,
+  GameState,
+  HideCardIntent,
+  KeywordName,
+  PlayCardIntent,
+  PlayerId,
+  ReduceResult,
+  Target,
+} from './types/index.js';
+
+// ---------------------------------------------------------------- helpers
+
+/** Which keywords the engine implements (consistent with MVP_KEYWORDS / DEFERRED_KEYWORDS). */
+export const KEYWORD_IMPLEMENTED: Record<KeywordName, boolean> = Object.fromEntries([
+  ...MVP_KEYWORDS.map((k) => [k, true]),
+  ...DEFERRED_KEYWORDS.map((k) => [k, false]),
+]) as Record<KeywordName, boolean>;
+
+export function hasKeyword(def: CardDef, name: KeywordName): boolean {
+  return def.keywords.some((k) => k.name === name);
+}
+
+/** Sum of the numeric values of every instance of `name` (stacking); 0 if absent or valueless. */
+export function keywordValue(def: CardDef, name: KeywordName): number {
+  return def.keywords.reduce((n, k) => (k.name === name ? n + (k.value ?? 0) : n), 0);
+}
+
+const isOnBoard = (o: CardInstance): boolean =>
+  o.zone.kind === 'base' || o.zone.kind === 'battlefield';
+
+function isUnitOnBoard(state: GameState, cards: CardDatabase, id: string): CardInstance | null {
+  const o = state.objects[id];
+  return o && isOnBoard(o) && cards[o.cardId]?.type === 'UNIT' ? o : null;
+}
+
+/** Detach every Equipment attached to `unitId` (mutates the working state). */
+function detachAll(state: GameState, unitId: string): void {
+  for (const o of Object.values(state.objects)) if (o.attachedTo === unitId) delete o.attachedTo;
+}
+
+// ---------------------------------------------------------------- Temporary
+
+/**
+ * PhaseHooks.onBeginning: kill the active player's Temporary units before Scoring.
+ * Order: ascending object number (deterministic).
+ */
+export function temporaryOnBeginning(
+  state: GameState,
+  cards: CardDatabase,
+): { state: GameState; events: GameEventInput[] } {
+  const s = structuredClone(state);
+  const events: GameEventInput[] = [];
+  const player = s.turn.activePlayer;
+  const doomed = Object.values(s.objects)
+    .filter((o) => {
+      const def = cards[o.cardId];
+      return (
+        o.controller === player &&
+        isOnBoard(o) &&
+        def?.type === 'UNIT' &&
+        hasKeyword(def, 'Temporary')
+      );
+    })
+    .sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));
+  for (const o of doomed) {
+    const from = s.players[playerIndex(o.zone.player)];
+    from.base = from.base.filter((id) => id !== o.id);
+    s.players[playerIndex(o.owner)].trash.push(o.id);
+    o.zone = { kind: 'trash', player: o.owner };
+    o.damage = 0;
+    o.mightBonus = 0;
+    detachAll(s, o.id);
+    events.push({ type: 'UNIT_KILLED', unitId: o.id });
+  }
+  return { state: s, events };
+}
+
+// ---------------------------------------------------------------- Hidden
+
+/** Stub def used to check "Neutral Open, my turn, Main, with priority" regardless of keywords. */
+const PLAIN_TIMING_DEF = { keywords: [] } as unknown as CardDef;
+
+/** HIDE_CARD (811, 422.2.a): pay 1 Power (any domain), hide a Hidden card from hand facedown. */
+export function hideCard(
+  state: GameState,
+  cards: CardDatabase,
+  intent: HideCardIntent,
+): ReduceResult {
+  const pid = intent.playerId;
+  const timing = canPlayNow(state, cards, pid, PLAIN_TIMING_DEF);
+  if (!timing.ok) return timing;
+  const ts = deriveTurnState(state);
+  if (ts.kind !== 'NEUTRAL' || !ts.open) {
+    return ruleError('WRONG_PHASE', 'hide only in a Neutral Open state');
+  }
+
+  const obj = state.objects[intent.cardInstanceId];
+  if (!obj) return ruleError('NOT_FOUND', `card ${intent.cardInstanceId}`);
+  const ps = state.players[playerIndex(pid)];
+  if (obj.zone.kind !== 'hand' || obj.zone.player !== pid || !ps.hand.includes(obj.id)) {
+    return ruleError('NOT_IN_HAND', `card ${obj.id}`);
+  }
+  const def = cards[obj.cardId];
+  if (!def) return ruleError('NOT_FOUND', `card definition ${obj.cardId}`);
+  if (!hasKeyword(def, 'Hidden')) return ruleError('HIDDEN_NOT_ALLOWED', 'card lacks Hidden');
+  const bf = state.battlefields.find((b) => b.id === intent.battlefieldId);
+  if (!bf) return ruleError('HIDDEN_NOT_ALLOWED', `battlefield ${intent.battlefieldId} not found`);
+  if (bf.controller !== pid) {
+    return ruleError('HIDDEN_NOT_ALLOWED', 'you do not control that battlefield');
+  }
+  if (bf.facedownSlotId !== null) {
+    return ruleError('HIDDEN_NOT_ALLOWED', 'that battlefield already has a facedown card');
+  }
+
+  const cost: TotalCost = { energy: 0, power: [{ domain: 'ANY', amount: 1 }] };
+  const plan = autoPlan(state, cards, pid, cost);
+  if (!plan) return ruleError('INSUFFICIENT_RESOURCES', 'hiding costs 1 Power');
+  const paid = payCost(state, cards, pid, cost, plan);
+  if (!paid.ok) return paid;
+
+  const s = paid.state;
+  const w = s.objects[obj.id] as CardInstance;
+  const p = s.players[playerIndex(pid)];
+  p.hand = p.hand.filter((id) => id !== w.id);
+  w.zone = { kind: 'facedown', player: pid, battlefieldId: bf.id };
+  w.facedown = true;
+  w.hidden = true;
+  w.enteredTurn = s.turn.number;
+  const sbf = s.battlefields.find((b) => b.id === bf.id);
+  if (sbf) sbf.facedownSlotId = w.id;
+  // Private to the controller: a public CARD_PLAYED would leak the cardId (see ASSUMPTIONS.md).
+  const events = stampEvents(s, [
+    {
+      type: 'CARD_PLAYED',
+      player: pid,
+      cardInstanceId: w.id,
+      cardId: w.cardId,
+      visibleTo: [pid],
+    } as GameEventInput,
+  ]);
+  return { ok: true, state: s, events };
+}
+
+/**
+ * Play a facedown Hidden card (PLAY_CARD with its id; payment normally empty). Legal only on a turn
+ * later than the one it was hidden on; it has Reaction and base cost 0. Reuses `playCard`.
+ */
+export function playHiddenCard(
+  state: GameState,
+  cards: CardDatabase,
+  intent: PlayCardIntent,
+  resolver?: ChainResolver,
+  hooks: PlayHooks = makePlayHooks(),
+): ReduceResult {
+  const pid = intent.playerId;
+  const obj = state.objects[intent.cardInstanceId];
+  if (!obj) return ruleError('NOT_FOUND', `card ${intent.cardInstanceId}`);
+  if (obj.zone.kind !== 'facedown') return ruleError('NOT_IN_HAND', 'card is not facedown');
+  if (obj.controller !== pid || obj.zone.player !== pid) return ruleError('NOT_OWNED', obj.id);
+  const def = cards[obj.cardId];
+  if (!def || !hasKeyword(def, 'Hidden')) {
+    return ruleError('HIDDEN_NOT_ALLOWED', 'card lacks Hidden');
+  }
+  if ((obj.enteredTurn ?? Infinity) >= state.turn.number) {
+    return ruleError('HIDDEN_NOT_ALLOWED', 'a hidden card is usable only on a later turn');
+  }
+  const bfId = obj.zone.battlefieldId;
+
+  const work = structuredClone(state);
+  const w = work.objects[obj.id] as CardInstance;
+  const bf = work.battlefields.find((b) => b.id === bfId);
+  if (bf?.facedownSlotId === w.id) bf.facedownSlotId = null;
+  w.zone = { kind: 'hand', player: pid };
+  delete w.facedown;
+  delete w.hidden;
+  work.players[playerIndex(pid)].hand.push(w.id);
+
+  // Gains Reaction; base cost reduced to 0 (additional costs still apply).
+  const patched: CardDatabase = {
+    ...cards,
+    [def.cardId]: {
+      ...def,
+      cost: { energy: 0 },
+      keywords: hasKeyword(def, 'Reaction')
+        ? def.keywords
+        : [...def.keywords, { name: 'Reaction' as const }],
+    },
+  };
+  const location: PlayCardIntent['location'] =
+    def.type === 'UNIT' ? { kind: 'battlefield', battlefieldId: bfId } : intent.location;
+  const adjusted: PlayCardIntent = { ...intent, ...(location ? { location } : {}) };
+  return playCard(work, patched, adjusted, resolver, hooks);
+}
+
+/**
+ * Cleanup helper for E9 (107.3.d, 318): facedown cards whose controller no longer controls their
+ * battlefield go to their owner's trash. Mutates the WORKING state; returns events (none exist
+ * for this yet, so always empty).
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function removeOrphanedFacedown(state: GameState, _cards: CardDatabase): GameEventInput[] {
+  for (const bf of state.battlefields) {
+    if (bf.facedownSlotId === null) continue;
+    const o = state.objects[bf.facedownSlotId];
+    if (o && o.zone.kind === 'facedown' && bf.controller === o.controller) continue;
+    bf.facedownSlotId = null;
+    if (!o) continue;
+    state.players[playerIndex(o.owner)].trash.push(o.id);
+    o.zone = { kind: 'trash', player: o.owner };
+    delete o.facedown;
+    delete o.hidden;
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------- Deflect
+
+/**
+ * Deflect N (809, 356.2.a.2): +N Power per Deflect instance on each targeted unit (on the board)
+ * controlled by an opponent of `playerId`. Instances and targets stack. Null if none apply.
+ * A Deflect keyword without a value counts as 1.
+ */
+export function deflectExtraCost(
+  state: GameState,
+  cards: CardDatabase,
+  playerId: PlayerId,
+  targets: Target[],
+): CostMod | null {
+  let total = 0;
+  const seen = new Set<string>();
+  for (const t of targets) {
+    if (t.kind !== 'object' || seen.has(t.id)) continue;
+    seen.add(t.id);
+    const o = isUnitOnBoard(state, cards, t.id);
+    if (!o || o.controller === playerId) continue;
+    const def = cards[o.cardId] as CardDef;
+    for (const k of def.keywords) if (k.name === 'Deflect') total += k.value ?? 1;
+  }
+  return total > 0 ? { anyPower: total } : null;
+}
+
+/** PlayHooks for `playCard` with the keyword surcharges (Deflect); `base` hooks are chained. */
+export function makePlayHooks(base: PlayHooks = {}): PlayHooks {
+  return {
+    extraCosts(state, cards, playerId, def, intent) {
+      const mine = deflectExtraCost(state, cards, playerId, intent.targets ?? []);
+      const other = base.extraCosts?.(state, cards, playerId, def, intent) ?? null;
+      if (!mine) return other;
+      if (!other) return mine;
+      return {
+        energy: (mine.energy ?? 0) + (other.energy ?? 0),
+        power: (mine.power ?? 0) + (other.power ?? 0),
+        anyPower: (mine.anyPower ?? 0) + (other.anyPower ?? 0),
+      };
+    },
+    onEnter(state, cards, objectId) {
+      return base.onEnter?.(state, cards, objectId) ?? [];
+    },
+  };
+}
+
+// ---------------------------------------------------------------- Equip / Quick-Draw
+
+/** EQUIP (818): attach (or move) Equipment you control to a unit you control. */
+export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent): ReduceResult {
+  const pid = intent.playerId;
+  const timing = canPlayNow(state, cards, pid, PLAIN_TIMING_DEF, { isAbility: true });
+  if (!timing.ok) return timing;
+  const eq = state.objects[intent.equipmentId];
+  const eqDef = eq ? cards[eq.cardId] : undefined;
+  if (!eq || !eqDef) return ruleError('NOT_FOUND', `equipment ${intent.equipmentId}`);
+  if (eq.controller !== pid) return ruleError('NOT_OWNED', eq.id);
+  if (
+    eqDef.type !== 'GEAR' ||
+    !eqDef.subtypes.includes('Equipment') ||
+    !hasKeyword(eqDef, 'Equip') ||
+    eq.zone.kind !== 'base'
+  ) {
+    return ruleError('EQUIP_ILLEGAL', 'not an Equipment with Equip on your board');
+  }
+  const unit = isUnitOnBoard(state, cards, intent.unitId);
+  if (!unit) return ruleError('EQUIP_ILLEGAL', 'target is not a unit on the board');
+  if (unit.controller !== pid) return ruleError('EQUIP_ILLEGAL', 'you do not control that unit');
+
+  const cost: TotalCost = { energy: keywordValue(eqDef, 'Equip'), power: [] };
+  const plan = autoPlan(state, cards, pid, cost);
+  if (!plan) return ruleError('INSUFFICIENT_RESOURCES', 'cannot pay Equip');
+  const paid = payCost(state, cards, pid, cost, plan);
+  if (!paid.ok) return paid;
+  (paid.state.objects[eq.id] as CardInstance).attachedTo = unit.id;
+  return { ok: true, state: paid.state, events: [] };
+}
+
+/** Quick-Draw: attach gear that just entered play to a unit you control, at no cost. */
+export function quickDrawAttach(
+  state: GameState,
+  cards: CardDatabase,
+  gearId: string,
+  unitId: string,
+): ReduceResult {
+  const gear = state.objects[gearId];
+  const def = gear ? cards[gear.cardId] : undefined;
+  if (!gear || !def) return ruleError('NOT_FOUND', `gear ${gearId}`);
+  if (def.type !== 'GEAR' || !hasKeyword(def, 'QuickDraw') || gear.zone.kind !== 'base') {
+    return ruleError('EQUIP_ILLEGAL', 'not a Quick-Draw gear on the board');
+  }
+  const unit = isUnitOnBoard(state, cards, unitId);
+  if (!unit || unit.controller !== gear.controller) {
+    return ruleError('EQUIP_ILLEGAL', 'target must be a unit you control');
+  }
+  const next = structuredClone(state);
+  (next.objects[gearId] as CardInstance).attachedTo = unitId;
+  return { ok: true, state: next, events: [] };
+}
+
+/** Might bonus (137.3) granted to `unitId` by attached Equipment that is on the board. */
+export function attachedMightBonus(state: GameState, cards: CardDatabase, unitId: string): number {
+  let bonus = 0;
+  for (const o of Object.values(state.objects)) {
+    if (o.attachedTo !== unitId || o.zone.kind !== 'base') continue;
+    bonus += cards[o.cardId]?.stats.might ?? 0;
+  }
+  return bonus;
+}

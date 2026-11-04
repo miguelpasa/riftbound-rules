@@ -43,7 +43,8 @@ export const RULE_ERROR_MESSAGES: Record<RuleErrorCode, string> = {
   UNIT_EXHAUSTED: '[Rule Error] That unit is exhausted. (Rule 140)',
   MOVE_NOT_ALLOWED_IN_SHOWDOWN:
     '[Rule Error] Standard Moves cannot be made during a Showdown. (Rule 144.1.c)',
-  ILLEGAL_MOVE_DESTINATION: '[Rule Error] That is not a legal destination for this move. (Rule 144)',
+  ILLEGAL_MOVE_DESTINATION:
+    '[Rule Error] That is not a legal destination for this move. (Rule 144)',
   INVALID_PAYMENT: '[Rule Error] The payment plan is invalid for this cost. (Rule 164.2)',
   DECK_ILLEGAL: '[Rule Error] The deck does not satisfy deck construction rules. (Rule 103)',
   MULLIGAN_ORDER: '[Rule Error] Mulligan decisions are made in turn order. (Rule 117)',

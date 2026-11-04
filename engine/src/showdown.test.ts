@@ -204,7 +204,7 @@ describe('showdownAfterPass and closing', () => {
     const deps: ShowdownDeps = {
       continueCombat: (st) => {
         const n = structuredClone(st);
-        n.flow.combat = { step: 'DAMAGE' };
+        n.flow.combat = { step: 'DAMAGE', battlefieldId: 'bf0', attacker: 'p0', defender: 'p1' };
         n.flow.priority = 'p1';
         return { state: n, events: [] };
       },

@@ -12,3 +12,5 @@ export * from './play.js';
 export * from './scoring.js';
 export * from './movement.js';
 export * from './showdown.js';
+export * from './combat.js';
+export * from './keywords.js';

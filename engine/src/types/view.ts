@@ -1,10 +1,4 @@
-import type {
-  BattlefieldState,
-  CardInstance,
-  GameState,
-  PlayerId,
-  PlayerState,
-} from './state.js';
+import type { BattlefieldState, CardInstance, GameState, PlayerId, PlayerState } from './state.js';
 
 /** Placeholder for a card the viewer may not see. */
 export interface HiddenCard {
@@ -26,11 +20,10 @@ export interface ClientPlayerState extends Omit<PlayerState, 'hand' | 'mainDeck'
 }
 
 /** GameState as seen by one player: no rng/seed, hidden info replaced. */
-export interface ClientGameState
-  extends Omit<
-    GameState,
-    'players' | 'objects' | 'rng' | 'seed' | 'battlefields' | 'nextObjectId' | 'nextEventSeq'
-  > {
+export interface ClientGameState extends Omit<
+  GameState,
+  'players' | 'objects' | 'rng' | 'seed' | 'battlefields' | 'nextObjectId' | 'nextEventSeq'
+> {
   viewer: PlayerId;
   players: [ClientPlayerState, ClientPlayerState];
   /** Opponent hand/mainDeck/runeDeck/facedown objects are HiddenCard. */
