@@ -229,3 +229,4 @@ playwright-report/
 test-results/
 
 node_modules/
+client/public/card-aliases.json

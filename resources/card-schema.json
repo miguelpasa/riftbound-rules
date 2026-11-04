@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://riftbound-rules/card-schema.json",
+  "title": "CardDef",
+  "type": "object",
+  "required": ["cardId", "name", "type", "cost"],
+  "additionalProperties": false,
+  "properties": {
+    "cardId": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "subtitle": { "type": "string" },
+    "type": { "enum": ["UNIT", "SPELL", "GEAR", "LEGEND", "RUNE", "BATTLEFIELD", "TOKEN"] },
+    "subtypes": { "type": "array", "items": { "type": "string" } },
+    "cost": {
+      "type": "object",
+      "required": ["energy"],
+      "additionalProperties": false,
+      "properties": {
+        "energy": { "type": "integer", "minimum": 0 },
+        "power": { "type": "integer", "minimum": 0 },
+        "domain": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["element", "amount"],
+            "additionalProperties": false,
+            "properties": {
+              "element": { "enum": ["Fury", "Calm", "Mind", "Body", "Chaos", "Order"] },
+              "amount": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "domains": {
+      "type": "array",
+      "items": { "enum": ["Fury", "Calm", "Mind", "Body", "Chaos", "Order"] }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "might": { "type": "integer" },
+        "health": { "type": "integer" }
+      }
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "enum": [
+              "Action", "Reaction", "Tank", "Backline", "Assault", "Shield", "Ganking",
+              "Accelerate", "Temporary", "Hidden", "Deflect", "Unique", "Equip", "QuickDraw",
+              "Deathknell", "Legion", "Level", "Hunt", "Flow", "Repeat", "Predict", "ShowOff",
+              "Weaponmaster", "Empower", "Deploy", "Vision", "Disarm"
+            ]
+          },
+          "value": { "type": "integer" }
+        }
+      }
+    },
+    "text": { "type": "string" },
+    "supportLevel": { "enum": ["full", "partial"] },
+    "imageUrl": { "type": "string" }
+  }
+}

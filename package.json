@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",
+    "test:scripts": "vitest run scripts",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",
