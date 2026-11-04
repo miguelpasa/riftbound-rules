@@ -74,6 +74,19 @@ export function createGameWithEvents(
   decks: [DeckList, DeckList],
   seed: string,
 ): { state: GameState; events: GameEvent[] } {
+  const { state, events } = createGameWithSeating(cards, decks, seed);
+  return { state, events };
+}
+
+/**
+ * Like `createGameWithEvents`, but also reports which seat each input deck ended up in (the first
+ * player is always p0, so the decklists may be swapped): `seatOfDeck[i]` is the seat of `decks[i]`.
+ */
+export function createGameWithSeating(
+  cards: CardDatabase,
+  decks: [DeckList, DeckList],
+  seed: string,
+): { state: GameState; events: GameEvent[]; seatOfDeck: [PlayerId, PlayerId] } {
   decks.forEach((deck, i) => {
     const res = validateDeck(cards, deck);
     if (!res.ok) throw new Error(`Deck ${i} is illegal: ${res.errors.join(' ')}`);
@@ -105,8 +118,9 @@ export function createGameWithEvents(
   };
 
   // 115: choose the first player at random; the first player is always seat p0.
-  const ordered: [DeckList, DeckList] =
-    rngInt(state, 2) === 0 ? [decks[0], decks[1]] : [decks[1], decks[0]];
+  const swapped = rngInt(state, 2) !== 0;
+  const ordered: [DeckList, DeckList] = swapped ? [decks[1], decks[0]] : [decks[0], decks[1]];
+  const seatOfDeck: [PlayerId, PlayerId] = swapped ? ['p1', 'p0'] : ['p0', 'p1'];
 
   const create = (cardId: string, owner: PlayerId, zone: ZoneRef): string => {
     const id = allocObjectId(state);
@@ -149,7 +163,7 @@ export function createGameWithEvents(
   const inputs: GameEventInput[] = [];
   for (const pid of PLAYER_IDS) inputs.push(...drawFromTop(state, pid, HAND_SIZE));
   const events = stampEvents(state, inputs);
-  return { state, events };
+  return { state, events, seatOfDeck };
 }
 
 /** Create a game in the MULLIGAN phase. See file header for conventions. */
