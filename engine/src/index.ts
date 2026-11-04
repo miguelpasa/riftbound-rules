@@ -10,3 +10,5 @@ export * from './burnout.js';
 export * from './phases.js';
 export * from './play.js';
 export * from './scoring.js';
+export * from './movement.js';
+export * from './showdown.js';
