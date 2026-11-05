@@ -41,6 +41,9 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   },
   EFFECT_READIED: { seq: 34, type: 'EFFECT_READIED', unitId: 'o1' },
   EFFECT_FIZZLED: { seq: 33, type: 'EFFECT_FIZZLED', cardId: 'fx-flare' },
+  EFFECT_STUNNED: { seq: 35, type: 'EFFECT_STUNNED', unitId: 'o1' },
+  EFFECT_COUNTERED: { seq: 36, type: 'EFFECT_COUNTERED', cardId: 'fx-flare' },
+  GEAR_KILLED: { seq: 37, type: 'GEAR_KILLED', gearId: 'o1' },
   EFFECT_UNIMPLEMENTED: { seq: 10, type: 'EFFECT_UNIMPLEMENTED', cardId: 'fx-odd-reaction' },
   UNIT_MOVED: { seq: 11, type: 'UNIT_MOVED', unitId: myCard.id, from: 'base', to: 'bf0' },
   SHOWDOWN_STARTED: { seq: 12, type: 'SHOWDOWN_STARTED', battlefieldId: 'bf1', isCombat: true },
@@ -83,6 +86,20 @@ describe('describeEvent', () => {
       `You played ${SCENARIO_CARDS['fx-grunt']!.name}.`,
     );
     expect(describeEvent(SAMPLES.GAME_ENDED, view, SCENARIO_CARDS)).toContain('the opponent wins');
+  });
+
+  it('words a negative Might change and the new effect events', () => {
+    expect(
+      describeEvent(
+        { seq: 40, type: 'EFFECT_BUFF', unitId: 'o1', amount: -2 },
+        view,
+        SCENARIO_CARDS,
+      ),
+    ).toBe('A unit got -2 Might.');
+    expect(describeEvent(SAMPLES.EFFECT_COUNTERED, view, SCENARIO_CARDS)).toBe(
+      `${SCENARIO_CARDS['fx-flare']!.name} was countered.`,
+    );
+    expect(describeEvent(SAMPLES.EFFECT_STUNNED, view, SCENARIO_CARDS)).toContain('stunned');
   });
 
   it('never names an opponent hand card (redacted draw id)', () => {

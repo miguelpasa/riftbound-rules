@@ -1,7 +1,8 @@
 /** Saved games list (resume / watch replay / delete / import) and the replay viewer. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { reduce, sanitizeEvents } from '@riftbound/engine';
-import type { CardDatabase, GameEvent, PlayerId } from '@riftbound/engine';
+import { sanitizeEvents } from '@riftbound/engine';
+import type { CardDatabase, PlayerId } from '@riftbound/engine';
+import { describeEvent, isLoggedEvent } from '../game/describeEvent';
 import { GameScreen } from '../game/GameScreen';
 import type { GameSummary } from '../host/persistence';
 import { ReplayPlayer, downloadReplay, importReplay, type RecordedReplay } from '../host/replayLog';
@@ -40,24 +41,37 @@ export function ReplayViewer({ cards, log, onClose }: ReplayViewerProps) {
   return <ReplayBody player={made.player} cards={cards} log={log} onClose={onClose} />;
 }
 
+/** One line of the replay event list: the step it belongs to and its readable text. */
+interface ReplayLogLine {
+  key: string;
+  step: number;
+  text: string;
+}
+
 function ReplayBody({ player, cards, log, onClose }: ReplayViewerProps & { player: ReplayPlayer }) {
   const [step, setStep] = useState(player.totalSteps);
   const [seat, setSeat] = useState<PlayerId>(log.hostSeat);
   const total = player.totalSteps;
+  const logRef = useRef<HTMLOListElement>(null);
 
-  const frame = useMemo(() => {
-    let events: GameEvent[] = [];
-    if (step > 0) {
-      const prev = player.stepTo(step - 1).state;
-      const r = reduce(prev, cards, log.intents[step - 1]!);
-      if (r.ok) events = r.events;
-      player.stepTo(step);
-    } else player.stepTo(0);
-    return { events, step };
-  }, [player, step, cards, log]);
+  // Keep the player's cursor on `step`; the view and the state hash read from it.
+  player.stepTo(step);
+
+  const view = useMemo(() => player.viewFor(seat), [player, seat, step]);
+
+  // Every event of every step up to the current one, seat-filtered, in order.
+  const replayLines = useMemo<ReplayLogLine[]>(() => {
+    const lines: ReplayLogLine[] = [];
+    for (let s = 1; s <= step; s++) {
+      for (const e of sanitizeEvents(player.eventsOf(s), seat)) {
+        if (!isLoggedEvent(e)) continue;
+        lines.push({ key: `${s}:${e.seq}`, step: s, text: describeEvent(e, view, cards) });
+      }
+    }
+    return lines;
+  }, [player, step, seat, view, cards]);
 
   const api = useMemo<GameApi>(() => {
-    const view = player.viewFor(seat);
     // Hide the interactive mulligan modal: this is a read-only viewer.
     const patched =
       view.mulligan && view.turn.phase === 'MULLIGAN'
@@ -68,7 +82,8 @@ function ReplayBody({ player, cards, log, onClose }: ReplayViewerProps & { playe
       seat,
       view: patched,
       legal: [],
-      recentEvents: sanitizeEvents(frame.events, seat),
+      // The events of the current step only: GameScreen's own log is built from these.
+      recentEvents: sanitizeEvents(player.eventsOf(step), seat),
       connection: 'connected',
       opponentConnected: true,
       gameOver: null,
@@ -78,8 +93,12 @@ function ReplayBody({ player, cards, log, onClose }: ReplayViewerProps & { playe
         message: '[Rule Error] This is a replay; nothing can be played.',
       }),
     };
-    // frame.step ties the memo to the stepped state
-  }, [player, seat, cards, frame]);
+  }, [player, seat, cards, view, step]);
+
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [replayLines.length]);
 
   return (
     <>
@@ -93,68 +112,88 @@ function ReplayBody({ player, cards, log, onClose }: ReplayViewerProps & { playe
           }
         />
       </GameProvider>
-      <div
-        role="group"
-        aria-label="Replay controls"
-        className="fixed inset-x-0 bottom-0 z-[60] flex flex-wrap items-center gap-3 border-t border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded border border-slate-600 px-2 py-1"
+      <div className="fixed inset-x-0 bottom-0 z-[60] flex flex-col">
+        <section
+          aria-label="Replay event list"
+          className="max-h-40 overflow-y-auto border-t border-slate-700 bg-slate-950/95 px-4 py-2 text-xs text-slate-300"
         >
-          Close
-        </button>
-        <button
-          type="button"
-          aria-label="Previous step"
-          disabled={step <= 0}
-          onClick={() => setStep(step - 1)}
-          className="rounded bg-slate-700 px-2 py-1 disabled:opacity-40"
+          {replayLines.length === 0 ? (
+            <p className="text-slate-500">No events yet. Step forward to see what happened.</p>
+          ) : (
+            <ol ref={logRef} data-testid="replay-event-list" className="flex flex-col gap-0.5">
+              {replayLines.map((l) => (
+                <li key={l.key}>
+                  <span className="mr-2 text-slate-500">Step {l.step}</span>
+                  {l.text}
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+        <div
+          role="group"
+          aria-label="Replay controls"
+          className="flex flex-wrap items-center gap-3 border-t border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100"
         >
-          {'◀'}
-        </button>
-        <input
-          type="range"
-          aria-label="Replay step"
-          min={0}
-          max={total}
-          value={step}
-          onChange={(e) => setStep(Number(e.target.value))}
-          className="min-w-40 flex-1"
-        />
-        <button
-          type="button"
-          aria-label="Next step"
-          disabled={step >= total}
-          onClick={() => setStep(step + 1)}
-          className="rounded bg-slate-700 px-2 py-1 disabled:opacity-40"
-        >
-          {'▶'}
-        </button>
-        <span data-testid="replay-step">
-          Step {step} / {total}
-        </span>
-        <label className="flex items-center gap-1">
-          View as
-          <select
-            value={seat}
-            onChange={(e) => setSeat(e.target.value as PlayerId)}
-            className="rounded border border-slate-600 bg-slate-950 px-1 py-0.5"
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border border-slate-600 px-2 py-1"
           >
-            <option value="p0">Player 1</option>
-            <option value="p1">Player 2</option>
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            if (!downloadReplay(log)) pushToastOnce('Downloads are not available in this browser.');
-          }}
-          className="rounded bg-slate-700 px-2 py-1"
-        >
-          Export replay
-        </button>
+            Close
+          </button>
+          <button
+            type="button"
+            aria-label="Previous step"
+            disabled={step <= 0}
+            onClick={() => setStep(step - 1)}
+            className="rounded bg-slate-700 px-2 py-1 disabled:opacity-40"
+          >
+            {'◀'}
+          </button>
+          <input
+            type="range"
+            aria-label="Replay step"
+            min={0}
+            max={total}
+            value={step}
+            onChange={(e) => setStep(Number(e.target.value))}
+            className="min-w-40 flex-1"
+          />
+          <button
+            type="button"
+            aria-label="Next step"
+            disabled={step >= total}
+            onClick={() => setStep(step + 1)}
+            className="rounded bg-slate-700 px-2 py-1 disabled:opacity-40"
+          >
+            {'▶'}
+          </button>
+          <span data-testid="replay-step">
+            Step {step} / {total}
+          </span>
+          <label className="flex items-center gap-1">
+            View as
+            <select
+              value={seat}
+              onChange={(e) => setSeat(e.target.value as PlayerId)}
+              className="rounded border border-slate-600 bg-slate-950 px-1 py-0.5"
+            >
+              <option value="p0">Player 1</option>
+              <option value="p1">Player 2</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              if (!downloadReplay(log))
+                pushToastOnce('Downloads are not available in this browser.');
+            }}
+            className="rounded bg-slate-700 px-2 py-1"
+          >
+            Export replay
+          </button>
+        </div>
       </div>
     </>
   );

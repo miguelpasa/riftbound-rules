@@ -10,7 +10,7 @@
   "scripts": {
     "test": "npm test --workspaces --if-present",
     "test:scripts": "vitest run scripts",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b --clean && tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",
     "check:rules": "node scripts/check-rule-citations.mjs",

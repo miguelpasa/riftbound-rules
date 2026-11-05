@@ -20,7 +20,7 @@
  * Note for E10 (keywords): a facedown Hidden card must NOT emit a public CARD_PLAYED (it would leak
  * cardId, see docs/ASSUMPTIONS.md); Hidden uses HIDE_CARD, not this pipeline.
  */
-import { isLegalEffectTarget, runEffects, targetedEffect } from './effects.js';
+import { runEffects, spellTargetsLegal } from './effects.js';
 import { canPlayNow, finalizeAndSettle, pushPendingItem } from './chain.js';
 import type { ChainResolver } from './chain.js';
 import { computeTotalCost, payCost } from './resources.js';
@@ -241,13 +241,8 @@ export function playCard(
   }
 
   // Spells with targeted effects need a legal unit target (R2).
-  const tEffect = def.type === 'SPELL' ? targetedEffect(def.effects) : undefined;
-  if (tEffect) {
-    const pick = targets.find((t) => t.kind === 'object');
-    const o = pick?.kind === 'object' ? state.objects[pick.id] : undefined;
-    if (!isLegalEffectTarget(state, cards, pid, tEffect, o)) {
-      return ruleError('ILLEGAL_TARGET', 'this spell needs a legal unit target (355.10)');
-    }
+  if (def.type === 'SPELL' && !spellTargetsLegal(state, cards, pid, def.effects, targets)) {
+    return ruleError('ILLEGAL_TARGET', 'this spell needs legal targets (355.10)');
   }
 
   // Quick-Draw gear attaches to a unit its controller controls as it enters play, so that unit is

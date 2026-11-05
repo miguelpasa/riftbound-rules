@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   PROTOCOL_VERSION,
   ENGINE_VERSION,
@@ -622,5 +622,40 @@ describe('solo bot', () => {
     expect(calls).toBe(0);
     await flush();
     expect(calls).toBe(1);
+  });
+
+  // Tests: a bot loop that never makes progress (every action "succeeds" but the turn never changes)
+  // is stopped by the per-turn cap, with one warning and one stall message, and does not keep running.
+  it('stops a bot that never ends its turn, once, with a warning', async () => {
+    const host = soloHost('solo-stuck');
+    // Simulate the no-progress loop: applying a bot action reports success but changes nothing.
+    const hostInternals = host as unknown as { apply: () => { ok: boolean } };
+    vi.spyOn(hostInternals, 'apply').mockReturnValue({ ok: true });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const stalled: string[] = [];
+    let calls = 0;
+    host.attachBot(
+      {
+        decide: () => {
+          calls++;
+          return legal(host, host.guestSeat)[0] ?? null;
+        },
+      },
+      { delayMs: 0, maxActionsPerTurn: 10, onStalled: (m) => stalled.push(m) },
+    );
+    // Let the bot run for several macrotasks; a working cap stops it long before that.
+    for (let i = 0; i < 5; i++) await flush();
+    const callsAtStop = calls;
+    for (let i = 0; i < 5; i++) await flush();
+    try {
+      expect(calls).toBe(callsAtStop); // no more bot decisions after the stop
+      expect(calls).toBeLessThanOrEqual(11); // at most cap + 1 decisions
+      expect(stalled).toHaveLength(1);
+      expect(stalled[0]).toContain('without the turn changing');
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+      vi.restoreAllMocks();
+    }
   });
 });

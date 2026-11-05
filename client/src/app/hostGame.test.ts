@@ -5,7 +5,7 @@ import {
   FIXTURE_DECK_A,
   FIXTURE_DECK_B,
 } from '../../../engine/src/testing/fixtures.js';
-import { MemoryGameStorage } from '../host/persistence';
+import { MemoryGameStorage, startPersistedHost } from '../host/persistence';
 import { GuestSession, type KeyValueStorage } from '../net/guestSession';
 import { FakeBroker } from '../net/fakePeer';
 import { connectGuestPeer } from '../net/peerTransport';
@@ -172,5 +172,66 @@ describe('solo and resume', () => {
     const { env } = makeEnv(new FakeBroker());
     const res = await resumeSavedGame(env, 'nope', { timersEnabled: false });
     expect(res).toMatchObject({ ok: false });
+  });
+
+  it('saves the solo difficulty in the header so Resume keeps it', async () => {
+    const broker = new FakeBroker();
+    const { env, storage } = makeEnv(broker);
+    const bots: string[] = [];
+    env.createBot = (o) => {
+      bots.push(o.difficulty);
+      return { decide: () => null };
+    };
+    const game = startSoloGame(env, {
+      deck: FIXTURE_DECK_A,
+      botDeck: FIXTURE_DECK_B,
+      difficulty: 'easy',
+      seed: 'difficulty-test',
+      timersEnabled: false,
+    });
+    cleanups.push(() => game.dispose());
+    await game.dispose();
+    const [summary] = await storage.listGames();
+    expect(summary).toBeDefined();
+    const loaded = await storage.loadGame(summary!.gameId);
+    expect(loaded?.header.difficulty).toBe('easy');
+
+    // Resume without passing a difficulty: the saved one is used.
+    const res = await resumeSavedGame(env, summary!.gameId, { timersEnabled: false });
+    expect(res.ok).toBe(true);
+    if (res.ok) cleanups.push(() => res.game.dispose());
+    expect(bots).toEqual(['easy', 'easy']);
+  });
+
+  it('an old save without a difficulty in its header still resumes (falls back to the option)', async () => {
+    const broker = new FakeBroker();
+    const { env, storage } = makeEnv(broker);
+    const bots: string[] = [];
+    env.createBot = (o) => {
+      bots.push(o.difficulty);
+      return { decide: () => null };
+    };
+    // Written without the field, the way a save from before R21 looks.
+    const { session, persister } = startPersistedHost({
+      cards: FIXTURE_CARDS,
+      hostDeck: FIXTURE_DECK_A,
+      guestDeck: FIXTURE_DECK_B,
+      seed: 'old-save',
+      mode: 'SOLO',
+      storage,
+    });
+    await persister?.dispose();
+    session.dispose();
+    const [summary] = await storage.listGames();
+    const loaded = await storage.loadGame(summary!.gameId);
+    expect(loaded?.header.difficulty).toBeUndefined();
+
+    const res = await resumeSavedGame(env, summary!.gameId, {
+      timersEnabled: false,
+      difficulty: 'easy',
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) cleanups.push(() => res.game.dispose());
+    expect(bots[0]).toBe('easy');
   });
 });

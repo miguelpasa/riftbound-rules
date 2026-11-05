@@ -19,8 +19,9 @@
 import {
   ENGINE_VERSION,
   canonicalJson,
+  createGameWithEvents,
   hashString,
-  playLog,
+  reduce,
   replayGame,
   resumeGame,
   sanitizeFor,
@@ -28,6 +29,7 @@ import {
   type CardDatabase,
   type ClientGameState,
   type DeckList,
+  type GameEvent,
   type GameState,
   type Intent,
   type PlayerId,
@@ -326,6 +328,8 @@ export interface ReplayFrame {
 export class ReplayPlayer {
   private readonly cards: CardDatabase;
   private readonly log: RecordedReplay;
+  /** `stepEvents[i]` = every event produced by intent i+1 (the step that leads to position i+1). */
+  private readonly stepEvents: GameEvent[][];
   private step: number;
   private state: GameState;
   private hashCache: string | null = null;
@@ -334,18 +338,44 @@ export class ReplayPlayer {
     if (!log.finished) {
       throw new Error('ReplayPlayer only plays finished games; this game is still in progress');
     }
-    const full = playLog(cards, log);
-    if (full.state.gameStatus === 'IN_PROGRESS') {
+    if (log.engineVersion !== ENGINE_VERSION) {
+      throw new Error(
+        `Replay log was recorded with engine ${log.engineVersion}, this is engine ${ENGINE_VERSION}`,
+      );
+    }
+    // One pass over the log, keeping the events of every step (the same loop replayGame runs).
+    let state = createGameWithEvents(cards, log.decks, log.seed).state;
+    const stepEvents: GameEvent[][] = [];
+    log.intents.forEach((intent, i) => {
+      const r = reduce(state, cards, intent);
+      if (!r.ok) {
+        throw new Error(`replay diverged at intent #${i + 1}: ${r.code} ${r.message}`);
+      }
+      state = r.state;
+      stepEvents.push(r.events);
+    });
+    if (state.gameStatus === 'IN_PROGRESS') {
       throw new Error('replay is marked finished but the replayed game is still in progress');
     }
     this.cards = cards;
     this.log = log;
+    this.stepEvents = stepEvents;
     this.step = log.intents.length;
-    this.state = full.state;
+    this.state = state;
   }
 
   get totalSteps(): number {
     return this.log.intents.length;
+  }
+
+  /**
+   * All events of one step (1..totalSteps): the events the intent with that number produced, in
+   * `seq` order, including Cleanup and triggered abilities. Empty for step 0 or an out-of-range step.
+   * Independent of the cursor, so the viewer can list the full history.
+   */
+  eventsOf(step: number): GameEvent[] {
+    if (!Number.isInteger(step) || step < 1 || step > this.totalSteps) return [];
+    return this.stepEvents[step - 1] ?? [];
   }
 
   /** Move to the position after `n` intents (0..totalSteps). */

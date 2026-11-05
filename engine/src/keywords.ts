@@ -14,8 +14,9 @@
  *    `autoPlan`. A hidden card records `enteredTurn = turn.number`; it is playable only on a LATER
  *    turn. From then it has Reaction and base cost 0 (additional costs such as Accelerate / Deflect
  *    still apply). A unit played from the facedown zone enters at that battlefield.
- *  - PRIVACY: hiding emits CARD_PLAYED with visibleTo:[controller] only. There is no public event
- *    type without a cardId; the opponent learns of the facedown card from sanitized state.
+ *  - PRIVACY: hiding emits CARD_PLAYED with visibleTo:[controller] (the cardId stays private) and a
+ *    public CARD_HIDDEN {player, battlefieldId} with no card id, so both players' logs can say that
+ *    a card was hidden there.
  *  - Deflect (809, 356.2.a.2): the surcharge is Power. `CostMod.power` is "generic Power of the
  *    played card's domains", so it cannot yet express "any domain" (see report).
  *  - Equip value is an ENERGY cost (missing value = 0). Equip has no payment field either: autoPlan.
@@ -193,6 +194,7 @@ export function hideCard(
   const sbf = s.battlefields.find((b) => b.id === bf.id);
   if (sbf) sbf.facedownSlotId = w.id;
   // Private to the controller: a public CARD_PLAYED would leak the cardId (see ASSUMPTIONS.md).
+  // The public CARD_HIDDEN carries no card id: the opponent learns that a card was hidden there.
   const events = stampEvents(s, [
     {
       type: 'CARD_PLAYED',
@@ -201,6 +203,7 @@ export function hideCard(
       cardId: w.cardId,
       visibleTo: [pid],
     } as GameEventInput,
+    { type: 'CARD_HIDDEN', player: pid, battlefieldId: bf.id } as GameEventInput,
   ]);
   return { ok: true, state: s, events };
 }

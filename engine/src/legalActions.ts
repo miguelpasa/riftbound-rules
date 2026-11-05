@@ -23,7 +23,7 @@
  * (PASS_PRIORITY, END_TURN, the combat assignment) are always kept and the rest is truncated.
  */
 import { autoAssign } from './combat.js';
-import { isLegalEffectTarget, targetedEffect } from './effects.js';
+import { enumerateSpellTargets } from './effects.js';
 import { applyIntent, reduce } from './reducer.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
 import { playerIndex } from './types/constants.js';
@@ -86,14 +86,6 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     )
     .sort(byNum);
 
-  const allUnits = Object.values(state.objects)
-    .filter(
-      (o) =>
-        (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
-        cards[o.cardId]?.type === 'UNIT',
-    )
-    .sort(byNum);
-
   for (const obj of sources) {
     const def = cards[obj.cardId];
     if (!def || UNPLAYABLE.has(def.type)) continue;
@@ -113,12 +105,8 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     const targetOptions: (Target[] | undefined)[] =
       def.type === 'GEAR' && hasKw(def, 'QuickDraw') && myUnits.length > 0
         ? myUnits.map((u) => [{ kind: 'object' as const, id: u.id }])
-        : targetedEffect(def.effects)
-          ? allUnits
-              .filter((u) =>
-                isLegalEffectTarget(state, cards, pid, targetedEffect(def.effects)!, u),
-              )
-              .map((u) => [{ kind: 'object' as const, id: u.id }])
+        : def.type === 'SPELL'
+          ? (enumerateSpellTargets(state, cards, pid, def.effects) ?? [undefined])
           : [undefined];
     for (const accelerate of accelOptions) {
       const plan: PaymentPlan | null = autoPlan(

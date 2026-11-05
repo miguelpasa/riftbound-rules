@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardDatabase } from '@riftbound/engine';
 import { buildPresetDecks } from './decks/presets';
 import { FIXTURE_CARDS, FIXTURE_PRESETS } from './decks/fixtureDecks';
 import { CardImagesProvider, ImageToggle } from './components/CardImages';
 import { Toasts } from './components/Toasts';
-import { CardGallery } from './dev/CardGallery';
-import { MockGameScreen } from './dev/mockGame';
 import type { GameStorage } from './host/persistence';
-import { TutorialApp } from './tutorial/TutorialApp';
 import {
   AppContextProvider,
   defaultDeps,
@@ -18,10 +15,24 @@ import {
 import { HostFlow, JoinFlow, Panel, SoloFlow } from './app/Flows';
 import { GameView, timerStore, type ActiveGame } from './app/GameView';
 import type { HostEnv } from './app/hostGame';
-import { SavedGamesScreen } from './app/Replays';
 import { loadSettings, saveSettings, type AppSettings } from './app/settings';
 import { errorText, pushToastOnce } from './app/toastUtil';
 import { setState, useGameStore } from './store/gameStore';
+
+// The tutorial and the saved-games / replay screens are rarely opened, so they load on first use.
+const TutorialApp = lazy(() =>
+  import('./tutorial/TutorialApp').then((m) => ({ default: m.TutorialApp })),
+);
+const SavedGamesScreen = lazy(() =>
+  import('./app/Replays').then((m) => ({ default: m.SavedGamesScreen })),
+);
+// Developer screens, reached only through ?gallery and ?mock.
+const CardGallery = lazy(() =>
+  import('./dev/CardGallery').then((m) => ({ default: m.CardGallery })),
+);
+const MockGameScreen = lazy(() =>
+  import('./dev/mockGame').then((m) => ({ default: m.MockGameScreen })),
+);
 
 type Screen = 'menu' | 'host' | 'join' | 'solo' | 'tutorial' | 'replays' | 'game' | 'settings';
 
@@ -34,8 +45,20 @@ export interface AppProps {
 
 export function App({ deps }: AppProps = {}) {
   const params = new URLSearchParams(location.search);
-  if (params.has('gallery')) return <CardGallery />;
-  if (params.has('mock')) return <MockGameScreen />;
+  if (params.has('gallery')) {
+    return (
+      <Suspense fallback={<p className="p-4 text-slate-400">Loading...</p>}>
+        <CardGallery />
+      </Suspense>
+    );
+  }
+  if (params.has('mock')) {
+    return (
+      <Suspense fallback={<p className="p-4 text-slate-400">Loading...</p>}>
+        <MockGameScreen />
+      </Suspense>
+    );
+  }
   return <MainApp deps={deps} />;
 }
 
@@ -158,7 +181,11 @@ function MainApp({ deps: override }: AppProps) {
   if (screen === 'game' && active && ctx) {
     body = <GameView active={active} onLeave={leave} />;
   } else if (screen === 'tutorial') {
-    body = <TutorialApp onExit={toMenu} />;
+    body = (
+      <Suspense fallback={<p className="p-4 text-slate-400">Loading...</p>}>
+        <TutorialApp onExit={toMenu} />
+      </Suspense>
+    );
   } else if (ctx && screen === 'host') {
     body = <HostFlow onBack={toMenu} onGame={onGame} />;
   } else if (ctx && screen === 'join') {
@@ -166,7 +193,11 @@ function MainApp({ deps: override }: AppProps) {
   } else if (ctx && screen === 'solo') {
     body = <SoloFlow onBack={toMenu} onGame={onGame} />;
   } else if (ctx && screen === 'replays') {
-    body = <SavedGamesScreen onBack={toMenu} onGame={onGame} />;
+    body = (
+      <Suspense fallback={<p className="p-4 text-slate-400">Loading...</p>}>
+        <SavedGamesScreen onBack={toMenu} onGame={onGame} />
+      </Suspense>
+    );
   } else if (screen === 'settings') {
     body = <SettingsPanel settings={settings} onChange={setSettings} onBack={toMenu} />;
   } else {

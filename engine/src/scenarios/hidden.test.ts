@@ -34,6 +34,11 @@ describe('scenario: Hidden (Rule 811)', () => {
     const mine = sanitizeEvents(r.events, 'p0');
     expect(mine.some((e) => e.type === 'CARD_PLAYED' && e.cardId === SC_LURKER_A)).toBe(true);
     const theirs = sanitizeEvents(r.events, 'p1');
+    expect(theirs.some((e) => e.type === 'CARD_PLAYED')).toBe(false);
+    // The public event says that a card was hidden at bf0, and nothing about which card it is
+    expect(theirs.filter((e) => e.type === 'CARD_HIDDEN')).toEqual([
+      expect.objectContaining({ type: 'CARD_HIDDEN', player: 'p0', battlefieldId: 'bf0' }),
+    ]);
     expect(findLeaks(theirs, sc.state, 'p1', { cardNames: NAMES })).toEqual([]);
     expect(JSON.stringify(theirs)).not.toContain(SC_LURKER_A);
     expect(JSON.stringify(theirs)).not.toContain(lurker);

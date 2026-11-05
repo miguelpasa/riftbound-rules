@@ -101,7 +101,15 @@ export function describeEvent(
     case 'EFFECT_DAMAGE':
       return `${event.amount} damage was dealt to a unit.`;
     case 'EFFECT_BUFF':
-      return `A unit got +${event.amount} Might.`;
+      return event.amount < 0
+        ? `A unit got ${event.amount} Might.`
+        : `A unit got +${event.amount} Might.`;
+    case 'EFFECT_STUNNED':
+      return `${objectName(event.unitId, view, cards, 'A unit')} was stunned and deals no combat damage this turn.`;
+    case 'EFFECT_COUNTERED':
+      return `${cards[event.cardId]?.name ?? 'A spell'} was countered.`;
+    case 'GEAR_KILLED':
+      return `${objectName(event.gearId, view, cards, 'A gear')} was killed.`;
     case 'BATTLEFIELD_SCORED':
       return `${who(event.player, view)} ${event.method === 'HOLD' ? 'held' : 'conquered'} ${battlefieldName(event.battlefieldId, view, cards)}.`;
     case 'EFFECT_READIED':

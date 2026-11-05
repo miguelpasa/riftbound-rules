@@ -48,6 +48,8 @@ export interface CardInstance {
   mightBonus: number;
   /** Part of mightBonus that expires at the end of the turn ("this turn" effects). */
   tempMight?: number;
+  /** Stunned this turn: deals no combat damage. Expires in the Ending step. */
+  stunned?: boolean;
   /** Equipment -> id of the unit it is attached to. */
   attachedTo?: string;
   facedown?: boolean;

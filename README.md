@@ -69,6 +69,33 @@ The tutorial has a demo lesson, **Meet the board**, and six lessons:
 Tutorial lessons run on a real engine game against a scripted opponent, not the AI. Lesson progress is
 stored in localStorage.
 
+## Importing decks
+
+On any deck picker, open **Import deck JSON** and choose a file or paste text. Several decks can be
+imported at once and are kept in the browser (localStorage); each can be renamed or deleted. Accepted input:
+
+- a deck object from the external deck builder (`format: "riftbound-deck"`, `version: 1`), an array of
+  such objects, or `{ "decks": [ ... ] }`;
+- our own single deck list `{ legendId, championId, mainDeck, runeDeck, battlefields }`.
+
+```json
+{
+  "format": "riftbound-deck", "version": 1, "name": "Akali aggro",
+  "eventName": "Regional", "placement": "1st place", "legend": "VEN-139",
+  "cards": [
+    { "code": "VEN-139", "qty": 1, "zone": "LEGEND", "name": "Akali, Rogue Assassin" },
+    { "code": "VEN-021", "qty": 1, "zone": "CHAMPION" },
+    { "code": "OGN-057", "qty": 3, "zone": "MAIN" }
+  ]
+}
+```
+
+`zone` is one of `LEGEND`, `CHAMPION`, `MAIN`, `RUNE`, `BATTLEFIELD` (cards are repeated `qty` times) or
+`SIDEBOARD` (ignored). Codes are set plus collector number (`OGN-042`); the printed total and letter
+variants are matched to our card ids through `cards.json` and `card-aliases.json`. The optional `name` is
+used only to pick between printings and to warn about mismatches. Every deck is validated with the
+engine rules; decks that fail are listed with their errors and the others still import.
+
 ## Networking and trust
 
 **Connection.** Play is WebRTC with PeerJS. The room code only resolves to a peer id during the

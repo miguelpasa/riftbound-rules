@@ -223,6 +223,20 @@ describe('ReplayPlayer', () => {
     );
   });
 
+  it('keeps every event of every step, in order, matching a full replay', () => {
+    const { rec } = finishedGame(20);
+    const log = rec.toLog();
+    const player = new ReplayPlayer(FIXTURE_CARDS, log);
+    const setupEvents = replayGame(FIXTURE_CARDS, [...DECKS], SEED, []).events;
+    const all = replayGame(FIXTURE_CARDS, [...DECKS], SEED, log.intents).events;
+
+    const perStep = Array.from({ length: player.totalSteps }, (_, i) => player.eventsOf(i + 1));
+    expect(perStep.flat()).toEqual(all.slice(setupEvents.length));
+    expect(perStep.some((evs) => evs.length > 0)).toBe(true);
+    expect(player.eventsOf(0)).toEqual([]);
+    expect(player.eventsOf(player.totalSteps + 1)).toEqual([]);
+  });
+
   it('rejects out-of-range steps', () => {
     const { rec } = finishedGame(4);
     const player = new ReplayPlayer(FIXTURE_CARDS, rec.toLog());

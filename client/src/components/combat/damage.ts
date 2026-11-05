@@ -117,7 +117,7 @@ export function sideTotalFromView(
   player: PlayerId,
 ): number {
   return unitsAtFromView(view, bfId, player).reduce(
-    (sum, u) => sum + Math.max(0, effectiveMightFromView(view, cards, u.id)),
+    (sum, u) => sum + (u.stunned ? 0 : Math.max(0, effectiveMightFromView(view, cards, u.id))),
     0,
   );
 }

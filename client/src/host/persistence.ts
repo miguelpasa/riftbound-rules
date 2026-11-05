@@ -45,6 +45,8 @@ export interface GameHeader {
   decks: [DeckList, DeckList];
   hostSeat: PlayerId;
   mode: 'MULTIPLAYER' | 'SOLO';
+  /** Solo only: the bot's difficulty. Optional so saves made before it existed still load. */
+  difficulty?: 'easy' | 'normal';
   roomCode?: string;
   guestSeatToken?: string;
   createdAt: number;
@@ -637,6 +639,8 @@ export interface PersistedHostOptions extends Omit<
   storage: GameStorage;
   gameId?: string;
   roomCode?: string;
+  /** Solo only: saved in the header so Resume keeps the bot's difficulty. */
+  difficulty?: 'easy' | 'normal';
   onCommit?: CreateHostOptions['onCommit'];
   onSeatClaimed?: CreateHostOptions['onSeatClaimed'];
   onError?: PersistErrorHandler;
@@ -655,8 +659,9 @@ export function startPersistedHost(o: PersistedHostOptions): {
   if (o.debounceMs !== undefined) pOpts.debounceMs = o.debounceMs;
   const persister = new GamePersister(pOpts);
   const guestDeck = o.guestDeck ?? o.hostDeck;
+  const { difficulty, ...sessionOpts } = o;
   const session = HostSession.create({
-    ...o,
+    ...sessionOpts,
     onCommit: composeCommit(persister, o.onCommit),
     onSeatClaimed: composeClaim(persister, o.onSeatClaimed),
   });
@@ -671,6 +676,7 @@ export function startPersistedHost(o: PersistedHostOptions): {
     status: 'IN_PROGRESS',
   };
   if (o.roomCode !== undefined) header.roomCode = o.roomCode;
+  if (difficulty !== undefined) header.difficulty = difficulty;
   persister.attach(session, { header, checkpoint: true });
   return { session, persister, header };
 }

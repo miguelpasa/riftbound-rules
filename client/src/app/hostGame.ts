@@ -190,7 +190,12 @@ function assemble(o: AssembleOptions): HostGame {
       ...env.timerOptions,
     });
   }
-  if (o.bot) session.attachBot(o.bot, { delayMs: env.botDelayMs ?? 500 });
+  if (o.bot) {
+    session.attachBot(o.bot, {
+      delayMs: env.botDelayMs ?? 500,
+      onStalled: (message) => env.onError(message),
+    });
+  }
   let disposed = false;
   return {
     gameId: o.gameId,
@@ -236,6 +241,7 @@ export function startSoloGame(env: HostEnv, o: SoloOptions): HostGame {
     guestDeck: o.botDeck,
     seed,
     mode: 'SOLO',
+    difficulty: o.difficulty,
     storage: env.storage,
     onError: reportPersistence(env),
     ...bridge.callbacks,
@@ -405,6 +411,7 @@ export async function resumeSavedGame(
   gameId: string,
   opts: { timersEnabled: boolean; difficulty?: 'easy' | 'normal' },
 ): Promise<ResumeResult> {
+  // The saved header wins; `opts.difficulty` is only a fallback for saves made before the header had it.
   const bridge = createHostBridge();
   const res = await restoreHostSession(env.storage, gameId, env.cards, bridge.callbacks, {
     onError: reportPersistence(env),
@@ -417,7 +424,7 @@ export async function resumeSavedGame(
       deck: header.decks[1],
       seat: session.guestSeat,
       seed: `${header.seed}-bot-resume-${res.intentCount}`,
-      difficulty: opts.difficulty ?? 'normal',
+      difficulty: header.difficulty ?? opts.difficulty ?? 'normal',
     });
     return {
       ok: true,

@@ -465,11 +465,15 @@ describe('Hidden', () => {
     const names: Record<string, string> = { 'kx-hidden-unit': 'Lurking Secret' };
     const view = sanitizeFor(r.state, 'p1');
     expect(findLeaks(view, r.state, 'p1', { cardNames: names })).toEqual([]);
+    // The opponent only sees that a card was hidden at the battlefield (CARD_HIDDEN, no card id).
     const evs = sanitizeEvents(r.events, 'p1');
-    expect(evs).toEqual([]);
+    expect(evs.map((e) => e.type)).toEqual(['CARD_HIDDEN']);
     expect(findLeaks(evs, r.state, 'p1', { cardNames: names })).toEqual([]);
-    // The controller does see it.
-    expect(sanitizeEvents(r.events, 'p0')).toHaveLength(1);
+    // The controller sees both the private CARD_PLAYED and the public CARD_HIDDEN.
+    expect(sanitizeEvents(r.events, 'p0').map((e) => e.type)).toEqual([
+      'CARD_PLAYED',
+      'CARD_HIDDEN',
+    ]);
     expect(findLeaks(sanitizeFor(r.state, 'p0'), r.state, 'p0')).toEqual([]);
   });
 });

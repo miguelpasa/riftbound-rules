@@ -103,13 +103,38 @@ export interface CardStats {
 /** Whose unit may be targeted, relative to the spell's controller (default 'any'). */
 export type TargetSide = 'friendly' | 'enemy' | 'any';
 
+/**
+ * Target slots: a spell's chosen objects are `PLAY_CARD.targets` filtered to kind 'object', and a
+ * targeted effect reads `slot` (default 0) from that list. An effect with `count` is the spell's
+ * only targeted effect and takes ALL its object targets (min..max, all distinct): "each of up to
+ * two units".
+ */
+export interface TargetCount {
+  min: number;
+  max: number;
+}
+
 export type CardEffect =
   | { op: 'DRAW'; amount: number }
   | { op: 'GAIN_POINT'; amount: number }
-  /** Deal damage to the first object target (a unit on the board); Cleanup kills it if lethal. */
-  | { op: 'DAMAGE_TARGET'; amount: number; side?: TargetSide; atBattlefield?: boolean }
-  /** Give the first object target +amount Might (mightBonus). */
-  | { op: 'BUFF_TARGET'; amount: number; side?: TargetSide; duration?: 'TURN' }
+  /** Deal damage to the target unit(s); Cleanup kills a unit if lethal. */
+  | {
+      op: 'DAMAGE_TARGET';
+      amount: number;
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+      count?: TargetCount;
+    }
+  /** Give the target unit(s) +amount Might (mightBonus). */
+  | {
+      op: 'BUFF_TARGET';
+      amount: number;
+      side?: TargetSide;
+      duration?: 'TURN';
+      slot?: number;
+      count?: TargetCount;
+    }
   /** Kill the target unit (it is dealt lethal damage; Cleanup trashes it). */
   | {
       op: 'KILL_TARGET';
@@ -117,16 +142,70 @@ export type CardEffect =
       atBattlefield?: boolean;
       /** Only units whose current Might is at most this. */
       maxMight?: number;
+      slot?: number;
     }
   /** Ready the target unit. */
-  | { op: 'READY_TARGET'; side?: TargetSide }
+  | { op: 'READY_TARGET'; side?: TargetSide; slot?: number }
+  /** Stun the target unit: it deals no combat damage this turn (expires in the Ending step). */
+  | { op: 'STUN_TARGET'; side?: TargetSide; atBattlefield?: boolean; slot?: number }
+  /**
+   * Give the target unit -amount Might this turn, but never below `minMight` (e.g. 1) when set.
+   */
+  | {
+      op: 'DEBUFF_TARGET';
+      amount: number;
+      minMight?: number;
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+    }
+  /** Two chosen units each deal damage equal to their Might to the other (simultaneously). */
+  | {
+      op: 'MUTUAL_DAMAGE';
+      slots: [number, number];
+      sides: [TargetSide, TargetSide];
+      atBattlefield?: boolean;
+    }
+  /** Kill the target gear (it goes to its owner's Trash; Equipment detaches). */
+  | { op: 'KILL_GEAR'; side?: TargetSide; slot?: number; count?: TargetCount }
+  /** Kill every gear on the board. */
+  | { op: 'KILL_ALL_GEAR' }
+  /** Counter the target spell on the Chain (it is removed and trashed without resolving). */
+  | { op: 'COUNTER_SPELL'; slot?: number }
+  /** The controller of the target unit/gear draws `amount` ("Its controller draws N"). */
+  | { op: 'TARGET_CONTROLLER_DRAW'; amount: number; slot?: number }
   /** Give every unit of `side` on the board +amount Might (no target). */
-  | { op: 'BUFF_ALL'; amount: number; side: TargetSide; duration?: 'TURN' };
+  | { op: 'BUFF_ALL'; amount: number; side: TargetSide; duration?: 'TURN' }
+  /** Deal damage to every unit of `side` in `scope` (no target). */
+  | {
+      op: 'DAMAGE_ALL';
+      amount: number;
+      side: TargetSide;
+      scope: 'battlefields' | 'bases' | 'combat';
+    }
+  /** Ready or exhaust every unit of `side` (no target). */
+  | { op: 'READY_ALL'; side: TargetSide }
+  | { op: 'EXHAUST_ALL'; side: TargetSide }
+  /**
+   * Channel runes (431), optionally exhausted. If fewer than `amount` runes could be channeled,
+   * draw `elseDraw` ("If you can't, draw 1").
+   */
+  | { op: 'CHANNEL'; amount: number; exhausted?: boolean; elseDraw?: number };
 
-/** Effects that need one chosen unit. */
+/** Effects that choose one unit (or gear / spell) through `PLAY_CARD.targets`. */
 export type TargetedEffect = Extract<
   CardEffect,
-  { op: 'DAMAGE_TARGET' | 'BUFF_TARGET' | 'KILL_TARGET' | 'READY_TARGET' }
+  {
+    op:
+      | 'DAMAGE_TARGET'
+      | 'BUFF_TARGET'
+      | 'KILL_TARGET'
+      | 'READY_TARGET'
+      | 'STUN_TARGET'
+      | 'DEBUFF_TARGET'
+      | 'KILL_GEAR'
+      | 'COUNTER_SPELL';
+  }
 >;
 
 /** When a triggered ability fires (R5). */

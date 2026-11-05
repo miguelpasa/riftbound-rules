@@ -25,6 +25,9 @@ export type GameEvent = EventBase &
     | { type: 'EFFECT_BUFF'; unitId: string; amount: number }
     | { type: 'EFFECT_READIED'; unitId: string }
     | { type: 'EFFECT_FIZZLED'; cardId: string }
+    | { type: 'EFFECT_STUNNED'; unitId: string }
+    | { type: 'EFFECT_COUNTERED'; cardId: string }
+    | { type: 'GEAR_KILLED'; gearId: string }
     | { type: 'UNIT_MOVED'; unitId: string; from: string; to: string }
     | { type: 'SHOWDOWN_STARTED'; battlefieldId: string; isCombat: boolean }
     | { type: 'COMBAT_DAMAGE_ASSIGNED'; player: PlayerId; unitId: string; amount: number }

@@ -14,8 +14,8 @@ Decisions made where the Core Rules (rev 2026-10-09) or the PRD are ambiguous.
 - Hidden cards placed facedown must not emit a public CARD_PLAYED (it would leak cardId); use visibleTo:[controller] or a dedicated facedown event.
 - Equip keyword value is treated as an Energy cost (missing value = free); paid via auto-planned rune activations.
 - Deflect N is an additional Power cost payable with any domain; stacks per instance and per targeted Deflect unit.
-- Hidden: usable the turn after it is hidden; played for cost 0 with Reaction speed; placing it facedown emits only a public CARD_HIDDEN (no card id).
-- Hidden (as implemented, found by scenarios/hidden.test.ts): HIDE_CARD emits a CARD_PLAYED with `visibleTo: [controller]` and NO public event; `CARD_HIDDEN` exists in the event union but is never emitted, so the opponent learns of a facedown card only from `battlefields[].facedownSlotId` in their view. The earlier note about a public CARD_HIDDEN is not what the code does; add it in the engine if the client log needs it.
+- Hidden: usable the turn after it is hidden; played for cost 0 with Reaction speed; placing it facedown emits a public CARD_HIDDEN (no card id) and a CARD_PLAYED visible only to its controller.
+- Hidden (R23, implemented): HIDE_CARD emits a private CARD_PLAYED (`visibleTo: [controller]`, the only event with the cardId) and a public `CARD_HIDDEN { player, battlefieldId }` with no card id. Both players' logs therefore say that a card was hidden at that battlefield, while the opponent's view of the facedown card still comes from `battlefields[].facedownSlotId` and the sanitized state. `hidden.test.ts` checks that the opponent's stream has no CARD_PLAYED and no card id.
 - Scenario/replay tooling: `Scenario.start()` picks the first seed whose RNG seats DECK A as p0 (the first player is random, Rule 115), so scenario tests are deterministic. `replayGame` uses `createGameWithEvents` (there is no separate `createGameWithSeating`; seating is part of `createGame`).
 
 ## Known deviations

@@ -95,7 +95,16 @@ export interface BotOptions {
   delayMs?: number;
   /** Max consecutive bot actions per macrotask when delayMs is 0 (default 200). */
   maxStepsPerTick?: number;
+  /**
+   * Defence in depth against a no-progress loop: max bot actions while the turn number stays the same
+   * (default 400). Past it the bot stops for the rest of that turn, and `onStalled` is called once.
+   */
+  maxActionsPerTurn?: number;
+  /** Told when the bot stops for exceeding `maxActionsPerTurn` (the host shows it as a toast). */
+  onStalled?: (message: string) => void;
 }
+
+const DEFAULT_MAX_ACTIONS_PER_TURN = 400;
 
 interface Conn {
   transport: Transport<S2C, unknown>;
@@ -135,9 +144,18 @@ export class HostSession {
   private lastClientSeq = -1;
 
   private bot: BotLike | null = null;
-  private botOpts: Required<BotOptions> = { delayMs: 400, maxStepsPerTick: 200 };
+  private botOpts: {
+    delayMs: number;
+    maxStepsPerTick: number;
+    maxActionsPerTurn: number;
+    onStalled?: (message: string) => void;
+  } = { delayMs: 400, maxStepsPerTick: 200, maxActionsPerTurn: DEFAULT_MAX_ACTIONS_PER_TURN };
   private botTimer: ReturnType<typeof setTimeout> | null = null;
   private botRunning = false;
+  /** Turn number the bot's action count belongs to, its count in that turn, and the stop flag. */
+  private botTurn = -1;
+  private botActionsInTurn = 0;
+  private botHalted = false;
   private version = 0;
   private disposed = false;
 
@@ -463,8 +481,34 @@ export class HostSession {
     this.botOpts = {
       delayMs: options.delayMs ?? 400,
       maxStepsPerTick: options.maxStepsPerTick ?? 200,
+      maxActionsPerTurn: options.maxActionsPerTurn ?? DEFAULT_MAX_ACTIONS_PER_TURN,
     };
+    if (options.onStalled) this.botOpts.onStalled = options.onStalled;
     this.scheduleBot();
+  }
+
+  /**
+   * Count one applied bot action against the current turn. A new turn number resets the count and
+   * lifts a previous stop; going over the cap stops the bot (warns once, calls onStalled).
+   */
+  private countBotAction(): void {
+    this.syncBotTurn();
+    this.botActionsInTurn++;
+    if (this.botActionsInTurn <= this.botOpts.maxActionsPerTurn) return;
+    this.botHalted = true;
+    const message =
+      `The computer opponent made ${this.botActionsInTurn} actions in turn ${this.botTurn} ` +
+      'without the turn changing, so it has stopped. Please report this as a bug.';
+    console.warn(`[host] ${message}`);
+    this.botOpts.onStalled?.(message);
+  }
+
+  private syncBotTurn(): void {
+    const turn = this.state.turn.number;
+    if (turn === this.botTurn) return;
+    this.botTurn = turn;
+    this.botActionsInTurn = 0;
+    this.botHalted = false;
   }
 
   detachBot(): void {
@@ -479,9 +523,11 @@ export class HostSession {
   }
 
   private botToAct(): boolean {
+    this.syncBotTurn();
     return (
       this.bot !== null &&
       !this.disposed &&
+      !this.botHalted &&
       this.state.gameStatus === 'IN_PROGRESS' &&
       actorToAct(this.state) === this.guestSeat
     );
@@ -514,6 +560,8 @@ export class HostSession {
         if (intent) ok = this.applyBotIntent({ ...intent, playerId: this.guestSeat } as Intent);
         if (!ok && !this.applyBotFallback()) break; // nothing legal: cannot progress
         steps++;
+        this.countBotAction();
+        if (this.botHalted) break;
         if (this.botOpts.delayMs > 0 || steps >= this.botOpts.maxStepsPerTick) break;
       }
     } finally {
