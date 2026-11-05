@@ -1,0 +1,51 @@
+# Progress by task
+
+All 43 planned tasks are complete on branch `feat/foundation`. See [REMAINING.md](../REMAINING.md) for what is left.
+
+Verification at the last commit: 435 engine tests, 298 client tests, 6 Playwright specs, typecheck, lint and the rule-citation check all pass.
+
+| ID | Task | Complexity | Model | Status | Commit |
+|---|---|---|---|---|---|
+| [F1](F1.md) | Monorepo scaffold | Low | Haiku | Done | `ad9d45a` |
+| [F2](F2.md) | Shared type contract and protocol | Medium | Sonnet | Done | `769c2e4` |
+| [D1](D1.md) | Card dataset fetch script | Low | Haiku | Done | `357a7dc` |
+| [D2](D2.md) | Card converter | Medium | Sonnet | Done | `357a7dc` |
+| [D3](D3.md) | Fixture cards and decks | Low | Haiku (merged into E1) | Done | `2a8cde2` |
+| [E1](E1.md) | RNG, setup, deck validation, mulligan | Medium | Sonnet | Done | `2a8cde2` |
+| [E2](E2.md) | Runes, Rune Pool, costs, payment | High | Sonnet | Done | `e3750a2` |
+| [E3](E3.md) | Phase machine and Burn Out | High | Sonnet | Done | `c2201f0` |
+| [E4](E4.md) | Chain, priority, focus, timing | High | Sonnet | Done | `3ad67ae` |
+| [E5](E5.md) | Play-a-card pipeline | High | Sonnet | Done | `c2201f0` |
+| [E6](E6.md) | Movement, contested battlefields, showdowns | High | Sonnet | Done | `e62137a` |
+| [E7](E7.md) | Combat | High | Sonnet | Done | `3a0cae1` |
+| [E8](E8.md) | Scoring and win check | Medium | Sonnet | Done | `ceac351` |
+| [E9](E9.md) | Cleanup loop with circuit breaker | High | Sonnet | Done | `0d9fb25` |
+| [E10](E10.md) | MVP keywords | Medium | Sonnet | Done | `3a0cae1` |
+| [E11](E11.md) | Reducer, validator, legal actions, invariants, fuzz | High | Sonnet | Done | `81d953e` |
+| [E12](E12.md) | State sanitizer and leak checker | Medium | Sonnet | Done | `c398a72` |
+| [E13](E13.md) | Rule scenarios and replay | Medium | Sonnet | Done | `370da14` |
+| [N1](N1.md) | Transport layer | Medium | Sonnet | Done | `0269cb4` |
+| [N2](N2.md) | HostSession and GuestSession | Medium | Sonnet | Done | `a92a82b` |
+| [N3](N3.md) | Event-sourced persistence and legal hints | Medium | Sonnet | Done | `813da52` |
+| [N4](N4.md) | Replay recorder and player | Low | Haiku | Done | `48d6e7e` |
+| [N5](N5.md) | Turn and reaction timers | Low | Haiku | Done | `48d6e7e` |
+| [N6](N6.md) | AI bot and Web Worker | Medium | Sonnet | Done | `370da14` |
+| [C1](C1.md) | Client scaffold | Low | Haiku | Done | `8f68a02` |
+| [C2](C2.md) | Lobby, app flows, adapters, timer wiring | Medium | Sonnet | Done | `60f342f` |
+| [C3](C3.md) | Card component | Medium | Sonnet | Done | `370da14` |
+| [C4](C4.md) | Playmat and GameScreen | High | Sonnet | Done | `d045335` |
+| [C5](C5.md) | Resource panel | Medium | Sonnet | Done | `304f924` |
+| [C6](C6.md) | Chain inspector | Medium | Sonnet | Done | `304f924` |
+| [C7](C7.md) | Combat dialog | High | Sonnet | Done | `304f924` |
+| [C8](C8.md) | Small UI components | Low | Haiku | Done | `a0cdf9b` |
+| [T1](T1.md) | Tutorial framework | High | Sonnet | Done | `60f342f` |
+| [T2](T2.md) | Lesson 1: turn structure | Low | Haiku | Done | `1e312a6` |
+| [T3](T3.md) | Lesson 2: resources | Medium | Sonnet | Done | `1e312a6` |
+| [T4](T4.md) | Lesson 3: zones and movement | Medium | Sonnet | Done | `1e312a6` |
+| [T5](T5.md) | Lesson 4: the Chain | Medium | Sonnet | Done | `1e312a6` |
+| [T6](T6.md) | Lesson 5: showdowns and combat | Medium | Sonnet | Done | `1e312a6` |
+| [T7](T7.md) | Lesson 6: victory and Final Point | Medium | Sonnet | Done | `1e312a6` |
+| [D4](D4.md) | Preset decks from real data | Medium | Sonnet | Done | `370da14` |
+| [Z1](Z1.md) | Playwright end-to-end suite | Medium | Sonnet | Done | `13bbf08` |
+| [Z2](Z2.md) | README and architecture docs | Low | Haiku | Done | `13bbf08` |
+| [Z3](Z3.md) | Rules audit and fixes | Medium | Sonnet (read-only audit, then fixes) | Done | `ee4eaff` |
