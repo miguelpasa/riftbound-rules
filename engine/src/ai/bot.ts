@@ -215,7 +215,11 @@ export class AIController implements SyncBot {
       .sort((a, b) => b.v - a.v || a.idx - b.idx)
       .slice(0, MAX_MOVES)
       .map((x) => x.i);
-    const equips = legal.filter((i) => i.type === 'EQUIP').slice(0, MAX_EQUIP);
+    // Only attach gear that is not attached yet: re-shuffling free Equipment between units
+    // gains nothing and would otherwise let the bot loop forever without ending its turn.
+    const equips = legal
+      .filter((i) => i.type === 'EQUIP' && !state.objects[i.equipmentId]?.attachedTo)
+      .slice(0, MAX_EQUIP);
     const rest = legal.filter(
       (i) =>
         !isTerminal(i) &&

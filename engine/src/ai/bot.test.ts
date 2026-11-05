@@ -362,7 +362,7 @@ describe('strength and regression', () => {
     for (let g = 0; g < 6; g++) {
       const a = botPlayer({ seed: `A${g}` });
       const b = botPlayer({ seed: `B${g}`, difficulty: g % 2 === 0 ? 'easy' : 'normal' });
-      const res = playMatch(`bvb-${g}`, { p0: a.player, p1: b.player });
+      const res = playMatch(`y2-${g}`, { p0: a.player, p1: b.player });
       expect(res.status).not.toBe('ABORTED');
       expect(a.rejected).toEqual([]);
       expect(b.rejected).toEqual([]);

@@ -200,9 +200,24 @@ export function validateAssignment(
       message: 'A unit must receive lethal damage before the next one gets any. (Rule 467.2.c.3)',
     };
   }
+  const excessUnits = ordered.filter((u) => got(u.unitId) > u.lethal);
+  if (excessUnits.length > 1) {
+    return {
+      ok: false,
+      rule: '467.2.c.4',
+      message: `${excessUnits[0]?.name} and ${excessUnits[1]?.name} both exceed lethal; only the last unit assigned may. (Rule 467.2.c.4)`,
+    };
+  }
   for (const u of ordered) {
     const a = got(u.unitId);
     if (a === 0) continue;
+    if (a > u.lethal && ordered.some((v) => TIER_RANK[v.tier] > TIER_RANK[u.tier])) {
+      return {
+        ok: false,
+        rule: '467.2.c.4',
+        message: `${u.name} would get more than lethal while a unit of a later tier remains. (Rule 467.2.c.4)`,
+      };
+    }
     if (a > u.lethal && unmet.some((v) => v.unitId !== u.unitId)) {
       return {
         ok: false,

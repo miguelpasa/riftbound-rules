@@ -3,6 +3,10 @@ import { endTurn } from './phases.js';
 import { standardMove } from './movement.js';
 import { validateDeck } from './deckValidation.js';
 import { playCard } from './play.js';
+import { effectiveMight } from './combat.js';
+import { getLegalActions } from './legalActions.js';
+import { reduce } from './reducer.js';
+import { autoPlan, computeTotalCost } from './resources.js';
 import { sanitizeEvents, sanitizeFor } from './sanitize.js';
 import {
   KEYWORD_IMPLEMENTED,
@@ -258,6 +262,26 @@ describe('Temporary', () => {
     expect(r.state.objects[keep]?.zone.kind).toBe('base');
     expect(r.state.objects[mine]?.zone.kind).toBe('base'); // not the active player's
     expect(s.objects[t]?.zone.kind).toBe('base'); // input untouched
+  });
+
+  it('also applies to TOKEN objects, which cease to exist instead of going to the trash', () => {
+    // Tests Rule 186.1: a Temporary token that is killed leaves the game entirely
+    const { s } = setup();
+    const cards: CardDatabase = {
+      ...CARDS,
+      'kx-temp-token': {
+        ...(CARDS['kx-temp'] as CardDef),
+        cardId: 'kx-temp-token',
+        type: 'TOKEN',
+      },
+    };
+    s.turn.activePlayer = 'p1';
+    const tok = spawn(s, 'kx-temp-token', 'p1');
+    const r = temporaryOnBeginning(s, cards);
+    expect(r.events).toEqual([{ type: 'UNIT_KILLED', unitId: tok }]);
+    expect(r.state.objects[tok]).toBeUndefined();
+    expect(r.state.players[1].trash).not.toContain(tok);
+    expect(r.state.players[1].base).not.toContain(tok);
   });
 
   it('dies before the Scoring step', () => {
@@ -624,5 +648,73 @@ describe('Equip', () => {
     const b = spawn(s, 'fx-blade', 'p0');
     expect(blade).toBeDefined();
     expect(eq(s, b, u).ok).toBe(true);
+  });
+});
+
+describe('Quick-Draw wired into PLAY_CARD', () => {
+  function qdSetup() {
+    const { s } = setup();
+    const u1 = spawn(s, 'fx-grunt', 'p0');
+    const u2 = spawn(s, 'fx-wisp', 'p0');
+    const opp = spawn(s, 'fx-tide-grunt', 'p1');
+    const qd = spawn(s, 'kx-quick', 'p0', { kind: 'hand', player: 'p0' });
+    return { s, u1, u2, opp, qd };
+  }
+  const play = (s: GameState, qd: string, targetId?: string) => {
+    const plan = autoPlan(s, CARDS, 'p0', computeTotalCost(CARDS['kx-quick'] as CardDef));
+    if (!plan) throw new Error('cannot pay');
+    return reduce(s, CARDS, {
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: qd,
+      payment: plan,
+      ...(targetId ? { targets: [{ kind: 'object' as const, id: targetId }] } : {}),
+    });
+  };
+
+  it('attaches to the chosen unit as it enters play and grants its Might bonus', () => {
+    // Tests Rule 819: Quick-Draw gear attaches to a unit you control when you play it
+    const { s, u1, qd } = qdSetup();
+    const r = ok(play(s, qd, u1));
+    expect(r.state.objects[qd]?.zone.kind).toBe('base');
+    expect(r.state.objects[qd]?.attachedTo).toBe(u1);
+    expect(attachedMightBonus(r.state, CARDS, u1)).toBe(1); // Rule 137.3
+    expect(effectiveMight(r.state, CARDS, u1)).toBe(3); // grunt 2 + gear 1
+  });
+
+  it('requires a unit you control as target when you control any unit', () => {
+    // Tests Rule 819: the attach target must be a unit you control
+    const { s, opp, qd } = qdSetup();
+    expect(code(play(s, qd))).toBe('ILLEGAL_TARGET');
+    expect(code(play(s, qd, opp))).toBe('ILLEGAL_TARGET'); // enemy unit
+    const rune = Object.values(s.objects).find(
+      (o) => o.cardId === 'fx-rune-fury' && o.zone.kind === 'base',
+    );
+    expect(code(play(s, qd, rune?.id))).toBe('ILLEGAL_TARGET'); // not a unit
+    expect(s.objects[qd]?.zone.kind).toBe('hand'); // the failed play changed nothing
+  });
+
+  it('is played unattached when its controller has no unit', () => {
+    // Tests Rule 819: with no unit to attach to the gear simply enters play
+    const { s } = setup();
+    const qd = spawn(s, 'kx-quick', 'p0', { kind: 'hand', player: 'p0' });
+    const r = ok(play(s, qd));
+    expect(r.state.objects[qd]?.zone.kind).toBe('base');
+    expect(r.state.objects[qd]?.attachedTo).toBeUndefined();
+  });
+
+  it('getLegalActions lists one Quick-Draw play per controlled unit', () => {
+    // Tests Rule 819: legal Quick-Draw plays name each unit you control as the attach target
+    const { s, u1, u2, opp, qd } = qdSetup();
+    const plays = getLegalActions(s, CARDS, 'p0').filter(
+      (i) => i.type === 'PLAY_CARD' && i.cardInstanceId === qd,
+    );
+    const targeted = plays.map((i) => (i.type === 'PLAY_CARD' ? i.targets?.[0] : undefined));
+    expect(targeted).toEqual([
+      { kind: 'object', id: u1 },
+      { kind: 'object', id: u2 },
+    ]);
+    expect(targeted.some((t) => t?.kind === 'object' && t.id === opp)).toBe(false);
+    for (const i of plays) expect(reduce(s, CARDS, i).ok).toBe(true);
   });
 });

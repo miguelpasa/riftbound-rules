@@ -85,6 +85,19 @@ function buildHiddenMap(state: GameState, viewer: PlayerId): Map<string, string>
   return map;
 }
 
+/**
+ * Replace every string equal to a hidden object id (anywhere inside `value`) by its opaque token.
+ * Choices are free-form today and carry no object ids; this prepares for effects that will.
+ */
+function redactChoices(value: unknown, rid: (id: string) => string): unknown {
+  if (typeof value === 'string') return rid(value);
+  if (Array.isArray(value)) return value.map((v) => redactChoices(v, rid));
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, redactChoices(v, rid)]));
+  }
+  return value;
+}
+
 function sanitizeFlow(flow: FlowState, rid: (id: string) => string): FlowState {
   const out = structuredClone(flow);
   out.chain = out.chain.map((item: ChainItem) => ({
@@ -93,6 +106,7 @@ function sanitizeFlow(flow: FlowState, rid: (id: string) => string): FlowState {
     targets: item.targets.map((t: Target): Target =>
       t.kind === 'object' ? { kind: 'object', id: rid(t.id) } : t,
     ),
+    choices: redactChoices(item.choices, rid) as ChainItem['choices'],
   }));
   if (out.combat?.damageAssignment) {
     for (const key of Object.keys(out.combat.damageAssignment) as PlayerId[]) {

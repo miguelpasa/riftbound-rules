@@ -23,6 +23,42 @@ const phasesOf = (events: GameEvent[]): string[] =>
   events.flatMap((e) => (e.type === 'PHASE_CHANGED' ? [e.phase] : []));
 
 describe('runStartOfTurn', () => {
+  it('runs the injected Cleanup after Beginning, Scoring, Channel and Draw, and stops if it ends the game', () => {
+    // Tests Rule 319: a Cleanup is outstanding after the phase changes and runs between phases
+    const log: string[] = [];
+    const hooks: PhaseHooks = {
+      onBeginning: (st) => (log.push('beginning'), { state: st, events: [] }),
+      onScoringStep: (st) => (log.push('scoring'), { state: st, events: [] }),
+      runCleanup: (st) => (
+        log.push(`cleanup@${st.turn.phase}/${st.turn.step}`),
+        { state: st, events: [] }
+      ),
+    };
+    ok(runStartOfTurn(awakenGame(), FIXTURE_CARDS, hooks));
+    expect(log).toEqual([
+      'beginning',
+      'cleanup@BEGINNING/NONE',
+      'scoring',
+      'cleanup@BEGINNING/NONE',
+      'cleanup@CHANNEL/NONE',
+      'cleanup@DRAW/NONE',
+    ]);
+    const log2: string[] = [];
+    const r = ok(
+      runStartOfTurn(awakenGame(), FIXTURE_CARDS, {
+        runCleanup: (st) => {
+          log2.push(st.turn.phase);
+          const next = structuredClone(st);
+          next.gameStatus = 'FINISHED';
+          next.winner = 'p0';
+          return { state: next, events: [] };
+        },
+      }),
+    );
+    expect(log2).toEqual(['BEGINNING']);
+    expect(r.state.turn.phase).toBe('BEGINNING');
+  });
+
   it('runs the phases in order and lands in MAIN', () => {
     // Tests Rule 315: turn phase order
     const s0 = awakenGame();

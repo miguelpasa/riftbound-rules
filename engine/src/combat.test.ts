@@ -13,6 +13,7 @@ import {
   startCombat,
   startCombatHook,
 } from './combat.js';
+import { checkInvariants } from './invariants.js';
 import { closeShowdown, showdownAfterPass, unitsAt } from './showdown.js';
 import type { ShowdownDeps } from './showdown.js';
 import { FIXTURE_CARDS, makeTestGame } from './testing/fixtures.js';
@@ -338,10 +339,16 @@ describe('assignCombatDamage validation', () => {
     const bad = assign(d, 'p0', [{ unitId: a, amount: 7 }]);
     expect(bad).toMatchObject({ ok: false, code: 'INVALID_DAMAGE_ASSIGNMENT' });
     const ok2 = assign(d, 'p0', [
+      { unitId: a, amount: 2 },
+      { unitId: b, amount: 5 },
+    ]);
+    expect(ok2.ok).toBe(true); // a has exactly lethal; the excess goes on the last unit
+    // Both over lethal: only the last unit assigned may take excess (467.2.c.4).
+    const both = assign(d, 'p0', [
       { unitId: a, amount: 3 },
       { unitId: b, amount: 4 },
     ]);
-    expect(ok2.ok).toBe(true); // both already have lethal, so the excess is fine
+    expect(both).toMatchObject({ ok: false, code: 'INVALID_DAMAGE_ASSIGNMENT' });
   });
 
   it('rejects excess on one unit when another has not received lethal', () => {
@@ -358,6 +365,58 @@ describe('assignCombatDamage validation', () => {
         { unitId: unitsAt(d, BF, 'p1')[1]!.id, amount: 1 },
       ]),
     );
+  });
+
+  it('allows excess only on the last unit of the ordering (Tank T=2,N=1 rejected, T=1,N=2 accepted)', () => {
+    // Tests Rule 467.2.c.4: no excess on a unit unless no other units remain to be assigned
+    const s = base();
+    spawn(s, 'fx-ganker', 'p0', BF); // 3 Might
+    const t = spawn(s, 'fx-ash-tank', 'p1', BF, { damage: 2 }); // lethal 1
+    const n = spawn(s, 'fx-grunt', 'p1', BF, { damage: 1 }); // lethal 1
+    const d = toDamage(s);
+    const bad = assign(d, 'p0', [
+      { unitId: t, amount: 2 },
+      { unitId: n, amount: 1 },
+    ]);
+    expect(bad).toMatchObject({ ok: false, code: 'INVALID_DAMAGE_ASSIGNMENT' });
+    expect(
+      assign(d, 'p0', [
+        { unitId: t, amount: 1 },
+        { unitId: n, amount: 2 },
+      ]).ok,
+    ).toBe(true);
+    expect(autoAssign(d, FIXTURE_CARDS, 'p0')).toEqual([
+      { unitId: t, amount: 1 },
+      { unitId: n, amount: 2 },
+    ]);
+  });
+
+  it('allows excess on one of two equal-tier units but not on both', () => {
+    // Tests Rule 467.2.c.7: ties are the assigner's choice, so one of them is simply assigned last
+    const s = base();
+    spawn(s, 'fx-ganker', 'p0', BF);
+    spawn(s, 'fx-titan', 'p0', BF); // 10 Might in total
+    const a = spawn(s, 'fx-grunt', 'p1', BF);
+    const b = spawn(s, 'fx-grunt', 'p1', BF);
+    const d = toDamage(s);
+    expect(
+      assign(d, 'p0', [
+        { unitId: a, amount: 2 },
+        { unitId: b, amount: 8 },
+      ]).ok,
+    ).toBe(true);
+    expect(
+      assign(d, 'p0', [
+        { unitId: a, amount: 8 },
+        { unitId: b, amount: 2 },
+      ]).ok,
+    ).toBe(true);
+    expect(
+      assign(d, 'p0', [
+        { unitId: a, amount: 5 },
+        { unitId: b, amount: 5 },
+      ]),
+    ).toMatchObject({ ok: false, code: 'INVALID_DAMAGE_ASSIGNMENT' });
   });
 
   it('rejects two partially damaged units (one unit must be finished first)', () => {
@@ -536,6 +595,25 @@ describe('damage dealing', () => {
     expect(work.objects[blade]!.attachedTo).toBeUndefined();
     expect(work.objects[blade]!.zone.kind).toBe('base');
     expect(s.objects[a1]!.zone.kind).toBe('battlefield'); // input untouched
+  });
+
+  it('a killed token ceases to exist instead of going to the trash', () => {
+    // Tests Rule 186.1: a token in a non-Board zone ceases to exist
+    const cards = {
+      ...FIXTURE_CARDS,
+      'cx-token': { ...FIXTURE_CARDS['fx-grunt']!, cardId: 'cx-token', type: 'TOKEN' as const },
+    };
+    const s = base();
+    const tok = spawn(s, 'cx-token', 'p1', BF, { damage: 2 });
+    const blade = spawn(s, 'fx-blade', 'p1', 'base');
+    s.objects[blade]!.attachedTo = tok;
+    const events = killLethalUnits(s, cards);
+    expect(events).toEqual([{ type: 'UNIT_KILLED', unitId: tok }]);
+    expect(s.objects[tok]).toBeUndefined();
+    expect(s.players[1].trash).not.toContain(tok);
+    expect(s.players[1].base).not.toContain(tok);
+    expect(s.objects[blade]!.attachedTo).toBeUndefined();
+    expect(checkInvariants(s, cards)).toEqual([]);
   });
 
   it('a 1-damage kill of a 0-Might unit', () => {

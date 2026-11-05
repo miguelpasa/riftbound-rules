@@ -11,7 +11,8 @@
  *  - MULLIGAN: keep, each single card, each pair.
  *  - PLAY_CARD: each hand card, Chosen Champion in the champion zone, and own facedown cards,
  *    x location (Base, or each controlled battlefield for Units) x Accelerate, payment = autoPlan.
- *    No targets are generated in the MVP (spells have no targeting effects implemented).
+ *    No targets are generated in the MVP (spells have no targeting effects implemented), except for
+ *    Quick-Draw gear: one variant per unit the player controls (the attach target).
  *  - STANDARD_MOVE: each ready unit to each destination, plus, per origin, "all ready units there".
  *  - ASSIGN_COMBAT_DAMAGE: autoAssign result and a variant that puts the surplus on the first unit.
  *  - HIDE_CARD, EQUIP, PASS_PRIORITY, END_TURN.
@@ -36,6 +37,7 @@ import type {
   PlayLocation,
   PlayerId,
   StandardMoveIntent,
+  Target,
 } from './types/index.js';
 
 export interface LegalActionOptions {
@@ -74,6 +76,14 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     }
   }
   const myBattlefields = state.battlefields.filter((b) => b.controller === pid);
+  const myUnits = Object.values(state.objects)
+    .filter(
+      (o) =>
+        o.controller === pid &&
+        (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+        cards[o.cardId]?.type === 'UNIT',
+    )
+    .sort(byNum);
 
   for (const obj of sources) {
     const def = cards[obj.cardId];
@@ -89,6 +99,11 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
       : [undefined];
     const accelOptions = isUnit && hasKw(def, 'Accelerate') ? [false, true] : [false];
     const costDef = costDefFor(obj, def);
+    // Quick-Draw gear: one variant per unit its controller controls (the unit is a Target).
+    const targetOptions: (Target[] | undefined)[] =
+      def.type === 'GEAR' && hasKw(def, 'QuickDraw') && myUnits.length > 0
+        ? myUnits.map((u) => [{ kind: 'object' as const, id: u.id }])
+        : [undefined];
     for (const accelerate of accelOptions) {
       const plan: PaymentPlan | null = autoPlan(
         state,
@@ -98,15 +113,18 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
       );
       if (plan === null) continue;
       for (const location of locations) {
-        const intent: PlayCardIntent = {
-          type: 'PLAY_CARD',
-          playerId: pid,
-          cardInstanceId: obj.id,
-          ...(location ? { location } : {}),
-          ...(accelerate ? { additionalCosts: { accelerate: true } } : {}),
-          payment: plan,
-        };
-        out.push(intent);
+        for (const targets of targetOptions) {
+          const intent: PlayCardIntent = {
+            type: 'PLAY_CARD',
+            playerId: pid,
+            cardInstanceId: obj.id,
+            ...(location ? { location } : {}),
+            ...(targets ? { targets } : {}),
+            ...(accelerate ? { additionalCosts: { accelerate: true } } : {}),
+            payment: plan,
+          };
+          out.push(intent);
+        }
       }
     }
   }

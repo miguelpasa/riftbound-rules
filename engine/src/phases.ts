@@ -10,6 +10,9 @@
  * - Flow is reset (priority = turn player, focus null, empty chain, no showdown/combat) on entering
  *   Main; scoredThisTurnBy is cleared at the very start of each new turn.
  * - If the game ends (e.g. burn-out win or a hook ending it) phase processing stops where it is.
+ * - Cleanup (hooks.runCleanup) runs after Beginning effects, after the Scoring step, after Channel
+ *   and after Draw (319, 323): kills and control loss precede Scoring; a win is detected before
+ *   Channel / Draw.
  * - Ending a turn while a Showdown/Combat exists is rejected with WRONG_PHASE; a non-empty chain
  *   gives CLOSED_STATE_REACTION_ONLY.
  * - Expiration hooks exist for "this turn" effects; the MVP has none, so Might bonuses are untouched.
@@ -49,6 +52,13 @@ export interface PhaseHooks {
   onEndingStep?(state: GameState, cards: CardDatabase): HookResult;
   /** 317.2 Expiration step: expire "this turn" effects (after healing, before pools empty). */
   onExpiration?(state: GameState, cards: CardDatabase): HookResult;
+  /**
+   * Run the Cleanup loop (318-324) on the working state, returning UNSTAMPED events. Injected (not
+   * imported) to avoid a phases -> cleanup -> combat import cycle. Called inside the start-of-turn
+   * sequence after Beginning effects, after the Scoring step, after Channel and after Draw, so that
+   * kills / control loss happen before Scoring and a win check happens before Channel and Draw.
+   */
+  runCleanup?(state: GameState, cards: CardDatabase): HookResult;
 }
 
 /** Null if the game is in progress and in `phase`; otherwise GAME_OVER / WRONG_PHASE. */
@@ -74,6 +84,11 @@ function runHook(c: Ctx, hook: Hook | undefined): void {
   const r = hook(c.s, c.cards);
   c.s = r.state;
   c.out.push(...r.events);
+}
+
+/** Outstanding Cleanup between phases (319); stops the remaining phases if it ends the game. */
+function cleanup(c: Ctx): void {
+  runHook(c, c.hooks.runCleanup);
 }
 
 function enterPhase(c: Ctx, phase: Phase): void {
@@ -107,10 +122,12 @@ function startOfTurn(c: Ctx): void {
   // 315.2 BEGINNING
   enterPhase(c, 'BEGINNING');
   runHook(c, c.hooks.onBeginning);
+  cleanup(c); // 319, 323: Temporary kills / control loss resolve before the Scoring step
   if (over(c)) return;
   c.s.turn.step = 'SCORING';
   runHook(c, c.hooks.onScoringStep);
   c.s.turn.step = 'NONE';
+  cleanup(c); // 323.1: win check right after Holds, before Channel / Draw
   if (over(c)) return;
 
   // 315.3 CHANNEL
@@ -128,10 +145,13 @@ function startOfTurn(c: Ctx): void {
     cs.base.push(id);
     c.out.push({ type: 'RUNE_CHANNELED', player, runeId: id });
   }
+  cleanup(c);
+  if (over(c)) return;
 
   // 315.4 DRAW
   enterPhase(c, 'DRAW');
   c.out.push(...drawWithBurnOut(c.s, player, 1, c.cards));
+  if (!over(c)) cleanup(c); // a Burn Out gives a point: check for the win before Main
   if (over(c)) return;
 
   // 316 MAIN

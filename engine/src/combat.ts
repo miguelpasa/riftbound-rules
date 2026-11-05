@@ -32,7 +32,10 @@
  *  - Assignment legality: units are ordered by tier (TANK < NORMAL < BACKLINE; a unit with both Tank
  *    and Backline is TANK). A unit may receive damage only if every unit of an earlier tier already
  *    has lethal (467.2.c.3/6). At most one unit may be short of lethal (the last one funded), and
- *    nobody may receive more than lethal while some unit still lacks lethal (467.2.c.4).
+ *    nobody may receive more than lethal while some unit still lacks lethal (467.2.c.4). Excess is
+ *    only allowed on the unit assigned LAST: at most one unit may exceed lethal, and none of a
+ *    strictly later tier may exist (equal-tier ties are the assigner's choice, so the excess unit
+ *    simply goes last among its tier).
  *    Units that are already lethal need 0 and count as satisfied. Total assigned must equal the
  *    assigner's total Might exactly.
  *  - Errors: wrong step WRONG_PHASE, wrong player NOT_YOUR_PRIORITY, unknown unit NOT_FOUND, unit not
@@ -40,9 +43,10 @@
  *  - Combat has no event of its own for its Result; resolveCombatWithResult also returns it.
  *  - killLethalUnits applies to UNIT/TOKEN objects with Might in base or at a battlefield. A killed
  *    unit goes to its owner's trash with damage and mightBonus reset; attached equipment is detached
- *    (attachedTo cleared) and stays where it is.
+ *    (attachedTo cleared) and stays where it is. A killed TOKEN ceases to exist instead (186.1):
+ *    it is deleted from the game and UNIT_KILLED is still emitted.
  */
-import { attachedMightBonus } from './keywords.js';
+import { attachedMightBonus, removeTokenFromGame } from './keywords.js';
 import { syncTurnState } from './chain.js';
 import { onConquer as scoringOnConquer } from './scoring.js';
 import { stampEvents } from './setup.js';
@@ -240,6 +244,14 @@ function checkAssignment(
       'a unit must receive lethal damage before the next gets any (467.2.c.3)',
     );
   }
+  const excessUnits = ordered.filter((u) => got(u.unitId) > u.lethal);
+  if (excessUnits.length > 1) {
+    // Only the unit assigned LAST may exceed lethal (467.2.c.4); two excesses cannot both be last.
+    return fail(
+      'INVALID_DAMAGE_ASSIGNMENT',
+      `${excessUnits[0]?.unitId} and ${excessUnits[1]?.unitId} both exceed lethal; only the last unit assigned may (467.2.c.4)`,
+    );
+  }
   for (const u of ordered) {
     const a = got(u.unitId);
     if (a === 0) continue;
@@ -247,6 +259,12 @@ function checkAssignment(
       return fail(
         'INVALID_DAMAGE_ASSIGNMENT',
         `${u.unitId} would get more than lethal while another unit lacks lethal (467.2.c.4)`,
+      );
+    }
+    if (a > u.lethal && ordered.some((v) => TIER_RANK[v.tier] > TIER_RANK[u.tier])) {
+      return fail(
+        'INVALID_DAMAGE_ASSIGNMENT',
+        `${u.unitId} would get more than lethal while a unit of a later tier remains (467.2.c.4)`,
       );
     }
     const blocker = ordered.find(
@@ -423,6 +441,12 @@ export function killLethalUnits(state: GameState, cards: CardDatabase): GameEven
     if (o.damage <= 0 || o.damage < Math.max(1, effectiveMight(state, cards, id))) continue;
     const ps = state.players[playerIndex(o.controller)];
     ps.base = ps.base.filter((x) => x !== id);
+    if (def.type === 'TOKEN') {
+      // 186.1: a token outside the Board ceases to exist; it does not go to the trash.
+      removeTokenFromGame(state, id);
+      events.push({ type: 'UNIT_KILLED', unitId: id });
+      continue;
+    }
     const owner = state.players[playerIndex(o.owner)];
     owner.trash.push(id);
     o.zone = { kind: 'trash', player: o.owner };

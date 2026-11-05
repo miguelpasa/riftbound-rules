@@ -17,3 +17,15 @@ Decisions made where the Core Rules (rev 2026-10-09) or the PRD are ambiguous.
 - Hidden: usable the turn after it is hidden; played for cost 0 with Reaction speed; placing it facedown emits only a public CARD_HIDDEN (no card id).
 - Hidden (as implemented, found by scenarios/hidden.test.ts): HIDE_CARD emits a CARD_PLAYED with `visibleTo: [controller]` and NO public event; `CARD_HIDDEN` exists in the event union but is never emitted, so the opponent learns of a facedown card only from `battlefields[].facedownSlotId` in their view. The earlier note about a public CARD_HIDDEN is not what the code does; add it in the engine if the client log needs it.
 - Scenario/replay tooling: `Scenario.start()` picks the first seed whose RNG seats DECK A as p0 (the first player is random, Rule 115), so scenario tests are deterministic. `replayGame` uses `createGameWithEvents` (there is no separate `createGameWithSeating`; seating is part of `createGame`).
+
+## Known deviations
+
+- Quick-Draw: the attach target is chosen at play time (`PLAY_CARD` `targets[0]`, a unit you control on the board). If the controller has no unit the gear is played unattached, without an error.
+- Equip bypasses the Chain/cost model: it is resolved immediately as an activated ability with an Energy-only cost (no Chain item, no Reaction window for the opponent).
+- Burn Out with an empty Trash stops after one Burn Out when drawing several cards (approximation of 432.3).
+- If several Showdowns/Combats are staged, the turn player does not choose: the one at the lowest battlefield index starts first (323.11/323.12).
+- Combat healing (468.1.a.1) heals only the units at the combat battlefield; the rule heals all units, but no non-combat damage exists yet.
+- A unit with both Tank and Backline is treated as Tank for damage assignment (467.2.c.8).
+- Hide is only allowed in a Neutral Open state (and only at a battlefield you control).
+- The Chosen Champion counts toward the 40-card minimum of the main deck (103.3 wording not verified verbatim).
+- `getLegalActions` must only be used host-side with the full state; never forward a legal-action list built for another seat (it reveals hidden information such as hand contents).

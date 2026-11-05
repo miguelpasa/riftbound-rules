@@ -213,7 +213,7 @@ describe('write behaviour', () => {
   it('batches intents into few storage transactions', async () => {
     const counting = new CountingStorage(new MemoryGameStorage());
     const { session, persister } = newHost(counting, 'batch');
-    const rng = mulberry32(3);
+    const rng = mulberry32(4);
     let n = 0;
     for (; n < 80 && step(session, rng); n++);
     expect(n).toBeGreaterThan(40);

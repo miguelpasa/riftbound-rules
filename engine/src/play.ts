@@ -57,7 +57,12 @@ export interface PlayHooks {
    * Called on the WORKING state (may mutate it) when a Unit or Gear has just entered its final
    * zone, during resolution (e.g. Ganking/Temporary setup). Returns extra events.
    */
-  onEnter?(state: GameState, cards: CardDatabase, objectId: string): GameEventInput[];
+  onEnter?(
+    state: GameState,
+    cards: CardDatabase,
+    objectId: string,
+    item?: ChainItem,
+  ): GameEventInput[];
 }
 
 const PUBLIC_TARGET_ZONES = new Set([
@@ -132,7 +137,7 @@ function placingResolver(
       // 359.2.c Units enter exhausted (ready if Accelerate was paid); 359.2.d Gear enters ready.
       obj.ready = def.type === 'GEAR' ? true : item.additionalCosts?.accelerate === true;
       obj.enteredTurn = turnNumber;
-      if (hooks?.onEnter) events.push(...hooks.onEnter(s, cards, obj.id));
+      if (hooks?.onEnter) events.push(...hooks.onEnter(s, cards, obj.id, item));
     }
     const res = inner(s, item, cards);
     return { state: res.state, events: [...events, ...res.events] };
@@ -206,6 +211,26 @@ export function playCard(
     if (err) return err;
     if (t.kind === 'object' && t.id === src.id) {
       return ruleError('ILLEGAL_TARGET', 'a card cannot target itself');
+    }
+  }
+
+  // Quick-Draw gear attaches to a unit its controller controls as it enters play, so that unit is
+  // chosen now (as a target). With no unit to attach to the gear is played unattached.
+  if (def.type === 'GEAR' && hasKeyword(def, 'QuickDraw')) {
+    const mine = Object.values(state.objects).filter(
+      (o) =>
+        o.controller === pid &&
+        (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+        cards[o.cardId]?.type === 'UNIT',
+    );
+    if (mine.length > 0) {
+      const pick = targets.find((t) => t.kind === 'object');
+      if (!pick || pick.kind !== 'object' || !mine.some((u) => u.id === pick.id)) {
+        return ruleError(
+          'ILLEGAL_TARGET',
+          'Quick-Draw gear must target a unit you control on the board',
+        );
+      }
     }
   }
 

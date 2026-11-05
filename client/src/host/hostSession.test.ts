@@ -545,9 +545,9 @@ describe('solo bot', () => {
   // Tests: the bot seat is driven to completion with a trivial bot; the game never stalls.
   it('runs a solo game to completion with a first-legal-action bot', async () => {
     const commits: CommitEntry[] = [];
-    const host = soloHost('solo', commits);
+    const host = soloHost('solo4', commits);
     host.attachBot(firstLegal(host), { delayMs: 0 });
-    await playSolo(host, 3);
+    await playSolo(host, 5);
     await flush();
     expect(host.getTurnInfo().status).not.toBe('IN_PROGRESS');
     expect(commits.some((c) => c.seat === host.guestSeat)).toBe(true);

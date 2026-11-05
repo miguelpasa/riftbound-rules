@@ -150,7 +150,10 @@ describe('sanitizeFor', () => {
 
   it('leak check detects an unsanitized state (checker is not vacuous)', () => {
     // Tests Rule 128: the leak detector flags raw hidden ids, rng and seed
-    const state = makeState(7);
+    const state = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      .map(makeState)
+      .find((st) => st.players[1].hand.length > 0 && st.players[1].trash.length > 0) as GameState;
+    expect(state).toBeDefined();
     const leaks = findLeaks(state, state, 'p0');
     expect(leaks.some((l) => l.includes('rng'))).toBe(true);
     expect(leaks.some((l) => l.includes('seed'))).toBe(true);
@@ -392,5 +395,37 @@ describe('sanitizeEvents', () => {
     const snapshot = structuredClone(events);
     sanitizeEvents(events, 'p1');
     expect(events).toEqual(snapshot);
+  });
+});
+
+describe('sanitizeFlow choices', () => {
+  it('replaces hidden object ids inside chain-item choices by their token and keeps public ones', () => {
+    // Tests Rule 128: a hidden object id must not leak through free-form choices
+    const state = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      .map(makeState)
+      .find((st) => st.players[1].hand.length > 0 && st.players[1].trash.length > 0) as GameState;
+    expect(state).toBeDefined();
+    const hiddenId = state.players[1].mainDeck[0] as string;
+    const handId = state.players[1].hand[0] as string;
+    const publicId = state.players[1].trash[0] as string;
+    const item = state.flow.chain[0] as (typeof state.flow.chain)[number];
+    item.choices = {
+      pick: hiddenId,
+      nested: [handId, publicId, 3] as unknown as string,
+      deep: { x: hiddenId } as unknown as string,
+    };
+    const view = sanitizeFor(state, 'p0');
+    const out = JSON.stringify(view.flow.chain);
+    expect(out).not.toContain(`"${hiddenId}"`);
+    expect(out).not.toContain(`"${handId}"`);
+    expect(view.flow.chain[0]?.choices).toEqual({
+      pick: 'hidden:p1:mainDeck:0',
+      nested: ['hidden:p1:hand:0', publicId, 3],
+      deep: { x: 'hidden:p1:mainDeck:0' },
+    });
+    // the owner of the hand card still sees real ids for their own hand
+    const own = sanitizeFor(state, 'p1').flow.chain[0]?.choices as Record<string, unknown>;
+    expect((own.nested as unknown[])[0]).toBe(handId);
+    expect(own.pick).toBe('hidden:p1:mainDeck:0');
   });
 });

@@ -9,6 +9,7 @@
  * Decisions:
  *  - Temporary (glossary): killed at the start of its controller's Beginning Phase, before Scoring.
  *    Killed = moved to the OWNER's trash, UNIT_KILLED emitted, attached Equipment is detached.
+ *    TOKEN objects with Temporary are removed from the game instead (186.1).
  *  - Hidden (811, 422.2.a): HIDE_CARD has no payment field, so the 1 Power (any domain) is paid with
  *    `autoPlan`. A hidden card records `enteredTurn = turn.number`; it is playable only on a LATER
  *    turn. From then it has Reaction and base cost 0 (additional costs such as Accelerate / Deflect
@@ -21,7 +22,10 @@
  *    Equip is an activated ability: your turn, Neutral Open, Main phase, with priority (145.2).
  *  - Equipment Might bonus (137.3) = sum of attached Equipment `stats.might`; see attachedMightBonus.
  *  - Quick-Draw: `quickDrawAttach` attaches (free) after the gear is in play; the Reaction speed
- *    comes from the card's own Reaction keyword in CardDef.keywords.
+ *    comes from the card's own Reaction keyword in CardDef.keywords. playCard requires the unit as
+ *    an object Target (ILLEGAL_TARGET if missing / not a unit you control on the board) unless the
+ *    controller has no unit, in which case the gear is played unattached. makePlayHooks().onEnter
+ *    performs the attach from the chain item's first object target.
  */
 import { canPlayNow, deriveTurnState } from './chain.js';
 import type { ChainResolver } from './chain.js';
@@ -76,6 +80,22 @@ function detachAll(state: GameState, unitId: string): void {
   for (const o of Object.values(state.objects)) if (o.attachedTo === unitId) delete o.attachedTo;
 }
 
+/**
+ * Rule 186.1: a token in any zone other than the Board or the Chain ceases to exist. Removes the
+ * object from the game entirely (objects map and every zone array) and detaches its Equipment.
+ * Mutates the working state.
+ */
+export function removeTokenFromGame(state: GameState, id: string): void {
+  for (const p of state.players) {
+    p.base = p.base.filter((x) => x !== id);
+    p.trash = p.trash.filter((x) => x !== id);
+    p.hand = p.hand.filter((x) => x !== id);
+    p.banishment = p.banishment.filter((x) => x !== id);
+  }
+  detachAll(state, id);
+  delete state.objects[id];
+}
+
 // ---------------------------------------------------------------- Temporary
 
 /**
@@ -95,7 +115,7 @@ export function temporaryOnBeginning(
       return (
         o.controller === player &&
         isOnBoard(o) &&
-        def?.type === 'UNIT' &&
+        (def?.type === 'UNIT' || def?.type === 'TOKEN') &&
         hasKeyword(def, 'Temporary')
       );
     })
@@ -103,6 +123,11 @@ export function temporaryOnBeginning(
   for (const o of doomed) {
     const from = s.players[playerIndex(o.zone.player)];
     from.base = from.base.filter((id) => id !== o.id);
+    if (cards[o.cardId]?.type === 'TOKEN') {
+      removeTokenFromGame(s, o.id); // 186.1: tokens cease to exist outside the Board
+      events.push({ type: 'UNIT_KILLED', unitId: o.id });
+      continue;
+    }
     s.players[playerIndex(o.owner)].trash.push(o.id);
     o.zone = { kind: 'trash', player: o.owner };
     o.damage = 0;
@@ -291,8 +316,17 @@ export function makePlayHooks(base: PlayHooks = {}): PlayHooks {
         anyPower: (mine.anyPower ?? 0) + (other.anyPower ?? 0),
       };
     },
-    onEnter(state, cards, objectId) {
-      return base.onEnter?.(state, cards, objectId) ?? [];
+    onEnter(state, cards, objectId, item) {
+      const events = base.onEnter?.(state, cards, objectId, item) ?? [];
+      // Quick-Draw: attach to the unit chosen at play time (playCard validated it).
+      const gear = state.objects[objectId];
+      const def = gear ? cards[gear.cardId] : undefined;
+      const pick = item?.targets.find((t) => t.kind === 'object');
+      if (gear && def?.type === 'GEAR' && hasKeyword(def, 'QuickDraw') && pick?.kind === 'object') {
+        const r = quickDrawAttach(state, cards, objectId, pick.id);
+        if (r.ok) gear.attachedTo = pick.id;
+      }
+      return events;
     },
   };
 }

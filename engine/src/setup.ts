@@ -2,7 +2,9 @@
  * Game setup (Rules 104-118) for a 1v1 Duel.
  *
  * Conventions:
- * - Object ids are 'o1', 'o2', ... allocated from `state.nextObjectId` (next id to hand out).
+ * - Object ids are 'o1', 'o2', ... allocated from `state.nextObjectId` (next id to hand out). Deck
+ *   cards get their ids in shuffled order and the deck is shuffled again, so ids reveal neither
+ *   card identity (copies are not adjacent) nor deck position.
  * - Battlefield ids are 'bf0' (owned by p0) and 'bf1' (owned by p1).
  * - The first player is chosen by the RNG (115) and is ALWAYS seat p0: if the RNG picks the player who
  *   supplied `decks[1]`, the decklists are swapped, so `decks[0]`'s owner is not necessarily p0.
@@ -142,8 +144,15 @@ export function createGameWithSeating(
     const ps = state.players[i] as PlayerState;
     ps.legend = create(deck.legendId, pid, { kind: 'legend', player: pid }); // 111
     ps.championZone.push(create(deck.championId, pid, { kind: 'champion', player: pid })); // 112
-    const main = deck.mainDeck.map((c) => create(c, pid, { kind: 'mainDeck', player: pid }));
-    const runes = deck.runeDeck.map((c) => create(c, pid, { kind: 'runeDeck', player: pid }));
+    // Hidden-information hygiene: object ids must carry no information about card identity or
+    // deck order. The decklist order is shuffled BEFORE ids are allocated (so identical cards do not
+    // get adjacent ids) and the id list is shuffled again afterwards (so id order is not deck order).
+    const main = rngShuffle([...deck.mainDeck], state).map((c) =>
+      create(c, pid, { kind: 'mainDeck', player: pid }),
+    );
+    const runes = rngShuffle([...deck.runeDeck], state).map((c) =>
+      create(c, pid, { kind: 'runeDeck', player: pid }),
+    );
     ps.mainDeck = rngShuffle(main, state); // 114
     ps.runeDeck = rngShuffle(runes, state);
     // 487.4 / 487.5: one of the player's three battlefields, chosen at random.

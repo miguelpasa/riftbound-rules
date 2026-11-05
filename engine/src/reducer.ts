@@ -44,7 +44,14 @@ import { showdownAfterPass } from './showdown.js';
 import type { ShowdownDeps } from './showdown.js';
 import { standardMove } from './movement.js';
 import { opponentOf, ruleError } from './types/index.js';
-import type { CardDatabase, GameState, Intent, PlayerId, ReduceResult } from './types/index.js';
+import type {
+  CardDatabase,
+  GameEventInput,
+  GameState,
+  Intent,
+  PlayerId,
+  ReduceResult,
+} from './types/index.js';
 import type { ChainResolver } from './chain.js';
 
 /** The canonical engine wiring. Frozen so nobody can swap a hook at runtime. */
@@ -55,10 +62,28 @@ export interface EngineHooks {
   readonly showdown: ShowdownDeps;
 }
 
+/** Cleanup as a phase hook: runCleanup's stamped events converted back to unstamped inputs. */
+function phaseCleanup(
+  state: GameState,
+  cards: CardDatabase,
+): { state: GameState; events: GameEventInput[] } {
+  const r = runCleanup(state, cards, defaultShowdownDeps);
+  if (!r.ok) return { state, events: [] };
+  const next = structuredClone(r.state);
+  next.nextEventSeq -= r.events.length; // the phase driver restamps
+  const events = r.events.map((e) => {
+    const copy: Record<string, unknown> = { ...e };
+    delete copy.seq;
+    return copy as GameEventInput;
+  });
+  return { state: next, events };
+}
+
 export const ENGINE_HOOKS: EngineHooks = Object.freeze({
   phase: Object.freeze<PhaseHooks>({
     onBeginning: temporaryOnBeginning,
     onScoringStep: holdScoringStep,
+    runCleanup: phaseCleanup,
   }),
   play: makePlayHooks(),
   resolver: playResolver,

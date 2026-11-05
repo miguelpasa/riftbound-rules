@@ -72,14 +72,16 @@ describe('scenario: Burn Out', () => {
     expect(JSON.stringify(sc.events)).not.toContain('607.1');
   });
 
-  it('does not end the game when the burning player has at least as many points', () => {
-    // Tests Rule 432.3.c: the opponent must reach the victory score and lead
+  it('a lead of 8 vs 7 cannot survive into a Draw Phase: the Beginning Cleanup ends the game first', () => {
+    // Tests Rule 323.1: the win check happens before the Draw Phase, so no Burn Out can follow
     const sc = Scenario.start();
     sc.setDeckSize('p1', 0, 'banishment');
     sc.setPoints('p0', 7);
-    sc.setPoints('p1', 8);
-    sc.endTurn('p0'); // p0 reaches 8 by Burn Out but p1 also has 8: tie, game continues
-    expect(sc.player('p0').points).toBe(8);
-    expect(sc.state.gameStatus).toBe('IN_PROGRESS');
+    sc.setPoints('p1', 8); // an unreachable lead injected by surgery
+    const r = sc.endTurn('p0');
+    expect(sc.state.gameStatus).toBe('FINISHED');
+    expect(sc.state.winner).toBe('p1');
+    expect(sc.eventsOfType('BURN_OUT', r.events)).toEqual([]);
+    expect(sc.player('p0').points).toBe(7);
   });
 });

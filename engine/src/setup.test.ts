@@ -140,3 +140,44 @@ describe('createGame', () => {
     expect(cards).toEqual(FIXTURE_CARDS);
   });
 });
+
+describe('object id hygiene', () => {
+  const num = (id: string): number => Number(id.slice(1));
+
+  it('deck order is not ascending id order and copies of a card do not get adjacent ids', () => {
+    // Tests Rule 128: object ids must not leak card identity or deck order (hidden information)
+    let ascendingDecks = 0;
+    let contiguousTriples = 0;
+    let triples = 0;
+    for (let k = 0; k < 20; k++) {
+      const s = make(`ids-${k}`);
+      for (const p of s.players) {
+        const sorted = [...p.mainDeck].sort((a, b) => num(a) - num(b));
+        if (p.mainDeck.every((id, i) => id === sorted[i])) ascendingDecks++;
+        // The 3-copy cards: are their ids a run of consecutive numbers?
+        const byCard = new Map<string, number[]>();
+        for (const o of Object.values(s.objects)) {
+          if (o.owner !== p.id || !['mainDeck', 'hand'].includes(o.zone.kind)) continue;
+          byCard.set(o.cardId, [...(byCard.get(o.cardId) ?? []), num(o.id)]);
+        }
+        for (const ids of byCard.values()) {
+          if (ids.length !== 3) continue;
+          ids.sort((a, b) => a - b);
+          triples++;
+          if (ids[1] === (ids[0] as number) + 1 && ids[2] === (ids[1] as number) + 1) {
+            contiguousTriples++;
+          }
+        }
+      }
+    }
+    expect(ascendingDecks).toBe(0);
+    expect(triples).toBeGreaterThan(100);
+    expect(contiguousTriples).toBeLessThanOrEqual(2); // chance level is ~1 in 1000
+  });
+
+  it('stays deterministic for a seed', () => {
+    // Tests Rule 114: shuffling uses the game RNG, so the same seed gives the same game
+    expect(make('same')).toEqual(make('same'));
+    expect(make('same').players[0].mainDeck).not.toEqual(make('other').players[0].mainDeck);
+  });
+});
