@@ -1,10 +1,12 @@
 # Remaining work
 
-Everyth
-- **R37 reduce performance done (engine):** one working copy per `reduce` (`engine/src/workingCopy.ts`: `runSession`/`fork`/`cloneState`), `runCleanup` serialises once per pass, `getLegalActions` memoises payment plans. reduce p50 1.5 -> 0.32 ms (p99 6.8 -> 1.7), bot search decisions p50 27.5 -> 7.4 ms (p99 106 -> 31), structuredClone per reduce 7-24 -> 0, state hashes unchanged (golden hashes in `reducePurity.test.ts`). `reduceTrusted` judged not worthwhile. Details: [progress/R37-reduce-performance.md](progress/R37-reduce-performance.md).
-ing in the original plan (see [progress/README.md](progress/README.md)) is done. This file lists what is left, with complexity and a suggested model, using the same convention: **Low** = Haiku, **Medium / High** = Sonnet. Items are grouped by theme and ordered roughly by value within each group.
+Everything in the original plan (see [progress/README.md](progress/README.md)) is done. This file lists what is left, with complexity and a suggested model, using the same convention: **Low** = Haiku, **Medium / High** = Sonnet. Items are grouped by theme and ordered roughly by value within each group.
 
 ## 0. Session log (latest)
+
+- **R37 reduce performance done (engine):** one working copy per `reduce` (`engine/src/workingCopy.ts`: `runSession`/`fork`/`cloneState`), `runCleanup` serialises once per pass, `getLegalActions` memoises payment plans. reduce p50 1.5 -> 0.32 ms (p99 6.8 -> 1.7), bot search decisions p50 27.5 -> 7.4 ms (p99 106 -> 31), structuredClone per reduce 7-24 -> 0, state hashes unchanged (golden hashes in `reducePurity.test.ts`). `reduceTrusted` judged not worthwhile. Details: [progress/R37-reduce-performance.md](progress/R37-reduce-performance.md).
+
+- **Incident (lesson):** an agent ran `git worktree remove --force` on a worktree whose node_modules was a Windows junction; it deleted the real engine/ and client/. Everything was restored from git and R37/R39a/R39b were redone. Agents must never use worktrees, junctions or symlinks here.
 
 - **R39a done (tutorial UI, from R39):** A-01 and A-02 the game's fixed overlays (combat dialog, game-over, concede) are confined to the board column so they never cover the lesson guide; A-03 guide is a collapsible bottom sheet below 768 px; A-05 sticky game header (lg) and Spotlight only scrolls fully off-screen targets; A-06 tutorial selection is additive (plain clicks) and the hint says so; A-09 italic/bold in notes; A-11 Concede focus return and focus trap. Details: [progress/R39a-tutorial-ui.md](progress/R39a-tutorial-ui.md). All R39 items are now done.
 

@@ -136,7 +136,9 @@ function RunnerBody({
         </button>
         <div
           id="lesson-guide-body"
-          className={`flex flex-col gap-3 ${collapsed ? 'max-md:hidden' : ''}`}
+          className={
+            collapsed ? 'hidden md:flex md:flex-col md:gap-3' : 'flex flex-col gap-3'
+          }
         >
           <div className="flex items-center justify-between gap-2">
             <button type="button" onClick={onExit} className={btn}>
