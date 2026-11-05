@@ -18,7 +18,8 @@ No game server is needed.
   finished one as a replay, and export replays as JSON.
 
 Docs: [Architecture](docs/ARCHITECTURE.md) | [Rules assumptions](docs/ASSUMPTIONS.md) |
-[Writing tutorial lessons](client/src/tutorial/AUTHORING.md)
+[Writing tutorial lessons](client/src/tutorial/AUTHORING.md) | [Task progress](docs/progress/README.md) |
+[Remaining work](docs/REMAINING.md)
 
 ## Requirements
 
