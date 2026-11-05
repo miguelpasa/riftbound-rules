@@ -6,7 +6,7 @@ import type { PresetDeck } from '../decks/presets';
 import type { GameStorage } from '../host/persistence';
 import { openGameStorage } from '../host/persistence';
 import type { KeyValueStorage } from '../net/guestSession';
-import type { PeerFactory } from '../net/peerTransport';
+import { defaultPeerFactory, type PeerFactory } from '../net/peerTransport';
 import type { BotFactoryOptions, BotHandle, HostEnv } from './hostGame';
 import type { AppSettings } from './settings';
 import { pushToastOnce } from './toastUtil';
@@ -45,8 +45,30 @@ function sessionStorageKv(): KeyValueStorage {
   };
 }
 
+/**
+ * Custom PeerJS broker for local development and the e2e suite, from the URL
+ * (?peerHost=localhost&peerPort=9000&peerPath=/&peerSecure=0) or VITE_PEER_HOST/PORT/PATH/SECURE.
+ * Without a host the public PeerJS broker is used (undefined = library default).
+ */
+export function peerFactoryFromEnv(): PeerFactory | undefined {
+  const q = new URLSearchParams(globalThis.location?.search ?? '');
+  const env = import.meta.env as Record<string, string | undefined>;
+  const host = q.get('peerHost') ?? env.VITE_PEER_HOST;
+  if (!host) return undefined;
+  const port = q.get('peerPort') ?? env.VITE_PEER_PORT;
+  const path = q.get('peerPath') ?? env.VITE_PEER_PATH;
+  const secure = q.get('peerSecure') ?? env.VITE_PEER_SECURE;
+  return defaultPeerFactory({
+    host,
+    ...(port ? { port: Number(port) } : {}),
+    ...(path ? { path } : {}),
+    secure: secure === '1' || secure === 'true',
+  });
+}
+
 export function defaultDeps(): AppDeps {
   return {
+    peerFactory: peerFactoryFromEnv(),
     loadCards,
     openStorage: async () =>
       (

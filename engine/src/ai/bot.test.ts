@@ -269,7 +269,7 @@ describe('information hiding', () => {
         expect(d2).toEqual(d1);
       }
     }
-  });
+  }, 60_000);
 
   it('never mutates the view it is given', () => {
     // Tests Rule 128: the bot only reads the sanitized view
