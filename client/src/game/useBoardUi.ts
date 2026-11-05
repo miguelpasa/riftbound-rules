@@ -85,7 +85,13 @@ export interface BoardUi {
   dropOn: (dest: DestKey) => Promise<void>;
 }
 
-export function useBoardUi(api: GameApi): BoardUi {
+export interface BoardUiOptions {
+  /** Every plain unit click adds to / removes from the selection (tutorial). */
+  additiveSelection?: boolean;
+}
+
+export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
+  const alwaysAdditive = opts.additiveSelection === true;
   const { cards, view, legal, seat } = api;
   const [selected, setSelected] = useState<string[]>([]);
   const [dragIds, setDragIds] = useState<string[] | null>(null);
@@ -197,13 +203,17 @@ export function useBoardUi(api: GameApi): BoardUi {
     [legal, seat, submit],
   );
 
-  const clickUnit = useCallback((id: string, additive: boolean) => {
-    setPopover(null);
-    setSelected((cur) => {
-      if (additive) return cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-      return cur.length === 1 && cur[0] === id ? [] : [id];
-    });
-  }, []);
+  const clickUnit = useCallback(
+    (id: string, additive: boolean) => {
+      setPopover(null);
+      setSelected((cur) => {
+        if (additive || alwaysAdditive)
+          return cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+        return cur.length === 1 && cur[0] === id ? [] : [id];
+      });
+    },
+    [alwaysAdditive],
+  );
 
   const clearSelection = useCallback(() => setSelected([]), []);
 

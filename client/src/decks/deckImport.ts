@@ -379,12 +379,49 @@ export function importDecks(input: unknown, cards: CardDatabase): DeckImportRepo
   return { fatal: [], entries };
 }
 
-/** Counts of fully supported / partial cards in a deck (legend excluded, champion + main counted). */
+/** Every card id in a deck: legend, champion, main deck, battlefields and runes. */
+export function deckCardIds(deck: DeckList): string[] {
+  return [deck.legendId, deck.championId, ...deck.mainDeck, ...deck.battlefields, ...deck.runeDeck];
+}
+
+/**
+ * Counts of fully supported / partial cards across ALL cards of a deck (legend, champion, main
+ * deck, battlefields and runes), so the picker agrees with the per-card "Effect not implemented"
+ * badge shown in game.
+ */
 export function deckSupportStats(
   deck: DeckList,
   cards: CardDatabase,
 ): { total: number; full: number; partial: number } {
-  const ids = [deck.championId, ...deck.mainDeck];
+  const ids = deckCardIds(deck);
   const full = ids.filter((id) => cards[id]?.supportLevel === 'full').length;
   return { total: ids.length, full, partial: ids.length - full };
+}
+
+/** Below this share of fully implemented cards a deck gets a "many cards have no effect" warning. */
+export const LOW_SUPPORT_THRESHOLD = 0.6;
+
+export function isLowSupport(stats: { total: number; full: number }): boolean {
+  return stats.total > 0 && stats.full / stats.total < LOW_SUPPORT_THRESHOLD;
+}
+
+/**
+ * Stable content key of a deck: identical legend + champion + battlefields + (order-insensitive)
+ * main and rune lists give the same key. Used to detect re-imports of the same deck.
+ */
+export function deckContentKey(deck: DeckList): string {
+  const canon = JSON.stringify([
+    deck.legendId,
+    deck.championId,
+    [...deck.mainDeck].sort(),
+    [...deck.runeDeck].sort(),
+    [...deck.battlefields].sort(),
+  ]);
+  // FNV-1a 32-bit, hex; the canonical length is appended to make collisions very unlikely.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < canon.length; i++) {
+    h ^= canon.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${h.toString(16).padStart(8, '0')}-${canon.length.toString(16)}`;
 }

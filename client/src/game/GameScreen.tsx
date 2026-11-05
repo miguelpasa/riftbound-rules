@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { isHiddenCard } from '@riftbound/engine';
 import type { GameEvent, Intent } from '@riftbound/engine';
 import { useGame, type GameApi } from '../app/gameApi';
@@ -25,6 +25,8 @@ export interface GameScreenProps {
   onBackToMenu?: () => void;
   /** Extra header content (leave button, room code, timer badge...). */
   headerExtra?: ReactNode;
+  /** Tutorial: every plain unit click adds to the selection (no Ctrl/Shift needed). */
+  additiveSelection?: boolean;
 }
 
 interface LogLine {
@@ -122,15 +124,37 @@ function ShortcutHelp() {
 
 function ConcedeDialog({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   const titleId = useId();
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') {
+        onCancel();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      // Focus trap: Tab / Shift+Tab cycle through the dialog's buttons only.
+      const items = Array.from(ref.current?.querySelectorAll<HTMLElement>('button') ?? []);
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (!ref.current?.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onCancel]);
   return (
     <div
+      ref={ref}
       role="alertdialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -200,12 +224,19 @@ function GameOverBanner({
 }
 
 /** The whole in-game screen. Reads everything from `useGame()`; render inside a GameProvider. */
-export function GameScreen({ onBackToMenu, headerExtra }: GameScreenProps) {
+export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: GameScreenProps) {
   const api = useGame();
   const { view, cards, legal, seat } = api;
-  const ui = useBoardUi(api);
+  const ui = useBoardUi(api, { additiveSelection: additiveSelection === true });
   const { lines, announcement } = useEventLog(api);
   const [confirmConcede, setConfirmConcede] = useState(false);
+  const concedeBtn = useRef<HTMLButtonElement>(null);
+  const concedeWasOpen = useRef(false);
+  // Closing the Concede dialog (Escape, Keep playing) returns focus to the button that opened it.
+  useEffect(() => {
+    if (concedeWasOpen.current && !confirmConcede) concedeBtn.current?.focus();
+    concedeWasOpen.current = confirmConcede;
+  }, [confirmConcede]);
 
   const primary = primaryAction(view, legal);
   const submit = ui.submit;
@@ -249,7 +280,7 @@ export function GameScreen({ onBackToMenu, headerExtra }: GameScreenProps) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-800 bg-slate-900/80 px-3 py-2">
+      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-800 bg-slate-900 px-3 py-2 lg:sticky lg:top-0 lg:z-20">
         <div className="w-60" data-tutorial-id="score">
           <Scoreboard
             me={seat}
@@ -284,6 +315,7 @@ export function GameScreen({ onBackToMenu, headerExtra }: GameScreenProps) {
           ) : null}
           <ShortcutHelp />
           <button
+            ref={concedeBtn}
             type="button"
             disabled={api.gameOver !== null}
             onClick={() => setConfirmConcede(true)}

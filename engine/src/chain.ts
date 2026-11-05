@@ -25,6 +25,7 @@
  *  - PASS_PRIORITY in Neutral Open with an empty chain is an ERROR (WRONG_PHASE, "use END_TURN"):
  *    there is nothing to pass to.
  */
+import { cloneState, fork } from './workingCopy.js';
 import { opponentOf, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -108,7 +109,7 @@ function syncInPlace(state: GameState): void {
 
 /** Returns a copy with `turnState` recomputed from the chain and Showdown presence. */
 export function syncTurnState(state: GameState): GameState {
-  const next = structuredClone(state);
+  const next = fork(state);
   syncInPlace(next);
   return next;
 }
@@ -159,8 +160,8 @@ export function canPlayNow(
 
 /** Place a PENDING item on top of the Chain (329, 330.2); the state becomes Closed (354.1). */
 export function pushPendingItem(state: GameState, item: ChainItem): GameState {
-  const next = structuredClone(state);
-  next.flow.chain.push({ ...structuredClone(item), status: 'PENDING' });
+  const next = fork(state);
+  next.flow.chain.push({ ...cloneState(item), status: 'PENDING' });
   if (next.flow.showdown) next.flow.showdown.passesInRow = 0;
   syncInPlace(next);
   return next;
@@ -171,7 +172,7 @@ export function pushPendingItem(state: GameState, item: ChainItem): GameState {
  * controller (312.2.c/d). Throws on an unknown id (programmer error).
  */
 export function finalizeItem(state: GameState, itemId: string): GameState {
-  const next = structuredClone(state);
+  const next = fork(state);
   const item = next.flow.chain.find((i) => i.id === itemId);
   if (!item) throw new Error(`finalizeItem: unknown chain item ${itemId}`);
   item.status = 'FINALIZED';
@@ -200,7 +201,7 @@ function resolveTop(
   if (!top || top.status !== 'FINALIZED') throw new Error('resolveTop: no finalized item on top');
   state.flow.chain.pop();
   const res = resolver(state, top, cards);
-  const s = structuredClone(res.state);
+  const s = fork(res.state);
   events.push(...stamp(s, res.events));
   events.push(...stamp(s, [{ type: 'CHAIN_ITEM_RESOLVED', chainItemId: top.id }]));
   syncInPlace(s);
@@ -226,7 +227,7 @@ function resolveTop(
  * EFFECT_UNIMPLEMENTED; Units/Gear are left alone (E5 places them).
  */
 export const defaultResolver: ChainResolver = (state, item, cards) => {
-  const s = structuredClone(state);
+  const s = fork(state);
   const events: GameEventInput[] = [];
   const obj = s.objects[item.sourceObjectId];
   const def = obj ? cards[obj.cardId] : undefined;
@@ -280,7 +281,7 @@ export function passPriority(
   if (state.flow.priority !== intent.playerId) {
     return ruleError('NOT_YOUR_PRIORITY', `priority: ${state.flow.priority ?? 'none'}`);
   }
-  const next = structuredClone(state);
+  const next = fork(state);
   const chain = next.flow.chain;
 
   if (chain.length === 0) {

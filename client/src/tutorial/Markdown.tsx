@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
-const TOKEN = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+const TOKEN = /(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`)/g;
 
-/** Inline minimal markdown: **bold** and `code`. Never injects HTML. */
+/** Inline minimal markdown: **bold**, *italic* and `code`. Never injects HTML. */
 export function renderInline(text: string): ReactNode[] {
   return text.split(TOKEN).map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
@@ -10,6 +10,13 @@ export function renderInline(text: string): ReactNode[] {
         <strong key={i} className="font-semibold text-amber-200">
           {part.slice(2, -2)}
         </strong>
+      );
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      return (
+        <em key={i} className="italic">
+          {part.slice(1, -1)}
+        </em>
       );
     }
     if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {

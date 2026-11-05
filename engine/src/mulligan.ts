@@ -1,3 +1,4 @@
+import { fork } from './workingCopy.js';
 import { rngShuffle } from './rng.js';
 import { drawFromTop, stampEvents } from './setup.js';
 import { MAX_MULLIGAN, playerIndex } from './types/constants.js';
@@ -37,7 +38,7 @@ export function applyMulligan(
   const hand = state.players[playerIndex(intent.playerId)].hand;
   for (const id of ids) if (!hand.includes(id)) return ruleError('NOT_IN_HAND', id);
 
-  const next = structuredClone(state);
+  const next = fork(state);
   const mull = next.mulligan as NonNullable<GameState['mulligan']>;
   const ps = next.players[playerIndex(intent.playerId)];
   const inputs: GameEventInput[] = [];

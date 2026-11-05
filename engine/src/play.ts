@@ -20,6 +20,7 @@
  * Note for E10 (keywords): a facedown Hidden card must NOT emit a public CARD_PLAYED (it would leak
  * cardId, see docs/ASSUMPTIONS.md); Hidden uses HIDE_CARD, not this pipeline.
  */
+import { cloneState, fork } from './workingCopy.js';
 import { runEffects, spellTargetsLegal } from './effects.js';
 import { canPlayNow, finalizeAndSettle, pushPendingItem } from './chain.js';
 import type { ChainResolver } from './chain.js';
@@ -120,7 +121,7 @@ function placingResolver(
   turnNumber: number,
 ): ChainResolver {
   return (state, item, cards) => {
-    const s = structuredClone(state);
+    const s = fork(state);
     const events: GameEventInput[] = [];
     const obj = s.objects[item.sourceObjectId];
     const def = obj ? cards[obj.cardId] : undefined;
@@ -155,7 +156,7 @@ function placingResolver(
  * a card already in the trash is not trashed twice. The chain item has been popped by chain.ts.
  */
 export const playResolver: ChainResolver = (state, item, cards) => {
-  const s = structuredClone(state);
+  const s = fork(state);
   const events: GameEventInput[] = [];
   const obj = s.objects[item.sourceObjectId];
   if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
@@ -305,8 +306,8 @@ export function playCard(
     sourceObjectId: obj.id,
     controller: pid,
     status: 'PENDING',
-    targets: structuredClone(targets),
-    choices: structuredClone(intent.choices ?? {}),
+    targets: cloneState(targets),
+    choices: cloneState(intent.choices ?? {}),
     ...(def.type === 'SPELL' && def.supportLevel === 'partial' && !def.effects?.length
       ? { unimplementedEffect: true }
       : {}),

@@ -96,7 +96,7 @@ export const LESSON_5: LessonDef = {
       onSkip: (ctx) => {
         void ctx.api.send(moveIntent(ctx));
       },
-      hint: 'Click one of your units, then the other, then the highlighted battlefield; or drag them there.',
+      hint: 'Click one of your units, then the other (in the tutorial each click adds to the selection; click a selected unit again to unselect it), then the highlighted battlefield; or drag them there.',
       done: (ctx) => ctx.state.flow.combat !== undefined,
       explain:
         'Combat started. You are the **Attacker** and the opponent is the **Defender**. Combat always begins with a Showdown.',

@@ -61,8 +61,52 @@ describe('Card', () => {
     expect(badge).toHaveTextContent('Effect not implemented');
     expect(badge).toHaveAttribute(
       'title',
-      "This card's rules text is not executed in this version",
+      "Effect not implemented: this card's rules text is not executed in this version",
     );
+  });
+
+  it('uses the same "Effect not implemented" wording at every size', () => {
+    for (const size of ['hand', 'board', 'chain', 'detail'] as const) {
+      const { unmount } = render(<Card def={{ ...def, supportLevel: 'partial' }} size={size} />);
+      expect(screen.getByTestId('partial-badge')).toHaveTextContent(/^Effect not implemented$/);
+      unmount();
+    }
+  });
+
+  describe('compact text overflow', () => {
+    const longDef = { ...def, text: 'Long rules text. '.repeat(20) };
+    const spy = (scroll: number, client: number) => {
+      const a = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(scroll);
+      const b = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(client);
+      return () => {
+        a.mockRestore();
+        b.mockRestore();
+      };
+    };
+
+    it('offers More when compact text is clipped and shows the full text on tap', () => {
+      const restore = spy(200, 40);
+      const onClick = vi.fn();
+      render(<Card def={longDef} size="board" onClick={onClick} />);
+      fireEvent.click(screen.getByTestId('card-more'));
+      expect(onClick).not.toHaveBeenCalled();
+      expect(screen.getByTestId('card-full-text')).toHaveTextContent('Long rules text.');
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByTestId('card-full-text')).toBeNull();
+      restore();
+    });
+
+    it('does not offer More when the text fits, or on non-compact cards', () => {
+      let restore = spy(40, 40);
+      const { unmount } = render(<Card def={def} size="board" />);
+      expect(screen.queryByTestId('card-more')).toBeNull();
+      unmount();
+      restore();
+      restore = spy(200, 40);
+      render(<Card def={longDef} size="hand" />);
+      expect(screen.queryByTestId('card-more')).toBeNull();
+      restore();
+    });
   });
 
   it('shows exhausted state and damage with effective might', () => {

@@ -15,6 +15,7 @@
  *   163.2.b); `addUniversalPower` is the entry point for effects that Add [A]. Specific-domain
  *   pool Power is spent first.
  */
+import { fork } from './workingCopy.js';
 import type {
   ActivateRuneIntent,
   CardDatabase,
@@ -207,7 +208,7 @@ export function activateRune(
 ): ReduceResult {
   const checked = checkRune(state, cards, intent.playerId, intent.runeId, intent.mode);
   if ('ok' in checked) return checked;
-  const next = structuredClone(state);
+  const next = fork(state);
   applyRune(next, intent.playerId, intent.runeId, intent.mode, checked.domain);
   return { ok: true, state: next, events: [] };
 }
@@ -339,7 +340,7 @@ export function payCost(
     if (seen.has(a.runeId)) return ruleError('INVALID_PAYMENT', `duplicate rune ${a.runeId}`);
     seen.add(a.runeId);
   }
-  const next = structuredClone(state);
+  const next = fork(state);
   for (const a of payment) {
     const checked = checkRune(next, cards, playerId, a.runeId, a.mode);
     if ('ok' in checked) {
@@ -424,21 +425,21 @@ export function canAfford(
 
 /** Return a new state where `player`'s Rune Pool is empty. */
 export function emptyRunePool(state: GameState, player: PlayerId): GameState {
-  const next = structuredClone(state);
+  const next = fork(state);
   next.players[idx(player)].runePool = { energy: 0, power: {} };
   return next;
 }
 
 /** Return a new state where both players' Rune Pools are empty. */
 export function emptyAllRunePools(state: GameState): GameState {
-  const next = structuredClone(state);
+  const next = fork(state);
   for (const p of next.players) p.runePool = { energy: 0, power: {} };
   return next;
 }
 
 /** Add Universal Power [A] to a player's Rune Pool (135.2.e.5.b). */
 export function addUniversalPower(state: GameState, player: PlayerId, amount: number): GameState {
-  const next = structuredClone(state);
+  const next = fork(state);
   const pool = next.players[idx(player)].runePool;
   pool.universal = (pool.universal ?? 0) + amount;
   return next;

@@ -78,10 +78,13 @@ export function Spotlight({ ids, version }: { ids: readonly string[]; version: n
     mo.observe(document.body, { childList: true, subtree: true });
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
     findTargets(ids).forEach((el) => ro?.observe(el));
-    // Bring the first target into view when the step changes.
+    // Bring the first target into view when the step changes, but only when it is entirely off
+    // screen: scrolling for a partly visible (tall) target would push the board header away.
     const first = findTargets(ids)[0];
     if (first && typeof first.scrollIntoView === 'function') {
-      first.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      const r = first.getBoundingClientRect();
+      const offscreen = r.bottom <= 0 || r.top >= window.innerHeight;
+      if (offscreen) first.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
     return () => {
       cancelAnimationFrame(raf);

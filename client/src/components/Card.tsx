@@ -1,5 +1,7 @@
 import {
   useEffect,
+  useLayoutEffect,
+  useRef,
   useState,
   type DragEventHandler,
   type KeyboardEvent,
@@ -51,7 +53,8 @@ export interface CardProps {
   title?: string;
 }
 
-export const PARTIAL_TOOLTIP = "This card's rules text is not executed in this version";
+export const PARTIAL_LABEL = 'Effect not implemented';
+export const PARTIAL_TOOLTIP = `${PARTIAL_LABEL}: this card's rules text is not executed in this version`;
 const IMAGE_TIMEOUT_MS = 6000;
 
 type SymbolKind = 'E' | 'M' | 'C' | 'A' | 'N';
@@ -197,6 +200,18 @@ export function Card({
   const effMight = def.stats.might !== undefined ? def.stats.might + bonus : undefined;
   const interactive = !!onClick && !disabled;
   const compact = size === 'board' || size === 'chain';
+  const textRef = useRef<HTMLDivElement>(null);
+  const [clipped, setClipped] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  // Compact cards have little room: when the rules text does not fit, offer a "More" affordance.
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!compact || !el) {
+      setClipped(false);
+      return;
+    }
+    setClipped(el.scrollHeight > el.clientHeight + 1);
+  }, [compact, def.text, def.keywords.length, size]);
 
   const state = [
     exhausted ? 'exhausted' : null,
@@ -277,10 +292,54 @@ export function Card({
         </ul>
       ) : null}
       <div
-        className={`relative z-10 mt-1 min-h-0 flex-1 overflow-hidden leading-snug text-slate-200 ${compact ? 'line-clamp-3' : ''}`}
+        ref={textRef}
+        className="relative z-10 mt-1 min-h-0 flex-1 overflow-hidden leading-snug text-slate-200"
       >
         <RulesText text={def.text} />
       </div>
+      {compact && clipped ? (
+        <button
+          type="button"
+          data-testid="card-more"
+          aria-label="Show full card text"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(true);
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="relative z-10 -mt-0.5 self-start rounded bg-black/60 px-1.5 py-0.5 text-[1em] font-semibold text-sky-300 underline focus-visible:outline-2 focus-visible:outline-white"
+        >
+          ... More
+        </button>
+      ) : null}
+      {compact && expanded ? (
+        <div
+          data-testid="card-full-text"
+          role="group"
+          aria-label="Full card text"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') setExpanded(false);
+          }}
+          className="absolute inset-0 z-20 flex flex-col gap-1 overflow-y-auto bg-slate-950/95 p-1.5 text-[1.1em] leading-snug text-slate-100"
+        >
+          <div className="font-bold">{def.name}</div>
+          <div className="text-slate-300">{typeLine(def)}</div>
+          <RulesText text={def.text} />
+          <button
+            type="button"
+            autoFocus
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(false);
+            }}
+            className="mt-auto self-start rounded bg-slate-700 px-2 py-1 font-semibold text-slate-100 focus-visible:outline-2 focus-visible:outline-white"
+          >
+            Close
+          </button>
+        </div>
+      ) : null}
       <div className="relative z-10 mt-1 flex items-end justify-between gap-1">
         <div className="flex flex-col items-start gap-0.5">
           {def.supportLevel === 'partial' ? (
@@ -289,7 +348,7 @@ export function Card({
               title={PARTIAL_TOOLTIP}
               className="rounded bg-amber-900/80 px-1 text-[0.8em] font-semibold text-amber-200"
             >
-              {compact ? 'Not implemented' : 'Effect not implemented'}
+              {PARTIAL_LABEL}
             </span>
           ) : null}
           {exhausted ? (

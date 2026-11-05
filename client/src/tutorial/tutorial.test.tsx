@@ -10,6 +10,7 @@ import { LESSONS } from './lessons';
 import { LESSON_0_DEMO } from './lessons/lesson0-demo';
 import { clearProgress, loadProgress, markCompleted } from './progress';
 import { TutorialSession } from './sandbox';
+import { renderInline } from './Markdown';
 import { findTargets, Spotlight } from './Spotlight';
 import { TutorialApp } from './TutorialApp';
 import type { LessonDef } from './types';
@@ -480,5 +481,31 @@ describe('lesson runner UI', () => {
     expect(await screen.findByTestId('blocked-callout')).toBeInTheDocument();
     cleanup();
     vi.restoreAllMocks();
+  });
+});
+
+describe('markdown and narrow-screen guide', () => {
+  it('renderInline renders bold, italic and code without raw markers', () => {
+    const { container } = render(<p>{renderInline('a **5** b *every* c `x` d')}</p>);
+    expect(container.querySelector('strong')?.textContent).toBe('5');
+    expect(container.querySelector('em')?.textContent).toBe('every');
+    expect(container.querySelector('code')?.textContent).toBe('x');
+    expect(container.textContent).toBe('a 5 b every c x d');
+    const lone = render(<p>{renderInline('2 * 3 * 4')}</p>);
+    expect(lone.container.textContent).toBe('2 * 3 * 4');
+  });
+
+  it('guide has a Hide/Show toggle for narrow screens and is placed beside the board', () => {
+    render(<TutorialApp onExit={() => undefined} botDelayMs={0} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start Meet the board' }));
+    const toggle = screen.getByRole('button', { name: /Hide guide/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: /Show guide/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    const guide = screen.getByRole('complementary', { name: 'Lesson guide' });
+    expect(guide.className).toContain('z-40');
   });
 });

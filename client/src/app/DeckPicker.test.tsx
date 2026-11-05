@@ -91,7 +91,7 @@ describe('DeckPicker import', () => {
     expect(radios[0]).toHaveAttribute('aria-checked', 'true');
     expect(within(radios[0]!).getByText('Cup - 1st place')).toBeInTheDocument();
     expect(within(radios[0]!).getByText(/Ember/)).toBeInTheDocument();
-    expect(within(radios[0]!).getByText(/\/40 cards fully implemented/)).toBeInTheDocument();
+    expect(within(radios[0]!).getByText(/\d+\/\d+ cards fully implemented/)).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Import result' })).toHaveTextContent(
       'Imported 2 of 2 decks.',
     );
@@ -196,5 +196,62 @@ describe('DeckPicker manage', () => {
     expect(screen.getByRole('radio', { name: 'Stale' })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByText('Not valid with the current card data')).toBeInTheDocument();
     expect(last()).toBeNull();
+  });
+});
+
+describe('DeckPicker duplicates and coverage warning', () => {
+  it('skips an identical deck imported a second time and says so', () => {
+    setup();
+    paste(shareDeck(IMPORT_DECK_A, 'Deck A'));
+    expect(listImportedDecks()).toHaveLength(1);
+    paste(shareDeck(IMPORT_DECK_A, 'Deck A again'));
+    expect(listImportedDecks()).toHaveLength(1);
+    const status = screen.getByRole('status', { name: 'Import result' });
+    expect(status).toHaveTextContent('Imported 0 of 1 deck.');
+    expect(status).toHaveTextContent('already imported as "Deck A"');
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+  });
+
+  it('skips duplicates inside one file but imports the distinct ones', () => {
+    setup();
+    paste([
+      shareDeck(IMPORT_DECK_A, 'Deck A'),
+      shareDeck(IMPORT_DECK_A, 'Copy of A'),
+      shareDeck(IMPORT_DECK_B, 'Deck B'),
+    ]);
+    expect(listImportedDecks().map((d) => d.name)).toEqual(['Deck A', 'Deck B']);
+    expect(screen.getByRole('status', { name: 'Import result' })).toHaveTextContent(
+      'Imported 2 of 3 decks.',
+    );
+  });
+
+  it('warns without blocking when under 60% of the selected deck is implemented', () => {
+    const cards = Object.fromEntries(
+      Object.entries(IMPORT_CARDS).map(([k, c]) => [k, { ...c, supportLevel: 'partial' as const }]),
+    );
+    const onChange = vi.fn<(c: DeckChoice | null) => void>();
+    render(<DeckPicker presets={[]} cards={cards} onChange={onChange} />);
+    paste(shareDeck(IMPORT_DECK_A, 'Deck A'));
+    expect(screen.getByRole('status', { name: 'Deck coverage warning' })).toHaveTextContent(
+      'Many cards in this deck have no effect yet',
+    );
+    expect(onChange.mock.calls.at(-1)?.[0]?.name).toBe('Deck A');
+  });
+
+  it('shows no coverage warning for a fully implemented deck', () => {
+    const cards = Object.fromEntries(
+      Object.entries(IMPORT_CARDS).map(([k, c]) => [k, { ...c, supportLevel: 'full' as const }]),
+    );
+    render(<DeckPicker presets={[]} cards={cards} onChange={vi.fn()} />);
+    paste(shareDeck(IMPORT_DECK_A, 'Deck A'));
+    expect(screen.queryByRole('status', { name: 'Deck coverage warning' })).toBeNull();
+  });
+
+  it('gives Rename and Delete a 44px minimum hit area on narrow screens', () => {
+    setup();
+    paste(shareDeck(IMPORT_DECK_A, 'Deck A'));
+    for (const name of ['Rename Deck A', 'Delete Deck A']) {
+      expect(screen.getByRole('button', { name }).className).toContain('min-h-11');
+    }
   });
 });

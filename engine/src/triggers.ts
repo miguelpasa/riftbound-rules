@@ -9,6 +9,7 @@
  * The turn player's triggers are added first, the other player's after, so the other player's
  * resolve first (last in, first out). The player who does not control the top item gets Priority.
  */
+import { fork } from './workingCopy.js';
 import { deriveTurnState } from './chain.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import type {
@@ -72,7 +73,7 @@ export function fireTriggers(
   if (state.gameStatus !== 'IN_PROGRESS') return { state, events: [] };
   const pending = collect(state, cards, events);
   if (pending.length === 0) return { state, events: [] };
-  const s = structuredClone(state);
+  const s = fork(state);
   const active = s.turn.activePlayer;
   const ordered = [
     ...pending.filter((p) => p.controller === active),

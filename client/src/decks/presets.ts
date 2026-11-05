@@ -1,12 +1,19 @@
 import { validateDeck } from '@riftbound/engine';
 import type { CardDatabase, CardDef, DeckList, Domain } from '@riftbound/engine';
+import { deckSupportStats } from './deckImport';
 
 export interface PresetDeck {
   id: string;
   name: string;
   legendId: string;
   deck: DeckList;
-  stats: { fullSupportCount: number; partialCount: number; avgEnergy: number };
+  stats: {
+    fullSupportCount: number;
+    partialCount: number;
+    /** Cards counted (legend, champion, main deck, battlefields and runes). */
+    totalCount: number;
+    avgEnergy: number;
+  };
 }
 
 export interface BuildPresetOptions {
@@ -186,7 +193,7 @@ function buildForLegend(
   if (!verdict.ok) return { reason: `validateDeck failed: ${verdict.errors.join('; ')}` };
 
   const all = [champion, ...main];
-  const fullSupportCount = all.filter((c) => c.supportLevel === 'full').length;
+  const support = deckSupportStats(deck, cards);
   const avgEnergy = all.reduce((s, c) => s + c.cost.energy, 0) / all.length;
   return {
     preset: {
@@ -195,8 +202,9 @@ function buildForLegend(
       legendId: legend.cardId,
       deck,
       stats: {
-        fullSupportCount,
-        partialCount: all.length - fullSupportCount,
+        fullSupportCount: support.full,
+        partialCount: support.partial,
+        totalCount: support.total,
         avgEnergy: Math.round(avgEnergy * 100) / 100,
       },
     },

@@ -26,7 +26,8 @@ describe('fixture presets', () => {
     expect(FIXTURE_PRESETS).toHaveLength(2);
     for (const p of FIXTURE_PRESETS) {
       expect(validateDeck(FIXTURE_CARDS, p.deck).ok).toBe(true);
-      expect(p.stats.fullSupportCount + p.stats.partialCount).toBe(40);
+      expect(p.stats.fullSupportCount + p.stats.partialCount).toBe(p.stats.totalCount);
+      expect(p.stats.totalCount).toBeGreaterThanOrEqual(40);
     }
   });
 });

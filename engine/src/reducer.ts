@@ -24,6 +24,7 @@
  * `ENGINE_HOOKS` is the one shared wiring of the hook points; AI/host code must use it instead of
  * re-assembling hooks.
  */
+import { fork, runSession } from './workingCopy.js';
 import { passPriority } from './chain.js';
 import { fireTriggers } from './triggers.js';
 import { expireTurnEffects } from './effects.js';
@@ -73,7 +74,7 @@ function phaseCleanup(
 ): { state: GameState; events: GameEventInput[] } {
   const r = runCleanup(state, cards, defaultShowdownDeps);
   if (!r.ok) return { state, events: [] };
-  const next = structuredClone(r.state);
+  const next = fork(r.state);
   next.nextEventSeq -= r.events.length; // the phase driver restamps
   const events = r.events.map((e) => {
     const copy: Record<string, unknown> = { ...e };
@@ -213,7 +214,7 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
     case 'ACTIVATE_ABILITY':
       return ruleError('ABILITY_NOT_AVAILABLE', 'no activated abilities in the MVP');
     case 'CONCEDE': {
-      const next = structuredClone(state);
+      const next = fork(state);
       const winner = opponentOf(intent.playerId);
       next.gameStatus = 'FINISHED';
       next.winner = winner;
@@ -232,6 +233,10 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
  * Never throws.
  */
 export function applyIntent(state: GameState, cards: CardDatabase, intent: Intent): ReduceResult {
+  return runSession(() => applyIntentInSession(state, cards, intent));
+}
+
+function applyIntentInSession(state: GameState, cards: CardDatabase, intent: Intent): ReduceResult {
   try {
     const raw: unknown = intent;
     if (!isObj(raw)) return ruleError('UNKNOWN_INTENT', 'intent is not an object');
@@ -263,7 +268,15 @@ export function applyIntent(state: GameState, cards: CardDatabase, intent: Inten
  * Success returns the new (post-Cleanup) state and every event produced, in `seq` order.
  */
 export function reduce(state: GameState, cards: CardDatabase, intent: Intent): ReduceResult {
-  const r = applyIntent(state, cards, intent);
+  return runSession(() => reduceInSession(state, cards, intent));
+}
+
+/**
+ * One working copy per reduce (R37): the first helper that needs to change anything copies the input
+ * (`fork`), every later helper in this session mutates that private copy. The input is never touched.
+ */
+function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent): ReduceResult {
+  const r = applyIntentInSession(state, cards, intent);
   if (!r.ok || intent.type === 'CONCEDE') return r;
   try {
     const c = runCleanup(r.state, cards, ENGINE_HOOKS.showdown);

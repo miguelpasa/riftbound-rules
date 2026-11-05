@@ -17,6 +17,7 @@
  *   gives CLOSED_STATE_REACTION_ONLY.
  * - Expiration hooks exist for "this turn" effects; the MVP has none, so Might bonuses are untouched.
  */
+import { fork } from './workingCopy.js';
 import { syncTurnState, nextPlayerInTurnOrder } from './chain.js';
 import { drawWithBurnOut } from './burnout.js';
 import { stampEvents } from './setup.js';
@@ -182,7 +183,7 @@ export function runStartOfTurn(
 ): ReduceResult {
   const err = assertPhase(state, 'AWAKEN');
   if (err) return err;
-  const c: Ctx = { s: structuredClone(state), out: [], cards, hooks };
+  const c: Ctx = { s: fork(state), out: [], cards, hooks };
   startOfTurn(c);
   return finish(c);
 }
@@ -205,7 +206,7 @@ export function endTurn(
     return ruleError('WRONG_PHASE', 'a Showdown or Combat is in progress');
   }
 
-  const c: Ctx = { s: structuredClone(state), out: [], cards, hooks };
+  const c: Ctx = { s: fork(state), out: [], cards, hooks };
   // 317.1 ending step
   enterPhase(c, 'ENDING');
   runHook(c, hooks.onEndingStep);

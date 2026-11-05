@@ -38,8 +38,10 @@
  * runCleanup is idempotent). flow.cleanupIterations is the pass count while running, reset to 0 when
  * the state is stable.
  *
- * Pure: structuredClone first; events are stamped once at the end.
+ * Pure toward callers: `fork` (workingCopy.ts) copies the input once, or not at all inside a reduce
+ * session that already owns it; events are stamped once at the end.
  */
+import { fork } from './workingCopy.js';
 import { syncTurnState } from './chain.js';
 import { continueCombatHook, killLethalUnits, resolveCombat, startCombatHook } from './combat.js';
 import { removeOrphanedFacedown } from './keywords.js';
@@ -121,14 +123,14 @@ export function runCleanup(
   cards: CardDatabase,
   deps: CleanupDeps = defaultShowdownDeps,
 ): ReduceResult {
-  let s = structuredClone(state);
+  let s = fork(state);
   const inputs: GameEventInput[] = [];
   if (s.gameStatus !== 'IN_PROGRESS') return { ok: true, state: s, events: [] };
 
   /** Adopt a stamped ReduceResult as unstamped inputs (events are stamped once at the end). */
   const absorb = (r: ReduceResult): ReduceResult | null => {
     if (!r.ok) return r;
-    s = structuredClone(r.state);
+    s = fork(r.state);
     s.nextEventSeq -= r.events.length;
     for (const e of r.events) {
       const copy: Record<string, unknown> = { ...e };
@@ -142,8 +144,10 @@ export function runCleanup(
     return { ok: true, state: s, events: stampEvents(s, inputs) };
   };
 
+  // The snapshot at the end of one pass is the snapshot at the start of the next (nothing runs in
+  // between), so each pass serialises the state once.
+  let before = snapshot(s);
   for (let pass = 1; pass <= MAX_CLEANUP_ITERATIONS; pass++) {
-    const before = snapshot(s);
     const eventsBefore = inputs.length;
     s.flow.cleanupIterations = pass;
 
@@ -227,7 +231,7 @@ export function runCleanup(
       } else if (cb !== undefined) {
         const startCombat = deps.startCombat ?? startCombatHook;
         const r = startCombat(s, cards, cb);
-        s = structuredClone(r.state);
+        s = fork(r.state);
         inputs.push(...r.events);
       }
     }
@@ -243,10 +247,12 @@ export function runCleanup(
     deps.__afterPass?.(s, pass);
 
     s.flow.cleanupIterations = pass;
-    if (snapshot(s) === before && inputs.length === eventsBefore) {
+    const after = snapshot(s);
+    if (after === before && inputs.length === eventsBefore) {
       s.flow.cleanupIterations = 0; // stable (322)
       return finish();
     }
+    before = after;
     inputs.push({ type: 'CLEANUP_ITERATION', iteration: pass });
   }
 

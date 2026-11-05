@@ -29,6 +29,7 @@
  *    controller has no unit, in which case the gear is played unattached. makePlayHooks().onEnter
  *    performs the attach from the chain item's first object target.
  */
+import { fork } from './workingCopy.js';
 import { canPlayNow, deriveTurnState, finalizeAndSettle, pushPendingItem } from './chain.js';
 import type { ChainResolver } from './chain.js';
 import { playCard } from './play.js';
@@ -121,7 +122,7 @@ export function temporaryOnBeginning(
   state: GameState,
   cards: CardDatabase,
 ): { state: GameState; events: GameEventInput[] } {
-  const s = structuredClone(state);
+  const s = fork(state);
   const events: GameEventInput[] = [];
   const player = s.turn.activePlayer;
   const doomed = Object.values(s.objects)
@@ -247,7 +248,7 @@ export function playHiddenCard(
   }
   const bfId = obj.zone.battlefieldId;
 
-  const work = structuredClone(state);
+  const work = fork(state);
   const w = work.objects[obj.id] as CardInstance;
   const bf = work.battlefields.find((b) => b.id === bfId);
   if (bf?.facedownSlotId === w.id) bf.facedownSlotId = null;
@@ -446,7 +447,7 @@ export function quickDrawAttach(
   if (!unit || unit.controller !== gear.controller) {
     return ruleError('EQUIP_ILLEGAL', 'target must be a unit you control');
   }
-  const next = structuredClone(state);
+  const next = fork(state);
   (next.objects[gearId] as CardInstance).attachedTo = unitId;
   return { ok: true, state: next, events: [] };
 }

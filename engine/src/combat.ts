@@ -49,6 +49,7 @@
  *    (attachedTo cleared) and stays where it is. A killed TOKEN ceases to exist instead (186.1):
  *    it is deleted from the game and UNIT_KILLED is still emitted.
  */
+import { fork } from './workingCopy.js';
 import { attachedMightBonus, removeTokenFromGame } from './keywords.js';
 import { syncTurnState } from './chain.js';
 import { onConquer as scoringOnConquer } from './scoring.js';
@@ -326,7 +327,7 @@ function checkAssignmentWith(
 /** Convert a stamped ReduceResult into an unstamped ShowdownHookResult (state unchanged on error). */
 function toHook(before: GameState, r: ReduceResult): ShowdownHookResult {
   if (!r.ok) return { state: before, events: [] };
-  const state = structuredClone(r.state);
+  const state = fork(r.state);
   state.nextEventSeq -= r.events.length; // the caller restamps
   const events = r.events.map((e) => {
     const copy: Record<string, unknown> = { ...e };
@@ -348,7 +349,7 @@ export function startCombat(state: GameState, cards: CardDatabase, bfId: string)
     return ruleError('WRONG_PHASE', 'a Showdown or combat is already ongoing (462)');
   }
   const attacker = bf.contestedBy ?? state.turn.activePlayer; // 466.2.c
-  const next = structuredClone(state);
+  const next = fork(state);
   next.flow.combat = {
     battlefieldId: bfId,
     attacker,
@@ -423,7 +424,7 @@ function dealDamage(s: GameState): GameEventInput[] {
 /** A combat Showdown closed (348.1): move to the damage step. Pure; no-op without flow.combat. */
 export function continueCombat(state: GameState, cards: CardDatabase): ReduceResult {
   if (!state.flow.combat) return ruleError('NOT_FOUND', 'no combat in progress');
-  const s = structuredClone(state);
+  const s = fork(state);
   enterDamage(s, cards);
   const synced = syncTurnState(s);
   return { ok: true, state: synced, events: [] };
@@ -452,7 +453,7 @@ export function assignCombatDamage(
   const checked = checkAssignment(state, cards, intent.playerId, intent.assignments);
   if (!checked.ok) return checked.result;
 
-  const s = structuredClone(state);
+  const s = fork(state);
   const cc = s.flow.combat as CombatState;
   cc.damageAssignment = { ...(cc.damageAssignment ?? {}), [intent.playerId]: checked.assignments };
   const events = advanceAssignment(s, cards);
@@ -532,7 +533,7 @@ export function resolveCombatWithResult(
   if (!c0 || c0.step !== 'RESOLUTION') {
     return ruleError('WRONG_PHASE', 'combat is not in the Resolution step');
   }
-  let s = structuredClone(state);
+  let s = fork(state);
   const c = s.flow.combat as CombatState;
   const bfId = c.battlefieldId;
   const inputs: GameEventInput[] = [];
@@ -570,7 +571,7 @@ export function resolveCombatWithResult(
   if (conquerer) {
     const onConquer = deps.onConquer ?? scoringOnConquer;
     const r = onConquer(s, conquerer, bfId, cards);
-    s = structuredClone(r.state);
+    s = fork(r.state);
     inputs.push(...r.events);
   }
 

@@ -27,6 +27,7 @@ import { autoAssign } from './combat.js';
 import { enumerateSpellTargets } from './effects.js';
 import { applyIntent, reduce } from './reducer.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
+import type { TotalCost } from './resources.js';
 import { isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
@@ -88,6 +89,18 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     )
     .sort(byNum);
 
+  // The rune pool is the same for every candidate of this call, so a payment plan depends only on
+  // the cost: memoise it (copies of one card, and cards of equal cost, share one plan search). An
+  // unaffordable cost (null) skips building any PLAY_CARD candidate.
+  const plans = new Map<string, PaymentPlan | null>();
+  const plannedPayment = (cost: TotalCost): PaymentPlan | null => {
+    const key = `${cost.energy}|${JSON.stringify(cost.power)}`;
+    if (plans.has(key)) return plans.get(key) ?? null;
+    const plan = autoPlan(state, cards, pid, cost);
+    plans.set(key, plan);
+    return plan;
+  };
+
   for (const obj of sources) {
     const def = cards[obj.cardId];
     if (!def || UNPLAYABLE.has(def.type)) continue;
@@ -111,12 +124,7 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
           ? (enumerateSpellTargets(state, cards, pid, def.effects) ?? [undefined])
           : [undefined];
     for (const accelerate of accelOptions) {
-      const plan: PaymentPlan | null = autoPlan(
-        state,
-        cards,
-        pid,
-        computeTotalCost(costDef, { accelerate }),
-      );
+      const plan = plannedPayment(computeTotalCost(costDef, { accelerate }));
       if (plan === null) continue;
       for (const location of locations) {
         for (const targets of targetOptions) {

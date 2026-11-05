@@ -148,6 +148,49 @@ describe('GameScreen', () => {
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'CONCEDE', playerId: 'p0' }));
   });
 
+  it('concede dialog: Escape closes it and returns focus to Concede; Tab stays inside', () => {
+    const { local } = build(() => ({}));
+    mount(local.api);
+    const opener = screen.getByRole('button', { name: 'Concede' });
+    opener.focus();
+    fireEvent.click(opener);
+    const dlg = screen.getByRole('alertdialog');
+    const keep = within(dlg).getByRole('button', { name: 'Keep playing' });
+    const concede = within(dlg).getByRole('button', { name: 'Concede' });
+    expect(keep).toHaveFocus();
+    concede.focus();
+    fireEvent.keyDown(concede, { key: 'Tab' });
+    expect(keep).toHaveFocus();
+    fireEvent.keyDown(keep, { key: 'Tab', shiftKey: true });
+    expect(concede).toHaveFocus();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(opener).toHaveFocus();
+  });
+
+  it('additiveSelection: plain clicks add units to the selection; default replaces it', () => {
+    const { local } = build((sc) => {
+      sc.putUnit('p0', 'fx-grunt', 'base');
+      sc.putUnit('p0', 'fx-raider', 'base');
+      return {};
+    });
+    const { unmount } = render(
+      <GameProvider value={local.api}>
+        <GameScreen additiveSelection />
+      </GameProvider>,
+    );
+    fireEvent.click(card('fx-grunt'));
+    fireEvent.click(card('fx-raider'));
+    expect(card('fx-grunt')).toHaveAttribute('aria-pressed', 'true');
+    expect(card('fx-raider')).toHaveAttribute('aria-pressed', 'true');
+    unmount();
+    mount(local.api);
+    fireEvent.click(card('fx-grunt'));
+    fireEvent.click(card('fx-raider'));
+    expect(card('fx-grunt')).toHaveAttribute('aria-pressed', 'false');
+    expect(card('fx-raider')).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('renders opponent hidden cards only as card backs (no names)', () => {
     const { sc, local } = build(() => ({}));
     mount(local.api);

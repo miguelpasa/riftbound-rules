@@ -7,6 +7,7 @@
  * them. `targetRequirements` derives the slots a spell needs, `spellTargetsLegal` validates a
  * choice (play.ts) and `enumerateSpellTargets` lists choices for `getLegalActions` (capped).
  */
+import { fork } from './workingCopy.js';
 import { drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
 import { removeTokenFromGame } from './keywords.js';
@@ -596,7 +597,7 @@ export function expireTurnEffects(
   _cards: CardDatabase,
 ): { state: GameState; events: GameEventInput[] } {
   void _cards;
-  const s = structuredClone(state);
+  const s = fork(state);
   for (const o of Object.values(s.objects)) {
     if (o.tempMight) {
       o.mightBonus -= o.tempMight;

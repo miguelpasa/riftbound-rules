@@ -5,12 +5,13 @@ import {
   FIXTURE_DECK_B,
 } from '../../../engine/src/testing/fixtures.js';
 import type { PresetDeck } from './presets.js';
+import { deckSupportStats } from './deckImport.js';
 
 export { FIXTURE_CARDS };
 
 function wrap(id: string, name: string, deck: PresetDeck['deck'], cards: CardDatabase): PresetDeck {
   const all = [deck.championId, ...deck.mainDeck].map((cid) => cards[cid]);
-  const full = all.filter((c) => c?.supportLevel === 'full').length;
+  const support = deckSupportStats(deck, cards);
   const energy = all.reduce((s, c) => s + (c?.cost.energy ?? 0), 0);
   return {
     id,
@@ -18,8 +19,9 @@ function wrap(id: string, name: string, deck: PresetDeck['deck'], cards: CardDat
     legendId: deck.legendId,
     deck,
     stats: {
-      fullSupportCount: full,
-      partialCount: all.length - full,
+      fullSupportCount: support.full,
+      partialCount: support.partial,
+      totalCount: support.total,
       avgEnergy: Math.round((energy / all.length) * 100) / 100,
     },
   };

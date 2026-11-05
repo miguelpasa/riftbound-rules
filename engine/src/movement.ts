@@ -15,6 +15,7 @@
  *  - This module never runs Cleanup nor starts Showdowns; the cleanup loop does that (323.7, 455).
  *  - UNIT_MOVED `from` / `to` are 'base' or a battlefield id.
  */
+import { fork } from './workingCopy.js';
 import { ruleError } from './types/errors.js';
 import { playerIndex } from './types/constants.js';
 import { stampEvents } from './setup.js';
@@ -101,7 +102,7 @@ export function standardMove(
   const legal = canStandardMove(state, cards, intent);
   if (!legal.ok) return legal;
 
-  const next = structuredClone(state);
+  const next = fork(state);
   const mover = intent.playerId;
   const ps = next.players[playerIndex(mover)];
   const inputs: GameEventInput[] = [];

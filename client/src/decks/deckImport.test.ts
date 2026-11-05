@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { CardDatabase } from '@riftbound/engine';
-import { deckSupportStats, importDecks, makeCardResolver, parseCode } from './deckImport';
+import {
+  deckContentKey,
+  deckSupportStats,
+  importDecks,
+  isLowSupport,
+  makeCardResolver,
+  parseCode,
+} from './deckImport';
 import { CODE_OF, IMPORT_CARDS, IMPORT_DECK_A, IMPORT_DECK_B, shareDeck } from './importFixtures';
 
 describe('parseCode', () => {
@@ -181,9 +188,46 @@ describe('importDecks', () => {
 });
 
 describe('deckSupportStats', () => {
-  it('counts champion + main cards by support level', () => {
-    const s = deckSupportStats(IMPORT_DECK_A, IMPORT_CARDS);
-    expect(s.total).toBe(40);
-    expect(s.full + s.partial).toBe(40);
+  it('counts every deck card (legend, champion, main, battlefields, runes)', () => {
+    const d = IMPORT_DECK_A;
+    const s = deckSupportStats(d, IMPORT_CARDS);
+    expect(s.total).toBe(2 + d.mainDeck.length + d.battlefields.length + d.runeDeck.length);
+    expect(s.full + s.partial).toBe(s.total);
+  });
+
+  it('counts a partial legend as partial', () => {
+    const legend = IMPORT_DECK_A.legendId;
+    const base = deckSupportStats(IMPORT_DECK_A, IMPORT_CARDS);
+    const cards = {
+      ...IMPORT_CARDS,
+      [legend]: { ...IMPORT_CARDS[legend]!, supportLevel: 'partial' as const },
+    };
+    const s = deckSupportStats(IMPORT_DECK_A, cards);
+    const was = IMPORT_CARDS[legend]!.supportLevel === 'full' ? 1 : 0;
+    expect(s.partial).toBe(base.partial + was);
+  });
+
+  it('flags low coverage below 60%', () => {
+    expect(isLowSupport({ full: 59, total: 100 })).toBe(true);
+    expect(isLowSupport({ full: 60, total: 100 })).toBe(false);
+    expect(isLowSupport({ full: 0, total: 0 })).toBe(false);
+  });
+});
+
+describe('deckContentKey', () => {
+  it('is stable and order-insensitive for the card lists', () => {
+    const d = IMPORT_DECK_A;
+    const shuffled = {
+      ...d,
+      mainDeck: [...d.mainDeck].reverse(),
+      runeDeck: [...d.runeDeck].reverse(),
+    };
+    expect(deckContentKey(shuffled)).toBe(deckContentKey(d));
+  });
+
+  it('differs when the content differs', () => {
+    expect(deckContentKey(IMPORT_DECK_A)).not.toBe(deckContentKey(IMPORT_DECK_B));
+    const fewer = { ...IMPORT_DECK_A, mainDeck: IMPORT_DECK_A.mainDeck.slice(1) };
+    expect(deckContentKey(fewer)).not.toBe(deckContentKey(IMPORT_DECK_A));
   });
 });

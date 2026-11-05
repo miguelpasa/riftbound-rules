@@ -18,6 +18,7 @@
  * All public functions are pure: they structuredClone the input state and return the new state plus
  * unstamped event inputs. gainPoints is the exception: it mutates a working state.
  */
+import { fork } from './workingCopy.js';
 import { drawWithBurnOut } from './burnout.js';
 import { playerIndex } from './types/constants.js';
 import type {
@@ -66,7 +67,7 @@ export function scoreBattlefield(
   method: ScoreMethod,
   hooks?: ScoringHooks,
 ): ScoreResult {
-  const next = structuredClone(state);
+  const next = fork(state);
   const events: GameEventInput[] = [];
   const bf = next.battlefields.find((b) => b.id === battlefieldId);
   if (!bf || next.gameStatus !== 'IN_PROGRESS' || bf.scoredThisTurnBy.includes(player)) {
@@ -93,7 +94,7 @@ export function scoreBattlefield(
 
 /** PhaseHooks.onScoringStep (315.2.b): Hold each battlefield the active player controls, in order. */
 export function holdScoringStep(state: GameState, cards: CardDatabase): ScoreResult {
-  let cur = structuredClone(state);
+  let cur = fork(state);
   const events: GameEventInput[] = [];
   const player = cur.turn.activePlayer;
   for (const id of cur.battlefields.map((b) => b.id)) {
@@ -118,7 +119,7 @@ export function onConquer(
 
 /** 194.2/323.1: end the game if a player has >= victoryScore and more points than every other. Idempotent. */
 export function checkWin(state: GameState): ScoreResult {
-  const next = structuredClone(state);
+  const next = fork(state);
   const events: GameEventInput[] = [];
   if (next.gameStatus !== 'IN_PROGRESS') return { state: next, events };
   const qualifying = next.players.filter(

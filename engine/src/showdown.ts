@@ -17,6 +17,7 @@
  *  - stageableContests/stageableCombats return [] while flow.combat is set (CombatState carries no
  *    battlefield id) and skip the battlefield of an ongoing Showdown.
  */
+import { fork } from './workingCopy.js';
 import { syncTurnState } from './chain.js';
 import { stampEvents } from './setup.js';
 import { PLAYER_IDS } from './types/constants.js';
@@ -123,7 +124,7 @@ export function startShowdown(
     return ruleError('NOT_FOUND', `battlefield ${bfId}`);
   }
   if (state.flow.showdown) return ruleError('WRONG_PHASE', 'a Showdown is already in progress');
-  const next = structuredClone(state);
+  const next = fork(state);
   next.flow.showdown = {
     battlefieldId: bfId,
     isCombat,
@@ -168,14 +169,14 @@ export function closeShowdown(
 ): ReduceResult {
   const sd = state.flow.showdown;
   if (!sd) return ruleError('NOT_FOUND', 'no Showdown in progress');
-  let s = structuredClone(state);
+  let s = fork(state);
   const bfId = sd.battlefieldId;
   const inputs: GameEventInput[] = [];
   delete s.flow.showdown;
   s.flow.focus = null;
 
   const run = (r: ShowdownHookResult): void => {
-    s = structuredClone(r.state);
+    s = fork(r.state);
     inputs.push(...r.events);
   };
 
@@ -226,7 +227,7 @@ export function chooseStaged(
     return ruleError('ILLEGAL_TARGET', `${intent.battlefieldId} is not one of the staged options`);
   }
   const bfId = intent.battlefieldId;
-  let s = structuredClone(state);
+  let s = fork(state);
   delete s.flow.pendingChoice;
   const chosen = stampEvents(s, [
     { type: 'STAGED_ORDER_CHOSEN', player: pc.player, battlefieldId: bfId, stage: pc.stage },
@@ -239,6 +240,6 @@ export function chooseStaged(
   }
   if (!deps.startCombat) return ruleError('WRONG_PHASE', 'combat is not wired');
   const r = deps.startCombat(s, cards, bfId);
-  s = structuredClone(r.state);
+  s = fork(r.state);
   return { ok: true, state: s, events: [...chosen, ...stampEvents(s, r.events)] };
 }

@@ -10,7 +10,14 @@ import {
   saveSelectedDeckId,
   type StoredDeck,
 } from '../decks/deckStorage';
-import { deckSupportStats, importDecks, type DeckImportEntry } from '../decks/deckImport';
+import {
+  deckContentKey,
+  deckSupportStats,
+  importDecks,
+  isLowSupport,
+  LOW_SUPPORT_THRESHOLD,
+  type DeckImportEntry,
+} from '../decks/deckImport';
 import type { PresetDeck } from '../decks/presets';
 
 export interface DeckChoice {
@@ -19,10 +26,13 @@ export interface DeckChoice {
   deck: DeckList;
 }
 
+/** Same wording as the in-game card badge ("Effect not implemented"). */
 export const PARTIAL_WARNING =
-  'Cards marked partial have rules text that is not executed in this version';
+  'Cards marked "Effect not implemented" have rules text that is not executed in this version';
 
-export const DECK_SIZE_LABEL = 40;
+export const LOW_SUPPORT_NOTICE = 'Many cards in this deck have no effect yet';
+
+const lowPercent = Math.round(LOW_SUPPORT_THRESHOLD * 100);
 
 export interface DeckPickerProps {
   presets: PresetDeck[];
@@ -50,7 +60,12 @@ const rowClass = (checked: boolean): string =>
 interface ImportSummary {
   fatal: string[];
   entries: DeckImportEntry[];
+  /** Decks whose content is identical to one already stored (or earlier in the same file). */
+  duplicates: { index: number; name: string; existingName: string }[];
 }
+
+const smallBtn =
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded border border-slate-600 px-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-amber-300 sm:min-h-0 sm:min-w-0 sm:px-2 sm:py-0.5 sm:text-xs';
 
 /** Preset list, imported decks (multi-deck JSON import) and an import form. */
 export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
@@ -97,15 +112,31 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
   const runImport = (source: string): void => {
     const report = importDecks(source, cards);
     const saved: StoredDeck[] = [];
+    const duplicates: ImportSummary['duplicates'] = [];
+    const known = new Map<string, StoredDeck>();
+    for (const d of listImportedDecks()) known.set(deckContentKey(d.deck), d);
+    let existingToSelect: StoredDeck | null = null;
     for (const e of report.entries) {
       if (e.ok && e.deck) {
-        saved.push(saveImportedDeck({ name: e.name, deck: e.deck, meta: e.meta }));
+        const key = deckContentKey(e.deck);
+        const same = known.get(key);
+        if (same) {
+          duplicates.push({ index: e.index, name: e.name, existingName: same.name });
+          existingToSelect ??= same;
+          continue;
+        }
+        const stored = saveImportedDeck({ name: e.name, deck: e.deck, meta: e.meta });
+        known.set(key, stored);
+        saved.push(stored);
       }
     }
-    setSummary({ fatal: report.fatal, entries: report.entries });
+    setSummary({ fatal: report.fatal, entries: report.entries, duplicates });
     if (saved.length > 0) {
       setDecks(listImportedDecks());
       select(saved[0]!.id);
+      setText('');
+    } else if (existingToSelect) {
+      select(existingToSelect.id);
       setText('');
     }
   };
@@ -115,7 +146,7 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
     void file
       .text()
       .then(runImport, () =>
-        setSummary({ fatal: ['Could not read the selected file.'], entries: [] }),
+        setSummary({ fatal: ['Could not read the selected file.'], entries: [], duplicates: [] }),
       );
   };
 
@@ -134,7 +165,16 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
   };
 
   const failed = summary?.entries.filter((e) => !e.ok) ?? [];
-  const okEntries = summary?.entries.filter((e) => e.ok) ?? [];
+  const dupIdx = new Set((summary?.duplicates ?? []).map((d) => d.index));
+  const okEntries = summary?.entries.filter((e) => e.ok && !dupIdx.has(e.index)) ?? [];
+
+  const selectedStats = ((): { full: number; total: number } | null => {
+    const p = presets.find((x) => x.id === selectedId);
+    if (p) return { full: p.stats.fullSupportCount, total: p.stats.totalCount };
+    const v = selectedId ? validity.get(selectedId) : undefined;
+    return v?.ok ? v : null;
+  })();
+  const lowSupport = selectedStats !== null && isLowSupport(selectedStats);
   const warnings = okEntries.flatMap((e) => e.warnings.map((w) => `${e.name}: ${w}`));
 
   return (
@@ -164,8 +204,11 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
                       : 'bg-amber-900 text-amber-200'
                   }`}
                 >
-                  {p.stats.fullSupportCount}/{DECK_SIZE_LABEL} cards fully implemented
+                  {p.stats.fullSupportCount}/{p.stats.totalCount} cards fully implemented
                 </span>
+                {isLowSupport({ full: p.stats.fullSupportCount, total: p.stats.totalCount }) ? (
+                  <span className="font-medium text-amber-300">Low coverage</span>
+                ) : null}
                 {p.stats.partialCount > 0 ? (
                   <span
                     role="img"
@@ -217,12 +260,12 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
                         if (e.key === 'Enter') commitRename(d.id);
                         if (e.key === 'Escape') setRenamingId(null);
                       }}
-                      className="rounded border border-slate-600 bg-slate-950 px-1 text-sm text-slate-100"
+                      className="min-h-11 rounded border border-slate-600 bg-slate-950 px-2 text-sm text-slate-100 sm:min-h-0 sm:px-1"
                     />
                     <button
                       type="button"
                       onClick={() => commitRename(d.id)}
-                      className="text-xs text-amber-300 underline"
+                      className={`${smallBtn} text-amber-300`}
                     >
                       Save name
                     </button>
@@ -245,6 +288,9 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
                     >
                       {v.full}/{v.total} cards fully implemented
                     </span>
+                    {isLowSupport(v) ? (
+                      <span className="font-medium text-amber-300">Low coverage</span>
+                    ) : null}
                     {v.partial > 0 ? (
                       <span
                         role="img"
@@ -269,7 +315,7 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
                     setRenamingId(d.id);
                     setRenameText(d.name);
                   }}
-                  className="text-slate-400 underline hover:text-slate-200"
+                  className={smallBtn}
                 >
                   Rename
                 </button>
@@ -280,7 +326,7 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
                     e.stopPropagation();
                     remove(d.id);
                   }}
-                  className="text-slate-400 underline hover:text-slate-200"
+                  className={smallBtn}
                 >
                   Delete
                 </button>
@@ -292,6 +338,19 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
           <p className="text-sm text-amber-300">No decks available.</p>
         ) : null}
       </div>
+
+      {lowSupport && selectedStats ? (
+        <p
+          role="status"
+          aria-label="Deck coverage warning"
+          className="rounded-lg border border-amber-700 bg-amber-950 px-3 py-2 text-sm text-amber-200"
+        >
+          <span aria-hidden="true">{'\u26A0 '}</span>
+          {LOW_SUPPORT_NOTICE} ({selectedStats.full} of {selectedStats.total} cards are fully
+          implemented, under {lowPercent}%). You can still play it, but the rules text of those
+          cards is not executed.
+        </p>
+      ) : null}
 
       <details
         className="rounded-lg border border-slate-800 p-2"
@@ -345,6 +404,16 @@ export function DeckPicker({ presets, cards, onChange }: DeckPickerProps) {
                   {summary.entries.length === 1 ? '' : 's'}.
                 </p>
               )}
+              {summary.duplicates.length > 0 ? (
+                <ul aria-label="Already imported" className="list-disc pl-5 text-sky-300">
+                  {summary.duplicates.map((d) => (
+                    <li key={d.index}>
+                      {d.name}: already imported as &quot;{d.existingName}&quot; (skipped; the
+                      existing deck is selected).
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {warnings.length > 0 ? (
                 <ul className="list-disc pl-5 text-amber-300">
                   {warnings.map((w, i) => (
