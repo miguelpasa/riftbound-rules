@@ -118,3 +118,39 @@ describe('scenario: target enumeration and validation', () => {
     expect(err.code).toBe('ILLEGAL_TARGET');
   });
 });
+
+describe('scenario: "this turn" buffs', () => {
+  it('a TURN buff expires in the Ending step', () => {
+    // Tests Rule 317: effects lasting "this turn" end with the turn
+    const sc = Scenario.start(
+      {},
+      withEffects([{ op: 'BUFF_TARGET', amount: 2, duration: 'TURN', side: 'friendly' }]),
+    );
+    const ally = sc.putUnit('p0', sc.kit('p0').grunt, 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', spell, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: ally }],
+    });
+    sc.pass('p1');
+    sc.pass('p0');
+    expect(sc.obj(ally).mightBonus).toBe(2);
+    sc.endTurn('p0');
+    expect(sc.obj(ally).mightBonus).toBe(0);
+    // side restriction: an enemy unit is not a legal target for a friendly-only buff
+    const sc2 = Scenario.start(
+      {},
+      withEffects([{ op: 'BUFF_TARGET', amount: 2, duration: 'TURN', side: 'friendly' }]),
+    );
+    const foe = sc2.putUnit('p1', sc2.kit('p1').grunt, 'base');
+    const s2 = sc2.putInHand('p0', 'fx-flare');
+    const err = sc2.reject({
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: s2,
+      payment: sc2.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: foe }],
+    });
+    expect(err.code).toBe('ILLEGAL_TARGET');
+  });
+});

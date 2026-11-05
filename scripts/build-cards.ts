@@ -54,8 +54,14 @@ const cards = Object.values(db);
 console.log(`Total rows:        ${rows.length}`);
 console.log(`Cards emitted:     ${cards.length}`);
 console.log(`Deduped printings: ${Object.keys(aliases).length}`);
-console.log('By type:        ', count(cards, (c) => c.type));
-console.log('By supportLevel:', count(cards, (c) => c.supportLevel));
+console.log(
+  'By type:        ',
+  count(cards, (c) => c.type),
+);
+console.log(
+  'By supportLevel:',
+  count(cards, (c) => c.supportLevel),
+);
 console.log(
   'Keyword freq:   ',
   count(

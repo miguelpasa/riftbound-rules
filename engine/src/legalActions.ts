@@ -23,6 +23,7 @@
  * (PASS_PRIORITY, END_TURN, the combat assignment) are always kept and the rest is truncated.
  */
 import { autoAssign } from './combat.js';
+import { isLegalEffectTarget, targetedEffect } from './effects.js';
 import { applyIntent, reduce } from './reducer.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
 import { playerIndex } from './types/constants.js';
@@ -48,10 +49,6 @@ export interface LegalActionOptions {
 export const DEFAULT_MAX_ACTIONS = 300;
 
 const UNPLAYABLE = new Set(['LEGEND', 'RUNE', 'BATTLEFIELD', 'TOKEN']);
-
-const needsUnitTarget = (def: CardDef): boolean =>
-  def.type === 'SPELL' &&
-  (def.effects ?? []).some((e) => e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET');
 
 const hasKw = (def: CardDef | undefined, name: string): boolean =>
   def?.keywords.some((k) => k.name === name) === true;
@@ -116,8 +113,12 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     const targetOptions: (Target[] | undefined)[] =
       def.type === 'GEAR' && hasKw(def, 'QuickDraw') && myUnits.length > 0
         ? myUnits.map((u) => [{ kind: 'object' as const, id: u.id }])
-        : needsUnitTarget(def)
-          ? allUnits.map((u) => [{ kind: 'object' as const, id: u.id }])
+        : targetedEffect(def.effects)
+          ? allUnits
+              .filter((u) =>
+                isLegalEffectTarget(state, cards, pid, targetedEffect(def.effects)!, u),
+              )
+              .map((u) => [{ kind: 'object' as const, id: u.id }])
           : [undefined];
     for (const accelerate of accelOptions) {
       const plan: PaymentPlan | null = autoPlan(

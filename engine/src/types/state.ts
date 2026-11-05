@@ -46,6 +46,8 @@ export interface CardInstance {
   damage: number;
   /** Net Might modifier from buffs/effects. */
   mightBonus: number;
+  /** Part of mightBonus that expires at the end of the turn ("this turn" effects). */
+  tempMight?: number;
   /** Equipment -> id of the unit it is attached to. */
   attachedTo?: string;
   facedown?: boolean;

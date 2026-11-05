@@ -23,6 +23,7 @@
  * re-assembling hooks.
  */
 import { passPriority } from './chain.js';
+import { expireTurnEffects } from './effects.js';
 import { runCleanup, defaultShowdownDeps } from './cleanup.js';
 import { assignCombatDamage } from './combat.js';
 import {
@@ -82,6 +83,7 @@ function phaseCleanup(
 export const ENGINE_HOOKS: EngineHooks = Object.freeze({
   phase: Object.freeze<PhaseHooks>({
     onBeginning: temporaryOnBeginning,
+    onEndingStep: expireTurnEffects,
     onScoringStep: holdScoringStep,
     runCleanup: phaseCleanup,
   }),

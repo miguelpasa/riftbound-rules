@@ -100,13 +100,16 @@ export interface CardStats {
  * 'partial' + `effects` means the listed effects run and no "unimplemented" badge is shown.
  * Slice 1 is target-free: more ops (damage, buff, kill, move, ...) extend this union.
  */
+/** Whose unit may be targeted, relative to the spell's controller (default 'any'). */
+export type TargetSide = 'friendly' | 'enemy' | 'any';
+
 export type CardEffect =
   | { op: 'DRAW'; amount: number }
   | { op: 'GAIN_POINT'; amount: number }
   /** Deal damage to the first object target (a unit on the board); Cleanup kills it if lethal. */
-  | { op: 'DAMAGE_TARGET'; amount: number }
+  | { op: 'DAMAGE_TARGET'; amount: number; side?: TargetSide; atBattlefield?: boolean }
   /** Give the first object target +amount Might (mightBonus). */
-  | { op: 'BUFF_TARGET'; amount: number };
+  | { op: 'BUFF_TARGET'; amount: number; side?: TargetSide; duration?: 'TURN' };
 
 export interface CardDef {
   /** Stable catalog id, shared by all copies. */

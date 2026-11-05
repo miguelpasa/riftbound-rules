@@ -65,6 +65,7 @@
     },
     "text": { "type": "string" },
     "supportLevel": { "enum": ["full", "partial"] },
+    "effects": { "type": "array", "items": { "type": "object" } },
     "imageUrl": { "type": "string" }
   }
 }
