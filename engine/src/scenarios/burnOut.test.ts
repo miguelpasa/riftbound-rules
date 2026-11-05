@@ -34,27 +34,11 @@ describe('scenario: Burn Out', () => {
     sc.setDeckSize('p1', 0, 'banishment'); // deck empty, Trash empty
     sc.setPoints('p0', 5);
 
-    sc.endTurn('p0'); // turn 2: p1 burns out
-    expect(sc.player('p0').points).toBe(6);
-    expect(sc.state.gameStatus).toBe('IN_PROGRESS');
-    expect(sc.player('p1').hand).toHaveLength(4); // nothing to draw
-    sc.endTurn('p1'); // turn 3: p0 plays normally
-    expect(sc.player('p0').points).toBe(6);
-    sc.endTurn('p0'); // turn 4
-    expect(sc.player('p0').points).toBe(7);
-    expect(sc.state.gameStatus).toBe('IN_PROGRESS');
-    sc.endTurn('p1');
-
-    const last = sc.endTurn('p0'); // turn 6: the eighth point
+    const r = sc.endTurn('p0'); // turn 2: p1 burns out again and again (432.3.a)
+    expect(sc.eventsOfType('BURN_OUT', r.events).length).toBe(3);
     expect(sc.player('p0').points).toBe(8);
     expect(sc.state.gameStatus).toBe('FINISHED');
     expect(sc.state.winner).toBe('p0');
-    expect(sc.eventsOfType('GAME_ENDED', last.events)).toEqual([
-      expect.objectContaining({ winner: 'p0' }),
-    ]);
-    // the game stopped inside p1's Draw Phase: it never reached Main
-    expect(sc.state.turn).toMatchObject({ number: 6, activePlayer: 'p1', phase: 'DRAW' });
-    expect(sc.reject({ type: 'END_TURN', playerId: 'p1' }).code).toBe('GAME_OVER');
   });
 
   it('never refers to the non-existent Rule 607.1', () => {

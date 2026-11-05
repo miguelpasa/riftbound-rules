@@ -500,7 +500,10 @@ export function resolveCombatWithResult(
   const bfId = c.battlefieldId;
   const inputs: GameEventInput[] = [];
 
-  for (const u of unitsAt(s, bfId)) u.damage = 0; // 468.1.a.1
+  // 468.1.a.1 (step 3c): heal ALL units, not only those at the combat battlefield.
+  for (const o of Object.values(s.objects)) {
+    if (o.zone.kind === 'base' || o.zone.kind === 'battlefield') o.damage = 0;
+  }
 
   const result = combatResult(s); // 468.3
 

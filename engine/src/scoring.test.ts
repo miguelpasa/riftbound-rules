@@ -116,7 +116,8 @@ describe('scoreBattlefield', () => {
     s.players[0].mainDeck.length = 0;
     const r = scoreBattlefield(s, FIXTURE_CARDS, 'p0', bfId(s, 0), 'CONQUER');
     expect(r.events.map((e) => e.type)).toContain('BURN_OUT');
-    expect(r.state.players[1].points).toBe(1);
+    expect(r.state.players[1].points).toBe(8); // repeated Burn Out (432.3.a) until p1 wins
+    expect(r.state.gameStatus).toBe('FINISHED');
   });
 
   it('is a no-op for unknown battlefields', () => {

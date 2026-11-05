@@ -10,8 +10,8 @@
  * - 432.2.c: the opponent gains 1 point (POINT_GAINED source 'BURN_OUT'); points cannot be prevented.
  * - 432.3.c: if the opponent then has >= victoryScore points and strictly more than the burning
  *   player, the game ends at once (GAME_ENDED).
- * - drawWithBurnOut: if a burn-out recycled nothing the deck is still empty, so that burn-out is the
- *   last one for this draw and the remaining draws are abandoned (guards against infinite loops).
+ * - drawWithBurnOut: with Deck and Trash both empty every attempt burns out again (432.3, 432.3.a),
+ *   until the opponent reaches the victory score.
  */
 import { rngShuffle } from './rng.js';
 import { drawFromTop } from './setup.js';
@@ -69,15 +69,17 @@ export function drawWithBurnOut(
 ): GameEventInput[] {
   const out: GameEventInput[] = [];
   let remaining = n;
+  let burns = 0;
   while (remaining > 0 && state.gameStatus === 'IN_PROGRESS') {
     const drawn = drawFromTop(state, player, remaining);
     out.push(...drawn);
     remaining -= drawn.length;
     if (remaining <= 0) break;
-    const hadTrash = state.players[playerIndex(player)].trash.length > 0;
     out.push(...burnOut(state, player, cards));
-    // Nothing to recycle: the deck is still empty; abandon the remaining draws after this burn-out.
-    if (!hadTrash) break;
+    // 432.3 / 432.3.a: with Deck and Trash both empty the next attempt burns out again, giving
+    // the opponent a point each time until they win. Terminates because points only rise; the
+    // guard is defence in depth.
+    if (++burns > 10_000) break;
   }
   return out;
 }

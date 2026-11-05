@@ -91,24 +91,24 @@ describe('drawWithBurnOut', () => {
     expect(s.players[1].points).toBe(1);
   });
 
-  it('burns out once and abandons the draw when deck and trash are empty', () => {
-    // Tests Rule 432.3: repeated burn out with nothing to recycle
+  it('keeps burning out with deck and trash empty until the opponent wins', () => {
+    // Tests Rule 432.3.a: repeated Burn Out, 1 point each time, until an opponent wins
     const s = emptyDeckGame(0);
     const ev = drawWithBurnOut(s, 'p0', 3, FIXTURE_CARDS);
-    expect(ev.map((e) => e.type)).toEqual(['BURN_OUT', 'POINT_GAINED']);
-    expect(s.players[1].points).toBe(1);
-    // A later attempt burns out again.
-    drawWithBurnOut(s, 'p0', 1, FIXTURE_CARDS);
-    expect(s.players[1].points).toBe(2);
+    expect(ev.filter((e) => e.type === 'BURN_OUT')).toHaveLength(8);
+    expect(s.players[1].points).toBe(8);
+    expect(s.gameStatus).toBe('FINISHED');
+    expect(s.winner).toBe('p1');
   });
 
   it('burns out again when the recycled trash runs out mid-draw', () => {
     // Tests Rule 432.3: each further attempt burns out again
     const s = emptyDeckGame(1);
+    s.players[1].points = 5;
     const ev = drawWithBurnOut(s, 'p0', 3, FIXTURE_CARDS);
-    expect(ev.filter((e) => e.type === 'BURN_OUT')).toHaveLength(2);
-    expect(s.players[1].points).toBe(2);
-    expect(s.players[0].hand).toHaveLength(5);
+    expect(ev.filter((e) => e.type === 'BURN_OUT')).toHaveLength(3);
+    expect(s.players[0].hand).toHaveLength(5); // all three cards were drawn before the game ended
+    expect(s.gameStatus).toBe('FINISHED');
   });
 
   it('stops drawing as soon as the game ends', () => {

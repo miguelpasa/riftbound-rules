@@ -22,10 +22,18 @@ Decisions made where the Core Rules (rev 2026-10-09) or the PRD are ambiguous.
 
 - Quick-Draw: the attach target is chosen at play time (`PLAY_CARD` `targets[0]`, a unit you control on the board). If the controller has no unit the gear is played unattached, without an error.
 - Equip bypasses the Chain/cost model: it is resolved immediately as an activated ability with an Energy-only cost (no Chain item, no Reaction window for the opponent).
-- Burn Out with an empty Trash stops after one Burn Out when drawing several cards (approximation of 432.3).
 - If several Showdowns/Combats are staged, the turn player does not choose: the one at the lowest battlefield index starts first (323.11/323.12).
-- Combat healing (468.1.a.1) heals only the units at the combat battlefield; the rule heals all units, but no non-combat damage exists yet.
-- A unit with both Tank and Backline is treated as Tank for damage assignment (467.2.c.8).
+- A unit with both Tank and Backline is treated as Tank for damage assignment. Rule 467.2.c.8 lets the assigning player choose which of the two applies; the choice is not offered.
 - Hide is only allowed in a Neutral Open state (and only at a battlefield you control).
 - The Chosen Champion counts toward the 40-card minimum of the main deck (103.3 wording not verified verbatim).
 - `getLegalActions` must only be used host-side with the full state; never forward a legal-action list built for another seat (it reveals hidden information such as hand contents).
+
+## Verified against the official Core Rules (rev 2026-10-09, read verbatim)
+
+Confirmed correct: Burn Out procedure and repetition (432.2, 432.3, 432.3.a-c); the Final Point rule applies to Conquer only (473.1.a.1, 473.1.b.1) and "every Battlefield" counts Conquer and Hold; Cleanup step order (323); the Turn Player chooses among staged Showdowns/Combats (323.11, 323.12, 463.1); mulligan in turn order, 0-2 cards (117); 12 Rune cards (103.4.a); the second player's extra Channel (487.7); Open/Closed x Neutral/Showdown play restrictions (308-310); Hide is a Discretionary Action in a Neutral Open State on your turn (411.1.a, 422); scoring once per battlefield per turn across Conquer and Hold (472); win check in Cleanup step 1 (323.1).
+
+Fixed after this check: repeated Burn Out with an empty Main Deck and Trash; combat healing heals all units (468.1.a.1).
+
+Still deviating (see REMAINING.md): the turn player's choice of staged Showdown (R11); Tank+Backline choice (467.2.c.8); Equip as a Chain ability with Power+Energy cost, Main Phase Open State only (151.2, R9); Universal Power [A] in the Rune Pool (135.2.e.5, 163.2.b, R10).
+
+Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Ganking, Hidden, Shield, Tank, Temporary, Equip, Quick-Draw, Backline) was cut off when the page was fetched; read the official PDF linked from riftbound.gg/rules/core-rules to check the exact keyword text.
