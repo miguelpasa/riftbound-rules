@@ -20,6 +20,7 @@
  * Note for E10 (keywords): a facedown Hidden card must NOT emit a public CARD_PLAYED (it would leak
  * cardId, see docs/ASSUMPTIONS.md); Hidden uses HIDE_CARD, not this pipeline.
  */
+import { runEffects } from './effects.js';
 import { canPlayNow, finalizeAndSettle, pushPendingItem } from './chain.js';
 import type { ChainResolver } from './chain.js';
 import { computeTotalCost, payCost } from './resources.js';
@@ -155,7 +156,10 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   const obj = s.objects[item.sourceObjectId];
   if (!obj || item.kind !== 'CARD') return { state: s, events };
   if (item.unimplementedEffect) events.push({ type: 'EFFECT_UNIMPLEMENTED', cardId: obj.cardId });
-  if (cards[obj.cardId]?.type === 'SPELL' && obj.zone.kind === 'chain') {
+  const def = cards[obj.cardId];
+  if (def?.type === 'SPELL')
+    events.push(...runEffects(s, item.controller, def.effects ?? [], cards));
+  if (def?.type === 'SPELL' && obj.zone.kind === 'chain') {
     const owner = s.players[playerIndex(obj.owner)];
     if (!owner.trash.includes(obj.id)) owner.trash.push(obj.id);
     obj.zone = { kind: 'trash', player: obj.owner };
@@ -260,7 +264,7 @@ export function playCard(
     status: 'PENDING',
     targets: structuredClone(targets),
     choices: structuredClone(intent.choices ?? {}),
-    ...(def.type === 'SPELL' && def.supportLevel === 'partial'
+    ...(def.type === 'SPELL' && def.supportLevel === 'partial' && !def.effects?.length
       ? { unimplementedEffect: true }
       : {}),
     ...(isUnit || def.type === 'GEAR'

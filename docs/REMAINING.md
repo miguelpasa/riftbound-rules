@@ -2,13 +2,19 @@
 
 Everything in the original plan (see [progress/README.md](progress/README.md)) is done. This file lists what is left, with complexity and a suggested model, using the same convention: **Low** = Haiku, **Medium / High** = Sonnet. Items are grouped by theme and ordered roughly by value within each group.
 
+## 0. Session log (latest)
+
+- R1 slice 1 landed: `CardDef.effects` (`CardEffect` union: `DRAW`, `GAIN_POINT`), `engine/src/effects.ts` interpreter, run from `playResolver` when a spell resolves; a partial spell with `effects` no longer gets the unimplemented flag. Two scenario tests. **Still to do for R1:** targeted ops (damage, buff, kill, move, ready/exhaust), triggered abilities on the Chain, `getLegalActions` targets (R2), parser (R3).
+- R30 CI added (e2e excluded). R12 deferred until R8 confirms rule 432.3. R27: the host bot already caps steps per tick; a per-turn cap is still open.
+- Verified at this point: typecheck, lint, check:rules (437 blocks), 437 engine and 298 client tests pass.
+
 ## 1. Playable card effects (the main next phase)
 
 The MVP is keyword-only. Of about 1,100 unique cards only 68 are fully playable; the rest resolve their prose effects as no-ops with an "effect not implemented" badge.
 
 | ID | Task | Complexity | Model | Depends on | Notes |
 |---|---|---|---|---|---|
-| R1 | Effect model: a small executable-effect DSL (targets, damage, draw, buff, kill, move, ready/exhaust, gain points) plus resolver hooks in `playResolver` and triggered-ability support on the Chain | High | Sonnet | none | Foundation for everything below. Must keep the reducer pure and deterministic, keep hidden info out of events, and work with `getLegalActions` (targets). |
+| R1 | **IN PROGRESS (slice 1 done)** Effect model: a small executable-effect DSL (targets, damage, draw, buff, kill, move, ready/exhaust, gain points) plus resolver hooks in `playResolver` and triggered-ability support on the Chain | High | Sonnet | none | Foundation for everything below. Must keep the reducer pure and deterministic, keep hidden info out of events, and work with `getLegalActions` (targets). |
 | R2 | Targeting UI and legal-action enumeration for targeted spells and abilities (target chooser in the playmat, capped enumeration for the AI) | High | Sonnet | R1 | `getLegalActions` currently generates no targets. |
 | R3 | Card text parser / script table: map card text to DSL scripts, starting with the most common effect patterns across the dataset, with a coverage report | High | Sonnet | R1 | Generate `supportLevel: 'full'` automatically only when every sentence parses. Needs frequency analysis of `abilityEffective` first. |
 | R4 | Script the first batch of cards (pick two or three decks that are most playable) and write a scenario test per card | Medium | Sonnet | R1, R3 | One agent per deck keeps files separate. |
@@ -57,7 +63,7 @@ The MVP is keyword-only. Of about 1,100 unique cards only 68 are fully playable;
 
 | ID | Task | Complexity | Model | Depends on | Notes |
 |---|---|---|---|---|---|
-| R30 | CI workflow (typecheck, lint, tests, check:rules, e2e) | Low | Haiku | none | No CI exists yet. |
+| R30 | **Done (partial)** CI workflow: typecheck, lint, check:rules, unit tests. Playwright e2e is not in CI yet. | Low | Haiku | none | `.github/workflows/ci.yml` |
 | R31 | Split the large client bundle (Vite warns about chunk size); lazy-load the tutorial and replay screens | Low | Haiku | none | |
 | R32 | Fix the `engine/dist` / `tsc -b` emit so stale compiled files can never confuse tooling (build to an ignored `outDir` only) | Low | Haiku | none | Vitest already excludes it. |
 | R33 | Seed-fragile tests: stabilise tests whose seeds were adjusted after the id-shuffle change (bot vs bot, solo first-legal-action, persistence batching) | Medium | Sonnet | none | See the Z3 notes. |

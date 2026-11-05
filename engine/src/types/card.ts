@@ -95,6 +95,13 @@ export interface CardStats {
   health?: number;
 }
 
+/**
+ * Executable card effects (R1). A spell with `effects` resolves them in order; `supportLevel`
+ * 'partial' + `effects` means the listed effects run and no "unimplemented" badge is shown.
+ * Slice 1 is target-free: more ops (damage, buff, kill, move, ...) extend this union.
+ */
+export type CardEffect = { op: 'DRAW'; amount: number } | { op: 'GAIN_POINT'; amount: number };
+
 export interface CardDef {
   /** Stable catalog id, shared by all copies. */
   cardId: string;
@@ -112,6 +119,8 @@ export interface CardDef {
   text: string;
   /** 'full' = no prose effects beyond MVP keywords; 'partial' = has unimplemented effects. */
   supportLevel: 'full' | 'partial';
+  /** Executable effects, resolved when the card's Chain item resolves (spells only for now). */
+  effects?: CardEffect[];
   imageUrl?: string;
 }
 
