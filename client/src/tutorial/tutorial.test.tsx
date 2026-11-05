@@ -343,7 +343,7 @@ describe('demo lesson', () => {
 });
 
 describe('registry and lesson list', () => {
-  it('has the demo first, six placeholders marked comingSoon, and unique ids', () => {
+  it('has the demo first, then the six lessons in order, all playable, with unique ids', () => {
     expect(LESSONS[0]!.id).toBe('lesson0-demo');
     expect(LESSONS.slice(1).map((l) => l.title)).toEqual([
       'The Turn Structure',
@@ -353,15 +353,16 @@ describe('registry and lesson list', () => {
       'Showdowns and Combat Might',
       'Victory and the Final Point Rule',
     ]);
+    expect(LESSONS.filter((l) => l.comingSoon)).toEqual([]);
     expect(new Set(LESSONS.map((l) => l.id)).size).toBe(LESSONS.length);
   });
 
   it('shows comingSoon lessons disabled with a label, and playable ones with Start', () => {
-    render(<TutorialApp onExit={() => undefined} />);
+    const lessons = [LESSONS[0]!, { ...LESSONS[1]!, comingSoon: true }];
+    render(<TutorialApp onExit={() => undefined} lessons={lessons} />);
     const list = screen.getByRole('list', { name: 'Lessons' });
-    const soon = LESSONS.filter((l) => l.comingSoon);
-    expect(within(list).getAllByText('Coming soon')).toHaveLength(soon.length);
-    expect(within(list).getAllByRole('button')).toHaveLength(LESSONS.length - soon.length);
+    expect(within(list).getAllByText('Coming soon')).toHaveLength(1);
+    expect(within(list).getAllByRole('button')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Start Meet the board' })).toBeEnabled();
     const row = list.querySelector('[data-lesson-id="lesson1-turn-structure"]')!;
     expect(row).toHaveAttribute('aria-disabled', 'true');
