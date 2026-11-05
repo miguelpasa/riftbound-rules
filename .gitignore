@@ -230,3 +230,6 @@ test-results/
 
 node_modules/
 client/public/card-aliases.json
+
+# Playwright MCP scratch snapshots
+.playwright-mcp/
