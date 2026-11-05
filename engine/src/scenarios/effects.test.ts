@@ -40,3 +40,42 @@ describe('scenario: executable spell effects', () => {
     sc.verify();
   });
 });
+
+describe('scenario: targeted spell effects', () => {
+  it('DAMAGE_TARGET marks damage and Cleanup kills a lethally damaged unit', () => {
+    // Tests Rule 323: Cleanup kills units with damage >= Might
+    const sc = Scenario.start({}, withEffects([{ op: 'DAMAGE_TARGET', amount: 99 }]));
+    const victim = sc.putUnit('p1', sc.kit('p1').grunt, 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', spell, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: victim }],
+    });
+    sc.pass('p1');
+    const r = sc.pass('p0');
+    expect(sc.eventsOfType('EFFECT_DAMAGE', r.events)).toHaveLength(1);
+    expect(sc.obj(victim).zone.kind).toBe('trash');
+    sc.verify();
+  });
+
+  it('BUFF_TARGET raises Might; a missing target fizzles', () => {
+    // Tests Rule 359.3: an effect whose target is gone does nothing
+    const sc = Scenario.start({}, withEffects([{ op: 'BUFF_TARGET', amount: 2 }]));
+    const ally = sc.putUnit('p0', 'fx-grunt', 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', spell, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: ally }],
+    });
+    sc.pass('p1');
+    sc.pass('p0');
+    expect(sc.obj(ally).mightBonus).toBe(2);
+
+    const sc2 = Scenario.start({}, withEffects([{ op: 'BUFF_TARGET', amount: 2 }]));
+    const s2 = sc2.putInHand('p0', 'fx-flare');
+    sc2.play('p0', s2, { payment: sc2.exhaustPlan('p0', 1) });
+    sc2.pass('p1');
+    const r = sc2.pass('p0');
+    expect(sc2.eventsOfType('EFFECT_FIZZLED', r.events)).toHaveLength(1);
+  });
+});

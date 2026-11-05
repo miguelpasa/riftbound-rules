@@ -4,6 +4,7 @@ Everything in the original plan (see [progress/README.md](progress/README.md)) i
 
 ## 0. Session log (latest)
 
+- R1 slice 2 landed: `DAMAGE_TARGET` and `BUFF_TARGET` use the first object target given in `PLAY_CARD.targets`; a target no longer on the board fizzles (`EFFECT_FIZZLED`). New events `EFFECT_DAMAGE/BUFF/FIZZLED` are described in the client log. **Gaps:** nothing enumerates or validates targets per card (R2: `getLegalActions` gives none, no target UI), BUFF is permanent (no end-of-turn expiry), no kill/move/ready ops.
 - R1 slice 1 landed: `CardDef.effects` (`CardEffect` union: `DRAW`, `GAIN_POINT`), `engine/src/effects.ts` interpreter, run from `playResolver` when a spell resolves; a partial spell with `effects` no longer gets the unimplemented flag. Two scenario tests. **Still to do for R1:** targeted ops (damage, buff, kill, move, ready/exhaust), triggered abilities on the Chain, `getLegalActions` targets (R2), parser (R3).
 - R30 CI added (e2e excluded). R12 deferred until R8 confirms rule 432.3. R27: the host bot already caps steps per tick; a per-turn cap is still open.
 - Verified at this point: typecheck, lint, check:rules (437 blocks), 437 engine and 298 client tests pass.

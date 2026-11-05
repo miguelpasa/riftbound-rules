@@ -98,6 +98,12 @@ export function describeEvent(
       return `${who(event.controller, view)} added an item to the chain.`;
     case 'CHAIN_ITEM_RESOLVED':
       return 'A chain item resolved.';
+    case 'EFFECT_DAMAGE':
+      return `${event.amount} damage was dealt to a unit.`;
+    case 'EFFECT_BUFF':
+      return `A unit got +${event.amount} Might.`;
+    case 'EFFECT_FIZZLED':
+      return `A spell's target was gone, so it did nothing.`;
     case 'EFFECT_UNIMPLEMENTED':
       return `The effect of ${cards[event.cardId]?.name ?? 'a card'} is not implemented and did nothing.`;
     case 'UNIT_MOVED':

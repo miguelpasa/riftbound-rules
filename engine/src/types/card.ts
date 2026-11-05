@@ -100,7 +100,13 @@ export interface CardStats {
  * 'partial' + `effects` means the listed effects run and no "unimplemented" badge is shown.
  * Slice 1 is target-free: more ops (damage, buff, kill, move, ...) extend this union.
  */
-export type CardEffect = { op: 'DRAW'; amount: number } | { op: 'GAIN_POINT'; amount: number };
+export type CardEffect =
+  | { op: 'DRAW'; amount: number }
+  | { op: 'GAIN_POINT'; amount: number }
+  /** Deal damage to the first object target (a unit on the board); Cleanup kills it if lethal. */
+  | { op: 'DAMAGE_TARGET'; amount: number }
+  /** Give the first object target +amount Might (mightBonus). */
+  | { op: 'BUFF_TARGET'; amount: number };
 
 export interface CardDef {
   /** Stable catalog id, shared by all copies. */

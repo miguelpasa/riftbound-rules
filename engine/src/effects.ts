@@ -10,6 +10,7 @@ import type {
   GameEventInput,
   GameState,
   PlayerId,
+  Target,
 } from './types/index.js';
 
 export function runEffects(
@@ -17,6 +18,8 @@ export function runEffects(
   controller: PlayerId,
   effects: readonly CardEffect[],
   cards: CardDatabase,
+  targets: readonly Target[] = [],
+  sourceCardId = '',
 ): GameEventInput[] {
   const out: GameEventInput[] = [];
   for (const e of effects) {
@@ -25,6 +28,25 @@ export function runEffects(
       case 'DRAW':
         out.push(...drawWithBurnOut(state, controller, e.amount, cards));
         break;
+      case 'DAMAGE_TARGET':
+      case 'BUFF_TARGET': {
+        // Target must still be a unit on the board; otherwise the effect fizzles (no-op).
+        const t = targets.find((x) => x.kind === 'object');
+        const u = t?.kind === 'object' ? state.objects[t.id] : undefined;
+        const onBoard = u && (u.zone.kind === 'base' || u.zone.kind === 'battlefield');
+        if (!u || !onBoard || cards[u.cardId]?.type !== 'UNIT') {
+          out.push({ type: 'EFFECT_FIZZLED', cardId: sourceCardId });
+          break;
+        }
+        if (e.op === 'DAMAGE_TARGET') {
+          u.damage += e.amount;
+          out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount: e.amount });
+        } else {
+          u.mightBonus += e.amount;
+          out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount: e.amount });
+        }
+        break;
+      }
       case 'GAIN_POINT':
         state.players[playerIndex(controller)].points += e.amount;
         out.push({ type: 'POINT_GAINED', player: controller, amount: e.amount, source: 'EFFECT' });

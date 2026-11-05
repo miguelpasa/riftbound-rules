@@ -158,7 +158,9 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   if (item.unimplementedEffect) events.push({ type: 'EFFECT_UNIMPLEMENTED', cardId: obj.cardId });
   const def = cards[obj.cardId];
   if (def?.type === 'SPELL')
-    events.push(...runEffects(s, item.controller, def.effects ?? [], cards));
+    events.push(
+      ...runEffects(s, item.controller, def.effects ?? [], cards, item.targets, obj.cardId),
+    );
   if (def?.type === 'SPELL' && obj.zone.kind === 'chain') {
     const owner = s.players[playerIndex(obj.owner)];
     if (!owner.trash.includes(obj.id)) owner.trash.push(obj.id);
