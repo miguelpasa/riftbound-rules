@@ -102,6 +102,8 @@ export function describeEvent(
       return `${event.amount} damage was dealt to a unit.`;
     case 'EFFECT_BUFF':
       return `A unit got +${event.amount} Might.`;
+    case 'BATTLEFIELD_SCORED':
+      return `${who(event.player, view)} ${event.method === 'HOLD' ? 'held' : 'conquered'} ${battlefieldName(event.battlefieldId, view, cards)}.`;
     case 'EFFECT_READIED':
       return `A unit was readied.`;
     case 'EFFECT_FIZZLED':

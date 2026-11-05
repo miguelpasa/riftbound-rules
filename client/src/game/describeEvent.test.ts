@@ -32,6 +32,13 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   CHAIN_ITEM_RESOLVED: { seq: 9, type: 'CHAIN_ITEM_RESOLVED', chainItemId: 'c1' },
   EFFECT_DAMAGE: { seq: 31, type: 'EFFECT_DAMAGE', unitId: 'o1', amount: 2 },
   EFFECT_BUFF: { seq: 32, type: 'EFFECT_BUFF', unitId: 'o1', amount: 2 },
+  BATTLEFIELD_SCORED: {
+    seq: 35,
+    type: 'BATTLEFIELD_SCORED',
+    player: 'p0',
+    battlefieldId: 'bf1',
+    method: 'HOLD',
+  },
   EFFECT_READIED: { seq: 34, type: 'EFFECT_READIED', unitId: 'o1' },
   EFFECT_FIZZLED: { seq: 33, type: 'EFFECT_FIZZLED', cardId: 'fx-flare' },
   EFFECT_UNIMPLEMENTED: { seq: 10, type: 'EFFECT_UNIMPLEMENTED', cardId: 'fx-odd-reaction' },

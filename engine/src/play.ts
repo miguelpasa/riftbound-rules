@@ -154,6 +154,11 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   const s = structuredClone(state);
   const events: GameEventInput[] = [];
   const obj = s.objects[item.sourceObjectId];
+  if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
+    const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
+    if (trig) events.push(...runEffects(s, item.controller, trig.effects, cards, [], obj.cardId));
+    return { state: s, events };
+  }
   if (obj && item.kind === 'ABILITY' && item.abilityIndex === 0) {
     // Equip (151.2.a): attach if the Equipment and the unit are still legal; otherwise nothing.
     const t = item.targets[0];

@@ -26,3 +26,4 @@ export * from './ai/bot.js';
 export * from './sandbox.js';
 export { parseSpellText } from './cardText.js';
 export { isLegalEffectTarget, targetedEffect } from './effects.js';
+export { fireTriggers } from './triggers.js';

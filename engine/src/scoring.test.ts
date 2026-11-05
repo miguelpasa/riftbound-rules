@@ -22,7 +22,7 @@ describe('holdScoringStep', () => {
     const r = holdScoringStep(s, FIXTURE_CARDS);
     expect(r.state.players[0].points).toBe(1);
     expect(r.state.players[1].points).toBe(0);
-    expect(r.events).toEqual([{ type: 'POINT_GAINED', player: 'p0', amount: 1, source: 'HOLD' }]);
+    expect(r.events.map((e) => e.type)).toEqual(['POINT_GAINED', 'BATTLEFIELD_SCORED']);
     expect(s.players[0].points).toBe(0);
   });
 
@@ -81,7 +81,11 @@ describe('scoreBattlefield', () => {
     expect(r.state.players[0].points).toBe(7);
     expect(r.state.players[0].hand.length).toBe(hand + 1);
     expect(r.state.battlefields[0]!.scoredThisTurnBy).toEqual(['p0']);
-    expect(r.events.map((e) => e.type)).toEqual(['FINAL_POINT_DENIED_DREW_CARD', 'CARD_DRAWN']);
+    expect(r.events.map((e) => e.type)).toEqual([
+      'FINAL_POINT_DENIED_DREW_CARD',
+      'CARD_DRAWN',
+      'BATTLEFIELD_SCORED',
+    ]);
     expect(r.state.gameStatus).toBe('IN_PROGRESS');
   });
 

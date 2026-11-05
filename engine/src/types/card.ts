@@ -129,6 +129,18 @@ export type TargetedEffect = Extract<
   { op: 'DAMAGE_TARGET' | 'BUFF_TARGET' | 'KILL_TARGET' | 'READY_TARGET' }
 >;
 
+/** When a triggered ability fires (R5). */
+export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH';
+
+/**
+ * A triggered ability: "When you play me / When I hold / When I conquer / Deathknell: <effects>".
+ * Effects must be target-free for now (DRAW, GAIN_POINT, BUFF_ALL).
+ */
+export interface CardTrigger {
+  on: TriggerKind;
+  effects: CardEffect[];
+}
+
 export interface CardDef {
   /** Stable catalog id, shared by all copies. */
   cardId: string;
@@ -148,6 +160,8 @@ export interface CardDef {
   supportLevel: 'full' | 'partial';
   /** Executable effects, resolved when the card's Chain item resolves (spells only for now). */
   effects?: CardEffect[];
+  /** Triggered abilities of a unit or gear. */
+  triggers?: CardTrigger[];
   imageUrl?: string;
 }
 

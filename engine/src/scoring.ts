@@ -86,6 +86,7 @@ export function scoreBattlefield(
   } else {
     events.push(...gainPoints(next, player, 1, method)); // 473.1
   }
+  events.push({ type: 'BATTLEFIELD_SCORED', player, battlefieldId, method });
   if (hooks?.onScored) events.push(...hooks.onScored(next, player, battlefieldId, method)); // 473.2
   return { state: next, events };
 }

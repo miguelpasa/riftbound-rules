@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSpellText } from './cardText.js';
+import { parseSpellText, parseTriggerText } from './cardText.js';
 
 describe('parseSpellText', () => {
   it('parses draw, damage and buff sentences', () => {
@@ -38,5 +38,33 @@ describe('parseSpellText', () => {
     expect(parseSpellText('Kill all gear.')).toBeNull();
     expect(parseSpellText('Deal 1 to a unit. Deal 2 to a unit.')).toBeNull();
     expect(parseSpellText('')).toBeNull();
+  });
+});
+
+describe('parseTriggerText', () => {
+  it('parses play, hold, conquer and Deathknell triggers with target-free effects', () => {
+    // Tests Rule 359.3: triggered abilities resolve their effects in order
+    expect(parseTriggerText('When you play me, draw 1.')).toEqual([
+      { on: 'PLAY', effects: [{ op: 'DRAW', amount: 1 }] },
+    ]);
+    expect(parseTriggerText('[Tank] (reminder) When I hold, draw 2.')).toEqual([
+      { on: 'HOLD', effects: [{ op: 'DRAW', amount: 2 }] },
+    ]);
+    expect(parseTriggerText('When I conquer, give friendly units +1 [M] this turn.')).toEqual([
+      {
+        on: 'CONQUER',
+        effects: [{ op: 'BUFF_ALL', amount: 1, side: 'friendly', duration: 'TURN' }],
+      },
+    ]);
+    expect(parseTriggerText('[Deathknell][>] Draw 1.')).toEqual([
+      { on: 'DEATH', effects: [{ op: 'DRAW', amount: 1 }] },
+    ]);
+  });
+
+  it('refuses targeted or unknown trigger effects', () => {
+    // Tests Rule 359.3: never half-execute an ability
+    expect(parseTriggerText('When you play me, give a unit +1 [M] this turn.')).toBeNull();
+    expect(parseTriggerText('When you play me, draw 1. I enter ready.')).toBeNull();
+    expect(parseTriggerText('I enter ready.')).toBeNull();
   });
 });

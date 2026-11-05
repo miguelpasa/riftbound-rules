@@ -28,6 +28,8 @@ export interface ChainItem {
   unimplementedEffect?: boolean;
   /** Triggered or Add ability: Focus does not pass when its chain resolves (Rules 340.2.a, 346.1). */
   triggered?: boolean;
+  /** For triggered ABILITY items: index into the source card's `triggers`. */
+  triggerIndex?: number;
   /** For ABILITY items: index into the source's abilities. */
   abilityIndex?: number;
   /** Location chosen when playing a unit/gear. */

@@ -30,6 +30,12 @@ export type GameEvent = EventBase &
     | { type: 'COMBAT_DAMAGE_ASSIGNED'; player: PlayerId; unitId: string; amount: number }
     | { type: 'UNIT_KILLED'; unitId: string }
     | { type: 'POINT_GAINED'; player: PlayerId; amount: number; source: PointSource }
+    | {
+        type: 'BATTLEFIELD_SCORED';
+        player: PlayerId;
+        battlefieldId: string;
+        method: 'HOLD' | 'CONQUER';
+      }
     | { type: 'FINAL_POINT_DENIED_DREW_CARD'; player: PlayerId }
     | { type: 'BURN_OUT'; player: PlayerId }
     | { type: 'BATTLEFIELD_CONTROL_CHANGED'; battlefieldId: string; controller: PlayerId | null }

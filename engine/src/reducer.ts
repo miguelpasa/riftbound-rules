@@ -23,6 +23,7 @@
  * re-assembling hooks.
  */
 import { passPriority } from './chain.js';
+import { fireTriggers } from './triggers.js';
 import { expireTurnEffects } from './effects.js';
 import { runCleanup, defaultShowdownDeps } from './cleanup.js';
 import { assignCombatDamage } from './combat.js';
@@ -253,7 +254,9 @@ export function reduce(state: GameState, cards: CardDatabase, intent: Intent): R
   try {
     const c = runCleanup(r.state, cards, ENGINE_HOOKS.showdown);
     if (!c.ok) return c;
-    return { ok: true, state: c.state, events: [...r.events, ...c.events] };
+    const all = [...r.events, ...c.events];
+    const t = fireTriggers(c.state, cards, all);
+    return { ok: true, state: t.state, events: [...all, ...t.events] };
   } catch (e) {
     return ruleError(
       'UNKNOWN_INTENT',
