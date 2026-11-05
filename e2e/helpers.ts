@@ -168,6 +168,7 @@ export async function playRound(
   const timeout = opts.timeoutMs ?? 90_000;
   let t0 = -1;
   let ended = false;
+  let endedTurn = -1;
   await expect
     .poll(
       async () => {
@@ -175,10 +176,14 @@ export async function playRound(
         if (t0 === -1) t0 = turn;
         const end = endTurnButton(page);
         if (await end.count()) {
+          // A played card can leave a triggered ability on the Chain, which refuses End turn; if
+          // End turn is still showing on the same turn, click it again.
+          if (ended && turn === endedTurn) ended = false;
           if (!ended) {
             if (opts.playCard !== false) await tryPlayHandCard(page);
             await end.click({ timeout: 2000 }).catch(() => undefined);
             ended = true;
+            endedTurn = turn;
             return 'ended';
           }
           return turn >= t0 + 2 ? 'done' : 'waiting';

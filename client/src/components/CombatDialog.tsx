@@ -44,7 +44,7 @@ function ShowdownBanner({
     <section
       aria-label="Showdown"
       data-testid="showdown-banner"
-      className="pointer-events-auto rounded-lg border border-amber-400/70 bg-slate-900/95 px-4 py-2 text-center text-sm text-slate-100 shadow-lg"
+      className="pointer-events-none max-w-md rounded-lg border border-amber-400/70 bg-slate-900/95 px-4 py-2 text-center text-sm text-slate-100 shadow-lg"
     >
       <p className="font-semibold text-amber-200">
         {`Showdown at ${where}${roles}; Focus: ${focus ? who(focus, seat) : 'nobody'}`}

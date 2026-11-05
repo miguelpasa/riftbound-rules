@@ -252,8 +252,10 @@ export class HostSession {
     if (conn.stale) return;
     try {
       conn.transport.send(msg);
-    } catch {
-      /* transport closed underneath us; the close handler deals with it */
+    } catch (e) {
+      // Usually the transport closed underneath us (the close handler deals with it); log so a
+      // failed state push is never completely silent.
+      console.warn('[host] send failed', msg.type, e);
     }
   }
 
