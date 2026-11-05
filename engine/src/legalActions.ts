@@ -11,8 +11,8 @@
  *  - MULLIGAN: keep, each single card, each pair.
  *  - PLAY_CARD: each hand card, Chosen Champion in the champion zone, and own facedown cards,
  *    x location (Base, or each controlled battlefield for Units) x Accelerate, payment = autoPlan.
- *    No targets are generated in the MVP (spells have no targeting effects implemented), except for
- *    Quick-Draw gear: one variant per unit the player controls (the attach target).
+ *    Targets are generated for spells with DAMAGE_TARGET/BUFF_TARGET effects (one variant per unit on
+ *    the board) and for Quick-Draw gear: one variant per unit the player controls (the attach target).
  *  - STANDARD_MOVE: each ready unit to each destination, plus, per origin, "all ready units there".
  *  - ASSIGN_COMBAT_DAMAGE: autoAssign result and a variant that puts the surplus on the first unit.
  *  - HIDE_CARD, EQUIP, PASS_PRIORITY, END_TURN.
@@ -48,6 +48,10 @@ export interface LegalActionOptions {
 export const DEFAULT_MAX_ACTIONS = 300;
 
 const UNPLAYABLE = new Set(['LEGEND', 'RUNE', 'BATTLEFIELD', 'TOKEN']);
+
+const needsUnitTarget = (def: CardDef): boolean =>
+  def.type === 'SPELL' &&
+  (def.effects ?? []).some((e) => e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET');
 
 const hasKw = (def: CardDef | undefined, name: string): boolean =>
   def?.keywords.some((k) => k.name === name) === true;
@@ -85,6 +89,14 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     )
     .sort(byNum);
 
+  const allUnits = Object.values(state.objects)
+    .filter(
+      (o) =>
+        (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+        cards[o.cardId]?.type === 'UNIT',
+    )
+    .sort(byNum);
+
   for (const obj of sources) {
     const def = cards[obj.cardId];
     if (!def || UNPLAYABLE.has(def.type)) continue;
@@ -100,10 +112,13 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     const accelOptions = isUnit && hasKw(def, 'Accelerate') ? [false, true] : [false];
     const costDef = costDefFor(obj, def);
     // Quick-Draw gear: one variant per unit its controller controls (the unit is a Target).
+    // Targeted spells (R2): one variant per unit on the board (either side).
     const targetOptions: (Target[] | undefined)[] =
       def.type === 'GEAR' && hasKw(def, 'QuickDraw') && myUnits.length > 0
         ? myUnits.map((u) => [{ kind: 'object' as const, id: u.id }])
-        : [undefined];
+        : needsUnitTarget(def)
+          ? allUnits.map((u) => [{ kind: 'object' as const, id: u.id }])
+          : [undefined];
     for (const accelerate of accelOptions) {
       const plan: PaymentPlan | null = autoPlan(
         state,

@@ -37,7 +37,8 @@ export function playVariants(legal: readonly Intent[], cardInstanceId: string): 
   const out: PlayIntent[] = [];
   for (const i of legal) {
     if (i.type !== 'PLAY_CARD' || i.cardInstanceId !== cardInstanceId) continue;
-    const key = `${i.location ? destKey(i.location) : '-'}|${i.additionalCosts?.accelerate ? 'acc' : ''}`;
+    const tgt = (i.targets ?? []).map((t) => (t.kind === 'object' ? t.id : '')).join(',');
+    const key = `${i.location ? destKey(i.location) : '-'}|${i.additionalCosts?.accelerate ? 'acc' : ''}|${tgt}`;
     if (seen.has(key)) continue; // first matching payment wins
     seen.add(key);
     out.push(i);
@@ -88,6 +89,16 @@ export function variantLabel(
   if (intent.location) parts.push(`Play to ${locationName(intent.location, view, cards)}`);
   else parts.push('Play');
   if (intent.additionalCosts?.accelerate) parts.push('Accelerate (+1 energy +1 power)');
+  for (const t of intent.targets ?? []) {
+    if (t.kind !== 'object') continue;
+    const o = view.objects[t.id];
+    if (!o || isHiddenCard(o)) {
+      parts.push('target a unit');
+      continue;
+    }
+    const name = cards[o.cardId]?.name ?? 'a unit';
+    parts.push(`target ${name}${o.controller !== view.viewer ? ' (opponent)' : ' (yours)'}`);
+  }
   return parts.join(' - ');
 }
 

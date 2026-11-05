@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { getLegalActions } from '../legalActions.js';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import type { CardDatabase, CardDef, CardEffect } from '../types/index.js';
+import { runEffects } from '../effects.js';
+import type { CardDatabase, CardInstance, CardDef, CardEffect } from '../types/index.js';
 
 // Override an in-deck fixture spell (fx-flare is in player p0's deck) with executable effects.
 const withEffects = (effects: CardEffect[]): CardDatabase => ({
@@ -71,11 +73,48 @@ describe('scenario: targeted spell effects', () => {
     sc.pass('p0');
     expect(sc.obj(ally).mightBonus).toBe(2);
 
+    // The target leaves the board before resolution: the effect fizzles.
     const sc2 = Scenario.start({}, withEffects([{ op: 'BUFF_TARGET', amount: 2 }]));
+    const gone = sc2.putUnit('p0', sc2.kit('p0').grunt, 'base');
     const s2 = sc2.putInHand('p0', 'fx-flare');
-    sc2.play('p0', s2, { payment: sc2.exhaustPlan('p0', 1) });
-    sc2.pass('p1');
-    const r = sc2.pass('p0');
-    expect(sc2.eventsOfType('EFFECT_FIZZLED', r.events)).toHaveLength(1);
+    sc2.play('p0', s2, {
+      payment: sc2.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: gone }],
+    });
+    const work = structuredClone(sc2.state);
+    (work.objects[gone] as CardInstance).zone = { kind: 'trash', player: 'p0' };
+    const events = runEffects(
+      work,
+      'p0',
+      [{ op: 'BUFF_TARGET', amount: 2 }],
+      sc2.cards,
+      [{ kind: 'object', id: gone }],
+      'fx-flare',
+    );
+    expect(events).toEqual([{ type: 'EFFECT_FIZZLED', cardId: 'fx-flare' }]);
+  });
+});
+
+describe('scenario: target enumeration and validation', () => {
+  it('getLegalActions offers one variant per unit; playing without a target is refused', () => {
+    // Tests Rule 355.10: targets are chosen while playing a card
+    const sc = Scenario.start({}, withEffects([{ op: 'DAMAGE_TARGET', amount: 1 }]));
+    const mine = sc.putUnit('p0', sc.kit('p0').grunt, 'base');
+    const theirs = sc.putUnit('p1', sc.kit('p1').grunt, 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    const legal = getLegalActions(sc.state, sc.cards, 'p0').filter(
+      (i) => i.type === 'PLAY_CARD' && i.cardInstanceId === spell,
+    );
+    const ids = legal.flatMap((i) =>
+      i.type === 'PLAY_CARD' ? (i.targets ?? []).map((t) => (t.kind === 'object' ? t.id : '')) : [],
+    );
+    expect(ids.sort()).toEqual([mine, theirs].sort());
+    const err = sc.reject({
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: spell,
+      payment: sc.exhaustPlan('p0', 1),
+    });
+    expect(err.code).toBe('ILLEGAL_TARGET');
   });
 });

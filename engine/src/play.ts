@@ -220,6 +220,22 @@ export function playCard(
     }
   }
 
+  // Spells with targeted effects need a unit on the board as target (R2).
+  if (
+    def.type === 'SPELL' &&
+    (def.effects ?? []).some((e) => e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET')
+  ) {
+    const pick = targets.find((t) => t.kind === 'object');
+    const o = pick?.kind === 'object' ? state.objects[pick.id] : undefined;
+    if (
+      !o ||
+      !(o.zone.kind === 'base' || o.zone.kind === 'battlefield') ||
+      cards[o.cardId]?.type !== 'UNIT'
+    ) {
+      return ruleError('ILLEGAL_TARGET', 'this spell must target a unit on the board (355.10)');
+    }
+  }
+
   // Quick-Draw gear attaches to a unit its controller controls as it enters play, so that unit is
   // chosen now (as a target). With no unit to attach to the gear is played unattached.
   if (def.type === 'GEAR' && hasKeyword(def, 'QuickDraw')) {
