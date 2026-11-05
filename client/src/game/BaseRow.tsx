@@ -31,6 +31,11 @@ function RuneChips({ ids, ui }: { ids: string[]; ui: BoardUi }) {
   );
 }
 
+/** Spotlight anchor for a unit: `unit:<cardId>` (mine) / `opp-unit:<cardId>` (theirs). */
+export function unitTutorialId(o: object | undefined, mine: boolean): string | undefined {
+  return o && 'cardId' in o ? `${mine ? 'unit' : 'opp-unit'}:${String(o.cardId)}` : undefined;
+}
+
 export interface BaseRowProps {
   owner: PlayerId;
   ui: BoardUi;
@@ -73,6 +78,7 @@ export function BaseRow({ owner, ui }: BaseRowProps) {
     <section
       aria-label={mine ? 'Your base' : "Opponent's base"}
       data-dest={mine ? 'base' : undefined}
+      data-tutorial-id={mine ? 'base' : 'opp-base'}
       data-legal-dest={option ? 'true' : undefined}
       onClick={
         canTarget
@@ -147,7 +153,9 @@ export function BaseRow({ owner, ui }: BaseRowProps) {
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div aria-label="Units in base" className="flex min-h-12 flex-wrap items-start gap-2">
             {units.map((id) => (
-              <ObjectCard key={id} id={id} ui={ui} size="board" />
+              <div key={id} data-tutorial-id={unitTutorialId(view.objects[id], mine)}>
+                <ObjectCard id={id} ui={ui} size="board" />
+              </div>
             ))}
             {units.length === 0 ? <span className="text-xs text-slate-500">No units</span> : null}
           </div>

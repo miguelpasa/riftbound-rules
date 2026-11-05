@@ -422,6 +422,15 @@ export class HostSession {
     return this.apply(this.hostSeat, { ...intent, playerId: this.hostSeat } as Intent);
   }
 
+  /**
+   * Host-forced intent for either seat, bypassing the transport (turn/reaction timer timeouts).
+   * `playerId` is forced to `seat`.
+   */
+  forceIntent(seat: PlayerId, intent: Intent): LocalResult {
+    if (this.disposed) return ruleError('GAME_OVER', 'session closed');
+    return this.apply(seat, { ...intent, playerId: seat } as Intent);
+  }
+
   private apply(seat: PlayerId, intent: Intent, clientSeq?: number): LocalResult {
     const res = reduce(this.state, this.cards, intent);
     if (!res.ok) return { ok: false, code: res.code, message: res.message };

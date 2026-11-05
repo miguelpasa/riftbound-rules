@@ -11,6 +11,7 @@ import {
   PROTOCOL_VERSION,
   type C2S,
   type ClientGameState,
+  type DeckList,
   type GameEvent,
   type Intent,
   type PlayerId,
@@ -47,6 +48,8 @@ export interface GuestSessionOptions {
   storageKey?: string;
   engineVersion?: string;
   protocolVersion?: number;
+  /** The guest's own deck, sent in the HELLO of a first join (ignored once a seat token exists). */
+  deck?: DeckList;
 }
 
 type Cb<A extends unknown[]> = (...args: A) => void;
@@ -76,6 +79,7 @@ export class GuestSession {
   private readonly prefix: string;
   private readonly engineVersion: string;
   private readonly protocolVersion: number;
+  private readonly deck: DeckList | undefined;
 
   private _seat: PlayerId | null = null;
   private _view: ClientGameState | null = null;
@@ -101,6 +105,7 @@ export class GuestSession {
     this.prefix = o.storageKey ?? 'rb-guest';
     this.engineVersion = o.engineVersion ?? ENGINE_VERSION;
     this.protocolVersion = o.protocolVersion ?? PROTOCOL_VERSION;
+    this.deck = o.deck;
 
     this.seatToken = this.read('token');
     const savedSeat = this.read('seat');
@@ -235,6 +240,7 @@ export class GuestSession {
       engineVersion: this.engineVersion,
     };
     if (this.seatToken) hello.seatToken = this.seatToken;
+    else if (this.deck) hello.deck = this.deck;
     try {
       this.t.send(hello);
     } catch {

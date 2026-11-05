@@ -11,6 +11,8 @@ export interface GameStoreState {
   view: ClientGameState | null;
   status: string;
   toasts: Toast[];
+  /** Epoch ms when the running host timer fires (null = none). Read by ChainInspector. */
+  deadline: number | null;
 }
 
 type Listener = () => void;
@@ -20,6 +22,7 @@ let state: GameStoreState = {
   view: null,
   status: 'Starting',
   toasts: [],
+  deadline: null,
 };
 
 const listeners = new Set<Listener>();

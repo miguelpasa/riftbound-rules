@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { isHiddenCard } from '@riftbound/engine';
 import type { GameEvent, Intent } from '@riftbound/engine';
 import { useGame, type GameApi } from '../app/gameApi';
@@ -21,6 +21,8 @@ import { useBoardUi } from './useBoardUi';
 export interface GameScreenProps {
   /** Called from the game-over banner and the connection overlay. */
   onBackToMenu?: () => void;
+  /** Extra header content (leave button, room code, timer badge...). */
+  headerExtra?: ReactNode;
 }
 
 interface LogLine {
@@ -196,7 +198,7 @@ function GameOverBanner({
 }
 
 /** The whole in-game screen. Reads everything from `useGame()`; render inside a GameProvider. */
-export function GameScreen({ onBackToMenu }: GameScreenProps) {
+export function GameScreen({ onBackToMenu, headerExtra }: GameScreenProps) {
   const api = useGame();
   const { view, cards, legal, seat } = api;
   const ui = useBoardUi(api);
@@ -246,14 +248,14 @@ export function GameScreen({ onBackToMenu }: GameScreenProps) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-800 bg-slate-900/80 px-3 py-2">
-        <div className="w-60">
+        <div className="w-60" data-tutorial-id="score">
           <Scoreboard
             me={seat}
             players={view.players.map((p) => ({ id: p.id, points: p.points }))}
             victoryScore={view.victoryScore}
           />
         </div>
-        <div className="min-w-64 flex-1">
+        <div className="min-w-64 flex-1" data-tutorial-id="phase-tracker">
           <PhaseTracker
             phase={view.turn.phase}
             step={view.turn.step}
@@ -263,6 +265,7 @@ export function GameScreen({ onBackToMenu }: GameScreenProps) {
           />
         </div>
         <ConnectionIndicators api={api} />
+        {headerExtra}
         <div className="ml-auto flex items-center gap-3">
           <span className="text-sm text-slate-400" data-testid="priority-text">
             {priorityText}
@@ -270,6 +273,7 @@ export function GameScreen({ onBackToMenu }: GameScreenProps) {
           {primary ? (
             <button
               type="button"
+              data-tutorial-id={primary.intent.type === 'END_TURN' ? 'btn-end-turn' : 'btn-pass'}
               onClick={() => void submit(primary.intent)}
               className="rounded-lg bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
@@ -294,8 +298,12 @@ export function GameScreen({ onBackToMenu }: GameScreenProps) {
           <Hand ui={ui} />
         </main>
         <aside aria-label="Resources, chain and log" className="flex flex-col gap-3">
-          <ResourcePanel />
-          <ChainInspector />
+          <div data-tutorial-id="rune-panel">
+            <ResourcePanel />
+          </div>
+          <div data-tutorial-id="chain-panel">
+            <ChainInspector />
+          </div>
           <details className="rounded-xl border border-slate-800 bg-slate-900 p-2">
             <summary className="cursor-pointer text-sm font-semibold text-slate-200 focus-visible:outline-2 focus-visible:outline-amber-300">
               Game log ({lines.length})

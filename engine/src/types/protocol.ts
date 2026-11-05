@@ -1,3 +1,4 @@
+import type { DeckList } from './deck.js';
 import type { RuleErrorCode } from './errors.js';
 import type { GameEvent } from './event.js';
 import type { Intent } from './intent.js';
@@ -8,7 +9,14 @@ export const PROTOCOL_VERSION = 1;
 
 /** Guest -> host. */
 export type C2S =
-  | { type: 'HELLO'; protocolVersion: number; engineVersion: string; seatToken?: string }
+  | {
+      type: 'HELLO';
+      protocolVersion: number;
+      engineVersion: string;
+      seatToken?: string;
+      /** The joining guest's deck; required on the first join (no seatToken), validated by the host. */
+      deck?: DeckList;
+    }
   | { type: 'INTENT'; intent: Intent; clientSeq: number }
   | { type: 'REQUEST_RESYNC' };
 

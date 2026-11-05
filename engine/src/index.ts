@@ -23,3 +23,4 @@ export * from './replay.js';
 export * from './ai/determinize.js';
 export * from './ai/evaluate.js';
 export * from './ai/bot.js';
+export * from './sandbox.js';

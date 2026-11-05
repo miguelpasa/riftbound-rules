@@ -2,6 +2,7 @@ import type { DragEvent } from 'react';
 import { isHiddenCard } from '@riftbound/engine';
 import type { BattlefieldState, PlayerId } from '@riftbound/engine';
 import { Card, CardBack } from '../components/Card';
+import { unitTutorialId } from './BaseRow';
 import { ObjectCard } from './ObjectCard';
 import type { BoardUi } from './useBoardUi';
 
@@ -67,6 +68,7 @@ export function BattlefieldView({ battlefield: bf, ui }: BattlefieldViewProps) {
     <section
       aria-label={`Battlefield: ${name}`}
       data-dest={bf.id}
+      data-tutorial-id={`battlefield:${view.battlefields.findIndex((b) => b.id === bf.id)}`}
       data-legal-dest={option ? 'true' : undefined}
       onClick={
         canTarget
@@ -133,7 +135,9 @@ export function BattlefieldView({ battlefield: bf, ui }: BattlefieldViewProps) {
             className="flex min-h-12 flex-1 flex-wrap content-start items-start gap-2 rounded-lg bg-rose-950/20 p-1.5"
           >
             {oppUnits.map((id) => (
-              <ObjectCard key={id} id={id} ui={ui} size="chain" />
+              <div key={id} data-tutorial-id={unitTutorialId(view.objects[id], false)}>
+                <ObjectCard id={id} ui={ui} size="chain" />
+              </div>
             ))}
           </div>
           <div
@@ -141,7 +145,9 @@ export function BattlefieldView({ battlefield: bf, ui }: BattlefieldViewProps) {
             className="flex min-h-12 flex-1 flex-wrap content-start items-start gap-2 rounded-lg bg-sky-950/20 p-1.5"
           >
             {mineUnits.map((id) => (
-              <ObjectCard key={id} id={id} ui={ui} size="chain" />
+              <div key={id} data-tutorial-id={unitTutorialId(view.objects[id], true)}>
+                <ObjectCard id={id} ui={ui} size="chain" />
+              </div>
             ))}
           </div>
         </div>

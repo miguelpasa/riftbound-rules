@@ -1,6 +1,10 @@
 import { ObjectCard } from './ObjectCard';
 import type { BoardUi } from './useBoardUi';
 
+function handCardDefId(o: object | undefined, fallback: string): string {
+  return o && 'cardId' in o ? String(o.cardId) : fallback;
+}
+
 /** The viewer's hand as an overlapping row; playable cards are highlighted from api.legal. */
 export function Hand({ ui }: { ui: BoardUi }) {
   const { view, seat } = ui.api;
@@ -8,7 +12,7 @@ export function Hand({ ui }: { ui: BoardUi }) {
   if (!me) return null;
   const crowded = me.hand.length > 6;
   return (
-    <section aria-label="Your hand" className="flex flex-col gap-1">
+    <section aria-label="Your hand" data-tutorial-id="hand" className="flex flex-col gap-1">
       <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
         Your hand ({me.hand.length})
       </h2>
@@ -18,6 +22,7 @@ export function Hand({ ui }: { ui: BoardUi }) {
         {me.hand.map((id, i) => (
           <div
             key={id}
+            data-tutorial-id={`hand-card:${handCardDefId(view.objects[id], id)}`}
             className={`shrink-0 transition-[margin] hover:z-10 focus-within:z-10 ${crowded && i > 0 ? '-ml-10 hover:mr-10 focus-within:mr-10' : ''}`}
           >
             <ObjectCard id={id} ui={ui} size="board" inHand />

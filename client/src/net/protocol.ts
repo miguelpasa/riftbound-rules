@@ -3,6 +3,7 @@ import {
   PROTOCOL_VERSION,
   RULE_ERROR_CODES,
   type C2S,
+  type DeckList,
   type IntentType,
   type S2C,
 } from '@riftbound/engine';
@@ -42,6 +43,26 @@ function isSeq(v: unknown): v is number {
 }
 function isPlayer(v: unknown): v is 'p0' | 'p1' {
   return v === 'p0' || v === 'p1';
+}
+
+const MAX_DECK_ENTRIES = 200;
+
+function parseDeck(v: unknown): DeckList | null {
+  if (!isObj(v) || !isStr(v.legendId, 128) || !isStr(v.championId, 128)) return null;
+  const lists: Record<string, string[]> = {};
+  for (const key of ['mainDeck', 'runeDeck', 'battlefields']) {
+    const list = v[key];
+    if (!Array.isArray(list) || list.length > MAX_DECK_ENTRIES) return null;
+    if (!list.every((x) => isStr(x, 128))) return null;
+    lists[key] = [...(list as string[])];
+  }
+  return {
+    legendId: v.legendId,
+    championId: v.championId,
+    mainDeck: lists.mainDeck as string[],
+    runeDeck: lists.runeDeck as string[],
+    battlefields: lists.battlefields as string[],
+  };
 }
 
 /** True if any object in the tree has an own key that could pollute prototypes, or nesting is absurd. */
@@ -89,6 +110,11 @@ export function parseC2S(raw: unknown): C2S | null {
         engineVersion: raw.engineVersion,
       };
       if (raw.seatToken !== undefined) msg.seatToken = raw.seatToken as string;
+      if (raw.deck !== undefined) {
+        const deck = parseDeck(raw.deck);
+        if (deck === null) return null;
+        msg.deck = deck;
+      }
       return msg;
     }
     case 'INTENT':
