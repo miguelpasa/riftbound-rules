@@ -4,6 +4,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { TOKEN_CARDS } from '../engine/src/tokens';
 import type { CardDatabase } from '../engine/src/types/card';
 import { convertRow, createCardValidator, dedupePrintings, normalizeRow } from './lib/cardConvert';
 
@@ -33,6 +34,13 @@ for (const row of kept.sort((a, b) => (a.cardCode < b.cardCode ? -1 : 1))) {
     continue;
   }
   db[res.card.cardId] = res.card;
+}
+
+// Engine-defined unit tokens (engine/src/tokens.ts) live in the same database.
+for (const token of Object.values(TOKEN_CARDS)) {
+  const errs = validate(token);
+  if (errs.length > 0) invalid.push(`${token.cardId}: ${errs.join('; ')}`);
+  else db[token.cardId] = token;
 }
 
 if (invalid.length > 0) {

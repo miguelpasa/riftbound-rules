@@ -9,6 +9,8 @@
  */
 import { drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
+import { removeTokenFromGame } from './keywords.js';
+import { allocObjectId } from './setup.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
@@ -51,6 +53,8 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'STUN_TARGET' ||
   e.op === 'DEBUFF_TARGET' ||
   e.op === 'KILL_GEAR' ||
+  e.op === 'RETURN_TARGET' ||
+  e.op === 'MOVE_BASE_TARGET' ||
   e.op === 'COUNTER_SPELL';
 
 /** The first targeted effect of a spell, if any. */
@@ -62,10 +66,16 @@ export function targetedEffect(
 
 function specOf(e: TargetedEffect): Spec {
   const kind: TargetKind =
-    e.op === 'KILL_GEAR' ? 'gear' : e.op === 'COUNTER_SPELL' ? 'spell' : 'unit';
+    e.op === 'KILL_GEAR' || (e.op === 'RETURN_TARGET' && e.gear)
+      ? 'gear'
+      : e.op === 'COUNTER_SPELL'
+        ? 'spell'
+        : 'unit';
   const spec: Spec = { kind, side: 'side' in e && e.side ? e.side : 'any' };
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
-  if (e.op === 'KILL_TARGET' && e.maxMight !== undefined) spec.maxMight = e.maxMight;
+  if ((e.op === 'KILL_TARGET' || e.op === 'RETURN_TARGET') && e.maxMight !== undefined) {
+    spec.maxMight = e.maxMight;
+  }
   return spec;
 }
 
@@ -289,6 +299,83 @@ function killGear(state: GameState, g: CardInstance): void {
   delete g.attachedTo;
 }
 
+/** Return a unit or gear to its owner's hand (a token ceases to exist, 186.1). Mutates. */
+function returnToHand(state: GameState, o: CardInstance, out: GameEventInput[]): void {
+  const player = o.owner;
+  const cardId = o.cardId;
+  const ps = state.players[playerIndex(o.controller)];
+  ps.base = ps.base.filter((x) => x !== o.id);
+  for (const g of Object.values(state.objects)) if (g.attachedTo === o.id) delete g.attachedTo;
+  out.push({ type: 'UNIT_RETURNED', player, unitId: o.id, cardId });
+  if (state.objects[o.id] && isTokenInstance(o)) {
+    removeTokenFromGame(state, o.id);
+    return;
+  }
+  o.zone = { kind: 'hand', player };
+  o.controller = o.owner;
+  o.ready = false;
+  o.damage = 0;
+  o.mightBonus = 0;
+  delete o.tempMight;
+  delete o.stunned;
+  delete o.attachedTo;
+  state.players[playerIndex(player)].hand.push(o.id);
+}
+
+/** Tokens are the only objects whose card id is in the built-in token table (tokens.ts). */
+const isTokenInstance = (o: CardInstance): boolean => o.cardId.startsWith('tok-');
+
+/** Move a unit from a battlefield to its controller's Base (not a standard move). Mutates. */
+function moveToBase(state: GameState, o: CardInstance, out: GameEventInput[]): void {
+  if (o.zone.kind !== 'battlefield') return;
+  const from = o.zone.battlefieldId;
+  o.zone = { kind: 'base', player: o.controller };
+  state.players[playerIndex(o.controller)].base.push(o.id);
+  out.push({ type: 'UNIT_MOVED', unitId: o.id, from, to: 'base' });
+}
+
+/** "Look at the top N cards ... take one ... recycle the rest" (deterministic choice). Mutates. */
+function lookAtTop(
+  state: GameState,
+  player: PlayerId,
+  count: number,
+  take: { filter?: 'unit' | 'gear'; reveal?: boolean } | undefined,
+  cards: CardDatabase,
+): GameEventInput[] {
+  const out: GameEventInput[] = [];
+  const ps = state.players[playerIndex(player)];
+  const ids = ps.mainDeck.splice(0, count);
+  out.push({ type: 'CARDS_LOOKED_AT', player, count: ids.length });
+  let pick: string | undefined;
+  if (take) {
+    const want = take.filter === 'unit' ? 'UNIT' : take.filter === 'gear' ? 'GEAR' : undefined;
+    const cand = ids.filter(
+      (id) => !want || cards[(state.objects[id] as CardInstance).cardId]?.type === want,
+    );
+    // Unrestricted: the most expensive card (first on ties); restricted: the first match.
+    const energy = (id: string): number =>
+      cards[(state.objects[id] as CardInstance).cardId]?.cost.energy ?? 0;
+    pick = want
+      ? cand[0]
+      : cand.reduce<string | undefined>(
+          (b, id) => (b === undefined || energy(id) > energy(b) ? id : b),
+          undefined,
+        );
+  }
+  if (pick !== undefined) {
+    const o = state.objects[pick] as CardInstance;
+    if (take?.reveal)
+      out.push({ type: 'CARD_REVEALED', player, cardInstanceId: pick, cardId: o.cardId });
+    o.zone = { kind: 'hand', player };
+    ps.hand.push(pick);
+    out.push({ type: 'CARD_DRAWN', player, cardInstanceId: pick, visibleTo: [player] });
+  }
+  const rest = ids.filter((id) => id !== pick);
+  ps.mainDeck.push(...rest);
+  if (rest.length > 0) out.push({ type: 'CARDS_RECYCLED', player, count: rest.length });
+  return out;
+}
+
 export function runEffects(
   state: GameState,
   controller: PlayerId,
@@ -296,6 +383,7 @@ export function runEffects(
   cards: CardDatabase,
   targets: readonly Target[] = [],
   sourceCardId = '',
+  sourceObjectId = '',
 ): GameEventInput[] {
   const out: GameEventInput[] = [];
   const ids = objectIds(targets);
@@ -328,6 +416,8 @@ export function runEffects(
       case 'STUN_TARGET':
       case 'DEBUFF_TARGET':
       case 'KILL_GEAR':
+      case 'RETURN_TARGET':
+      case 'MOVE_BASE_TARGET':
       case 'COUNTER_SPELL': {
         const slot = e.slot ?? 0;
         const count = 'count' in e ? e.count : undefined;
@@ -364,6 +454,10 @@ export function runEffects(
             doneSlots.set(slot, u.controller);
             killGear(state, u);
             out.push({ type: 'GEAR_KILLED', gearId: u.id });
+          } else if (e.op === 'RETURN_TARGET') {
+            returnToHand(state, u, out);
+          } else if (e.op === 'MOVE_BASE_TARGET') {
+            moveToBase(state, u, out);
           } else if (e.op === 'COUNTER_SPELL') {
             counterSpell(state, u);
             out.push({ type: 'EFFECT_COUNTERED', cardId: u.cardId });
@@ -448,6 +542,45 @@ export function runEffects(
         }
         break;
       }
+      case 'KILL_ALL_UNITS':
+        for (const u of boardUnits(state, cards)) {
+          const lethal = Math.max(1, mightOf(u)) - u.damage;
+          if (lethal > 0) u.damage += lethal;
+          out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount: Math.max(lethal, 0) });
+        }
+        break;
+      case 'PLAY_TOKEN': {
+        const def = cards[e.token];
+        if (!def) {
+          fizzle();
+          break;
+        }
+        const src = state.objects[sourceObjectId];
+        for (let i = 0; i < e.count; i++) {
+          const id = allocObjectId(state);
+          const zone: CardInstance['zone'] =
+            e.here && src?.zone.kind === 'battlefield'
+              ? { kind: 'battlefield', player: controller, battlefieldId: src.zone.battlefieldId }
+              : { kind: 'base', player: controller };
+          state.objects[id] = {
+            id,
+            cardId: e.token,
+            owner: controller,
+            controller,
+            zone,
+            ready: e.ready === true,
+            damage: 0,
+            mightBonus: 0,
+            enteredTurn: state.turn.number,
+          };
+          if (zone.kind === 'base') state.players[playerIndex(controller)].base.push(id);
+          out.push({ type: 'TOKEN_PLAYED', player: controller, unitId: id, cardId: e.token });
+        }
+        break;
+      }
+      case 'LOOK_TOP':
+        out.push(...lookAtTop(state, controller, e.count, e.take, cards));
+        break;
       case 'GAIN_POINT':
         state.players[playerIndex(controller)].points += e.amount;
         out.push({ type: 'POINT_GAINED', player: controller, amount: e.amount, source: 'EFFECT' });

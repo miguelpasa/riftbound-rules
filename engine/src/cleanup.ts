@@ -23,9 +23,13 @@
  *  9. Neutral Open (no chain, showdown, combat): the turn player starts one staged Showdown (323.11),
  *     applier = contestedBy ?? turn player. A battlefield that also has a staged Combat is skipped
  *     here (Combat takes precedence, 323.13: the non-combat showdown there becomes a Combat Showdown).
- * 10. Otherwise still Neutral Open: start one staged Combat (323.12). The turn player chooses if
- *     several; we choose deterministically the one with the lowest battlefield index. Uses
- *     deps.startCombat (default combat.startCombatHook).
+ * 10. Otherwise still Neutral Open: start one staged Combat (323.12). Uses deps.startCombat
+ *     (default combat.startCombatHook).
+ *     Steps 9/10 with SEVERAL candidates (323.11, 323.12, 463.1): the turn player chooses. The Cleanup
+ *     sets flow.pendingChoice {kind:'STAGED_ORDER', player, stage, options} and starts nothing; the next
+ *     pass changes nothing so the Cleanup stabilises (no circuit breaker) and the engine waits for
+ *     CHOOSE_STAGED (showdown.chooseStaged), which starts the chosen one. With exactly one candidate
+ *     nothing is asked. pendingChoice is recomputed (cleared when not needed) every pass.
  * 11. If flow.combat.step === 'RESOLUTION', combat.resolveCombat (after step 3 killed the lethal units).
  *
  * Circuit breaker: at most MAX_CLEANUP_ITERATIONS passes. If the last allowed pass still changed the
@@ -197,14 +201,26 @@ export function runCleanup(
       if (!here && playersWithUnitsAt(s, bf.id).indexOf(bf.contestedBy) < 0) bf.contestedBy = null;
     }
 
-    // 9. Start a staged Showdown (323.11); 10. else a staged Combat (323.12)
+    // 9. Start a staged Showdown (323.11); 10. else a staged Combat (323.12). With several
+    // candidates the turn player chooses (flow.pendingChoice): the Cleanup then idles (the next
+    // pass changes nothing, so it stabilises) until CHOOSE_STAGED arrives.
+    delete s.flow.pendingChoice;
     if (isNeutralOpen(s)) {
       const order = (id: string): number => s.battlefields.findIndex((b) => b.id === id);
-      const sd = s.flow.stagedShowdowns
+      const sds = s.flow.stagedShowdowns
         .filter((id) => !s.flow.stagedCombats.includes(id))
-        .sort((a, b) => order(a) - order(b))[0];
-      const cb = [...s.flow.stagedCombats].sort((a, b) => order(a) - order(b))[0];
-      if (sd !== undefined) {
+        .sort((a, b) => order(a) - order(b));
+      const cbs = [...s.flow.stagedCombats].sort((a, b) => order(a) - order(b));
+      const sd = sds[0];
+      const cb = cbs[0];
+      if (sds.length > 1 || (sds.length === 0 && cbs.length > 1)) {
+        s.flow.pendingChoice = {
+          kind: 'STAGED_ORDER',
+          player: s.turn.activePlayer,
+          stage: sds.length > 1 ? 'SHOWDOWN' : 'COMBAT',
+          options: sds.length > 1 ? sds : cbs,
+        };
+      } else if (sd !== undefined) {
         const applier = s.battlefields.find((b) => b.id === sd)?.contestedBy ?? s.turn.activePlayer;
         const err = absorb(startShowdown(s, sd, applier, false));
         if (err) return err;

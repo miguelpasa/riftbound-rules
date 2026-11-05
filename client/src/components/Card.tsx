@@ -45,6 +45,10 @@ export interface CardProps {
   onMouseEnter?: MouseEventHandler<HTMLElement>;
   onMouseLeave?: MouseEventHandler<HTMLElement>;
   className?: string;
+  /** Overrides the accessible name (e.g. 'Target: Name'). */
+  ariaLabel?: string;
+  /** Native tooltip text. */
+  title?: string;
 }
 
 export const PARTIAL_TOOLTIP = "This card's rules text is not executed in this version";
@@ -181,6 +185,8 @@ export function Card({
   onMouseEnter,
   onMouseLeave,
   className = '',
+  ariaLabel,
+  title,
 }: CardProps) {
   const ctx = useCardImages();
   const imagesOn = showImages ?? ctx.showImages;
@@ -214,7 +220,8 @@ export function Card({
   return (
     <div
       role={onClick ? 'button' : 'group'}
-      aria-label={label}
+      aria-label={ariaLabel ?? label}
+      title={title}
       aria-disabled={onClick && disabled ? true : undefined}
       aria-pressed={onClick && selected !== undefined ? selected : undefined}
       tabIndex={interactive ? 0 : undefined}

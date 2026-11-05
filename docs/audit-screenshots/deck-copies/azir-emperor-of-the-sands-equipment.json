@@ -1,0 +1,175 @@
+{
+  "format": "riftbound-deck",
+  "version": 1,
+  "name": "Azir equipment midrange",
+  "description": "A Calm and Order deck led by Azir that builds a board and strengthens it with a heavy equipment package.",
+  "source": "META",
+  "eventName": "Los Angeles Regional Qualifier (Sept 2026)",
+  "placement": "Top 8",
+  "sourceUrl": "https://playriftbound.com/en-us/news/organizedplay/los-angeles-top-decks/",
+  "legend": "SFD-197",
+  "cards": [
+    {
+      "code": "SFD-197",
+      "qty": 1,
+      "zone": "LEGEND",
+      "name": "Azir, Emperor of the Sands"
+    },
+    {
+      "code": "SFD-177",
+      "qty": 1,
+      "zone": "CHAMPION",
+      "name": "Azir, Sovereign"
+    },
+    {
+      "code": "SFD-198",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Arise!"
+    },
+    {
+      "code": "SFD-161",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "B.F. Sword"
+    },
+    {
+      "code": "UNL-042",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Back Off"
+    },
+    {
+      "code": "SFD-042",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Brutalizer"
+    },
+    {
+      "code": "SFD-163",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Deathgrip"
+    },
+    {
+      "code": "OGN-045",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Defy"
+    },
+    {
+      "code": "OGN-058",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Discipline"
+    },
+    {
+      "code": "SFD-033",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Doran's Shield"
+    },
+    {
+      "code": "OGN-046",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "En Garde"
+    },
+    {
+      "code": "SFD-153",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Eye of the Herald"
+    },
+    {
+      "code": "SFD-154",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Guards!"
+    },
+    {
+      "code": "VEN-027",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Hand Hammer"
+    },
+    {
+      "code": "OGN-213",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Hidden Blade"
+    },
+    {
+      "code": "UNL-039",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Soul Sword"
+    },
+    {
+      "code": "OGN-042",
+      "qty": 7,
+      "zone": "RUNE",
+      "name": "Calm Rune"
+    },
+    {
+      "code": "OGN-214",
+      "qty": 5,
+      "zone": "RUNE",
+      "name": "Order Rune"
+    },
+    {
+      "code": "SFD-210",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Hall of Legends"
+    },
+    {
+      "code": "SFD-217",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Seat of Power"
+    },
+    {
+      "code": "OGN-294",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Trifarian War Camp"
+    },
+    {
+      "code": "UNL-169",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Ashe, Focused"
+    },
+    {
+      "code": "OGN-043",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Charm"
+    },
+    {
+      "code": "VEN-040",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Decree of Focus"
+    },
+    {
+      "code": "VEN-131",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Decree of Unity"
+    },
+    {
+      "code": "SFD-032",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Disarming Rake"
+    },
+    {
+      "code": "OGN-224",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Salvage"
+    }
+  ]
+}

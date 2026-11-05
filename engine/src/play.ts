@@ -64,6 +64,11 @@ export interface PlayHooks {
     objectId: string,
     item?: ChainItem,
   ): GameEventInput[];
+  /**
+   * Rule 811: set when a facedown Hidden card is played; Gear then enters this battlefield
+   * (instead of the Base) and the battlefield-control check still applies.
+   */
+  hiddenAt?: string;
 }
 
 const PUBLIC_TARGET_ZONES = new Set([
@@ -121,10 +126,9 @@ function placingResolver(
     const def = obj ? cards[obj.cardId] : undefined;
     if (item.kind === 'CARD' && obj && def && (def.type === 'UNIT' || def.type === 'GEAR')) {
       const owner = s.players[playerIndex(obj.controller)];
-      const loc =
-        def.type === 'GEAR'
-          ? { kind: 'base' as const }
-          : (item.location ?? { kind: 'base' as const });
+      // Gear enters the Base unless it was played from the facedown zone (811): then it enters
+      // that battlefield and Cleanup recalls it (323.6) like any non-unit permanent there.
+      const loc = item.location ?? { kind: 'base' as const };
       if (loc.kind === 'battlefield') {
         obj.zone = {
           kind: 'battlefield',
@@ -156,7 +160,9 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   const obj = s.objects[item.sourceObjectId];
   if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
     const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
-    if (trig) events.push(...runEffects(s, item.controller, trig.effects, cards, [], obj.cardId));
+    if (trig) {
+      events.push(...runEffects(s, item.controller, trig.effects, cards, [], obj.cardId, obj.id));
+    }
     return { state: s, events };
   }
   if (obj && item.kind === 'ABILITY' && item.abilityIndex === 0) {
@@ -224,7 +230,10 @@ export function playCard(
   if (intent.location?.kind === 'battlefield') {
     const bfId = intent.location.battlefieldId;
     const bf = state.battlefields.find((b) => b.id === bfId);
-    if (!isUnit) return ruleError('ILLEGAL_LOCATION', `${def.type} can only enter the Base`);
+    const hiddenGear = def.type === 'GEAR' && hooks?.hiddenAt === bfId; // 811
+    if (!isUnit && !hiddenGear) {
+      return ruleError('ILLEGAL_LOCATION', `${def.type} can only enter the Base`);
+    }
     if (!bf) return ruleError('ILLEGAL_LOCATION', `battlefield ${bfId} does not exist`);
     if (bf.controller !== pid) {
       return ruleError('ILLEGAL_LOCATION', `you do not control battlefield ${bfId}`);
@@ -283,6 +292,13 @@ export function playCard(
   const obj = work.objects[src.id] as CardInstance;
   leaveSource(work, obj);
   obj.zone = { kind: 'chain', player: pid };
+  // Legion (812): the play counts for "another card this turn" from the moment it is on the Chain.
+  const seat = work.players[playerIndex(pid)];
+  const sameTurn = seat.playedThisTurn?.turn === work.turn.number;
+  seat.playedThisTurn = {
+    turn: work.turn.number,
+    objectIds: [...(sameTurn ? (seat.playedThisTurn?.objectIds ?? []) : []), obj.id],
+  };
   const item: ChainItem = {
     id: allocObjectId(work),
     kind: 'CARD',
@@ -294,9 +310,7 @@ export function playCard(
     ...(def.type === 'SPELL' && def.supportLevel === 'partial' && !def.effects?.length
       ? { unimplementedEffect: true }
       : {}),
-    ...(isUnit || def.type === 'GEAR'
-      ? { location: def.type === 'GEAR' ? { kind: 'base' } : location }
-      : {}),
+    ...(isUnit || def.type === 'GEAR' ? { location } : {}),
     ...(accelerate ? { additionalCosts: { accelerate: true } } : {}),
   };
   events.push({ type: 'CARD_PLAYED', player: pid, cardInstanceId: obj.id, cardId: obj.cardId });

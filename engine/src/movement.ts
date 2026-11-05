@@ -18,6 +18,7 @@
 import { ruleError } from './types/errors.js';
 import { playerIndex } from './types/constants.js';
 import { stampEvents } from './setup.js';
+import { isUnitDef } from './tokens.js';
 import type {
   CardDatabase,
   CardInstance,
@@ -73,7 +74,7 @@ export function canStandardMove(
     if (!o) return ruleError('NOT_FOUND', `unit ${id}`);
     if (o.controller !== playerId) return ruleError('NOT_OWNED', `unit ${id}`);
     const def = cards[o.cardId];
-    if (!def || def.type !== 'UNIT') return ruleError('WRONG_CARD_TYPE', `${id} is not a unit`);
+    if (!isUnitDef(def)) return ruleError('WRONG_CARD_TYPE', `${id} is not a unit`);
     if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') {
       return ruleError('ILLEGAL_LOCATION', `unit ${id} is not on the board`);
     }

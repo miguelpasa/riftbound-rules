@@ -127,6 +127,15 @@ export async function tryPlayHandCard(page: Page): Promise<boolean> {
   if ((await cards.count()) === 0) return false;
   const before = (await handCardNames(page)).length;
   await cards.first().click();
+  // click-to-target: a targeted spell highlights units on the board; pick the first one
+  const targeting = page.getByLabel('Targeting');
+  if (await targeting.isVisible().catch(() => false)) {
+    await page
+      .getByRole('button', { name: /^Target: / })
+      .first()
+      .click()
+      .catch(() => undefined);
+  }
   // a popover (target / destination choices) may open: pick its first enabled option
   const pop = page.getByRole('menu').first();
   if (await pop.isVisible().catch(() => false)) {

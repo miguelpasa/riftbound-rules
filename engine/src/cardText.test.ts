@@ -209,3 +209,158 @@ describe('parseTriggerText', () => {
     expect(parseTriggerText('I enter ready.')).toBeNull();
   });
 });
+
+describe('parseSpellText: tokens, "it" sentences, return / move / look (R3 round 2)', () => {
+  it('parses unit-token sentences against the built-in token table', () => {
+    // Tests Rule 186.1: a token is created with the characteristics its text gives
+    expect(
+      parseSpellText(
+        '[Hidden] (Hide now.) [Action] (Play on your turn.) Play a ready 3 [M] Sprite unit token with [Temporary]. (Kill it at the start.)',
+      ),
+    ).toEqual([{ op: 'PLAY_TOKEN', token: 'tok-sprite', count: 1, ready: true }]);
+    expect(parseSpellText('Play two ready 3 [M] Sprite unit tokens with [Temporary].')).toEqual([
+      { op: 'PLAY_TOKEN', token: 'tok-sprite', count: 2, ready: true },
+    ]);
+    expect(parseSpellText('[Action] Play four 1 [M] Recruit unit tokens.')).toEqual([
+      { op: 'PLAY_TOKEN', token: 'tok-recruit', count: 4 },
+    ]);
+    expect(parseSpellText('Play a 2 [M] Sand Soldier unit token.')).toEqual([
+      { op: 'PLAY_TOKEN', token: 'tok-sand-soldier', count: 1 },
+    ]);
+    expect(parseSpellText('Play a 3 [M] Mech unit token to your base. Draw 1.')).toEqual([
+      { op: 'PLAY_TOKEN', token: 'tok-mech', count: 1 },
+      { op: 'DRAW', amount: 1 },
+    ]);
+  });
+
+  it('refuses tokens it does not know or whose stats differ', () => {
+    // Tests Rule 186.1: never invent a token
+    expect(parseSpellText('Play a 4 [M] Recruit unit token.')).toBeNull();
+    expect(parseSpellText('Play a 1 [M] Bird unit token.')).toBeNull(); // the table Bird has Deflect
+    expect(parseSpellText('Play a Gold gear token exhausted.')).toBeNull();
+    expect(parseSpellText('Play three 1 [M] Recruit unit tokens there.')).toBeNull();
+  });
+
+  it('reads "it" as the single unit chosen by the previous sentence', () => {
+    // Tests Rule 355.10: the chosen unit keeps the restrictions of the sentence that chose it
+    expect(parseSpellText('Choose a friendly unit. Give it +2 [M] this turn.')).toEqual([
+      { op: 'BUFF_TARGET', amount: 2, duration: 'TURN', side: 'friendly' },
+    ]);
+    expect(parseSpellText('Choose an enemy unit at a battlefield. Deal 3 to it. Stun it.')).toEqual(
+      [
+        { op: 'DAMAGE_TARGET', amount: 3, side: 'enemy', atBattlefield: true },
+        { op: 'STUN_TARGET', side: 'enemy', atBattlefield: true },
+      ],
+    );
+    expect(
+      parseSpellText('Choose a unit. Give it -3 [M] this turn, to a minimum of 1 [M].'),
+    ).toEqual([{ op: 'DEBUFF_TARGET', amount: 3, minMight: 1 }]);
+    expect(parseSpellText('Choose an enemy unit. Kill it. Its controller draws 1.')).toEqual([
+      { op: 'KILL_TARGET', side: 'enemy' },
+      { op: 'TARGET_CONTROLLER_DRAW', amount: 1 },
+    ]);
+    expect(parseSpellText("Choose a friendly unit. Return it to its owner's hand.")).toEqual([
+      { op: 'RETURN_TARGET', side: 'friendly' },
+    ]);
+  });
+
+  it('refuses "it" without a unit, or a Choose nothing uses', () => {
+    // Tests Rule 355.10: never half-execute a spell
+    expect(parseSpellText('Give it +2 [M] this turn.')).toBeNull();
+    expect(parseSpellText('Choose a unit.')).toBeNull();
+    expect(parseSpellText('Choose a friendly unit and an enemy unit. Ready it.')).toBeNull();
+    expect(parseSpellText('Choose a unit. Give it [Assault 3] this turn.')).toBeNull();
+  });
+
+  it('parses return, move to base and kill-all sentences', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    expect(parseSpellText("Return a unit at a battlefield to its owner's hand.")).toEqual([
+      { op: 'RETURN_TARGET', atBattlefield: true },
+    ]);
+    expect(
+      parseSpellText("Return a unit at a battlefield with 3 [M] or less to its owner's hand."),
+    ).toEqual([{ op: 'RETURN_TARGET', atBattlefield: true, maxMight: 3 }]);
+    expect(parseSpellText("Return a gear to its owner's hand.")).toEqual([
+      { op: 'RETURN_TARGET', gear: true },
+    ]);
+    expect(parseSpellText('Move a unit from a battlefield to its base.')).toEqual([
+      { op: 'MOVE_BASE_TARGET', atBattlefield: true },
+    ]);
+    expect(parseSpellText('Move up to 2 friendly units to base.')).toEqual([
+      { op: 'MOVE_BASE_TARGET', side: 'friendly', count: { min: 0, max: 2 } },
+    ]);
+    expect(parseSpellText('Kill all units.')).toEqual([{ op: 'KILL_ALL_UNITS' }]);
+    // A destination that needs a choice is still refused.
+    expect(parseSpellText('Move an enemy unit.')).toBeNull();
+  });
+
+  it('parses the complete look-at-the-top forms and refuses incomplete ones', () => {
+    // Tests Rule 417.5: the cards not taken are recycled to the bottom of the deck
+    expect(
+      parseSpellText(
+        'Look at the top 3 cards of your Main Deck. Put 1 into your hand and recycle the rest.',
+      ),
+    ).toEqual([{ op: 'LOOK_TOP', count: 3, take: {} }]);
+    expect(
+      parseSpellText(
+        'Look at the top 4 cards of your Main Deck. You may reveal a unit from among them and draw it. Recycle the rest.',
+      ),
+    ).toEqual([{ op: 'LOOK_TOP', count: 4, take: { filter: 'unit', reveal: true } }]);
+    expect(parseSpellText('Look at the top 3 cards of your Main Deck.')).toBeNull();
+    expect(
+      parseSpellText('Look at the top 3 cards of your Main Deck. Put the rest into your trash.'),
+    ).toBeNull();
+  });
+});
+
+describe('parseTriggerText: tokens and multi-sentence abilities (R3 round 2)', () => {
+  it('parses token triggers, keeping the token keyword out of the unit', () => {
+    // Tests Rule 359.3: triggered abilities resolve their effects in order
+    expect(
+      parseTriggerText(
+        'When you play me, play a ready 3 [M] Sprite unit token with [Temporary] here. (Kill it at the start.)',
+      ),
+    ).toEqual([
+      {
+        on: 'PLAY',
+        effects: [{ op: 'PLAY_TOKEN', token: 'tok-sprite', count: 1, ready: true, here: true }],
+      },
+    ]);
+    expect(
+      parseTriggerText(
+        '[Deathknell][>] Play a 1 [M] Bird unit token with [Deflect] to your base. (When I die, get the effect.)',
+      ),
+    ).toEqual([{ on: 'DEATH', effects: [{ op: 'PLAY_TOKEN', token: 'tok-bird', count: 1 }] }]);
+    expect(
+      parseTriggerText('[Deathknell] — Play three 1 [M] Recruit unit tokens into your base.'),
+    ).toEqual([{ on: 'DEATH', effects: [{ op: 'PLAY_TOKEN', token: 'tok-recruit', count: 3 }] }]);
+  });
+
+  it('"When you play me or when I hold" makes two triggers; follow-up sentences join the ability', () => {
+    // Tests Rule 359.3: triggered abilities resolve their effects in order
+    const look = {
+      op: 'LOOK_TOP',
+      count: 4,
+      take: { filter: 'gear', reveal: true },
+    };
+    expect(
+      parseTriggerText(
+        'When you play me or when I hold, look at the top 4 cards of your Main Deck. You may reveal a gear from among them and draw it. Then recycle the rest.',
+      ),
+    ).toEqual([
+      { on: 'PLAY', effects: [look] },
+      { on: 'HOLD', effects: [look] },
+    ]);
+    expect(parseTriggerText('When I hold, draw 1. Draw 1.')).toEqual([
+      {
+        on: 'HOLD',
+        effects: [
+          { op: 'DRAW', amount: 1 },
+          { op: 'DRAW', amount: 1 },
+        ],
+      },
+    ]);
+    // A sentence that is not part of an ability still refuses the whole text.
+    expect(parseTriggerText('When I hold, draw 1. I enter ready.')).toBeNull();
+  });
+});

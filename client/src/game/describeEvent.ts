@@ -122,6 +122,8 @@ export function describeEvent(
       return `${objectName(event.unitId, view, cards, 'A unit')} moved from ${battlefieldName(event.from, view, cards)} to ${battlefieldName(event.to, view, cards)}.`;
     case 'SHOWDOWN_STARTED':
       return `${event.isCombat ? 'Combat showdown' : 'Showdown'} started at ${battlefieldName(event.battlefieldId, view, cards)}.`;
+    case 'STAGED_ORDER_CHOSEN':
+      return `${who(event.player, view)} chose ${battlefieldName(event.battlefieldId, view, cards)} to ${event.stage === 'SHOWDOWN' ? 'Showdown' : 'fight'} first.`;
     case 'COMBAT_DAMAGE_ASSIGNED':
       return `${who(event.player, view)} assigned ${event.amount} damage to ${objectName(event.unitId, view, cards, 'a unit')}.`;
     case 'UNIT_KILLED':
@@ -148,6 +150,16 @@ export function describeEvent(
       return `Game over: ${event.winner === view.viewer ? 'you win' : 'the opponent wins'}.`;
     case 'GAME_ABORTED':
       return `The game was aborted: ${event.reason}.`;
+    case 'TOKEN_PLAYED':
+      return `${who(event.player, view)} played ${cards[event.cardId]?.name ?? 'a token'}.`;
+    case 'UNIT_RETURNED':
+      return `${cards[event.cardId]?.name ?? 'A unit'} was returned to ${event.player === view.viewer ? 'your' : "its owner's"} hand.`;
+    case 'CARDS_LOOKED_AT':
+      return `${who(event.player, view)} looked at the top ${plural(event.count, 'card')} of ${event.player === view.viewer ? 'your' : 'their'} Main Deck.`;
+    case 'CARDS_RECYCLED':
+      return `${who(event.player, view)} recycled ${plural(event.count, 'card')}.`;
+    case 'CARD_REVEALED':
+      return `${who(event.player, view)} revealed ${cards[event.cardId]?.name ?? 'a card'}.`;
     case 'CLEANUP_ITERATION':
       return `Cleanup pass ${event.iteration}.`;
     default:

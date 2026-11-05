@@ -8,6 +8,8 @@
  *  - Everything is rejected with GAME_OVER unless gameStatus is IN_PROGRESS.
  *  - MULLIGAN: applyMulligan; when the last decision completes the mulligan, the first turn's
  *    Awaken..Main phases run immediately so the game lands in MAIN of turn 1 for p0.
+ *  - CHOOSE_STAGED: showdown.chooseStaged answers flow.pendingChoice; while it is set every other
+ *    intent (except CONCEDE) is rejected with WRONG_PHASE.
  *  - PASS_PRIORITY: chain.passPriority, then, if a Showdown exists, showdown.showdownAfterPass.
  *  - END_TURN: phases.endTurn.  PLAY_CARD: play.playCard (or keywords.playHiddenCard for a facedown
  *    card).  STANDARD_MOVE, ASSIGN_COMBAT_DAMAGE, HIDE_CARD, EQUIP: their modules.
@@ -42,7 +44,7 @@ import type { PlayHooks } from './play.js';
 import { activateRune } from './resources.js';
 import { holdScoringStep } from './scoring.js';
 import { stampEvents } from './setup.js';
-import { showdownAfterPass } from './showdown.js';
+import { chooseStaged, showdownAfterPass } from './showdown.js';
 import type { ShowdownDeps } from './showdown.js';
 import { standardMove } from './movement.js';
 import { opponentOf, ruleError } from './types/index.js';
@@ -154,6 +156,8 @@ function shapeProblem(i: Obj): string | null {
       return isStr(i.cardInstanceId) && isStr(i.battlefieldId)
         ? null
         : 'cardInstanceId/battlefieldId required';
+    case 'CHOOSE_STAGED':
+      return isStr(i.battlefieldId) ? null : 'battlefieldId required';
     case 'EQUIP':
       return isStr(i.equipmentId) && isStr(i.unitId) ? null : 'equipmentId/unitId required';
     default:
@@ -204,6 +208,8 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
       return hideCard(state, cards, intent);
     case 'EQUIP':
       return equip(state, cards, intent);
+    case 'CHOOSE_STAGED':
+      return chooseStaged(state, cards, intent, ENGINE_HOOKS.showdown);
     case 'ACTIVATE_ABILITY':
       return ruleError('ABILITY_NOT_AVAILABLE', 'no activated abilities in the MVP');
     case 'CONCEDE': {
@@ -235,6 +241,14 @@ export function applyIntent(state: GameState, cards: CardDatabase, intent: Inten
     const pid: unknown = raw.playerId;
     if (pid !== 'p0' && pid !== 'p1') return ruleError('NOT_FOUND', `player ${String(pid)}`);
     if (problem !== null) return ruleError('UNKNOWN_INTENT', problem);
+    // The Cleanup is paused on a decision (323.11/323.12): nothing else may happen until it is made.
+    const pending = state.flow.pendingChoice;
+    if (pending && intent.type !== 'CHOOSE_STAGED' && intent.type !== 'CONCEDE') {
+      return ruleError(
+        'WRONG_PHASE',
+        `waiting for ${pending.player} to choose which battlefield resolves first`,
+      );
+    }
     return dispatch(state, cards, intent);
   } catch (e) {
     return ruleError(
@@ -265,11 +279,12 @@ export function reduce(state: GameState, cards: CardDatabase, intent: Intent): R
   }
 }
 
-/** Which player the engine is waiting for (mulligan decision, combat damage, priority, or the turn player). */
+/** Which player the engine is waiting for (mulligan, staged-order choice, combat damage, priority, or the turn player). */
 export function actorToAct(state: GameState): PlayerId {
   if (state.mulligan && state.turn.phase === 'MULLIGAN') {
     return state.mulligan.order[state.mulligan.current] ?? 'p0';
   }
+  if (state.flow.pendingChoice) return state.flow.pendingChoice.player;
   const awaiting = state.flow.combat?.awaitingAssignmentFrom;
   if (awaiting) return awaiting;
   return state.flow.priority ?? state.turn.activePlayer;

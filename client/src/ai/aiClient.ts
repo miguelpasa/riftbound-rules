@@ -87,6 +87,18 @@ function createWorkerBot(opts: CreateAiBotOptions, factory: () => WorkerLike): A
     pending.clear();
   };
 
+  /** Drop a dead / stuck worker: the next decide() spawns and re-initialises a fresh one. */
+  const discardWorker = (): void => {
+    const w = worker;
+    worker = null;
+    settleAll();
+    try {
+      w?.terminate();
+    } catch {
+      /* already gone */
+    }
+  };
+
   const start = (): WorkerLike => {
     const w = factory();
     w.onmessage = (ev) => {
@@ -94,7 +106,9 @@ function createWorkerBot(opts: CreateAiBotOptions, factory: () => WorkerLike): A
       if (r.type === 'decision') pending.get(r.requestId)?.(r.intent);
       else if (r.type === 'error' && r.requestId !== undefined) pending.get(r.requestId)?.(null);
     };
-    w.onerror = () => settleAll();
+    w.onerror = () => {
+      if (worker === w) discardWorker();
+    };
     const init: AiRequest = {
       type: 'init',
       deck: opts.deck,
@@ -122,6 +136,8 @@ function createWorkerBot(opts: CreateAiBotOptions, factory: () => WorkerLike): A
         const timer = setTimeout(() => {
           pending.delete(id);
           resolve(null);
+          // An unanswered worker is considered wedged (a long search keeps it busy): restart it.
+          if (worker === w) discardWorker();
         }, timeoutMs);
         pending.set(id, (intent) => {
           clearTimeout(timer);

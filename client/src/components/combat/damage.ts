@@ -27,6 +27,8 @@ export interface OrderedUnit {
   might: number;
   /** Damage already marked. */
   damage: number;
+  /** Has both Tank and Backline: its assigner picks which applies (467.2.c.8). Listed as Tank. */
+  dual?: boolean;
 }
 
 export interface ViewConstraints {
@@ -128,6 +130,14 @@ export function tierOf(def: CardDef | undefined): AssignmentTier {
   return 'NORMAL';
 }
 
+/** 467.2.c.8: the unit has both Tank and Backline (the assigner chooses which applies). */
+export function isDualTier(def: CardDef | undefined): boolean {
+  return (
+    def?.keywords.some((k) => k.name === 'Tank') === true &&
+    def.keywords.some((k) => k.name === 'Backline')
+  );
+}
+
 /** Required assignment order and total for `assigner` (467.2.c). Empty when there is no combat. */
 export function assignmentConstraintsFromView(
   view: ClientGameState,
@@ -146,6 +156,7 @@ export function assignmentConstraintsFromView(
         tier: tierOf(cards[o.cardId]),
         might,
         damage: o.damage,
+        ...(isDualTier(cards[o.cardId]) ? { dual: true } : {}),
       };
     })
     .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || objNum(a.unitId) - objNum(b.unitId));
@@ -178,6 +189,25 @@ export type AssignmentCheck =
  * Messages name the units; `rule` is the Core Rules citation when one applies.
  */
 export function validateAssignment(
+  constraints: ViewConstraints,
+  amounts: Record<string, number>,
+): AssignmentCheck {
+  const first = validateOrdered(constraints, amounts);
+  const duals = constraints.ordered.filter((u) => u.dual);
+  if (first.ok || duals.length === 0 || duals.length > 6) return first;
+  // 467.2.c.8: legal if legal for some Tank/Backline choice per dual unit (engine checkAssignment).
+  for (let mask = 1; mask < 1 << duals.length; mask++) {
+    const asBackline = new Set(duals.filter((_, i) => mask & (1 << i)).map((u) => u.unitId));
+    const ordered = constraints.ordered
+      .map((u): OrderedUnit => (asBackline.has(u.unitId) ? { ...u, tier: 'BACKLINE' } : u))
+      .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || objNum(a.unitId) - objNum(b.unitId));
+    const r = validateOrdered({ total: constraints.total, ordered }, amounts);
+    if (r.ok) return r;
+  }
+  return first;
+}
+
+function validateOrdered(
   constraints: ViewConstraints,
   amounts: Record<string, number>,
 ): AssignmentCheck {

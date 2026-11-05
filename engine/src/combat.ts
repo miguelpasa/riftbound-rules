@@ -29,8 +29,11 @@
  *  - Effective Might = stats.might + mightBonus + (Assault N if Attacker) + (Shield N if Defender).
  *    Negative Might counts as 0 in the side sum (143.2.c). Assault without a value counts as 1.
  *  - Lethal damage for a unit = max(1, effective Might) - damage already marked (142.4), min 0.
- *  - Assignment legality: units are ordered by tier (TANK < NORMAL < BACKLINE; a unit with both Tank
- *    and Backline is TANK). A unit may receive damage only if every unit of an earlier tier already
+ *  - Assignment legality: units are ordered by tier (TANK < NORMAL < BACKLINE). A unit with BOTH
+ *    Tank and Backline (467.2.c.8) lets the assigner choose which applies: it is listed as TANK
+ *    (the default order, used by autoAssign) and flagged `dual`; checkAssignment accepts the
+ *    assignment if it is legal for ANY choice of Tank/Backline for each dual unit (so such a unit
+ *    may be assigned first OR last). A unit may receive damage only if every unit of an earlier tier already
  *    has lethal (467.2.c.3/6). At most one unit may be short of lethal (the last one funded), and
  *    nobody may receive more than lethal while some unit still lacks lethal (467.2.c.4). Excess is
  *    only allowed on the unit assigned LAST: at most one unit may exceed lethal, and none of a
@@ -80,7 +83,7 @@ export interface AssignmentConstraints {
   /** The assigner's total Might (the exact total that must be assigned). */
   total: number;
   /** Opponent's units in required assignment order (by tier; ties are the assigner's choice). */
-  ordered: { unitId: string; lethal: number; tier: AssignmentTier }[];
+  ordered: { unitId: string; lethal: number; tier: AssignmentTier; dual?: true }[];
 }
 
 export interface CombatDeps {
@@ -142,6 +145,14 @@ function sideTotal(state: GameState, cards: CardDatabase, bfId: string, player: 
   );
 }
 
+/** 467.2.c.8: the unit has both Tank and Backline, so its assigner chooses which applies. */
+function isDualTier(def: CardDef | undefined): boolean {
+  return (
+    def?.keywords.some((k) => k.name === 'Tank') === true &&
+    def.keywords.some((k) => k.name === 'Backline')
+  );
+}
+
 function tierOf(def: CardDef | undefined): AssignmentTier {
   if (def?.keywords.some((k) => k.name === 'Tank')) return 'TANK';
   if (def?.keywords.some((k) => k.name === 'Backline')) return 'BACKLINE';
@@ -159,6 +170,8 @@ export function computeAssignmentConstraints(
   state: GameState,
   cards: CardDatabase,
   assigner: PlayerId,
+  /** Tank/Backline choice for dual-keyword units (467.2.c.8); default: Tank. */
+  tierOverrides: Record<string, AssignmentTier> = {},
 ): AssignmentConstraints {
   const c = state.flow.combat;
   if (!c) return { total: 0, ordered: [] };
@@ -166,7 +179,8 @@ export function computeAssignmentConstraints(
     .map((o) => ({
       unitId: o.id,
       lethal: lethalNeeded(state, cards, o),
-      tier: tierOf(cards[o.cardId]),
+      tier: tierOverrides[o.id] ?? tierOf(cards[o.cardId]),
+      ...(isDualTier(cards[o.cardId]) ? { dual: true as const } : {}),
     }))
     .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || objNum(a.unitId) - objNum(b.unitId));
   return { total: sideTotal(state, cards, c.battlefieldId, assigner), ordered };
@@ -200,17 +214,39 @@ export function autoAssign(
 
 type Checked = { ok: true; assignments: UnitAssignment[] } | { ok: false; result: ReduceResult };
 
+/** 467.2.c.8: legal if it is legal for some Tank/Backline choice per dual unit (default Tank errors). */
 function checkAssignment(
   state: GameState,
   cards: CardDatabase,
   assigner: PlayerId,
   raw: UnitAssignment[],
 ): Checked {
+  const duals = computeAssignmentConstraints(state, cards, assigner).ordered.filter((u) => u.dual);
+  const first = checkAssignmentWith(state, cards, assigner, raw, {});
+  if (first.ok || duals.length === 0 || duals.length > 6) return first;
+  for (let mask = 1; mask < 1 << duals.length; mask++) {
+    const overrides: Record<string, AssignmentTier> = {};
+    duals.forEach((u, i) => {
+      if (mask & (1 << i)) overrides[u.unitId] = 'BACKLINE';
+    });
+    const r = checkAssignmentWith(state, cards, assigner, raw, overrides);
+    if (r.ok) return r;
+  }
+  return first;
+}
+
+function checkAssignmentWith(
+  state: GameState,
+  cards: CardDatabase,
+  assigner: PlayerId,
+  raw: UnitAssignment[],
+  overrides: Record<string, AssignmentTier>,
+): Checked {
   const fail = (code: Parameters<typeof ruleError>[0], detail: string): Checked => ({
     ok: false,
     result: ruleError(code, detail),
   });
-  const { total, ordered } = computeAssignmentConstraints(state, cards, assigner);
+  const { total, ordered } = computeAssignmentConstraints(state, cards, assigner, overrides);
   const byId = new Map(ordered.map((u) => [u.unitId, u]));
   const amounts = new Map<string, number>();
   for (const a of raw) {

@@ -1,0 +1,187 @@
+{
+  "format": "riftbound-deck",
+  "version": 1,
+  "name": "Ornn midrange",
+  "description": "A midrange deck led by Ornn that develops its board over several turns and uses its champion as a late-game anchor.",
+  "source": "META",
+  "eventName": "Los Angeles Regional Qualifier (Sept 2026)",
+  "placement": "Top 8",
+  "sourceUrl": "https://playriftbound.com/en-us/news/organizedplay/los-angeles-top-decks/",
+  "legend": "SFD-189",
+  "cards": [
+    {
+      "code": "SFD-189",
+      "qty": 1,
+      "zone": "LEGEND",
+      "name": "Ornn, Fire Below the Mountain"
+    },
+    {
+      "code": "SFD-058",
+      "qty": 1,
+      "zone": "CHAMPION",
+      "name": "Ornn, Blacksmith"
+    },
+    {
+      "code": "SFD-061",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Aspiring Engineer"
+    },
+    {
+      "code": "SFD-042",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Brutalizer"
+    },
+    {
+      "code": "OGN-043",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Charm"
+    },
+    {
+      "code": "OGN-044",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Clockwork Keeper"
+    },
+    {
+      "code": "SFD-064",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Cloth Armor"
+    },
+    {
+      "code": "OGN-045",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Defy"
+    },
+    {
+      "code": "SFD-051",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Guardian Angel"
+    },
+    {
+      "code": "OGN-087",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Lecturing Yordle"
+    },
+    {
+      "code": "OGN-060",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Mask of Foresight"
+    },
+    {
+      "code": "VEN-058",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Patched Porobot"
+    },
+    {
+      "code": "OGN-091",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Pit Crew"
+    },
+    {
+      "code": "SFD-046",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Poro Snax"
+    },
+    {
+      "code": "UNL-053",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Scuttle Crab"
+    },
+    {
+      "code": "OGN-081",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Seal of Focus"
+    },
+    {
+      "code": "UNL-078",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Sprite Fountain"
+    },
+    {
+      "code": "SFD-056",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Sterak's Gage"
+    },
+    {
+      "code": "OGN-042",
+      "qty": 8,
+      "zone": "RUNE",
+      "name": "Calm Rune"
+    },
+    {
+      "code": "OGN-089",
+      "qty": 4,
+      "zone": "RUNE",
+      "name": "Mind Rune"
+    },
+    {
+      "code": "SFD-213",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Ornn's Forge"
+    },
+    {
+      "code": "SFD-217",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Seat of Power"
+    },
+    {
+      "code": "SFD-221",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Veiled Temple"
+    },
+    {
+      "code": "OGN-043",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Charm"
+    },
+    {
+      "code": "VEN-040",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Decree of Focus"
+    },
+    {
+      "code": "VEN-061",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Decree of Insight"
+    },
+    {
+      "code": "SFD-032",
+      "qty": 3,
+      "zone": "SIDEBOARD",
+      "name": "Disarming Rake"
+    },
+    {
+      "code": "SFD-045",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Not So Fast"
+    },
+    {
+      "code": "VEN-031",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Twilight Shroud"
+    }
+  ]
+}

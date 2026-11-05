@@ -16,6 +16,7 @@
  *  - STANDARD_MOVE: each ready unit to each destination, plus, per origin, "all ready units there".
  *  - ASSIGN_COMBAT_DAMAGE: autoAssign result and a variant that puts the surplus on the first unit.
  *  - HIDE_CARD, EQUIP, PASS_PRIORITY, END_TURN.
+ *  - CHOOSE_STAGED: while flow.pendingChoice is set, ONLY that choice's options (to its player).
  * NOT enumerated: CONCEDE (always legal) and ACTIVATE_RUNE (see `getRuneActivations`).
  *
  * The cheap structural pre-filters (whose turn / priority, chain empty, showdown) only skip candidates
@@ -26,6 +27,7 @@ import { autoAssign } from './combat.js';
 import { enumerateSpellTargets } from './effects.js';
 import { applyIntent, reduce } from './reducer.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
+import { isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
@@ -82,7 +84,7 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
       (o) =>
         o.controller === pid &&
         (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
-        cards[o.cardId]?.type === 'UNIT',
+        isUnitDef(cards[o.cardId]),
     )
     .sort(byNum);
 
@@ -142,7 +144,7 @@ function moveCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
         o.controller === pid &&
         o.ready &&
         (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
-        cards[o.cardId]?.type === 'UNIT',
+        isUnitDef(cards[o.cardId]),
     )
     .sort(byNum);
   const origin = (o: CardInstance): string =>
@@ -192,8 +194,7 @@ function equipCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): 
       o.zone.kind === 'base' && cards[o.cardId]?.type === 'GEAR' && hasKw(cards[o.cardId], 'Equip'),
   );
   const units = mine.filter(
-    (o) =>
-      (o.zone.kind === 'base' || o.zone.kind === 'battlefield') && cards[o.cardId]?.type === 'UNIT',
+    (o) => (o.zone.kind === 'base' || o.zone.kind === 'battlefield') && isUnitDef(cards[o.cardId]),
   );
   const out: Intent[] = [];
   for (const g of gear) {
@@ -255,6 +256,17 @@ export function getLegalActions(
   }
 
   const flow = state.flow;
+  if (flow.pendingChoice) {
+    const pc = flow.pendingChoice;
+    if (pc.player !== playerId) return [];
+    return keep(
+      pc.options.map((battlefieldId): Intent => ({
+        type: 'CHOOSE_STAGED',
+        playerId,
+        battlefieldId,
+      })),
+    ).slice(0, max);
+  }
   const awaiting = flow.combat?.awaitingAssignmentFrom ?? null;
   if (awaiting !== null) {
     return awaiting === playerId

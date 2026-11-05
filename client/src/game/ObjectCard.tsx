@@ -1,7 +1,7 @@
 import { isHiddenCard } from '@riftbound/engine';
 import { Card, CardBack } from '../components/Card';
 import type { CardSize } from '../components/cardStyles';
-import { equipVariants } from './interaction';
+import { deflectPower, equipVariants } from './interaction';
 import type { BoardUi } from './useBoardUi';
 
 export interface ObjectCardProps {
@@ -43,6 +43,24 @@ export function ObjectCard({
     onMouseEnter: () => ui.setHovered(id),
     onMouseLeave: () => ui.setHovered(null),
   };
+
+  if (ui.targeting?.candidates.has(id)) {
+    const deflect = deflectPower(id, api.view, api.cards);
+    const hint = deflect > 0 ? `Deflect: extra cost applies (+${deflect} Power)` : undefined;
+    return (
+      <Card
+        {...common}
+        highlighted
+        ariaLabel={`Target: ${def.name}${hint ? `. ${hint}` : ''}`}
+        {...(hint ? { title: hint } : {})}
+        className={`ring-rose-400! ${className}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          ui.pickTarget(id);
+        }}
+      />
+    );
+  }
 
   if (inHand) {
     const playable = ui.playable.has(id);

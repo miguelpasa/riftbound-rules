@@ -30,6 +30,12 @@ export type GameEvent = EventBase &
     | { type: 'GEAR_KILLED'; gearId: string }
     | { type: 'UNIT_MOVED'; unitId: string; from: string; to: string }
     | { type: 'SHOWDOWN_STARTED'; battlefieldId: string; isCombat: boolean }
+    | {
+        type: 'STAGED_ORDER_CHOSEN';
+        player: PlayerId;
+        battlefieldId: string;
+        stage: 'SHOWDOWN' | 'COMBAT';
+      }
     | { type: 'COMBAT_DAMAGE_ASSIGNED'; player: PlayerId; unitId: string; amount: number }
     | { type: 'UNIT_KILLED'; unitId: string }
     | { type: 'POINT_GAINED'; player: PlayerId; amount: number; source: PointSource }
@@ -45,6 +51,11 @@ export type GameEvent = EventBase &
     | { type: 'GAME_ENDED'; winner: PlayerId }
     | { type: 'GAME_ABORTED'; reason: string }
     | { type: 'CLEANUP_ITERATION'; iteration: number }
+    | { type: 'TOKEN_PLAYED'; player: PlayerId; unitId: string; cardId: string }
+    | { type: 'UNIT_RETURNED'; player: PlayerId; unitId: string; cardId: string }
+    | { type: 'CARDS_LOOKED_AT'; player: PlayerId; count: number }
+    | { type: 'CARDS_RECYCLED'; player: PlayerId; count: number }
+    | { type: 'CARD_REVEALED'; player: PlayerId; cardInstanceId: string; cardId: string }
   );
 
 export type GameEventType = GameEvent['type'];

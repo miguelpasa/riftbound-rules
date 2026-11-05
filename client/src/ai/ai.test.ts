@@ -143,4 +143,70 @@ describe('createAiBot worker path', () => {
     });
     expect(await bot.decide(view)).toBeNull();
   });
+
+  it('restarts a worker that errored and still answers the next decision', async () => {
+    // Tests Rule 117: the host always gets an answer (null -> legal fallback), never waits forever
+    const { state, seat, deck, view } = setup();
+    const made: ReturnType<typeof fakeWorker>[] = [];
+    let terminated = 0;
+    const bot = createAiBot({
+      cards: FIXTURE_CARDS,
+      deck,
+      seat,
+      timeoutMs: 1000,
+      workerFactory: () => {
+        const fw = fakeWorker();
+        made.push(fw);
+        const w = fw.make();
+        const post = w.postMessage;
+        let first = made.length === 1;
+        w.terminate = () => {
+          terminated++;
+        };
+        w.postMessage = (msg) => {
+          if (first && msg.type === 'decide') {
+            first = false;
+            queueMicrotask(() => w.onerror?.(new Error('crashed')));
+            return;
+          }
+          post(msg);
+        };
+        return w;
+      },
+    });
+    const t0 = Date.now();
+    expect(await bot.decide(view)).toBeNull(); // settled by onerror, not by the 1000 ms timeout
+    expect(Date.now() - t0).toBeLessThan(500);
+    expect(terminated).toBe(1);
+    const next = await bot.decide(view);
+    expect(made).toHaveLength(2);
+    expect(reduce(state, FIXTURE_CARDS, next as Intent).ok).toBe(true);
+    bot.dispose();
+  });
+
+  it('terminates a worker that times out so the next decision gets a fresh one', async () => {
+    // Tests Rule 117: a wedged worker cannot block the game
+    const { seat, deck, view } = setup();
+    let terminated = 0;
+    let made = 0;
+    const bot = createAiBot({
+      cards: FIXTURE_CARDS,
+      deck,
+      seat,
+      timeoutMs: 20,
+      workerFactory: () => {
+        made++;
+        const w = fakeWorker({ silent: true }).make();
+        w.terminate = () => {
+          terminated++;
+        };
+        return w;
+      },
+    });
+    expect(await bot.decide(view)).toBeNull();
+    expect(await bot.decide(view)).toBeNull();
+    expect(made).toBe(2);
+    expect(terminated).toBeGreaterThanOrEqual(2);
+    bot.dispose();
+  });
 });

@@ -1,0 +1,229 @@
+{
+  "format": "riftbound-deck",
+  "version": 1,
+  "name": "Irelia tempo",
+  "description": "A Calm and Chaos deck led by Irelia that plays evasive, hard-to-target units and supports them with inexpensive tricks and counterspells.",
+  "source": "META",
+  "eventName": "Los Angeles Regional Qualifier (Sept 2026)",
+  "placement": "2nd place (finalist)",
+  "sourceUrl": "https://playriftbound.com/en-us/news/organizedplay/los-angeles-top-decks/",
+  "legend": "SFD-195",
+  "cards": [
+    {
+      "code": "SFD-195",
+      "qty": 1,
+      "zone": "LEGEND",
+      "name": "Irelia, Blade Dancer"
+    },
+    {
+      "code": "SFD-057",
+      "qty": 1,
+      "zone": "CHAMPION",
+      "name": "Irelia, Fervent"
+    },
+    {
+      "code": "UNL-131",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Abandon"
+    },
+    {
+      "code": "VEN-038",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Akali, Silent"
+    },
+    {
+      "code": "SFD-133",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Boots of Swiftness"
+    },
+    {
+      "code": "OGN-043",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Charm"
+    },
+    {
+      "code": "SFD-196",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Defiant Dance"
+    },
+    {
+      "code": "OGN-045",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Defy"
+    },
+    {
+      "code": "OGN-058",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Discipline"
+    },
+    {
+      "code": "OGN-046",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "En Garde"
+    },
+    {
+      "code": "OGS-011",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Flash"
+    },
+    {
+      "code": "SFD-051",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Guardian Angel"
+    },
+    {
+      "code": "OGN-169",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Gust"
+    },
+    {
+      "code": "SFD-045",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Not So Fast"
+    },
+    {
+      "code": "UNL-145",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Pyke, Returned"
+    },
+    {
+      "code": "OGN-173",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Ride the Wind"
+    },
+    {
+      "code": "UNL-053",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Scuttle Crab"
+    },
+    {
+      "code": "UNL-128",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Star-Crossed"
+    },
+    {
+      "code": "SFD-048",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Stellacorn Herder"
+    },
+    {
+      "code": "OGN-199",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Tideturner"
+    },
+    {
+      "code": "VEN-031",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Twilight Shroud"
+    },
+    {
+      "code": "UNL-150",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Vex, Apathetic"
+    },
+    {
+      "code": "OGN-077",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Zhonya's Hourglass"
+    },
+    {
+      "code": "OGN-042",
+      "qty": 6,
+      "zone": "RUNE",
+      "name": "Calm Rune"
+    },
+    {
+      "code": "OGN-166",
+      "qty": 6,
+      "zone": "RUNE",
+      "name": "Chaos Rune"
+    },
+    {
+      "code": "UNL-205",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Abandoned Hall"
+    },
+    {
+      "code": "SFD-218",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Sunken Temple"
+    },
+    {
+      "code": "OGN-289",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Targon's Peak"
+    },
+    {
+      "code": "OGN-056",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Adaptatron"
+    },
+    {
+      "code": "VEN-038",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Akali, Silent"
+    },
+    {
+      "code": "VEN-040",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Decree of Focus"
+    },
+    {
+      "code": "SFD-045",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Not So Fast"
+    },
+    {
+      "code": "UNL-145",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Pyke, Returned"
+    },
+    {
+      "code": "VEN-102",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Ravenbloom Prefect"
+    },
+    {
+      "code": "SFD-145",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Switcheroo"
+    },
+    {
+      "code": "UNL-150",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Vex, Apathetic"
+    }
+  ]
+}

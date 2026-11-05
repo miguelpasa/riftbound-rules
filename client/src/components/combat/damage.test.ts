@@ -6,6 +6,7 @@ import {
   effectiveMight,
   sanitizeFor,
   type CardDatabase,
+  type CardDef,
   type GameState,
   type PlayerId,
 } from '@riftbound/engine';
@@ -67,6 +68,31 @@ describe('damage helpers vs the engine', () => {
     expect(r.mine.total).toBe(5);
     expect(r.mine.ordered.map((u) => u.tier)).toEqual(['TANK', 'NORMAL', 'BACKLINE']);
     expect(r.checked).toBeGreaterThan(10);
+  });
+
+  it('Tank + Backline unit (467.2.c.8): flagged dual, and every distribution agrees with the engine', () => {
+    const { sc } = damageScenario(
+      ['fx-ash-tank', 'fx-grunt'],
+      ['fx-order-tank', 'fx-tide-grunt', 'fx-tide-archer'],
+    );
+    const warden = sc.cards['fx-order-tank'] as CardDef;
+    const db: CardDatabase = {
+      ...sc.cards,
+      'fx-order-tank': { ...warden, keywords: [{ name: 'Tank' }, { name: 'Backline' }] },
+    };
+    const r = compareWithEngine(sc.state, db, 'p0');
+    expect(r.mine.ordered.filter((u) => u.dual)).toHaveLength(1);
+    expect(r.mine.ordered[0]).toMatchObject({ tier: 'TANK', dual: true });
+    const [dual, normal, backline] = r.mine.ordered.map((u) => u.unitId) as [
+      string,
+      string,
+      string,
+    ];
+    // As Tank (first) or as Backline (last): both accepted; skipping the Normal unit is not.
+    expect(validateAssignment(r.mine, { [dual]: 3, [normal]: 2 }).ok).toBe(true);
+    expect(validateAssignment(r.mine, { [normal]: 2, [backline]: 2, [dual]: 1 }).ok).toBe(true);
+    expect(validateAssignment(r.mine, { [normal]: 2, [dual]: 3 }).ok).toBe(true);
+    expect(validateAssignment(r.mine, { [backline]: 2, [dual]: 3 }).ok).toBe(false);
   });
 
   it('puts the Tank first even when it is the newest unit', () => {

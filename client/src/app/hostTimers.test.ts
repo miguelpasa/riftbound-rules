@@ -28,6 +28,17 @@ function mainPhaseState(): GameState {
 }
 
 describe('timerSituation / timeoutIntent', () => {
+  it('a pending staged-order choice arms the showdown (reaction) timer', () => {
+    const s = freshState();
+    s.flow.pendingChoice = {
+      kind: 'STAGED_ORDER',
+      player: s.turn.activePlayer,
+      stage: 'SHOWDOWN',
+      options: ['bf1', 'bf2'],
+    };
+    expect(timerSituation(s).showdown).toBe(true);
+  });
+
   it('maps the mulligan to a MULLIGAN situation whose timeout keeps the hand', () => {
     const s = freshState();
     const sit = timerSituation(s);

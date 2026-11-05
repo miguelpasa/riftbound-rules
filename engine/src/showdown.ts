@@ -24,6 +24,7 @@ import { ruleError } from './types/errors.js';
 import { opponentOf } from './types/index.js';
 import type {
   CardDatabase,
+  ChooseStagedIntent,
   CardInstance,
   GameEventInput,
   GameState,
@@ -200,4 +201,44 @@ export function closeShowdown(
   if (!s.flow.showdown && !s.flow.combat && s.gameStatus === 'IN_PROGRESS') restoreNeutral(s);
   s = syncTurnState(s);
   return { ok: true, state: s, events: stampEvents(s, inputs) };
+}
+
+// ---------------------------------------------------------------- staged order choice
+
+/**
+ * CHOOSE_STAGED (323.11, 323.12, 463.1): the turn player picks which staged battlefield's Showdown
+ * (or Combat) begins first. Answers flow.pendingChoice, which the Cleanup set and paused on; the
+ * chosen one starts right away and the trailing Cleanup continues (and may ask again for the rest).
+ */
+export function chooseStaged(
+  state: GameState,
+  cards: CardDatabase,
+  intent: ChooseStagedIntent,
+  deps: ShowdownDeps = {},
+): ReduceResult {
+  if (state.gameStatus !== 'IN_PROGRESS') return ruleError('GAME_OVER');
+  const pc = state.flow.pendingChoice;
+  if (!pc) return ruleError('WRONG_PHASE', 'no staged Showdown/Combat order to choose');
+  if (pc.player !== intent.playerId) {
+    return ruleError('NOT_YOUR_TURN', `${pc.player} chooses which battlefield resolves first`);
+  }
+  if (!pc.options.includes(intent.battlefieldId)) {
+    return ruleError('ILLEGAL_TARGET', `${intent.battlefieldId} is not one of the staged options`);
+  }
+  const bfId = intent.battlefieldId;
+  let s = structuredClone(state);
+  delete s.flow.pendingChoice;
+  const chosen = stampEvents(s, [
+    { type: 'STAGED_ORDER_CHOSEN', player: pc.player, battlefieldId: bfId, stage: pc.stage },
+  ]);
+  if (pc.stage === 'SHOWDOWN') {
+    const applier = s.battlefields.find((b) => b.id === bfId)?.contestedBy ?? s.turn.activePlayer;
+    const r = startShowdown(s, bfId, applier, false);
+    if (!r.ok) return r;
+    return { ok: true, state: r.state, events: [...chosen, ...r.events] };
+  }
+  if (!deps.startCombat) return ruleError('WRONG_PHASE', 'combat is not wired');
+  const r = deps.startCombat(s, cards, bfId);
+  s = structuredClone(r.state);
+  return { ok: true, state: s, events: [...chosen, ...stampEvents(s, r.events)] };
 }

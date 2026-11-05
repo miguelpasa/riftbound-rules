@@ -59,6 +59,27 @@ export interface AIControllerOptions {
   weights?: Readonly<EvalWeights>;
   /** Overrides the mirror assumption for the opponent (see determinize.ts). */
   determinize?: DeterminizeOptions;
+  /** Optional per-decision profiling hook (timings use `now`). Never affects the decision. */
+  onProfile?: (p: DecisionProfile) => void;
+}
+
+/** Per-decision timing/size record handed to `AIControllerOptions.onProfile`. */
+export interface DecisionProfile {
+  kind: 'forced' | 'mulligan' | 'assignment' | 'search';
+  totalMs: number;
+  hashMs: number;
+  determinizeMs: number;
+  legalMs: number;
+  searchMs: number;
+  legalCount: number;
+  candidateCount: number;
+  scored: number;
+  /** The budget expired before every candidate was scored. */
+  budgetExpired: boolean;
+  /** The greedy fallback was used (nothing scored). */
+  fallback: boolean;
+  /** Number of reducer calls made by the search. */
+  reduceCalls: number;
 }
 
 const EPS = 0.5;
@@ -89,6 +110,9 @@ export class AIController implements SyncBot {
   private readonly difficulty: 'easy' | 'normal';
   private readonly weights: Readonly<EvalWeights>;
   private readonly detOpts: DeterminizeOptions;
+  private readonly onProfile: ((p: DecisionProfile) => void) | undefined;
+  private reduceCalls = 0;
+  private lastSearch = { candidates: 0, scored: 0, expired: false, fallback: false };
 
   constructor(aiPlayerId: PlayerId, opts: AIControllerOptions) {
     this.playerId = aiPlayerId;
@@ -101,6 +125,7 @@ export class AIController implements SyncBot {
     this.difficulty = opts.difficulty ?? 'normal';
     this.weights = opts.weights ?? DEFAULT_WEIGHTS;
     this.detOpts = opts.determinize ?? {};
+    this.onProfile = opts.onProfile;
   }
 
   /** BotLike-compatible alias (synchronous). */
@@ -111,20 +136,51 @@ export class AIController implements SyncBot {
   decideNextAction(view: ClientGameState): Intent | null {
     const me = this.playerId;
     if (view.viewer !== me || view.gameStatus !== 'IN_PROGRESS') return null;
-    const start = this.now();
+    const prof = this.onProfile !== undefined;
+    const t0 = this.now();
+    const start = t0;
     const seed = `${this.seed}:${fnv1a(JSON.stringify(view))}`;
+    const t1 = prof ? this.now() : 0;
     const state = determinize(view, this.cards, this.deck, seed, this.detOpts);
+    const t2 = prof ? this.now() : 0;
     if (actorToAct(state) !== me) return null;
 
     const legal = getLegalActions(state, this.cards, me).filter((i) => i.type !== 'CONCEDE');
+    const t3 = prof ? this.now() : 0;
     if (legal.length === 0) return null;
-    if (legal.length === 1) return legal[0] as Intent;
-
-    if (state.turn.phase === 'MULLIGAN') return this.mulligan(state, legal);
-    if (state.flow.combat?.awaitingAssignmentFrom === me) {
-      return this.assignment(state, legal);
+    this.reduceCalls = 0;
+    this.lastSearch = { candidates: 0, scored: 0, expired: false, fallback: false };
+    let kind: DecisionProfile['kind'] = 'forced';
+    let out: Intent;
+    if (legal.length === 1) out = legal[0] as Intent;
+    else if (state.turn.phase === 'MULLIGAN') {
+      kind = 'mulligan';
+      out = this.mulligan(state, legal);
+    } else if (state.flow.combat?.awaitingAssignmentFrom === me) {
+      kind = 'assignment';
+      out = this.assignment(state, legal);
+    } else {
+      kind = 'search';
+      out = this.search(state, legal, start, seed);
     }
-    return this.search(state, legal, start, seed);
+    if (this.onProfile) {
+      const t4 = this.now();
+      this.onProfile({
+        kind,
+        totalMs: t4 - t0,
+        hashMs: t1 - t0,
+        determinizeMs: t2 - t1,
+        legalMs: t3 - t2,
+        searchMs: t4 - t3,
+        legalCount: legal.length,
+        candidateCount: this.lastSearch.candidates,
+        scored: this.lastSearch.scored,
+        budgetExpired: this.lastSearch.expired,
+        fallback: this.lastSearch.fallback,
+        reduceCalls: this.reduceCalls,
+      });
+    }
+    return out;
   }
 
   // ------------------------------------------------------------------ mulligan / damage
@@ -169,10 +225,12 @@ export class AIController implements SyncBot {
   // ------------------------------------------------------------------ search
 
   /** Auto-resolve chain / showdown / combat assuming the opponent just passes. */
-  private settle(start: GameState): GameState {
+  private settle(start: GameState, deadline: number): GameState {
     let s = start;
     for (let i = 0; i < SETTLE_STEPS; i++) {
       if (s.gameStatus !== 'IN_PROGRESS') break;
+      // Hard stop: a settle must not push the decision past its budget (the partial state is scored).
+      if (i > 0 && this.now() >= deadline) break;
       if (!s.flow.showdown && !s.flow.combat && s.flow.chain.length === 0) break;
       const awaiting = s.flow.combat?.awaitingAssignmentFrom ?? null;
       const intent: Intent =
@@ -183,6 +241,7 @@ export class AIController implements SyncBot {
               assignments: autoAssign(s, this.cards, awaiting),
             }
           : { type: 'PASS_PRIORITY', playerId: actorToAct(s) };
+      this.reduceCalls++;
       const r = reduce(s, this.cards, intent);
       if (!r.ok) break;
       s = r.state;
@@ -190,10 +249,15 @@ export class AIController implements SyncBot {
     return s;
   }
 
-  private score(state: GameState, intent: Intent): number | null {
+  private score(state: GameState, intent: Intent, deadline: number): number | null {
+    this.reduceCalls++;
     const r = reduce(state, this.cards, intent);
     if (!r.ok) return null;
-    return evaluate(this.settle(r.state), this.cards, this.playerId, this.weights);
+    return evaluate(this.settle(r.state, deadline), this.cards, this.playerId, this.weights);
+  }
+
+  private cardIdOf(state: GameState, id: string): string {
+    return state.objects[id]?.cardId ?? id;
   }
 
   private energyOfIntent(state: GameState, i: Intent): number {
@@ -203,8 +267,19 @@ export class AIController implements SyncBot {
   /** Prune and order the legal list: plays (expensive first), hides, moves (best first), equips, rest. */
   private candidates(state: GameState, legal: Intent[]): Intent[] {
     const terminal = legal.filter(isTerminal);
+    // Identical plays of copies of the same card (same payment/location/targets) are equivalent.
+    const seenPlays = new Set<string>();
     const plays = legal
-      .filter((i) => i.type === 'PLAY_CARD')
+      .filter((i) => {
+        if (i.type !== 'PLAY_CARD') return false;
+        const key = JSON.stringify({
+          ...i,
+          cardInstanceId: this.cardIdOf(state, i.cardInstanceId),
+        });
+        if (seenPlays.has(key)) return false;
+        seenPlays.add(key);
+        return true;
+      })
       .map((i, idx) => ({ i, idx, e: this.energyOfIntent(state, i) }))
       .sort((a, b) => b.e - a.e || a.idx - b.idx)
       .map((x) => x.i);
@@ -250,6 +325,10 @@ export class AIController implements SyncBot {
   }
 
   private search(state: GameState, legal: Intent[], start: number, seed: string): Intent {
+    // Only PASS_PRIORITY / END_TURN to choose from: nothing to score (same pick as the scored path).
+    if (legal.every(isTerminal)) {
+      return legal.find((i) => i.type === 'PASS_PRIORITY') ?? (legal[0] as Intent);
+    }
     const cands = this.candidates(state, legal);
     const rng = { r: seedRng(`${seed}/jitter`) as RngState };
     const jitter = (): number => {
@@ -260,11 +339,27 @@ export class AIController implements SyncBot {
     };
 
     const scored: { intent: Intent; score: number }[] = [];
+    // Nothing scored yet -> keep going until the hard deadline; afterwards also stop when the
+    // costliest candidate seen so far would not fit in the time left (keeps the total within budget).
+    const deadline = start + this.budgetMs;
+    let expired = false;
+    let worst = 0;
     for (const c of cands) {
-      if (this.now() - start >= this.budgetMs) break;
-      const s = this.score(state, c);
+      const t = this.now();
+      if (t >= deadline || (scored.length > 0 && t + worst > deadline)) {
+        expired = true;
+        break;
+      }
+      const s = this.score(state, c, deadline);
+      worst = Math.max(worst, this.now() - t);
       if (s !== null) scored.push({ intent: c, score: s + jitter() });
     }
+    this.lastSearch = {
+      candidates: cands.length,
+      scored: scored.length,
+      expired,
+      fallback: scored.length === 0,
+    };
     if (scored.length === 0) return this.greedy(state, legal);
 
     const terminals = scored.filter((x) => isTerminal(x.intent));

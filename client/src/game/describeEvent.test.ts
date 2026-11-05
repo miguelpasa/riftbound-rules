@@ -47,6 +47,13 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   EFFECT_UNIMPLEMENTED: { seq: 10, type: 'EFFECT_UNIMPLEMENTED', cardId: 'fx-odd-reaction' },
   UNIT_MOVED: { seq: 11, type: 'UNIT_MOVED', unitId: myCard.id, from: 'base', to: 'bf0' },
   SHOWDOWN_STARTED: { seq: 12, type: 'SHOWDOWN_STARTED', battlefieldId: 'bf1', isCombat: true },
+  STAGED_ORDER_CHOSEN: {
+    seq: 38,
+    type: 'STAGED_ORDER_CHOSEN',
+    player: 'p0',
+    battlefieldId: 'bf1',
+    stage: 'COMBAT',
+  },
   COMBAT_DAMAGE_ASSIGNED: {
     seq: 13,
     type: 'COMBAT_DAMAGE_ASSIGNED',
@@ -67,6 +74,17 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   GAME_ENDED: { seq: 19, type: 'GAME_ENDED', winner: 'p1' },
   GAME_ABORTED: { seq: 20, type: 'GAME_ABORTED', reason: 'test' },
   CLEANUP_ITERATION: { seq: 21, type: 'CLEANUP_ITERATION', iteration: 3 },
+  TOKEN_PLAYED: { seq: 41, type: 'TOKEN_PLAYED', player: 'p0', unitId: 'o9', cardId: 'fx-grunt' },
+  UNIT_RETURNED: { seq: 42, type: 'UNIT_RETURNED', player: 'p1', unitId: 'o9', cardId: 'fx-grunt' },
+  CARDS_LOOKED_AT: { seq: 43, type: 'CARDS_LOOKED_AT', player: 'p0', count: 3 },
+  CARDS_RECYCLED: { seq: 44, type: 'CARDS_RECYCLED', player: 'p0', count: 2 },
+  CARD_REVEALED: {
+    seq: 45,
+    type: 'CARD_REVEALED',
+    player: 'p1',
+    cardInstanceId: 'o9',
+    cardId: 'fx-grunt',
+  },
 };
 
 describe('describeEvent', () => {
@@ -100,6 +118,18 @@ describe('describeEvent', () => {
       `${SCENARIO_CARDS['fx-flare']!.name} was countered.`,
     );
     expect(describeEvent(SAMPLES.EFFECT_STUNNED, view, SCENARIO_CARDS)).toContain('stunned');
+  });
+
+  it('words the token, return and look-at events', () => {
+    const grunt = SCENARIO_CARDS['fx-grunt']!.name;
+    expect(describeEvent(SAMPLES.TOKEN_PLAYED, view, SCENARIO_CARDS)).toBe(`You played ${grunt}.`);
+    expect(describeEvent(SAMPLES.UNIT_RETURNED, view, SCENARIO_CARDS)).toBe(
+      `${grunt} was returned to its owner's hand.`,
+    );
+    expect(describeEvent(SAMPLES.CARDS_LOOKED_AT, view, SCENARIO_CARDS)).toBe(
+      'You looked at the top 3 cards of your Main Deck.',
+    );
+    expect(describeEvent(SAMPLES.CARD_REVEALED, view, SCENARIO_CARDS)).toContain(grunt);
   });
 
   it('never names an opponent hand card (redacted draw id)', () => {

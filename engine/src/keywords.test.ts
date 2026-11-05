@@ -496,7 +496,7 @@ describe('Deflect', () => {
     expect(deflectExtraCost(s, CARDS, 'p0', [obj(target)])).toEqual({ anyPower: 1 });
     expect(deflectExtraCost(s, CARDS, 'p0', [obj(t3)])).toEqual({ anyPower: 3 });
     expect(deflectExtraCost(s, CARDS, 'p0', [obj(target), obj(t3), obj(target)])).toEqual({
-      anyPower: 4,
+      anyPower: 5,
     });
     expect(deflectExtraCost(s, CARDS, 'p0', [obj(mine)])).toBeNull(); // own unit
     expect(deflectExtraCost(s, CARDS, 'p0', [obj(plain)])).toBeNull();

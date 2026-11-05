@@ -20,7 +20,9 @@
  * Units and gear (`parseTriggerText`): "When you play me, <effect>.", "When I hold, <effect>.",
  * "When I conquer, <effect>.", "[Deathknell][>] <effect>." with target-free effects only.
  */
-import type { CardEffect, CardTrigger, TargetSide } from './types/card.js';
+import { targetRequirements } from './effects.js';
+import { tokenIdFor } from './tokens.js';
+import type { CardEffect, CardTrigger, TargetSide, TriggerKind } from './types/card.js';
 
 const side = (w: string | undefined): TargetSide | undefined =>
   w === 'friendly' ? 'friendly' : w === 'enemy' ? 'enemy' : undefined;
@@ -36,12 +38,16 @@ interface SlotDecl {
   side: TargetSide;
   /** "another unit": distinct from the earlier slot even without a side. */
   another?: boolean;
+  /** "Choose a unit at a battlefield". */
+  atBattlefield?: boolean;
 }
 
 interface ParseState {
   slots: SlotDecl[];
   /** A multi-target ("each of up to two") effect owns every target: nothing else may choose. */
   locked: boolean;
+  /** What "it" refers to: the last single unit chosen (index into `slots`). */
+  it?: number;
 }
 
 /** Slot-free sentences (also valid inside triggers). Returns the effects or null. */
@@ -96,6 +102,67 @@ export function parseClause(sen: string): CardEffect[] | null {
   }
   if (/^Exhaust all friendly units$/i.test(sen)) return [{ op: 'EXHAUST_ALL', side: 'friendly' }];
   if (/^Kill all gear$/i.test(sen)) return [{ op: 'KILL_ALL_GEAR' }];
+  if (/^Kill all units$/i.test(sen)) return [{ op: 'KILL_ALL_UNITS' }];
+  const tok = parseTokenClause(sen);
+  if (tok) return [tok];
+  return null;
+}
+
+const COUNT_WORDS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4 };
+
+/**
+ * "Play [a|two|N] [ready] N [M] Name unit token(s) [with Keyword] [here | to / into / at your base]".
+ * The token must exist in tokens.ts. Without a location the Base is used (the choice of a
+ * battlefield you control is not modelled).
+ */
+function parseTokenClause(sen: string): CardEffect | null {
+  const m =
+    /^Play (an?|one|two|three|four|\d+) (ready )?(\d+) \[M\] (.+?) unit tokens?(?: with (\w+))?( here| (?:to|into|at) your base)?$/i.exec(
+      sen,
+    );
+  if (!m) return null;
+  const count = COUNT_WORDS[(m[1] ?? '').toLowerCase()] ?? Number(m[1]);
+  const token = tokenIdFor(m[4] ?? '', Number(m[3]), m[5]);
+  if (!token || !(count >= 1)) return null;
+  return {
+    op: 'PLAY_TOKEN',
+    token,
+    count,
+    ...(m[2] ? { ready: true } : {}),
+    ...(m[6] && /here/i.test(m[6]) ? { here: true } : {}),
+  };
+}
+
+const LOOK = /^Look at the top (\d+) cards? of your Main Deck$/i;
+
+/**
+ * "Look at the top N cards of your Main Deck." plus the sentences that finish it, as one LOOK_TOP
+ * effect; `used` is how many sentences were consumed. Only the full, recycling forms:
+ * "Put 1 into your hand and recycle the rest" and "You may reveal a unit|gear from among them and
+ * draw it. [Then] recycle the rest".
+ */
+export function parseLookSequence(
+  sens: readonly string[],
+  i: number,
+): { effect: CardEffect; used: number } | null {
+  const m = LOOK.exec(sens[i] ?? '');
+  if (!m) return null;
+  const count = Number(m[1]);
+  const next = (sens[i + 1] ?? '').replace(/^Then /i, '');
+  if (/^Put (?:1|one) into your hand and recycle the rest$/i.test(next)) {
+    return { effect: { op: 'LOOK_TOP', count, take: {} }, used: 2 };
+  }
+  const r = /^You may reveal an? (unit|gear) from among them and draw it$/i.exec(next);
+  if (r && /^(?:Then )?recycle the (?:rest|remaining cards)$/i.test(sens[i + 2] ?? '')) {
+    return {
+      effect: {
+        op: 'LOOK_TOP',
+        count,
+        take: { filter: (r[1] ?? '').toLowerCase() as 'unit' | 'gear', reveal: true },
+      },
+      used: 3,
+    };
+  }
   return null;
 }
 
@@ -224,6 +291,89 @@ function parseChooser(sen: string): Chooser | null {
   if (/^Counter a spell$/i.test(sen)) {
     return { effect: { op: 'COUNTER_SPELL' }, decl: { side: 'any' } };
   }
+  m = new RegExp(
+    `^Return an? ${SIDE}unit( at a battlefield)?(?: with (\\d+) \\[M\\] or less)? to its owner's hand$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: {
+        op: 'RETURN_TARGET',
+        ...sideProp(s),
+        ...(m[2] ? { atBattlefield: true } : {}),
+        ...(m[3] ? { maxMight: Number(m[3]) } : {}),
+      },
+      decl: { side: s ?? 'any' },
+    };
+  }
+  m = new RegExp(`^Return an? ${SIDE}gear to its owner's hand$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: { op: 'RETURN_TARGET', gear: true, ...sideProp(s) },
+      decl: { side: s ?? 'any' },
+    };
+  }
+  m = new RegExp(`^Move an? ${SIDE}unit( from a battlefield)? to (?:its |their )?base$`, 'i').exec(
+    sen,
+  );
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: { op: 'MOVE_BASE_TARGET', ...sideProp(s), ...(m[2] ? { atBattlefield: true } : {}) },
+      decl: { side: s ?? 'any' },
+    };
+  }
+  m = new RegExp(`^Move up to ${TWO} ${SIDE}units to (?:their )?base$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: { op: 'MOVE_BASE_TARGET', ...sideProp(s), count: { min: 0, max: 2 } },
+      decl: { side: s ?? 'any' },
+      multi: true,
+    };
+  }
+  return null;
+}
+
+/**
+ * "It" sentences after a chosen unit ("Choose a friendly unit. Give it +2 [M] this turn."): the
+ * same targeted ops as above, reading the slot of the unit chosen.
+ */
+function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | null {
+  const at = slot > 0 ? { slot } : {};
+  const sd = d.side === 'any' ? {} : { side: d.side };
+  const bf = d.atBattlefield ? { atBattlefield: true } : {};
+  let m = /^Give it \+(\d+) \[M\] this turn$/i.exec(sen);
+  if (m) {
+    return { op: 'BUFF_TARGET', amount: Number(m[1]), duration: 'TURN', ...sd, ...bf, ...at };
+  }
+  m = new RegExp(
+    `^Give it ${DASH}(\\d+) \\[M\\] this turn(?:, to a minimum of (\\d+) \\[M\\])?$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    return {
+      op: 'DEBUFF_TARGET',
+      amount: Number(m[1]),
+      ...(m[2] ? { minMight: Number(m[2]) } : {}),
+      ...sd,
+      ...bf,
+      ...at,
+    };
+  }
+  m = /^Deal (\d+) to it$/i.exec(sen);
+  if (m) return { op: 'DAMAGE_TARGET', amount: Number(m[1]), ...sd, ...bf, ...at };
+  if (/^Ready it$/i.test(sen)) return { op: 'READY_TARGET', ...sd, ...at };
+  if (/^Stun it$/i.test(sen)) return { op: 'STUN_TARGET', ...sd, ...bf, ...at };
+  if (/^Kill it$/i.test(sen)) return { op: 'KILL_TARGET', ...sd, ...bf, ...at };
+  if (/^Return it to its owner's hand$/i.test(sen)) {
+    return { op: 'RETURN_TARGET', ...sd, ...bf, ...at };
+  }
+  if (/^Move it to (?:its |their )?base$/i.test(sen)) {
+    return { op: 'MOVE_BASE_TARGET', ...sd, ...bf, ...at };
+  }
   return null;
 }
 
@@ -238,7 +388,10 @@ function canAdd(st: ParseState, add: SlotDecl[]): boolean {
   return a.side !== 'any' && b.side !== 'any' && a.side !== b.side;
 }
 
-const CHOOSE = new RegExp(`^Choose an? ${SIDE}unit(?: and (an? )?(another )?${SIDE}unit)?$`, 'i');
+const CHOOSE = new RegExp(
+  `^Choose an? ${SIDE}unit( at a battlefield)?(?: and (an? )?(another )?${SIDE}unit)?$`,
+  'i',
+);
 
 /** "Give a SIDE unit +N [M] this turn and another / a SIDE unit -M [M] this turn" (two slots). */
 const GIVE_PAIR = new RegExp(
@@ -261,13 +414,18 @@ function giveEffect(
 function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boolean {
   let m = CHOOSE.exec(sen);
   if (m) {
-    const first: SlotDecl = { side: side(m[1]) ?? 'any' };
+    const first: SlotDecl = {
+      side: side(m[1]) ?? 'any',
+      ...(m[2] ? { atBattlefield: true } : {}),
+    };
     const adds: SlotDecl[] = [first];
     if (/ and /i.test(sen)) {
-      adds.push({ side: side(m[4]) ?? 'any', ...(m[3] ? { another: true } : {}) });
+      adds.push({ side: side(m[5]) ?? 'any', ...(m[4] ? { another: true } : {}) });
     }
     if (!canAdd(st, adds)) return false;
     st.slots.push(...adds);
+    if (adds.length === 1) st.it = st.slots.length - 1;
+    else delete st.it;
     return true;
   }
   if (/^They deal damage equal to their Mights to each other$/i.test(sen)) {
@@ -310,12 +468,20 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     prev.elseDraw = Number(m[1]);
     return true;
   }
+  if (st.it !== undefined && !st.locked) {
+    const eff = parseItSentence(sen, st.slots[st.it] as SlotDecl, st.it);
+    if (eff) {
+      out.push(eff);
+      return true;
+    }
+  }
   const ch = parseChooser(sen);
   if (ch) {
     if (!canAdd(st, [ch.decl]) || (ch.multi && st.slots.length > 0)) return false;
     const slot = st.slots.length;
     st.slots.push(ch.decl);
     if (ch.multi) st.locked = true;
+    else st.it = slot;
     out.push(slot > 0 ? ({ ...ch.effect, slot } as CardEffect) : ch.effect);
     return true;
   }
@@ -345,17 +511,30 @@ export function parseSpellText(text: string): CardEffect[] | null {
   const cleaned = text
     .replace(/\[(Action|Reaction|Hidden)\]/gi, ' ')
     .replace(/\[Stun\]/gi, 'Stun')
+    .replace(TOKEN_WITH, '$1 with $2')
     .replace(/^\s*(?:(?:Action|Reaction|Hidden)\s+)+/i, '');
   const sens = sentences(cleaned);
   if (sens.length === 0) return null;
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
   // "A, then B" is two sentences in order.
-  for (const sen of sens.flatMap((x) => x.split(/, then /i))) {
-    if (!parseSpellSentence(sen.replace(/^Then /i, '').trim(), st, out)) return null;
+  const list = sens.flatMap((x) => x.split(/, then /i)).map((x) => x.replace(/^Then /i, '').trim());
+  for (let i = 0; i < list.length; i++) {
+    const look = parseLookSequence(list, i);
+    if (look) {
+      out.push(look.effect);
+      i += look.used - 1;
+      continue;
+    }
+    if (!parseSpellSentence(list[i] as string, st, out)) return null;
   }
+  // Every chosen unit must be used by an effect (a bare "Choose a unit." does nothing).
+  if (targetRequirements(out).length !== st.slots.length) return null;
   return out;
 }
+
+/** "unit token with [Temporary]": the keyword belongs to the token, so keep it as plain text. */
+const TOKEN_WITH = /(tokens?) with \[(\w+)\]/gi;
 
 const KEYWORD_TOKENS =
   /\[(Tank|Backline|Assault(?: \d+)?|Shield(?: \d+)?|Ganking|Accelerate|Temporary|Hidden|Deflect(?: \d+)?|Action|Reaction)\]/gi;
@@ -367,31 +546,59 @@ const KEYWORD_TOKENS =
 export function parseTriggerText(text: string): CardTrigger[] | null {
   const cleaned = text
     .replace(/\([^)]*\)/g, ' ')
+    .replace(TOKEN_WITH, '$1 with $2')
     .replace(KEYWORD_TOKENS, ' ')
-    .replace(/\[Deathknell\]\s*\[>\]/gi, ' Deathknell: ')
+    .replace(/\[Deathknell\]\s*(?:\[>\]|[—–-])/gi, ' Deathknell: ')
     .replace(/\s+/g, ' ')
     .trim();
-  const out: CardTrigger[] = [];
+  // A trigger sentence starts a group; the sentences after it belong to the same ability.
+  const groups: { ons: TriggerKind[]; sens: string[] }[] = [];
   for (const sen of cleaned
     .split('.')
     .map((x) => x.trim())
     .filter(Boolean)) {
-    const m = /^(?:When you play me|When I hold|When I conquer|Deathknell:)\s*,?\s*(.+)$/i.exec(
-      sen,
-    );
-    if (!m) return null;
-    const head = sen.toLowerCase();
-    const on = head.startsWith('when you play me')
-      ? 'PLAY'
-      : head.startsWith('when i hold')
-        ? 'HOLD'
-        : head.startsWith('when i conquer')
-          ? 'CONQUER'
-          : 'DEATH';
+    const m =
+      /^(When you play me or when I (hold|conquer)|When you play me|When I hold|When I conquer|Deathknell:)\s*,?\s*(.*)$/i.exec(
+        sen,
+      );
+    if (m) {
+      const head = (m[1] ?? '').toLowerCase();
+      const ons: TriggerKind[] = head.startsWith('when you play me or')
+        ? ['PLAY', m[2]?.toLowerCase() === 'hold' ? 'HOLD' : 'CONQUER']
+        : head.startsWith('when you play me')
+          ? ['PLAY']
+          : head.startsWith('when i hold')
+            ? ['HOLD']
+            : head.startsWith('when i conquer')
+              ? ['CONQUER']
+              : ['DEATH'];
+      groups.push({ ons, sens: m[3] ? [m[3]] : [] });
+    } else {
+      const g = groups[groups.length - 1];
+      if (!g) return null;
+      g.sens.push(sen);
+    }
+  }
+  const out: CardTrigger[] = [];
+  for (const g of groups) {
     // Triggers cannot choose targets yet: only slot-free clauses.
-    const effects = parseClause((m[1] ?? '').trim());
-    if (!effects) return null;
-    out.push({ on, effects });
+    const list = g.sens
+      .flatMap((x) => x.split(/, then /i))
+      .map((x) => x.replace(/^Then /i, '').trim());
+    const effects: CardEffect[] = [];
+    for (let i = 0; i < list.length; i++) {
+      const look = parseLookSequence(list, i);
+      if (look) {
+        effects.push(look.effect);
+        i += look.used - 1;
+        continue;
+      }
+      const c = parseClause(list[i] as string);
+      if (!c) return null;
+      effects.push(...c);
+    }
+    if (effects.length === 0) return null;
+    for (const on of g.ons) out.push({ on, effects });
   }
   return out.length > 0 ? out : null;
 }

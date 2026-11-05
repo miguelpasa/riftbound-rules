@@ -23,7 +23,7 @@ export function timerSituation(state: GameState): TimerSituation {
     actor: actorToAct(state),
     phase: state.turn.phase,
     chainLength: state.flow.chain.length,
-    showdown: state.flow.showdown !== undefined,
+    showdown: state.flow.showdown !== undefined || state.flow.pendingChoice !== undefined,
     combatAwaiting: state.flow.combat?.awaitingAssignmentFrom ?? null,
     mulliganPlayer,
     gameOver: state.gameStatus !== 'IN_PROGRESS',
@@ -129,6 +129,7 @@ export class HostTimers {
     if (!res || !res.ok) {
       const legal = session.getLegal(info.player);
       const fb =
+        legal.find((i) => i.type === 'CHOOSE_STAGED') ?? // lowest index (R11 timeout default)
         legal.find((i) => i.type === 'PASS_PRIORITY' || i.type === 'END_TURN') ??
         legal.find((i) => i.type === 'MULLIGAN' && i.cardIds.length === 0);
       res = fb ? session.forceIntent(info.player, fb) : res;

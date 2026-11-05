@@ -20,12 +20,12 @@ export type MvpKeywordName =
   | 'Deflect'
   | 'Unique'
   | 'Equip'
-  | 'QuickDraw';
+  | 'QuickDraw'
+  | 'Legion';
 
 /** Keywords typed but deferred (not implemented; cards using them are 'partial'). */
 export type DeferredKeywordName =
   | 'Deathknell'
-  | 'Legion'
   | 'Level'
   | 'Hunt'
   | 'Flow'
@@ -56,12 +56,12 @@ export const MVP_KEYWORDS: readonly MvpKeywordName[] = [
   'Unique',
   'Equip',
   'QuickDraw',
+  'Legion',
 ];
 
 /** Keywords that are typed but not yet implemented. */
 export const DEFERRED_KEYWORDS: readonly DeferredKeywordName[] = [
   'Deathknell',
-  'Legion',
   'Level',
   'Hunt',
   'Flow',
@@ -190,7 +190,42 @@ export type CardEffect =
    * Channel runes (431), optionally exhausted. If fewer than `amount` runes could be channeled,
    * draw `elseDraw` ("If you can't, draw 1").
    */
-  | { op: 'CHANNEL'; amount: number; exhausted?: boolean; elseDraw?: number };
+  | { op: 'CHANNEL'; amount: number; exhausted?: boolean; elseDraw?: number }
+  /**
+   * Play `count` tokens (R3 round 2): `token` is a TOKEN_CARDS id (tokens.ts). They enter exhausted
+   * unless `ready`, in the controller's Base, or at the source's location with `here`.
+   */
+  | { op: 'PLAY_TOKEN'; token: string; count: number; ready?: boolean; here?: boolean }
+  /** Return the target unit (or gear with `gear`) to its owner's hand; a token ceases to exist. */
+  | {
+      op: 'RETURN_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      maxMight?: number;
+      gear?: boolean;
+      slot?: number;
+    }
+  /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
+  | {
+      op: 'MOVE_BASE_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+      count?: TargetCount;
+    }
+  /** Kill every unit on the board. */
+  | { op: 'KILL_ALL_UNITS' }
+  /**
+   * Look at the top `count` cards of the controller's Main Deck, take one into the hand (`take`;
+   * "draw it" or "put it into your hand", optionally revealed and restricted to `filter`) and
+   * recycle the rest to the bottom. The choice is deterministic until choices exist: the first
+   * matching card from the top, or for an unrestricted take the one with the highest Energy cost.
+   */
+  | {
+      op: 'LOOK_TOP';
+      count: number;
+      take?: { filter?: 'unit' | 'gear'; reveal?: boolean };
+    };
 
 /** Effects that choose one unit (or gear / spell) through `PLAY_CARD.targets`. */
 export type TargetedEffect = Extract<
@@ -204,6 +239,8 @@ export type TargetedEffect = Extract<
       | 'STUN_TARGET'
       | 'DEBUFF_TARGET'
       | 'KILL_GEAR'
+      | 'RETURN_TARGET'
+      | 'MOVE_BASE_TARGET'
       | 'COUNTER_SPELL';
   }
 >;
@@ -218,6 +255,20 @@ export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH';
 export interface CardTrigger {
   on: TriggerKind;
   effects: CardEffect[];
+}
+
+/**
+ * Structured Equip cost (rule 818), parsed from the card text by the converter.
+ * `power` is [C] (Power of the Equipment's own domain(s)); `anyPower` is [A] (any domain).
+ */
+export interface EquipCost {
+  energy: number;
+  power: number;
+  anyPower: number;
+  /** "[3][A]. This ability's Energy cost is reduced by the Might of the unit you choose." */
+  energyReducedByMight?: boolean;
+  /** Printed non-resource cost part (kill a unit, recycle, spend XP, ...); NOT enforced yet. */
+  nonResource?: string;
 }
 
 export interface CardDef {
@@ -241,6 +292,8 @@ export interface CardDef {
   effects?: CardEffect[];
   /** Triggered abilities of a unit or gear. */
   triggers?: CardTrigger[];
+  /** Equip cost of Equipment (rule 818); absent = free (no parsable cost). */
+  equipCost?: EquipCost;
   imageUrl?: string;
 }
 

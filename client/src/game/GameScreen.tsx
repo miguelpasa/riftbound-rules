@@ -4,6 +4,7 @@ import type { GameEvent, Intent } from '@riftbound/engine';
 import { useGame, type GameApi } from '../app/gameApi';
 import { CardDetail } from '../components/CardDetail';
 import { ChainInspector } from '../components/ChainInspector';
+import { ChoicePrompt } from '../components/ChoicePrompt';
 import { CombatDialog } from '../components/CombatDialog';
 import { HostAwayOverlay } from '../components/HostAwayOverlay';
 import { MulliganDialog } from '../components/MulliganDialog';
@@ -16,6 +17,7 @@ import { Hand } from './Hand';
 import { findMulligan, isTypingOrInteractive, primaryAction } from './interaction';
 import { Playmat } from './Playmat';
 import { Popover } from './Popover';
+import { TargetBanner } from './TargetBanner';
 import { useBoardUi } from './useBoardUi';
 
 export interface GameScreenProps {
@@ -207,7 +209,7 @@ export function GameScreen({ onBackToMenu, headerExtra }: GameScreenProps) {
 
   const primary = primaryAction(view, legal);
   const submit = ui.submit;
-  const primaryIntent: Intent | undefined = primary?.intent;
+  const primaryIntent: Intent | undefined = ui.targeting ? undefined : primary?.intent;
 
   // Space / Enter = the primary pass/end action, only when no control has keyboard focus.
   useEffect(() => {
@@ -294,6 +296,7 @@ export function GameScreen({ onBackToMenu, headerExtra }: GameScreenProps) {
 
       <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <main className="flex min-w-0 flex-col gap-3">
+          <TargetBanner ui={ui} />
           <Playmat ui={ui} />
           <Hand ui={ui} />
         </main>
@@ -330,6 +333,7 @@ export function GameScreen({ onBackToMenu, headerExtra }: GameScreenProps) {
       ) : null}
 
       <CombatDialog />
+      <ChoicePrompt />
 
       <div aria-live="polite" role="status" className="sr-only" data-testid="announcer">
         {announcement}

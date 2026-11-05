@@ -89,7 +89,7 @@ export function evaluate(
       score += side(owner) * w.gear;
       continue;
     }
-    if (def.type !== 'UNIT') continue;
+    if (def.type !== 'UNIT' && !(def.type === 'TOKEN' && def.stats.might !== undefined)) continue;
     if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;
     const might = effectiveMight(state, cards, o.id, { role: null });
     const perMight = w.might + (o.zone.kind === 'battlefield' ? w.mightAtBattlefield : 0);

@@ -102,6 +102,79 @@ export function variantLabel(
   return parts.join(' - ');
 }
 
+// ------------------------------------------------------------------ click-to-target
+
+const objectTargetIds = (i: PlayIntent): string[] =>
+  (i.targets ?? []).flatMap((t) => (t.kind === 'object' ? [t.id] : []));
+
+/**
+ * All legal PLAY_CARD variants of a card IF it is a targeted spell the board can drive: every legal
+ * variant carries at least one target and all targets are public objects in play (base/battlefield).
+ * Returns [] otherwise (no targets, hidden/offboard/player/battlefield targets): the caller then
+ * keeps the popover flow.
+ */
+export function targetedVariants(
+  legal: readonly Intent[],
+  cardInstanceId: string,
+  view: ClientGameState,
+): PlayIntent[] {
+  const all = legal.filter(
+    (i): i is PlayIntent => i.type === 'PLAY_CARD' && i.cardInstanceId === cardInstanceId,
+  );
+  if (all.length === 0) return [];
+  for (const v of all) {
+    const targets = v.targets ?? [];
+    if (targets.length === 0 || targets.some((t) => t.kind !== 'object')) return [];
+    for (const id of objectTargetIds(v)) {
+      const o = view.objects[id];
+      if (!o || isHiddenCard(o)) return [];
+      if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') return [];
+    }
+  }
+  return all;
+}
+
+export interface TargetStep {
+  /** Largest number of targets any variant takes. */
+  total: number;
+  /** Units that can be picked next: they follow `chosen` as a prefix in some variant. */
+  candidates: Set<string>;
+  /** Distinct (location x accelerate) variants whose targets are exactly `chosen`. */
+  exact: PlayIntent[];
+}
+
+export function targetStep(variants: readonly PlayIntent[], chosen: readonly string[]): TargetStep {
+  let total = 0;
+  const candidates = new Set<string>();
+  const exact: PlayIntent[] = [];
+  const seen = new Set<string>();
+  for (const v of variants) {
+    const ids = objectTargetIds(v);
+    total = Math.max(total, ids.length);
+    if (ids.length < chosen.length || !chosen.every((c, k) => ids[k] === c)) continue;
+    if (ids.length === chosen.length) {
+      const key = `${v.location ? destKey(v.location) : '-'}|${v.additionalCosts?.accelerate ? 'acc' : ''}`;
+      if (chosen.length > 0 && !seen.has(key)) {
+        seen.add(key);
+        exact.push(v);
+      }
+    } else {
+      const next = ids[chosen.length];
+      if (next !== undefined) candidates.add(next);
+    }
+  }
+  return { total, candidates, exact };
+}
+
+/** Extra Deflect cost (Power) for targeting this opposing unit; 0 for own units or no Deflect. */
+export function deflectPower(id: string, view: ClientGameState, cards: CardDatabase): number {
+  const o = view.objects[id];
+  if (!o || isHiddenCard(o) || o.controller === view.viewer) return 0;
+  let total = 0;
+  for (const k of cards[o.cardId]?.keywords ?? []) if (k.name === 'Deflect') total += k.value ?? 1;
+  return total;
+}
+
 // ------------------------------------------------------------------ STANDARD_MOVE
 
 /** A way to reach a destination: one exact intent, or a sequence of single-unit intents. */

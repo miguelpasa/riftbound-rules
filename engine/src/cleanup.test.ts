@@ -129,16 +129,17 @@ describe('runCleanup', () => {
     expect(r.state.flow.combat?.attacker).toBe('p1');
   });
 
-  it('starts the Showdown on the lowest-index battlefield first', () => {
-    // Tests Rule 323.11: deterministic choice among several staged Showdowns
+  it('pauses on a pending choice instead of starting the lowest-index Showdown', () => {
+    // Tests Rule 323.11: the turn player chooses among several staged Showdowns (see showdownOrder.test.ts)
     const s = game();
     for (const i of [1, 0]) {
       place(s, 'unit', 'p0', { bf: bfId(s, i) });
       (s.battlefields[i] as { contestedBy: PlayerId | null }).contestedBy = 'p0';
     }
     const r = run(s);
-    expect(r.state.flow.showdown?.battlefieldId).toBe(bfId(s, 0));
-    expect(r.state.flow.stagedShowdowns).toEqual([bfId(s, 1)]);
+    expect(r.state.flow.showdown).toBeUndefined();
+    expect(r.state.flow.pendingChoice?.options).toEqual([bfId(s, 0), bfId(s, 1)]);
+    expect(r.state.flow.stagedShowdowns).toEqual([bfId(s, 0), bfId(s, 1)]);
   });
 
   it('does not start a Showdown in a Closed state', () => {

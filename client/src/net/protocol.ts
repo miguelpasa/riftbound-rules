@@ -25,6 +25,7 @@ const INTENT_TYPES: Record<IntentType, true> = {
   HIDE_CARD: true,
   ACTIVATE_ABILITY: true,
   EQUIP: true,
+  CHOOSE_STAGED: true,
   CONCEDE: true,
 };
 

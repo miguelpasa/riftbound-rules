@@ -1,0 +1,211 @@
+{
+  "format": "riftbound-deck",
+  "version": 1,
+  "name": "Akali aggro",
+  "description": "A Fury and Chaos deck led by Akali that pressures battlefields early with efficient units.",
+  "source": "META",
+  "eventName": "Singapore Regional Qualifier (Sept 2026)",
+  "placement": "1st place",
+  "sourceUrl": "https://playriftbound.com/en-us/news/organizedplay/singapores-top-decks/",
+  "legend": "VEN-139",
+  "cards": [
+    {
+      "code": "VEN-139",
+      "qty": 1,
+      "zone": "LEGEND",
+      "name": "Akali, Rogue Assassin"
+    },
+    {
+      "code": "VEN-021",
+      "qty": 1,
+      "zone": "CHAMPION",
+      "name": "Akali, Deadly Weapon"
+    },
+    {
+      "code": "VEN-044",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Astral Heron"
+    },
+    {
+      "code": "UNL-042",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Back Off"
+    },
+    {
+      "code": "OGN-067",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Blitzcrank, Impassive"
+    },
+    {
+      "code": "OGN-057",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Block"
+    },
+    {
+      "code": "OGN-027",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Darius, Trifarian"
+    },
+    {
+      "code": "OGN-045",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Defy"
+    },
+    {
+      "code": "OGN-058",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Discipline"
+    },
+    {
+      "code": "OGN-029",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Falling Star"
+    },
+    {
+      "code": "OGN-039",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Kai'Sa, Survivor"
+    },
+    {
+      "code": "SFD-022",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Long Sword"
+    },
+    {
+      "code": "UNL-003",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Mischievous Marai"
+    },
+    {
+      "code": "VEN-028",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Mournful Witness"
+    },
+    {
+      "code": "SFD-045",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Not So Fast"
+    },
+    {
+      "code": "OGN-012",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Noxus Hopeful"
+    },
+    {
+      "code": "VEN-140",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Shuriken Flip"
+    },
+    {
+      "code": "SFD-048",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Stellacorn Herder"
+    },
+    {
+      "code": "SFD-056",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Sterak's Gage"
+    },
+    {
+      "code": "OGN-077",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Zhonya's Hourglass"
+    },
+    {
+      "code": "OGN-042",
+      "qty": 6,
+      "zone": "RUNE",
+      "name": "Calm Rune"
+    },
+    {
+      "code": "OGN-007",
+      "qty": 6,
+      "zone": "RUNE",
+      "name": "Fury Rune"
+    },
+    {
+      "code": "SFD-209",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Forgotten Monument"
+    },
+    {
+      "code": "OGN-287",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Sigil of the Storm"
+    },
+    {
+      "code": "OGN-296",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Void Gate"
+    },
+    {
+      "code": "SFD-001",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Against the Odds"
+    },
+    {
+      "code": "VEN-038",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Akali, Silent"
+    },
+    {
+      "code": "VEN-040",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Decree of Focus"
+    },
+    {
+      "code": "SFD-032",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Disarming Rake"
+    },
+    {
+      "code": "OGN-046",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "En Garde"
+    },
+    {
+      "code": "SFD-021",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Ferrous Forerunner"
+    },
+    {
+      "code": "SFD-045",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Not So Fast"
+    },
+    {
+      "code": "OGN-022",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Thermo Beam"
+    }
+  ]
+}

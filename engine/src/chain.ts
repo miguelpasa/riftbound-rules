@@ -135,7 +135,9 @@ export function canPlayNow(
     return ruleError('NOT_YOUR_PRIORITY', `priority: ${state.flow.priority ?? 'none'}`);
   }
   const isAbility = opts.isAbility === true;
-  const reaction = isAbility ? opts.isReactionAbility === true : hasKeyword(card, 'Reaction');
+  const reaction = isAbility
+    ? opts.isReactionAbility === true
+    : hasKeyword(card, 'Reaction') || hasKeyword(card, 'QuickDraw'); // 819: Quick-Draw has Reaction inherently
   const action = !isAbility && hasKeyword(card, 'Action');
   const ts = deriveTurnState(state);
 

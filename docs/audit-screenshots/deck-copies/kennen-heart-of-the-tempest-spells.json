@@ -1,0 +1,223 @@
+{
+  "format": "riftbound-deck",
+  "version": 1,
+  "name": "Kennen spell tempo",
+  "description": "A deck led by Kennen that gains value from spells and from playing cards outside the hand, backed by tempo-oriented units.",
+  "source": "META",
+  "eventName": "Singapore Regional Qualifier (Sept 2026)",
+  "placement": "Top 8",
+  "sourceUrl": "https://playriftbound.com/en-us/news/organizedplay/singapores-top-decks/",
+  "legend": "VEN-155",
+  "cards": [
+    {
+      "code": "VEN-155",
+      "qty": 1,
+      "zone": "LEGEND",
+      "name": "Kennen, Heart of the Tempest"
+    },
+    {
+      "code": "VEN-113",
+      "qty": 1,
+      "zone": "CHAMPION",
+      "name": "Kennen, Storm of Shuriken"
+    },
+    {
+      "code": "SFD-140",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Fizz, Trickster"
+    },
+    {
+      "code": "OGS-011",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Flash"
+    },
+    {
+      "code": "OGN-169",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Gust"
+    },
+    {
+      "code": "SFD-136",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Hard Bargain"
+    },
+    {
+      "code": "SFD-150",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Last Rites"
+    },
+    {
+      "code": "VEN-156",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Lightning Rush"
+    },
+    {
+      "code": "OGN-194",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Nocturne, Horrifying"
+    },
+    {
+      "code": "OGN-195",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Rhasa the Sunderer"
+    },
+    {
+      "code": "OGN-173",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Ride the Wind"
+    },
+    {
+      "code": "OGN-224",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Salvage"
+    },
+    {
+      "code": "OGN-204",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Seal of Discord"
+    },
+    {
+      "code": "VEN-095",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Shadow Order Disciple"
+    },
+    {
+      "code": "OGN-183",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Stacked Deck"
+    },
+    {
+      "code": "UNL-128",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Star-Crossed"
+    },
+    {
+      "code": "SFD-145",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Switcheroo"
+    },
+    {
+      "code": "OGN-199",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Tideturner"
+    },
+    {
+      "code": "OGN-185",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Traveling Merchant"
+    },
+    {
+      "code": "SFD-130",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Treasure Hunter"
+    },
+    {
+      "code": "VEN-100",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Up from the Deep"
+    },
+    {
+      "code": "OGN-166",
+      "qty": 9,
+      "zone": "RUNE",
+      "name": "Chaos Rune"
+    },
+    {
+      "code": "OGN-214",
+      "qty": 3,
+      "zone": "RUNE",
+      "name": "Order Rune"
+    },
+    {
+      "code": "SFD-212",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Minefield"
+    },
+    {
+      "code": "VEN-164",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Sandswept Tomb"
+    },
+    {
+      "code": "OGN-298",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Zaun Warrens"
+    },
+    {
+      "code": "UNL-131",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Abandon"
+    },
+    {
+      "code": "VEN-131",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Decree of Unity"
+    },
+    {
+      "code": "OGN-244",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Divine Judgment"
+    },
+    {
+      "code": "SFD-140",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Fizz, Trickster"
+    },
+    {
+      "code": "VEN-102",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Ravenbloom Prefect"
+    },
+    {
+      "code": "OGN-172",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Rebuke"
+    },
+    {
+      "code": "OGN-224",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Salvage"
+    },
+    {
+      "code": "UNL-128",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Star-Crossed"
+    },
+    {
+      "code": "VEN-104",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Tail-Cloaked Matriarch"
+    }
+  ]
+}

@@ -80,6 +80,7 @@ describe('scenario: Cleanup circuit breaker', () => {
       // deterministic policy: mostly act (assign, move, play, pass), end the turn every 7th step
       const end = actions.find((a) => a.type === 'END_TURN');
       const pick =
+        actions.find((a) => a.type === 'CHOOSE_STAGED') ??
         (step % 7 === 6 ? end : undefined) ??
         actions.find((a) => a.type === 'ASSIGN_COMBAT_DAMAGE') ??
         actions.find((a) => a.type === 'STANDARD_MOVE') ??

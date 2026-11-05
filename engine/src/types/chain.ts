@@ -61,6 +61,21 @@ export interface CombatState {
   awaitingAssignmentFrom?: PlayerId | null;
 }
 
+/**
+ * A decision the engine is paused on before the Cleanup may continue (Rules 323.11, 323.12, 463.1):
+ * several Showdowns (or Combats) are staged in Neutral Open and the turn player picks which
+ * battlefield begins first. Only CHOOSE_STAGED (and CONCEDE) are accepted while it is set.
+ */
+export interface PendingChoice {
+  kind: 'STAGED_ORDER';
+  /** The deciding player: the turn player. */
+  player: PlayerId;
+  /** Whether the options are staged Showdowns (323.11) or staged Combats (323.12). */
+  stage: 'SHOWDOWN' | 'COMBAT';
+  /** Battlefield ids (at least two), in battlefield index order. */
+  options: string[];
+}
+
 /** Everything about who may act and what is on the chain. */
 export interface FlowState {
   priority: PlayerId | null;
@@ -74,6 +89,8 @@ export interface FlowState {
   stagedCombats: string[];
   /** Cleanup loop iteration count; capped by MAX_CLEANUP_ITERATIONS. */
   cleanupIterations: number;
+  /** Set while the Cleanup waits for a player's decision (see PendingChoice). */
+  pendingChoice?: PendingChoice;
 }
 
 /** Sequential mulligan in turn order. */

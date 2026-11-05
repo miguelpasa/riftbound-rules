@@ -94,7 +94,8 @@ export function determinize(
   let maxNum = 0;
   for (const [id, o] of Object.entries(view.objects)) {
     if (isHiddenCard(o)) continue;
-    objects[id] = structuredClone(o);
+    // CardInstance is flat apart from `zone` (primitive fields only): a shallow copy is enough.
+    objects[id] = { ...o, zone: { ...o.zone } };
     const n = Number(id.slice(1));
     if (/^o\d+$/.test(id) && n > maxNum) maxNum = n;
   }

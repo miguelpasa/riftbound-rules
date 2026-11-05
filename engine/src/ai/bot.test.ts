@@ -7,6 +7,7 @@ import { createGame } from '../setup.js';
 import { FIXTURE_CARDS, FIXTURE_DECK_A, FIXTURE_DECK_B } from '../testing/fixtures.js';
 import type { ClientGameState, DeckList, GameState, Intent, PlayerId } from '../types/index.js';
 import { AIController } from './bot.js';
+import type { DecisionProfile } from './bot.js';
 import { determinize } from './determinize.js';
 
 const CARDS = FIXTURE_CARDS;
@@ -325,6 +326,56 @@ describe('determinize', () => {
     const c = determinize(view, CARDS, deckOf(state, 'p0'), 's2');
     expect(a).toEqual(b);
     expect(JSON.stringify(a.objects)).not.toBe(JSON.stringify(c.objects));
+  });
+});
+
+describe('performance guards', () => {
+  it('honours the wall-clock budget, including the settle steps (virtual clock)', () => {
+    // Tests Rule 338: the bot always answers with a legal action when time runs out
+    const state = midGame('budget', 40);
+    const seat = actorToAct(state);
+    let t = 0;
+    const bot = new AIController(seat, {
+      cards: CARDS,
+      deck: deckOf(state, seat),
+      seed: 'b',
+      budgetMs: 10,
+      // every clock read costs 1 virtual ms
+      now: () => t++,
+    });
+    const intent = bot.decide(sanitizeFor(state, seat));
+    expect(intent).not.toBeNull();
+    expect(reduce(state, CARDS, intent as Intent).ok).toBe(true);
+    // budget 10 + at most one in-flight read/candidate of slack
+    expect(t).toBeLessThan(10 + 12);
+  });
+
+  it('reports a profile per decision and does not change the decision', () => {
+    // Tests Rule 338: profiling is observational only
+    const state = midGame('profile', 30);
+    const seat = actorToAct(state);
+    const view = sanitizeFor(state, seat);
+    const plain = newBot(seat, state, 'p').decide(view);
+    const seen: DecisionProfile[] = [];
+    const bot = new AIController(seat, {
+      cards: CARDS,
+      deck: deckOf(state, seat),
+      seed: 'p',
+      now: () => 0,
+      onProfile: (p) => seen.push(p),
+    });
+    expect(bot.decide(view)).toEqual(plain);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.legalCount).toBeGreaterThan(0);
+    expect(seen[0]?.scored).toBeLessThanOrEqual(seen[0]?.candidateCount ?? 0);
+  });
+
+  it('is deterministic for the same seed and view', () => {
+    // Tests Rule 114: same seed + same view -> same decision
+    const state = midGame('detdec', 36);
+    const seat = actorToAct(state);
+    const view = sanitizeFor(state, seat);
+    expect(newBot(seat, state, 'q').decide(view)).toEqual(newBot(seat, state, 'q').decide(view));
   });
 });
 

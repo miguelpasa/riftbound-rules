@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import type { CardInstance, Intent } from '@riftbound/engine';
 import { isHiddenCard } from '@riftbound/engine';
 import type { GameApi } from '../app/gameApi';
@@ -11,11 +17,14 @@ import {
   moveOptions,
   movableUnitIds,
   playVariants,
+  targetStep,
+  targetedVariants,
   playableIds,
   variantLabel,
   cardNameOf,
   type DestKey,
   type MoveOption,
+  type PlayIntent,
 } from './interaction';
 
 export interface PopoverItem {
@@ -31,6 +40,20 @@ export interface PopoverState {
   y: number;
 }
 
+/** Active click-to-target flow for a targeted spell (derived from `legal`; never invented). */
+export interface TargetingState {
+  cardId: string;
+  cardName: string;
+  /** 1-based slot being chosen now. */
+  slot: number;
+  total: number;
+  chosen: string[];
+  /** Board units that can be picked next. */
+  candidates: Set<string>;
+  /** Ready-to-submit choices for the targets picked so far (empty until a full variant matches). */
+  confirmOptions: { label: string; onSelect: () => void }[];
+}
+
 /** Everything the board components need to be interactive; derived from `api.legal`. */
 export interface BoardUi {
   api: GameApi;
@@ -44,6 +67,9 @@ export interface BoardUi {
   hovered: string | null;
   setHovered: (id: string | null) => void;
   popover: PopoverState | null;
+  targeting: TargetingState | null;
+  pickTarget: (id: string) => void;
+  cancelTargeting: () => void;
   closePopover: () => void;
   /** Sends an intent; shows the engine's rule error as a toast when rejected. Resolves true when accepted. */
   submit: (intent: Intent) => Promise<boolean>;
@@ -65,6 +91,9 @@ export function useBoardUi(api: GameApi): BoardUi {
   const [dragIds, setDragIds] = useState<string[] | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
+  const [targetingRaw, setTargetingRaw] = useState<{ cardId: string; chosen: string[] } | null>(
+    null,
+  );
 
   // Drop selections that are no longer movable (a unit died or the state moved on).
   const liveSelected = useMemo(
@@ -97,6 +126,63 @@ export function useBoardUi(api: GameApi): BoardUi {
 
   const closePopover = useCallback(() => setPopover(null), []);
 
+  const cancelTargeting = useCallback(() => setTargetingRaw(null), []);
+
+  const submitTargeted = useCallback(
+    async (intent: PlayIntent): Promise<void> => {
+      if (await submit(intent)) setTargetingRaw(null);
+    },
+    [submit],
+  );
+
+  const targeting = useMemo<TargetingState | null>(() => {
+    if (!targetingRaw) return null;
+    const variants = targetedVariants(legal, targetingRaw.cardId, view);
+    if (variants.length === 0) return null;
+    const step = targetStep(variants, targetingRaw.chosen);
+    if (step.candidates.size === 0 && step.exact.length === 0) return null;
+    const chosen = targetingRaw.chosen;
+    return {
+      cardId: targetingRaw.cardId,
+      cardName: cardNameOf(targetingRaw.cardId, view, cards),
+      slot: Math.min(chosen.length + 1, step.total),
+      total: step.total,
+      chosen,
+      candidates: step.candidates,
+      confirmOptions: step.exact.map((v) => ({
+        label:
+          step.exact.length > 1 ? `Confirm: ${variantLabel(v, view, cards)}` : 'Confirm targets',
+        onSelect: () => void submitTargeted(v),
+      })),
+    };
+  }, [targetingRaw, legal, view, cards, submitTargeted]);
+
+  const pickTarget = useCallback(
+    (id: string) => {
+      if (!targeting || !targeting.candidates.has(id)) return;
+      const chosen = [...targeting.chosen, id];
+      const step = targetStep(targetedVariants(legal, targeting.cardId, view), chosen);
+      const [only] = step.exact;
+      if (step.candidates.size === 0 && step.exact.length === 1 && only) {
+        setTargetingRaw({ cardId: targeting.cardId, chosen });
+        void submitTargeted(only);
+        return;
+      }
+      setTargetingRaw({ cardId: targeting.cardId, chosen });
+    },
+    [targeting, legal, view, submitTargeted],
+  );
+
+  const targetingActive = targeting !== null;
+  useEffect(() => {
+    if (!targetingActive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTargetingRaw(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [targetingActive]);
+
   const runMove = useCallback(
     async (ids: string[], dest: DestKey): Promise<void> => {
       if (ids.length === 0) return;
@@ -125,6 +211,12 @@ export function useBoardUi(api: GameApi): BoardUi {
     (id: string, anchor: Element | null) => {
       const obj = view.objects[id];
       if (!obj || isHiddenCard(obj)) return;
+      setTargetingRaw(null);
+      if (targetedVariants(legal, id, view).length > 0) {
+        setPopover(null);
+        setTargetingRaw({ cardId: id, chosen: [] });
+        return;
+      }
       const variants = playVariants(legal, id);
       if (variants.length === 0) {
         // Illegal: attempt anyway so the player sees the engine's exact [Rule Error].
@@ -249,6 +341,9 @@ export function useBoardUi(api: GameApi): BoardUi {
     hovered,
     setHovered,
     popover,
+    targeting,
+    pickTarget,
+    cancelTargeting,
     closePopover,
     submit,
     clickUnit,

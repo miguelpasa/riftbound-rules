@@ -1,3 +1,4 @@
+import { TOKEN_CARDS } from '@riftbound/engine';
 import type { CardDatabase } from '@riftbound/engine';
 
 export type LoadCardsResult = { ok: true; cards: CardDatabase } | { ok: false; message: string };
@@ -47,6 +48,9 @@ export async function loadCards(): Promise<LoadCardsResult> {
       message: 'cards.json is invalid. Run `npm run cards` again to regenerate it.',
     };
   }
+
+  // Token definitions are built into the engine; an older cards.json may lack them.
+  for (const [id, def] of Object.entries(TOKEN_CARDS)) if (!(id in cards)) cards[id] = def;
 
   try {
     const aliases = await fetchJson(ALIASES_URL);

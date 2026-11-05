@@ -1,8 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { getLegalActions } from '../legalActions.js';
+import { parseSpellText, parseTriggerText } from '../cardText.js';
 import { MAX_TARGET_COMBOS, runEffects } from '../effects.js';
+import { TOKEN_CARDS } from '../tokens.js';
 import { Scenario, SCENARIO_CARDS } from '../testing/scenario.js';
-import type { CardDatabase, CardDef, CardEffect, Intent, Target } from '../types/index.js';
+import type {
+  CardDatabase,
+  CardDef,
+  CardEffect,
+  CardInstance,
+  Intent,
+  Target,
+} from '../types/index.js';
 
 /** Override fixture spells with executable effects (fx-flare is p0's, fx-tide-guard is p1's). */
 const db = (flare: CardEffect[], guard?: CardEffect[]): CardDatabase => ({
@@ -28,8 +37,8 @@ const db = (flare: CardEffect[], guard?: CardEffect[]): CardDatabase => ({
 const obj = (id: string): Target => ({ kind: 'object', id });
 
 /** p0 plays fx-flare with `targets`; both pass so it resolves. */
-function cast(sc: Scenario, targets?: string[]) {
-  const spell = sc.putInHand('p0', 'fx-flare');
+function cast(sc: Scenario, targets?: string[], inHand?: string) {
+  const spell = inHand ?? sc.putInHand('p0', 'fx-flare');
   sc.play('p0', spell, {
     payment: sc.exhaustPlan('p0', 1),
     ...(targets ? { targets: targets.map(obj) } : {}),
@@ -564,5 +573,386 @@ describe('scenario: new effects inside triggered abilities', () => {
     expect(sc.obj(foe).damage).toBe(1);
     expect(sc.obj(home).damage).toBe(0);
     sc.verify();
+  });
+});
+
+// ---------------------------------------------------------------- R3 round 2
+
+/** Fixture cards plus the built-in token definitions. */
+const withTokens = (extra: Record<string, CardDef> = {}): CardDatabase => ({
+  ...SCENARIO_CARDS,
+  ...TOKEN_CARDS,
+  ...extra,
+});
+
+/** fx-flare gets the effects parsed from real card text. */
+function textDb(text: string): CardDatabase {
+  const effects = parseSpellText(text);
+  if (!effects) throw new Error(`text did not parse: ${text}`);
+  return withTokens({
+    'fx-flare': {
+      ...(SCENARIO_CARDS['fx-flare'] as CardDef),
+      text,
+      supportLevel: 'partial',
+      effects,
+    },
+  });
+}
+
+/** fx-grunt (p0) gets the triggers parsed from real card text. */
+function triggerDb(text: string): CardDatabase {
+  const triggers = parseTriggerText(text);
+  if (!triggers) throw new Error(`text did not parse: ${text}`);
+  return withTokens({ 'fx-grunt': { ...(SCENARIO_CARDS['fx-grunt'] as CardDef), triggers } });
+}
+
+/** Surgery: put a ready Recruit token in `player`'s Base through the effect interpreter. */
+function runTokens(sc: Scenario, player: 'p0' | 'p1'): void {
+  const s = structuredClone(sc.state);
+  runEffects(
+    s,
+    player,
+    [{ op: 'PLAY_TOKEN', token: 'tok-recruit', count: 1, ready: true }],
+    sc.cards,
+  );
+  sc.state = s;
+}
+
+const tokensOf = (sc: Scenario, cardId: string): CardInstance[] =>
+  Object.values(sc.state.objects).filter((o) => o.cardId === cardId);
+
+describe('scenario: unit tokens', () => {
+  it('"Play a ready 3 [M] Sprite unit token with [Temporary]" creates a ready Temporary token in the Base', () => {
+    // Tests Rule 186.1: tokens are created on the Board; Temporary kills it at the start of its controller's Beginning Phase
+    const sc = Scenario.start(
+      {},
+      textDb('[Action] Play a ready 3 [M] Sprite unit token with [Temporary].'),
+    );
+    cast(sc);
+    const [sprite] = tokensOf(sc, 'tok-sprite');
+    expect(sprite).toMatchObject({ controller: 'p0', ready: true, zone: { kind: 'base' } });
+    expect(sc.player('p0').base).toContain(sprite!.id);
+    expect(sc.eventsOfType('TOKEN_PLAYED')).toHaveLength(1);
+    sc.verify();
+    // It dies (and ceases to exist) at the start of p0's next Beginning Phase.
+    sc.endTurn('p0');
+    expect(tokensOf(sc, 'tok-sprite')).toHaveLength(1);
+    sc.endTurn('p1');
+    expect(tokensOf(sc, 'tok-sprite')).toHaveLength(0);
+    expect(sc.player('p0').trash).not.toContain(sprite!.id);
+    sc.verify();
+  });
+
+  it('"Play four 1 [M] Recruit unit tokens" enters four exhausted units', () => {
+    // Tests Rule 359.2.c: units enter exhausted unless an effect says ready
+    const sc = Scenario.start({}, textDb('[Action] Play four 1 [M] Recruit unit tokens.'));
+    cast(sc);
+    const recruits = tokensOf(sc, 'tok-recruit');
+    expect(recruits).toHaveLength(4);
+    expect(recruits.every((r) => !r.ready && r.zone.kind === 'base')).toBe(true);
+    sc.verify();
+  });
+
+  it('a ready token can move and fight like a unit, and ceases to exist when killed', () => {
+    // Tests Rule 186.1: a token that leaves the Board ceases to exist (it does not go to the Trash)
+    const sc = Scenario.start({}, textDb('Play a ready 3 [M] Mech unit token.'));
+    cast(sc);
+    const [mech] = tokensOf(sc, 'tok-mech');
+    expect(mech!.ready).toBe(true);
+    expect(
+      getLegalActions(sc.state, sc.cards, 'p0').some(
+        (i) => i.type === 'STANDARD_MOVE' && i.unitIds.includes(mech!.id),
+      ),
+    ).toBe(true);
+    sc.do({
+      type: 'STANDARD_MOVE',
+      playerId: 'p0',
+      unitIds: [mech!.id],
+      destination: { kind: 'battlefield', battlefieldId: 'bf1' },
+    });
+    expect(sc.obj(mech!.id).zone).toMatchObject({ kind: 'battlefield', battlefieldId: 'bf1' });
+    // Killed by a spell it is removed from the game, not put in the Trash.
+    sc.cards['fx-flare'] = {
+      ...(sc.cards['fx-flare'] as CardDef),
+      effects: [{ op: 'KILL_TARGET' }],
+    };
+    cast(sc, [mech!.id]);
+    expect(sc.state.objects[mech!.id]).toBeUndefined();
+    expect(sc.player('p0').trash).not.toContain(mech!.id);
+    sc.verify();
+  });
+
+  it('"When you play me, play a Recruit token here" puts the token at the unit\'s location', () => {
+    // Tests Rule 359.3: a triggered ability resolves from the Chain and may create tokens
+    const sc = Scenario.start(
+      {},
+      triggerDb('When you play me, play a 1 [M] Recruit unit token here.'),
+    );
+    sc.putUnit('p0', sc.kit('p0').titan, 'bf1', { control: true });
+    const unit = sc.putInHand('p0', 'fx-grunt');
+    sc.play('p0', unit, {
+      payment: sc.exhaustPlan('p0', 2),
+      location: { kind: 'battlefield', battlefieldId: 'bf1' },
+    });
+    sc.pass('p1');
+    sc.pass('p0');
+    const [rec] = tokensOf(sc, 'tok-recruit');
+    expect(rec?.zone).toMatchObject({ kind: 'battlefield', battlefieldId: 'bf1' });
+    sc.verify();
+  });
+
+  it('"here" in the Base is the Base', () => {
+    // Tests Rule 359.3: a triggered ability resolves from the Chain and may create tokens
+    const sc = Scenario.start(
+      {},
+      triggerDb('When you play me, play a 1 [M] Recruit unit token here.'),
+    );
+    const unit = sc.putInHand('p0', 'fx-grunt');
+    sc.play('p0', unit, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+    sc.pass('p1');
+    sc.pass('p0');
+    expect(tokensOf(sc, 'tok-recruit')[0]?.zone.kind).toBe('base');
+    sc.verify();
+  });
+
+  it("Deathknell tokens appear in the owner's Base when the unit dies", () => {
+    // Tests Rule 323.4: the unit dies in Cleanup, then its Deathknell triggers
+    const cards = triggerDb('[Deathknell] — Play three 1 [M] Recruit unit tokens into your base.');
+    const sc = Scenario.start(
+      {},
+      {
+        ...cards,
+        'fx-flare': {
+          ...(SCENARIO_CARDS['fx-flare'] as CardDef),
+          supportLevel: 'partial',
+          effects: [{ op: 'KILL_TARGET' }],
+        },
+      },
+    );
+    const unit = sc.putUnit('p0', 'fx-grunt', 'base');
+    cast(sc, [unit]);
+    sc.pass(sc.state.flow.priority!);
+    sc.pass(sc.state.flow.priority!);
+    expect(tokensOf(sc, 'tok-recruit')).toHaveLength(3);
+    sc.verify();
+  });
+
+  it('a token missing from the database fizzles instead of corrupting the state', () => {
+    // Tests Rule 186.1: only defined tokens can be created
+    const sc = Scenario.start();
+    const ev = runEffects(
+      sc.state,
+      'p0',
+      [{ op: 'PLAY_TOKEN', token: 'tok-nope', count: 1 }],
+      sc.cards,
+    );
+    expect(ev).toEqual([{ type: 'EFFECT_FIZZLED', cardId: '' }]);
+  });
+});
+
+describe('scenario: "Choose a unit. <effect on it>"', () => {
+  it('"Give it +N" buffs only the chosen friendly unit and rejects an enemy', () => {
+    // Tests Rule 355.10: the chosen unit must satisfy the restriction of the sentence that chose it
+    const sc = Scenario.start({}, textDb('Choose a friendly unit. Give it +2 [M] this turn.'));
+    const mine = sc.putUnit('p0', sc.kit('p0').grunt, 'base');
+    const foe = sc.putUnit('p1', sc.kit('p1').grunt, 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    expect(sc.reject(playIntent(sc, spell, [foe])).code).toBe('ILLEGAL_TARGET');
+    cast(sc, [mine]);
+    expect(sc.obj(mine).mightBonus).toBe(2);
+    expect(sc.obj(foe).mightBonus).toBe(0);
+    sc.endTurn('p0');
+    expect(sc.obj(mine).mightBonus).toBe(0);
+  });
+
+  it('several "it" sentences share the one chosen unit', () => {
+    // Tests Rule 359.3: effects resolve in printed order on the same chosen object
+    const sc = Scenario.start(
+      {},
+      textDb('Choose an enemy unit at a battlefield. Deal 1 to it. Stun it.'),
+    );
+    const home = sc.putUnit('p1', sc.kit('p1').titan, 'base');
+    const away = sc.putUnit('p1', sc.kit('p1').titan, 'bf1', { control: true });
+    const spell = sc.putInHand('p0', 'fx-flare');
+    expect(sc.reject(playIntent(sc, spell, [home])).code).toBe('ILLEGAL_TARGET');
+    cast(sc, [away]);
+    expect(sc.obj(away).damage).toBe(1);
+    expect(sc.obj(away).stunned).toBe(true);
+    expect(sc.obj(home).damage).toBe(0);
+  });
+
+  it('enumerates only legal targets for the chosen-unit slot', () => {
+    // Tests Rule 355.10: legal-target enumeration matches validation
+    const sc = Scenario.start({}, textDb('Choose a friendly unit. Ready it.'));
+    const mine = sc.putUnit('p0', sc.kit('p0').grunt, 'base');
+    sc.putUnit('p1', sc.kit('p1').grunt, 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    const plays = getLegalActions(sc.state, sc.cards, 'p0').filter(
+      (i) => i.type === 'PLAY_CARD' && i.cardInstanceId === spell,
+    );
+    expect(plays.map((i) => (i as { targets?: Target[] }).targets)).toEqual([[obj(mine)]]);
+  });
+});
+
+describe('scenario: return, move to base, kill all, look at the top', () => {
+  it("Return a unit at a battlefield to its owner's hand resets it", () => {
+    // Tests Rule 359.3: effects resolve as the spell resolves; the card goes to its owner's hand
+    const sc = Scenario.start(
+      {},
+      textDb("[Action] Return a unit at a battlefield to its owner's hand."),
+    );
+    const foe = sc.putUnit('p1', sc.kit('p1').grunt, 'bf1', {
+      control: true,
+      damage: 1,
+      mightBonus: 2,
+    });
+    const home = sc.putUnit('p1', sc.kit('p1').grunt, 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    expect(sc.reject(playIntent(sc, spell, [home])).code).toBe('ILLEGAL_TARGET');
+    const hand = sc.player('p1').hand.length;
+    cast(sc, [foe]);
+    expect(sc.obj(foe)).toMatchObject({
+      zone: { kind: 'hand', player: 'p1' },
+      damage: 0,
+      mightBonus: 0,
+    });
+    expect(sc.player('p1').hand).toHaveLength(hand + 1);
+    expect(sc.eventsOfType('UNIT_RETURNED')).toHaveLength(1);
+    sc.verify();
+  });
+
+  it('a returned token ceases to exist instead of going to the hand', () => {
+    // Tests Rule 186.1: a token that leaves the Board ceases to exist
+    const sc = Scenario.start({}, textDb("Return a unit to its owner's hand."));
+    runTokens(sc, 'p1');
+    const tok = tokensOf(sc, 'tok-recruit')[0]!.id;
+    cast(sc, [tok]);
+    expect(sc.state.objects[tok]).toBeUndefined();
+    expect(sc.player('p1').hand).not.toContain(tok);
+    sc.verify();
+  });
+
+  it('"with N [M] or less" limits the Return target', () => {
+    // Tests Rule 355.10: restrictions printed on the spell limit the legal targets
+    const sc = Scenario.start(
+      {},
+      textDb("[Reaction] Return a unit at a battlefield with 3 [M] or less to its owner's hand."),
+    );
+    const big = sc.putUnit('p1', sc.kit('p1').titan, 'bf1', { control: true });
+    const spell = sc.putInHand('p0', 'fx-flare');
+    expect(sc.reject(playIntent(sc, spell, [big])).code).toBe('ILLEGAL_TARGET');
+  });
+
+  it("Return a gear to its owner's hand", () => {
+    // Tests Rule 359.3: effects resolve as the spell resolves
+    const sc = Scenario.start({}, textDb("[Action] Return a gear to its owner's hand."));
+    const gear = sc.putUnit('p1', 'fx-tide-totem', 'base');
+    cast(sc, [gear]);
+    expect(sc.obj(gear).zone).toMatchObject({ kind: 'hand', player: 'p1' });
+    expect(sc.player('p1').base).not.toContain(gear);
+    sc.verify();
+  });
+
+  it('"Move a unit from a battlefield to its base" is not a standard move and drops control', () => {
+    // Tests Rule 323.6: Cleanup re-evaluates control of the battlefield the unit left
+    const sc = Scenario.start(
+      {},
+      textDb('[Hidden] [Action] Move a unit from a battlefield to its base.'),
+    );
+    const foe = sc.putUnit('p1', sc.kit('p1').grunt, 'bf1', { control: true });
+    cast(sc, [foe]);
+    expect(sc.obj(foe).zone).toMatchObject({ kind: 'base', player: 'p1' });
+    expect(sc.player('p1').base).toContain(foe);
+    expect(sc.bf('bf1').controller).toBeNull();
+    expect(sc.eventsOfType('UNIT_MOVED')).toEqual([
+      expect.objectContaining({ unitId: foe, from: 'bf1', to: 'base' }),
+    ]);
+    sc.verify();
+  });
+
+  it('"Move up to 2 friendly units to base" takes zero to two targets', () => {
+    // Tests Rule 355.10: an "up to" slot accepts any number up to its maximum
+    const sc = Scenario.start({}, textDb('[Reaction] Move up to 2 friendly units to base.'));
+    const a = sc.putUnit('p0', sc.kit('p0').grunt, 'bf1', { control: true });
+    const b = sc.putUnit('p0', sc.kit('p0').tank, sc.state.battlefields[1]!.id, { control: true });
+    const c = sc.putUnit('p0', sc.kit('p0').archer, 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    expect(sc.reject(playIntent(sc, spell, [a, b, c])).code).toBe('ILLEGAL_TARGET');
+    cast(sc, [a, b]);
+    expect(sc.obj(a).zone.kind).toBe('base');
+    expect(sc.obj(b).zone.kind).toBe('base');
+    sc.verify();
+  });
+
+  it('"Kill all units" kills every unit and token on the Board', () => {
+    // Tests Rule 323: lethal damage is dealt, then Cleanup moves units to the Trash and removes tokens
+    const sc = Scenario.start({}, textDb('Kill all units.'));
+    const mine = sc.putUnit('p0', sc.kit('p0').titan, 'base');
+    const foe = sc.putUnit('p1', sc.kit('p1').titan, 'bf1', { control: true });
+    runTokens(sc, 'p0');
+    const tok = tokensOf(sc, 'tok-recruit')[0]!.id;
+    cast(sc);
+    expect(sc.obj(mine).zone.kind).toBe('trash');
+    expect(sc.obj(foe).zone.kind).toBe('trash');
+    expect(sc.state.objects[tok]).toBeUndefined();
+    sc.verify();
+  });
+
+  it('"Look at the top 3 cards ... Put 1 into your hand and recycle the rest" takes the dearest card', () => {
+    // Tests Rule 417.5: recycled cards go to the bottom of the deck
+    const sc = Scenario.start(
+      {},
+      textDb(
+        '[Action] Look at the top 3 cards of your Main Deck. Put 1 into your hand and recycle the rest.',
+      ),
+    );
+    const spell = sc.putInHand('p0', 'fx-flare');
+    const deck = sc.player('p0').mainDeck;
+    const top3 = deck.slice(0, 3);
+    const cost = (id: string): number => sc.cards[sc.obj(id).cardId]!.cost.energy;
+    const best = top3.reduce((b, id) => (cost(id) > cost(b) ? id : b));
+    const rest = top3.filter((id) => id !== best);
+    const hand = sc.player('p0').hand.length;
+    const size = deck.length;
+    cast(sc, undefined, spell);
+    expect(sc.player('p0').hand).toHaveLength(hand); // the spell left the hand, one card came in
+    expect(sc.player('p0').hand).toContain(best);
+    expect(sc.player('p0').mainDeck).toHaveLength(size - 1);
+    expect(sc.player('p0').mainDeck.slice(-2)).toEqual(rest);
+    expect(sc.eventsOfType('CARDS_LOOKED_AT')).toEqual([expect.objectContaining({ count: 3 })]);
+    expect(sc.eventsOfType('CARDS_RECYCLED')).toEqual([expect.objectContaining({ count: 2 })]);
+    sc.verify();
+  });
+
+  it('"You may reveal a gear from among them and draw it" takes the first gear, else nothing', () => {
+    // Tests Rule 417.5: recycled cards go to the bottom of the deck
+    const text =
+      'Look at the top 4 cards of your Main Deck. You may reveal a gear from among them and draw it. Then recycle the rest.';
+    const sc = Scenario.start({}, textDb(text));
+    // Make the 3rd card of the deck a gear (surgery on the card id of an existing object).
+    const spell = sc.putInHand('p0', 'fx-flare');
+    const third = sc.player('p0').mainDeck[2]!;
+    sc.state = structuredClone(sc.state);
+    sc.state.objects[third]!.cardId = 'fx-ember-totem';
+    const before = [...sc.player('p0').mainDeck];
+    cast(sc, undefined, spell);
+    expect(sc.player('p0').hand).toContain(third);
+    expect(sc.eventsOfType('CARD_REVEALED')).toEqual([
+      expect.objectContaining({ cardId: 'fx-ember-totem' }),
+    ]);
+    expect(sc.player('p0').mainDeck.slice(-3)).toEqual([before[0], before[1], before[3]]);
+    // With no gear among them nothing is drawn and all four are recycled.
+    const sc2 = Scenario.start({}, textDb(text));
+    const spell2 = sc2.putInHand('p0', 'fx-flare');
+    sc2.state = structuredClone(sc2.state);
+    for (const id of sc2.player('p0').mainDeck.slice(0, 4)) {
+      sc2.state.objects[id]!.cardId = 'fx-grunt';
+    }
+    const before2 = [...sc2.player('p0').mainDeck];
+    const hand2 = sc2.player('p0').hand.length;
+    cast(sc2, undefined, spell2);
+    expect(sc2.player('p0').hand).toHaveLength(hand2 - 1);
+    expect(sc2.player('p0').mainDeck).toEqual([...before2.slice(4), ...before2.slice(0, 4)]);
+    sc2.verify();
   });
 });

@@ -1,0 +1,199 @@
+{
+  "format": "riftbound-deck",
+  "version": 1,
+  "name": "Rengar tempo-midrange",
+  "description": "A Fury and Chaos deck led by Rengar that curves out with mid-cost units and leans on cheap interaction to win battlefield fights.",
+  "source": "META",
+  "eventName": "Los Angeles Regional Qualifier (Sept 2026)",
+  "placement": "1st place",
+  "sourceUrl": "https://playriftbound.com/en-us/news/organizedplay/los-angeles-top-decks/",
+  "legend": "UNL-183",
+  "cards": [
+    {
+      "code": "UNL-183",
+      "qty": 1,
+      "zone": "LEGEND",
+      "name": "Rengar, Pridestalker"
+    },
+    {
+      "code": "UNL-120",
+      "qty": 1,
+      "zone": "CHAMPION",
+      "name": "Rengar, Trophy Hunter"
+    },
+    {
+      "code": "OGN-027",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Darius, Trifarian"
+    },
+    {
+      "code": "SFD-021",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Ferrous Forerunner"
+    },
+    {
+      "code": "OGN-132",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "First Mate"
+    },
+    {
+      "code": "UNL-021",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Grim Apothecary"
+    },
+    {
+      "code": "UNL-002",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Inferna"
+    },
+    {
+      "code": "UNL-112",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Irresistible Faefolk"
+    },
+    {
+      "code": "OGN-039",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Kai'Sa, Survivor"
+    },
+    {
+      "code": "UNL-097",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Kinkou Initiate"
+    },
+    {
+      "code": "UNL-114",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Nidalee, Cat Form"
+    },
+    {
+      "code": "OGN-012",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Noxus Hopeful"
+    },
+    {
+      "code": "OGN-135",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Pakaa Cub"
+    },
+    {
+      "code": "OGN-136",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Pit Rookie"
+    },
+    {
+      "code": "SFD-097",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Punch First"
+    },
+    {
+      "code": "UNL-028",
+      "qty": 1,
+      "zone": "MAIN",
+      "name": "Pyke, Dockside Butcher"
+    },
+    {
+      "code": "VEN-083",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Rampage"
+    },
+    {
+      "code": "OGN-156",
+      "qty": 3,
+      "zone": "MAIN",
+      "name": "Sabotage"
+    },
+    {
+      "code": "UNL-184",
+      "qty": 2,
+      "zone": "MAIN",
+      "name": "Thrill of the Hunt"
+    },
+    {
+      "code": "OGN-126",
+      "qty": 8,
+      "zone": "RUNE",
+      "name": "Body Rune"
+    },
+    {
+      "code": "OGN-007",
+      "qty": 4,
+      "zone": "RUNE",
+      "name": "Fury Rune"
+    },
+    {
+      "code": "SFD-207",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Emperor's Dais"
+    },
+    {
+      "code": "SFD-217",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Seat of Power"
+    },
+    {
+      "code": "UNL-215",
+      "qty": 1,
+      "zone": "BATTLEFIELD",
+      "name": "Star Spring"
+    },
+    {
+      "code": "VEN-003",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Brittle Steel"
+    },
+    {
+      "code": "OGN-026",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Brynhir Thundersong"
+    },
+    {
+      "code": "VEN-085",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Decree of Strength"
+    },
+    {
+      "code": "SFD-021",
+      "qty": 2,
+      "zone": "SIDEBOARD",
+      "name": "Ferrous Forerunner"
+    },
+    {
+      "code": "VEN-080",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Noxian Demolitionist"
+    },
+    {
+      "code": "UNL-028",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Pyke, Dockside Butcher"
+    },
+    {
+      "code": "VEN-083",
+      "qty": 1,
+      "zone": "SIDEBOARD",
+      "name": "Rampage"
+    }
+  ]
+}

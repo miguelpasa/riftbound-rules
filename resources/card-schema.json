@@ -67,6 +67,7 @@
     "supportLevel": { "enum": ["full", "partial"] },
     "effects": { "type": "array", "items": { "type": "object" } },
     "triggers": { "type": "array", "items": { "type": "object" } },
+    "equipCost": { "type": "object" },
     "imageUrl": { "type": "string" }
   }
 }

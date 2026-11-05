@@ -1,5 +1,5 @@
 /**
- * MVP keywords owned by E10: Temporary, Hidden, Deflect, Equip, Quick-Draw (+ keyword helpers).
+ * MVP keywords owned by E10: Temporary, Hidden, Deflect, Equip, Quick-Draw, Legion (+ keyword helpers).
  * (Tank, Backline, Assault, Shield live in combat.ts; Ganking in movement.ts; Accelerate in play.ts;
  * Unique in deckValidation.ts.)
  *
@@ -19,7 +19,8 @@
  *    a card was hidden there.
  *  - Deflect (809, 356.2.a.2): the surcharge is Power. `CostMod.power` is "generic Power of the
  *    played card's domains", so it cannot yet express "any domain" (see report).
- *  - Equip value is an ENERGY cost (missing value = 0). Equip has no payment field either: autoPlan.
+ *  - Equip cost (818): `CardDef.equipCost` (Energy, [C] domain Power, [A] any Power) via computeTotalCost;
+ *    no parsed cost = free. Equip has no payment field either: autoPlan.
  *    Equip is an activated ability: your turn, Neutral Open, Main phase, with priority (145.2).
  *  - Equipment Might bonus (137.3) = sum of attached Equipment `stats.might`; see attachedMightBonus.
  *  - Quick-Draw: `quickDrawAttach` attaches (free) after the gear is in play; the Reaction speed
@@ -32,7 +33,7 @@ import { canPlayNow, deriveTurnState, finalizeAndSettle, pushPendingItem } from 
 import type { ChainResolver } from './chain.js';
 import { playCard } from './play.js';
 import type { PlayHooks } from './play.js';
-import { autoPlan, payCost } from './resources.js';
+import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import type { CostMod, TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { DEFERRED_KEYWORDS, MVP_KEYWORDS, playerIndex, ruleError } from './types/index.js';
@@ -74,7 +75,19 @@ const isOnBoard = (o: CardInstance): boolean =>
 
 function isUnitOnBoard(state: GameState, cards: CardDatabase, id: string): CardInstance | null {
   const o = state.objects[id];
-  return o && isOnBoard(o) && cards[o.cardId]?.type === 'UNIT' ? o : null;
+  const d = o ? cards[o.cardId] : undefined;
+  return o &&
+    isOnBoard(o) &&
+    (d?.type === 'UNIT' || (d?.type === 'TOKEN' && d.stats.might !== undefined))
+    ? o
+    : null;
+}
+
+/** A Unit, Gear or Token on the board (Deflect, 809, applies to any Permanent). */
+function permanentOnBoard(state: GameState, cards: CardDatabase, id: string): CardInstance | null {
+  const o = state.objects[id];
+  const t = o ? cards[o.cardId]?.type : undefined;
+  return o && isOnBoard(o) && (t === 'UNIT' || t === 'GEAR' || t === 'TOKEN') ? o : null;
 }
 
 /** Detach every Equipment attached to `unitId` (mutates the working state). */
@@ -117,7 +130,7 @@ export function temporaryOnBeginning(
       return (
         o.controller === player &&
         isOnBoard(o) &&
-        (def?.type === 'UNIT' || def?.type === 'TOKEN') &&
+        (def?.type === 'UNIT' || def?.type === 'TOKEN' || def?.type === 'GEAR') &&
         hasKeyword(def, 'Temporary')
       );
     })
@@ -134,6 +147,7 @@ export function temporaryOnBeginning(
     o.zone = { kind: 'trash', player: o.owner };
     o.damage = 0;
     o.mightBonus = 0;
+    delete o.attachedTo; // Temporary Gear: it leaves its unit too
     detachAll(s, o.id);
     events.push({ type: 'UNIT_KILLED', unitId: o.id });
   }
@@ -253,10 +267,13 @@ export function playHiddenCard(
         : [...def.keywords, { name: 'Reaction' as const }],
     },
   };
+  // 811: Hidden permanents (Gear included) are played to the battlefield they were hidden at.
   const location: PlayCardIntent['location'] =
-    def.type === 'UNIT' ? { kind: 'battlefield', battlefieldId: bfId } : intent.location;
+    def.type === 'UNIT' || def.type === 'GEAR'
+      ? { kind: 'battlefield', battlefieldId: bfId }
+      : intent.location;
   const adjusted: PlayCardIntent = { ...intent, ...(location ? { location } : {}) };
-  return playCard(work, patched, adjusted, resolver, hooks);
+  return playCard(work, patched, adjusted, resolver, { ...hooks, hiddenAt: bfId });
 }
 
 /**
@@ -294,11 +311,10 @@ export function deflectExtraCost(
   targets: Target[],
 ): CostMod | null {
   let total = 0;
-  const seen = new Set<string>();
+  // 809: charged for each time a Deflect permanent is chosen as a target (no per-object dedupe).
   for (const t of targets) {
-    if (t.kind !== 'object' || seen.has(t.id)) continue;
-    seen.add(t.id);
-    const o = isUnitOnBoard(state, cards, t.id);
+    if (t.kind !== 'object') continue;
+    const o = permanentOnBoard(state, cards, t.id);
     if (!o || o.controller === playerId) continue;
     const def = cards[o.cardId] as CardDef;
     for (const k of def.keywords) if (k.name === 'Deflect') total += k.value ?? 1;
@@ -363,7 +379,7 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   if (!unit) return ruleError('EQUIP_ILLEGAL', 'target is not a unit on the board');
   if (unit.controller !== pid) return ruleError('EQUIP_ILLEGAL', 'you do not control that unit');
 
-  const cost: TotalCost = { energy: keywordValue(eqDef, 'Equip'), power: [] };
+  const cost = equipTotalCost(state, cards, eqDef, unit);
   const plan = autoPlan(state, cards, pid, cost);
   if (!plan) return ruleError('INSUFFICIENT_RESOURCES', 'cannot pay Equip');
   const paid = payCost(state, cards, pid, cost, plan);
@@ -384,6 +400,32 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   return finalizeAndSettle(pushPendingItem(work, item), cards, item.id);
 }
 
+/**
+ * Rule 818: total Equip cost. Energy and Power come from `CardDef.equipCost` ([C] = Power of the
+ * Equipment's domain(s), [A] = any domain). Without a parsed cost the legacy numeric keyword value
+ * is an Energy cost (0 = free). Non-resource parts are not enforced (see ASSUMPTIONS.md).
+ */
+export function equipTotalCost(
+  state: GameState,
+  cards: CardDatabase,
+  eqDef: CardDef,
+  unit?: CardInstance,
+): TotalCost {
+  const ec = eqDef.equipCost;
+  if (!ec) return { energy: keywordValue(eqDef, 'Equip'), power: [] };
+  let energy = ec.energy;
+  if (ec.energyReducedByMight && unit) {
+    const udef = cards[unit.cardId];
+    const might =
+      (udef?.stats.might ?? 0) + unit.mightBonus + attachedMightBonus(state, cards, unit.id);
+    energy = Math.max(0, energy - might);
+  }
+  return computeTotalCost(
+    { ...eqDef, cost: { energy, power: ec.power } },
+    { increases: ec.anyPower > 0 ? [{ anyPower: ec.anyPower }] : [] },
+  );
+}
+
 /** Index of the Equip activated ability on a piece of Equipment (the only ability modelled). */
 export const EQUIP_ABILITY_INDEX = 0;
 
@@ -397,7 +439,7 @@ export function quickDrawAttach(
   const gear = state.objects[gearId];
   const def = gear ? cards[gear.cardId] : undefined;
   if (!gear || !def) return ruleError('NOT_FOUND', `gear ${gearId}`);
-  if (def.type !== 'GEAR' || !hasKeyword(def, 'QuickDraw') || gear.zone.kind !== 'base') {
+  if (def.type !== 'GEAR' || !hasKeyword(def, 'QuickDraw') || !isOnBoard(gear)) {
     return ruleError('EQUIP_ILLEGAL', 'not a Quick-Draw gear on the board');
   }
   const unit = isUnitOnBoard(state, cards, unitId);
@@ -413,8 +455,22 @@ export function quickDrawAttach(
 export function attachedMightBonus(state: GameState, cards: CardDatabase, unitId: string): number {
   let bonus = 0;
   for (const o of Object.values(state.objects)) {
-    if (o.attachedTo !== unitId || o.zone.kind !== 'base') continue;
+    if (o.attachedTo !== unitId || !isOnBoard(o)) continue;
     bonus += cards[o.cardId]?.stats.might ?? 0;
   }
   return bonus;
+}
+
+// ---------------------------------------------------------------- Legion (812)
+
+/**
+ * Legion (812, dependent keyword): the Legion effect is active while `playerId` has played another
+ * card this turn, i.e. a card other than `sourceId` (the Legion card itself does not count). Plays
+ * are recorded by playCard (Hidden plays included) and only count for the current turn number.
+ * Pure read; the card effects that depend on it are not wired yet (see docs/progress/R6a).
+ */
+export function legionActive(state: GameState, playerId: PlayerId, sourceId: string): boolean {
+  const rec = state.players[playerIndex(playerId)].playedThisTurn;
+  if (!rec || rec.turn !== state.turn.number) return false;
+  return rec.objectIds.some((id) => id !== sourceId);
 }

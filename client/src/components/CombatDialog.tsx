@@ -115,7 +115,7 @@ function DamageAssignment({
         <p className="mt-1 text-sm text-slate-300">
           {`Combat at ${where}. Your units deal `}
           <strong data-testid="damage-total">{total}</strong>
-          {` damage in total. Tank units must take lethal damage first and Backline units last.`}
+          {` damage in total. Tank units must take lethal damage first and Backline units last (a unit with both may go first or last).`}
         </p>
 
         <ul aria-label="Enemy units" className="mt-4 flex flex-col gap-2">
@@ -135,7 +135,7 @@ function DamageAssignment({
                     <span
                       className={`rounded border px-1.5 text-[10px] font-semibold uppercase ${TIER_BADGE[u.tier]}`}
                     >
-                      {TIER_LABEL[u.tier]}
+                      {u.dual ? 'Tank or Backline' : TIER_LABEL[u.tier]}
                     </span>
                   </div>
                   <div className="text-xs text-slate-400">

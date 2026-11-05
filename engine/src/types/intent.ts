@@ -69,6 +69,11 @@ export interface EquipIntent extends IntentBase {
   equipmentId: string;
   unitId: string;
 }
+/** Turn player's answer to flow.pendingChoice: begin this battlefield's Showdown/Combat first. */
+export interface ChooseStagedIntent extends IntentBase {
+  type: 'CHOOSE_STAGED';
+  battlefieldId: string;
+}
 export interface ConcedeIntent extends IntentBase {
   type: 'CONCEDE';
 }
@@ -84,6 +89,7 @@ export type Intent =
   | HideCardIntent
   | ActivateAbilityIntent
   | EquipIntent
+  | ChooseStagedIntent
   | ConcedeIntent;
 
 export type IntentType = Intent['type'];
