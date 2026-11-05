@@ -3,6 +3,7 @@
  * Rule 359.3 (a spell's effects happen as it resolves, then it goes to the Trash).
  */
 import { drawWithBurnOut } from './burnout.js';
+import { effectiveMight } from './combat.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
@@ -12,15 +13,19 @@ import type {
   GameState,
   PlayerId,
   Target,
+  TargetedEffect,
 } from './types/index.js';
 
 /** The first targeted effect of a spell, if any. */
 export function targetedEffect(
   effects: readonly CardEffect[] | undefined,
-): Extract<CardEffect, { op: 'DAMAGE_TARGET' | 'BUFF_TARGET' }> | undefined {
+): TargetedEffect | undefined {
   return effects?.find(
-    (e): e is Extract<CardEffect, { op: 'DAMAGE_TARGET' | 'BUFF_TARGET' }> =>
-      e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET',
+    (e): e is TargetedEffect =>
+      e.op === 'DAMAGE_TARGET' ||
+      e.op === 'BUFF_TARGET' ||
+      e.op === 'KILL_TARGET' ||
+      e.op === 'READY_TARGET',
   );
 }
 
@@ -29,12 +34,24 @@ export function isLegalEffectTarget(
   state: GameState,
   cards: CardDatabase,
   controller: PlayerId,
-  e: Extract<CardEffect, { op: 'DAMAGE_TARGET' | 'BUFF_TARGET' }>,
+  e: TargetedEffect,
   u: CardInstance | undefined,
 ): boolean {
   if (!u || cards[u.cardId]?.type !== 'UNIT') return false;
   const onBoard = u.zone.kind === 'base' || u.zone.kind === 'battlefield';
-  if (!onBoard || (e.op === 'DAMAGE_TARGET' && e.atBattlefield && u.zone.kind !== 'battlefield')) {
+  if (
+    !onBoard ||
+    ((e.op === 'DAMAGE_TARGET' || e.op === 'KILL_TARGET') &&
+      e.atBattlefield &&
+      u.zone.kind !== 'battlefield')
+  ) {
+    return false;
+  }
+  if (
+    e.op === 'KILL_TARGET' &&
+    e.maxMight !== undefined &&
+    effectiveMight(state, cards, u.id, { role: null }) > e.maxMight
+  ) {
     return false;
   }
   const side = e.side ?? 'any';
@@ -59,7 +76,9 @@ export function runEffects(
         out.push(...drawWithBurnOut(state, controller, e.amount, cards));
         break;
       case 'DAMAGE_TARGET':
-      case 'BUFF_TARGET': {
+      case 'BUFF_TARGET':
+      case 'KILL_TARGET':
+      case 'READY_TARGET': {
         // Target must still be a unit on the board; otherwise the effect fizzles (no-op).
         const t = targets.find((x) => x.kind === 'object');
         const u = t?.kind === 'object' ? state.objects[t.id] : undefined;
@@ -71,7 +90,34 @@ export function runEffects(
         if (e.op === 'DAMAGE_TARGET') {
           u.damage += e.amount;
           out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount: e.amount });
+        } else if (e.op === 'KILL_TARGET') {
+          // Lethal damage: Cleanup (323) then moves it to the Trash.
+          const lethal = Math.max(1, effectiveMight(state, cards, u.id, { role: null })) - u.damage;
+          if (lethal > 0) u.damage += lethal;
+          out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount: Math.max(lethal, 0) });
+        } else if (e.op === 'READY_TARGET') {
+          u.ready = true;
+          out.push({ type: 'EFFECT_READIED', unitId: u.id });
         } else {
+          u.mightBonus += e.amount;
+          if (e.duration === 'TURN') u.tempMight = (u.tempMight ?? 0) + e.amount;
+          out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount: e.amount });
+        }
+        break;
+      }
+      case 'BUFF_ALL': {
+        const units = Object.values(state.objects)
+          .filter(
+            (o) =>
+              (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+              cards[o.cardId]?.type === 'UNIT' &&
+              (e.side === 'any' ||
+                (e.side === 'friendly'
+                  ? o.controller === controller
+                  : o.controller !== controller)),
+          )
+          .sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));
+        for (const u of units) {
           u.mightBonus += e.amount;
           if (e.duration === 'TURN') u.tempMight = (u.tempMight ?? 0) + e.amount;
           out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount: e.amount });

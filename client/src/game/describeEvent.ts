@@ -102,6 +102,8 @@ export function describeEvent(
       return `${event.amount} damage was dealt to a unit.`;
     case 'EFFECT_BUFF':
       return `A unit got +${event.amount} Might.`;
+    case 'EFFECT_READIED':
+      return `A unit was readied.`;
     case 'EFFECT_FIZZLED':
       return `A spell's target was gone, so it did nothing.`;
     case 'EFFECT_UNIMPLEMENTED':

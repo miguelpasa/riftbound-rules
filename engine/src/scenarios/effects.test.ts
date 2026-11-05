@@ -154,3 +154,57 @@ describe('scenario: "this turn" buffs', () => {
     expect(err.code).toBe('ILLEGAL_TARGET');
   });
 });
+
+describe('scenario: kill, ready and mass buff', () => {
+  const cast = (sc: Scenario, targets?: string[]) => {
+    const spell = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', spell, {
+      payment: sc.exhaustPlan('p0', 1),
+      ...(targets ? { targets: targets.map((id) => ({ kind: 'object' as const, id })) } : {}),
+    });
+    sc.pass('p1');
+    sc.pass('p0');
+  };
+
+  it('KILL_TARGET kills the unit through Cleanup', () => {
+    // Tests Rule 323: Cleanup trashes units dealt lethal damage
+    const sc = Scenario.start({}, withEffects([{ op: 'KILL_TARGET', side: 'enemy' }]));
+    const foe = sc.putUnit('p1', sc.kit('p1').titan, 'base');
+    cast(sc, [foe]);
+    expect(sc.obj(foe).zone.kind).toBe('trash');
+    sc.verify();
+  });
+
+  it('KILL_TARGET honours maxMight', () => {
+    // Tests Rule 355.10: only legal targets may be chosen
+    const sc = Scenario.start({}, withEffects([{ op: 'KILL_TARGET', maxMight: 2 }]));
+    const big = sc.putUnit('p1', sc.kit('p1').titan, 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    const err = sc.reject({
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: spell,
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: big }],
+    });
+    expect(err.code).toBe('ILLEGAL_TARGET');
+  });
+
+  it('READY_TARGET readies and BUFF_ALL buffs every friendly unit', () => {
+    // Tests Rule 359.3: effects resolve in printed order
+    const sc = Scenario.start(
+      {},
+      withEffects([{ op: 'READY_TARGET' }, { op: 'BUFF_ALL', amount: 1, side: 'friendly' }]),
+    );
+    const a = sc.putUnit('p0', sc.kit('p0').grunt, 'base');
+    const b = sc.putUnit('p0', sc.kit('p0').archer, 'base');
+    const foe = sc.putUnit('p1', sc.kit('p1').grunt, 'base');
+    sc.setReady(a, false);
+    cast(sc, [a]);
+    expect(sc.obj(a).ready).toBe(true);
+    expect(sc.obj(a).mightBonus).toBe(1);
+    expect(sc.obj(b).mightBonus).toBe(1);
+    expect(sc.obj(foe).mightBonus).toBe(0);
+    sc.verify();
+  });
+});

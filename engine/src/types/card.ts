@@ -109,7 +109,25 @@ export type CardEffect =
   /** Deal damage to the first object target (a unit on the board); Cleanup kills it if lethal. */
   | { op: 'DAMAGE_TARGET'; amount: number; side?: TargetSide; atBattlefield?: boolean }
   /** Give the first object target +amount Might (mightBonus). */
-  | { op: 'BUFF_TARGET'; amount: number; side?: TargetSide; duration?: 'TURN' };
+  | { op: 'BUFF_TARGET'; amount: number; side?: TargetSide; duration?: 'TURN' }
+  /** Kill the target unit (it is dealt lethal damage; Cleanup trashes it). */
+  | {
+      op: 'KILL_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      /** Only units whose current Might is at most this. */
+      maxMight?: number;
+    }
+  /** Ready the target unit. */
+  | { op: 'READY_TARGET'; side?: TargetSide }
+  /** Give every unit of `side` on the board +amount Might (no target). */
+  | { op: 'BUFF_ALL'; amount: number; side: TargetSide; duration?: 'TURN' };
+
+/** Effects that need one chosen unit. */
+export type TargetedEffect = Extract<
+  CardEffect,
+  { op: 'DAMAGE_TARGET' | 'BUFF_TARGET' | 'KILL_TARGET' | 'READY_TARGET' }
+>;
 
 export interface CardDef {
   /** Stable catalog id, shared by all copies. */

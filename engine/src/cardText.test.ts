@@ -19,6 +19,19 @@ describe('parseSpellText', () => {
     ]);
   });
 
+  it('parses kill, ready and mass-buff sentences', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    expect(parseSpellText('Kill a unit at a battlefield with 3 [M] or less.')).toEqual([
+      { op: 'KILL_TARGET', atBattlefield: true, maxMight: 3 },
+    ]);
+    expect(parseSpellText('Ready a friendly unit.')).toEqual([
+      { op: 'READY_TARGET', side: 'friendly' },
+    ]);
+    expect(parseSpellText('Give friendly units +1 [M] this turn.')).toEqual([
+      { op: 'BUFF_ALL', amount: 1, side: 'friendly', duration: 'TURN' },
+    ]);
+  });
+
   it('refuses anything it only partly understands', () => {
     // Tests Rule 359.3: never half-execute a spell
     expect(parseSpellText('Deal 3 to a unit. If this kills it, draw 1.')).toBeNull();

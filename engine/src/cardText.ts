@@ -53,9 +53,49 @@ export function parseSpellText(text: string): CardEffect[] | null {
       });
       continue;
     }
+    m =
+      /^Kill an? (?:(friendly|enemy) )?unit( at a battlefield)?(?: with (\d+) \[M\] or less)?$/i.exec(
+        sen,
+      );
+    if (m) {
+      const s = side(m[1]);
+      out.push({
+        op: 'KILL_TARGET',
+        ...(s ? { side: s } : {}),
+        ...(m[2] ? { atBattlefield: true } : {}),
+        ...(m[3] ? { maxMight: Number(m[3]) } : {}),
+      });
+      continue;
+    }
+    m = /^Ready an? (?:(friendly|enemy) )?unit$/i.exec(sen);
+    if (m) {
+      const s = side(m[1]);
+      out.push({ op: 'READY_TARGET', ...(s ? { side: s } : {}) });
+      continue;
+    }
+    m = /^Give (friendly|enemy) units \+(\d+) \[M\] this turn$/i.exec(sen);
+    if (m) {
+      out.push({
+        op: 'BUFF_ALL',
+        amount: Number(m[2]),
+        side: (m[1] ?? 'friendly').toLowerCase() as TargetSide,
+        duration: 'TURN',
+      });
+      continue;
+    }
     return null;
   }
   // The engine supports one target per spell: more than one targeted effect needs R2 follow-ups.
-  if (out.filter((e) => e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET').length > 1) return null;
+  if (
+    out.filter(
+      (e) =>
+        e.op === 'DAMAGE_TARGET' ||
+        e.op === 'BUFF_TARGET' ||
+        e.op === 'KILL_TARGET' ||
+        e.op === 'READY_TARGET',
+    ).length > 1
+  ) {
+    return null;
+  }
   return out;
 }
