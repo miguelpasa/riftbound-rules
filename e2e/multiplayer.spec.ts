@@ -29,8 +29,12 @@ test('multiplayer: host and guest play in sync with hidden hands', async ({ brow
     const guestHand = await handCardNames(guest);
     expect(hostHand.length).toBeGreaterThan(0);
     expect(guestHand.length).toBeGreaterThan(0);
-    const hostOnly = hostHand.filter((n) => !guestHand.includes(n));
-    const guestOnly = guestHand.filter((n) => !hostHand.includes(n));
+    // A name can legitimately appear inside another card's name ("Recruit (ZN)" vs "Recruit (NX)"),
+    // so only check names that are not a substring of anything the other seat may show.
+    const hostOnly = hostHand.filter((n) => !guestHand.some((g) => g.includes(n) || n.includes(g)));
+    const guestOnly = guestHand.filter(
+      (n) => !hostHand.some((h) => h.includes(n) || n.includes(h)),
+    );
     const guestHtml = await guest.content();
     const hostHtml = await host.content();
     for (const n of hostOnly)
