@@ -98,6 +98,11 @@ export function determinize(
     const n = Number(id.slice(1));
     if (/^o\d+$/.test(id) && n > maxNum) maxNum = n;
   }
+  // Chain item ids come from the same counter as object ids; never reuse them for invented ids.
+  for (const item of view.flow.chain) {
+    const n = Number(item.id.slice(1));
+    if (/^o\d+$/.test(item.id) && n > maxNum) maxNum = n;
+  }
   let nextNum = maxNum + 1;
 
   // ---- hidden tokens -> invented ids, in a deterministic order

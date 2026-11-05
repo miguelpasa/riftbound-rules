@@ -73,6 +73,8 @@ export interface BattlefieldState {
 export interface RunePool {
   energy: number;
   power: Partial<Record<Domain, number>>;
+  /** Universal Power [A]: pays a Power cost of any Domain (135.2.e.5.b, 163.2.b). */
+  universal?: number;
 }
 
 export interface PlayerState {

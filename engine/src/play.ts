@@ -154,6 +154,21 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   const s = structuredClone(state);
   const events: GameEventInput[] = [];
   const obj = s.objects[item.sourceObjectId];
+  if (obj && item.kind === 'ABILITY' && item.abilityIndex === 0) {
+    // Equip (151.2.a): attach if the Equipment and the unit are still legal; otherwise nothing.
+    const t = item.targets[0];
+    const unit = t?.kind === 'object' ? s.objects[t.id] : undefined;
+    if (
+      obj.zone.kind === 'base' &&
+      unit &&
+      (unit.zone.kind === 'base' || unit.zone.kind === 'battlefield') &&
+      unit.controller === item.controller &&
+      obj.controller === item.controller
+    ) {
+      obj.attachedTo = unit.id;
+    }
+    return { state: s, events };
+  }
   if (!obj || item.kind !== 'CARD') return { state: s, events };
   if (item.unimplementedEffect) events.push({ type: 'EFFECT_UNIMPLEMENTED', cardId: obj.cardId });
   const def = cards[obj.cardId];

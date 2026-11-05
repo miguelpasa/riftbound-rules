@@ -45,7 +45,16 @@ function PoolDisplay({ pool, label }: { pool: RunePool; label: string }) {
       >
         {`Energy ${pool.energy}`}
       </span>
-      {power.length === 0 ? (
+      {(pool.universal ?? 0) > 0 && (
+        <span
+          data-testid="pool-power-any"
+          title="Universal Power in the Rune Pool: pays a Power cost of any domain."
+          className="rounded-md border border-slate-300 px-2 py-0.5 font-semibold text-slate-100"
+        >
+          {`Any ${pool.universal}`}
+        </span>
+      )}
+      {power.length === 0 && (pool.universal ?? 0) === 0 ? (
         <span data-testid="pool-power-none" className="text-slate-500">
           No Power
         </span>

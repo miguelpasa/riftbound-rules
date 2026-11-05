@@ -14,6 +14,7 @@ import {
 } from './types/index.js';
 import {
   activateRune,
+  addUniversalPower,
   autoPlan,
   canAfford,
   computeTotalCost,
@@ -319,6 +320,17 @@ describe('payCost', () => {
     const s = makeState([], { power: { Mind: 1 } });
     const r = ok(payCost(s, CARDS, 'p0', cost(0, { domain: 'ANY', amount: 1 }), []));
     expect(r.state.players[0].runePool.power).toEqual({});
+  });
+
+  it('Universal Power [A] pays a Power cost of any Domain, after specific Power', () => {
+    // Tests Rule 135.2.e.5.b: [A] in the Rune Pool pays a Power cost of any Domain
+    const s = addUniversalPower(makeState([], { power: { Fury: 1 } }), 'p0', 2);
+    const r = ok(payCost(s, CARDS, 'p0', cost(0, { domain: 'Calm', amount: 2 }), []));
+    expect(r.state.players[0].runePool.universal).toBeUndefined();
+    expect(r.state.players[0].runePool.power).toEqual({ Fury: 1 });
+    // not enough: one Fury + a Calm cost of 3
+    const bad = payCost(s, CARDS, 'p0', cost(0, { domain: 'Calm', amount: 4 }), []);
+    expect('ok' in bad && bad.ok).toBe(false);
   });
 
   it('a two-domain card can pay [C] with either domain', () => {

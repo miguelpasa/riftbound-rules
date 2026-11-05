@@ -27,15 +27,16 @@
  *    controller has no unit, in which case the gear is played unattached. makePlayHooks().onEnter
  *    performs the attach from the chain item's first object target.
  */
-import { canPlayNow, deriveTurnState } from './chain.js';
+import { canPlayNow, deriveTurnState, finalizeAndSettle, pushPendingItem } from './chain.js';
 import type { ChainResolver } from './chain.js';
 import { playCard } from './play.js';
 import type { PlayHooks } from './play.js';
 import { autoPlan, payCost } from './resources.js';
 import type { CostMod, TotalCost } from './resources.js';
-import { stampEvents } from './setup.js';
+import { allocObjectId, stampEvents } from './setup.js';
 import { DEFERRED_KEYWORDS, MVP_KEYWORDS, playerIndex, ruleError } from './types/index.js';
 import type {
+  ChainItem,
   CardDatabase,
   CardDef,
   CardInstance,
@@ -338,6 +339,11 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   const pid = intent.playerId;
   const timing = canPlayNow(state, cards, pid, PLAIN_TIMING_DEF, { isAbility: true });
   if (!timing.ok) return timing;
+  // 151.2: a Gear's activated ability is usable only in your Main Phase during an Open State,
+  // never in a Showdown.
+  if (state.turnState.kind !== 'NEUTRAL') {
+    return ruleError('EQUIP_ILLEGAL', 'Equip cannot be activated during a Showdown (151.2)');
+  }
   const eq = state.objects[intent.equipmentId];
   const eqDef = eq ? cards[eq.cardId] : undefined;
   if (!eq || !eqDef) return ruleError('NOT_FOUND', `equipment ${intent.equipmentId}`);
@@ -359,9 +365,24 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   if (!plan) return ruleError('INSUFFICIENT_RESOURCES', 'cannot pay Equip');
   const paid = payCost(state, cards, pid, cost, plan);
   if (!paid.ok) return paid;
-  (paid.state.objects[eq.id] as CardInstance).attachedTo = unit.id;
-  return { ok: true, state: paid.state, events: [] };
+  // 151.2.a / 402.1: activating puts the ability on the Chain; the opponent may respond with a
+  // Reaction. The attachment happens when it resolves (see `playResolver`).
+  const work = paid.state;
+  const item: ChainItem = {
+    id: allocObjectId(work),
+    kind: 'ABILITY',
+    sourceObjectId: eq.id,
+    controller: pid,
+    status: 'PENDING',
+    targets: [{ kind: 'object', id: unit.id }],
+    choices: {},
+    abilityIndex: EQUIP_ABILITY_INDEX,
+  };
+  return finalizeAndSettle(pushPendingItem(work, item), cards, item.id);
 }
+
+/** Index of the Equip activated ability on a piece of Equipment (the only ability modelled). */
+export const EQUIP_ABILITY_INDEX = 0;
 
 /** Quick-Draw: attach gear that just entered play to a unit you control, at no cost. */
 export function quickDrawAttach(

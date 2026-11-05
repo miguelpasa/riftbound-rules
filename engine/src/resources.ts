@@ -11,8 +11,9 @@
  * - A recycled rune goes to the bottom (end of array) of its owner's runeDeck, is removed
  *   from the base and is set ready again (it is a fresh card in the deck).
  * - A rune produces Power of its first listed domain (`domains[0]`).
- * - Universal Power [A] cannot be stored in `RunePool.power` (Partial<Record<Domain, number>>),
- *   so it is not modelled; a cost's `ANY` entries are paid with Power of any domain.
+ * - Universal Power [A] lives in `RunePool.universal` and pays toward any Power demand (135.2.e.5,
+ *   163.2.b); `addUniversalPower` is the entry point for effects that Add [A]. Specific-domain
+ *   pool Power is spent first.
  */
 import type {
   ActivateRuneIntent,
@@ -216,7 +217,8 @@ export function activateRune(
 // ---------------------------------------------------------------------------------------
 
 interface Source {
-  domain: Domain;
+  /** 'ANY' = Universal Power [A], payable toward a Power demand of any Domain. */
+  domain: Domain | 'ANY';
   capacity: number;
   cost: number;
   /** Rune id for rune sources; undefined for the pool. */
@@ -246,7 +248,8 @@ function allocate(demand: PowerRequirement[], sources: Source[]): number[] | nul
   const S = 0;
   const domNode = (d: Domain): number => 1 + U + DOMAINS.indexOf(d);
   const T = 1 + U + DOMAINS.length;
-  const N = T + 1;
+  const UN = T + 1; // hub for Universal Power sources
+  const N = T + 2;
   const edges: Edge[] = [];
   const adj: number[][] = Array.from({ length: N }, () => []);
   const add = (a: number, b: number, cap: number, cost: number): number => {
@@ -260,7 +263,12 @@ function allocate(demand: PowerRequirement[], sources: Source[]): number[] | nul
     add(S, 1 + i, 1, 0);
     for (const d of allowed) add(1 + i, domNode(d), 1, 0);
   });
-  const srcEdge = sources.map((s) => add(domNode(s.domain), T, s.capacity, s.cost));
+  for (const d of DOMAINS) add(domNode(d), UN, U, 0);
+  const srcEdge = sources.map((s) =>
+    s.domain === 'ANY'
+      ? add(UN, T, s.capacity, s.cost)
+      : add(domNode(s.domain), T, s.capacity, s.cost),
+  );
 
   let flow = 0;
   while (flow < U) {
@@ -296,8 +304,10 @@ function allocate(demand: PowerRequirement[], sources: Source[]): number[] | nul
   return srcEdge.map((ei, i) => (sources[i] as Source).capacity - (edges[ei] as Edge).cap);
 }
 
-function poolSources(power: Partial<Record<Domain, number>>): Source[] {
+function poolSources(power: Partial<Record<Domain, number>>, universal = 0): Source[] {
   const out: Source[] = [];
+  // Spend specific Power before Universal Power (cost 1 vs 0 only matters for tie-breaks).
+  if (universal > 0) out.push({ domain: 'ANY', capacity: universal, cost: 1 });
   for (const d of DOMAINS) {
     const c = power[d] ?? 0;
     if (c > 0) out.push({ domain: d, capacity: c, cost: 0 });
@@ -339,11 +349,17 @@ export function payCost(
   }
   const pool = next.players[idx(playerId)].runePool;
   if (pool.energy < cost.energy) return ruleError('INSUFFICIENT_RESOURCES', 'not enough Energy');
-  const sources = poolSources(pool.power);
+  const sources = poolSources(pool.power, pool.universal);
   const flows = allocate(cost.power, sources);
   if (!flows) return ruleError('INSUFFICIENT_RESOURCES', 'not enough Power');
   pool.energy -= cost.energy;
   sources.forEach((s, i) => {
+    if (s.domain === 'ANY') {
+      const left = (pool.universal ?? 0) - (flows[i] as number);
+      if (left > 0) pool.universal = left;
+      else delete pool.universal;
+      return;
+    }
     const left = (pool.power[s.domain] ?? 0) - (flows[i] as number);
     if (left > 0) pool.power[s.domain] = left;
     else delete pool.power[s.domain];
@@ -367,7 +383,7 @@ export function autoPlan(
   const runes = getPlayerRunes(state, cards, playerId).filter(
     (r) => r.zone.kind === 'base' && r.zone.player === playerId,
   );
-  const sources = poolSources(pool.power);
+  const sources = poolSources(pool.power, pool.universal);
   const poolCount = sources.length;
   const recyclable: CardInstance[] = [];
   for (const r of runes) {
@@ -417,5 +433,13 @@ export function emptyRunePool(state: GameState, player: PlayerId): GameState {
 export function emptyAllRunePools(state: GameState): GameState {
   const next = structuredClone(state);
   for (const p of next.players) p.runePool = { energy: 0, power: {} };
+  return next;
+}
+
+/** Add Universal Power [A] to a player's Rune Pool (135.2.e.5.b). */
+export function addUniversalPower(state: GameState, player: PlayerId, amount: number): GameState {
+  const next = structuredClone(state);
+  const pool = next.players[idx(player)].runePool;
+  pool.universal = (pool.universal ?? 0) + amount;
   return next;
 }

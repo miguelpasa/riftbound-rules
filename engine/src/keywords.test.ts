@@ -5,7 +5,8 @@ import { validateDeck } from './deckValidation.js';
 import { playCard } from './play.js';
 import { effectiveMight } from './combat.js';
 import { getLegalActions } from './legalActions.js';
-import { reduce } from './reducer.js';
+import { ENGINE_HOOKS, reduce } from './reducer.js';
+import { passPriority } from './chain.js';
 import { autoPlan, computeTotalCost } from './resources.js';
 import { sanitizeEvents, sanitizeFor } from './sanitize.js';
 import {
@@ -570,25 +571,41 @@ describe('Equip', () => {
   }
   const eq = (s: GameState, equipmentId: string, unitId: string, p: PlayerId = 'p0') =>
     equip(s, CARDS, { type: 'EQUIP', playerId: p, equipmentId, unitId });
+  /** Activate Equip and let both players pass so the ability resolves off the Chain. */
+  const equipResolved = (s: GameState, equipmentId: string, unitId: string): GameState => {
+    const r = ok(eq(s, equipmentId, unitId));
+    expect(r.state.flow.chain).toHaveLength(1); // 151.2.a: on the Chain, opponent may respond
+    const a = ok(
+      passPriority(
+        r.state,
+        CARDS,
+        { type: 'PASS_PRIORITY', playerId: 'p1' },
+        ENGINE_HOOKS.resolver,
+      ),
+    ).state;
+    return ok(
+      passPriority(a, CARDS, { type: 'PASS_PRIORITY', playerId: 'p0' }, ENGINE_HOOKS.resolver),
+    ).state;
+  };
 
   it('attaches, pays the Equip energy cost, and grants a Might bonus', () => {
     // Tests Rule 818: Equip attaches Equipment to a unit you control
     const { s, sw, u1 } = board();
     const r = ok(eq(s, sw, u1));
-    expect(r.state.objects[sw]?.attachedTo).toBe(u1);
-    expect(r.state.players[0].runePool.energy).toBe(0);
-    expect(r.state.players[0].base.filter((i) => r.state.objects[i]?.ready === false)).toHaveLength(
-      1,
-    );
-    expect(attachedMightBonus(r.state, CARDS, u1)).toBe(2); // Rule 137.3
+    expect(r.state.objects[sw]?.attachedTo).toBeUndefined(); // not until it resolves
+    const done = equipResolved(s, sw, u1);
+    expect(done.objects[sw]?.attachedTo).toBe(u1);
+    expect(done.players[0].runePool.energy).toBe(0);
+    expect(done.players[0].base.filter((i) => done.objects[i]?.ready === false)).toHaveLength(1);
+    expect(attachedMightBonus(done, CARDS, u1)).toBe(2); // Rule 137.3
     expect(attachedMightBonus(s, CARDS, u1)).toBe(0);
   });
 
   it('reattaching moves the Equipment', () => {
     // Tests Rule 818: Equip may move attached Equipment to another unit
     const { s, sw, u1, u2 } = board();
-    const a = ok(eq(s, sw, u1)).state;
-    const b = ok(eq(a, sw, u2)).state;
+    const a = equipResolved(s, sw, u1);
+    const b = equipResolved(a, sw, u2);
     expect(b.objects[sw]?.attachedTo).toBe(u2);
     expect(attachedMightBonus(b, CARDS, u1)).toBe(0);
     expect(attachedMightBonus(b, CARDS, u2)).toBe(2);

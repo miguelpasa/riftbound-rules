@@ -10,7 +10,7 @@ Decisions made where the Core Rules (rev 2026-10-09) or the PRD are ambiguous.
 6. **Scoring is a step of the BEGINNING phase**, modelled by `turn.step = 'SCORING'`.
 
 - Exhausted runes may still be recycled for Power: the cost of the rune's Power ability is Recycle, not Exhaust (164.2.b). Only the Energy ability requires a ready rune. A recycled rune returns to the bottom of the Rune Deck.
-- Universal Power ([A]) is not modelled in the Rune Pool; a cost's "any domain" Power is paid with Power of any single domain. Revisit if a card needs to add [A] to the pool.
+- Universal Power [A] is modelled as `RunePool.universal` (pays any domain, spent after specific Power). `addUniversalPower` exists, but no card effect adds it yet (needs activated abilities, e.g. Gold tokens).
 - Hidden cards placed facedown must not emit a public CARD_PLAYED (it would leak cardId); use visibleTo:[controller] or a dedicated facedown event.
 - Equip keyword value is treated as an Energy cost (missing value = free); paid via auto-planned rune activations.
 - Deflect N is an additional Power cost payable with any domain; stacks per instance and per targeted Deflect unit.
@@ -21,7 +21,7 @@ Decisions made where the Core Rules (rev 2026-10-09) or the PRD are ambiguous.
 ## Known deviations
 
 - Quick-Draw: the attach target is chosen at play time (`PLAY_CARD` `targets[0]`, a unit you control on the board). If the controller has no unit the gear is played unattached, without an error.
-- Equip bypasses the Chain/cost model: it is resolved immediately as an activated ability with an Energy-only cost (no Chain item, no Reaction window for the opponent).
+- Equip is now a Chain ability (151.2.a): usable in your Main Phase in a Neutral Open state only, the opponent can respond, and the attachment happens on resolution. Its cost is still Energy only: the dataset gives a single number, but the official cost can include Power (206.1).
 - If several Showdowns/Combats are staged, the turn player does not choose: the one at the lowest battlefield index starts first (323.11/323.12).
 - A unit with both Tank and Backline is treated as Tank for damage assignment. Rule 467.2.c.8 lets the assigning player choose which of the two applies; the choice is not offered.
 - Hide is only allowed in a Neutral Open state (and only at a battlefield you control).
@@ -34,6 +34,6 @@ Confirmed correct: Burn Out procedure and repetition (432.2, 432.3, 432.3.a-c); 
 
 Fixed after this check: repeated Burn Out with an empty Main Deck and Trash; combat healing heals all units (468.1.a.1).
 
-Still deviating (see REMAINING.md): the turn player's choice of staged Showdown (R11); Tank+Backline choice (467.2.c.8); Equip as a Chain ability with Power+Energy cost, Main Phase Open State only (151.2, R9); Universal Power [A] in the Rune Pool (135.2.e.5, 163.2.b, R10).
+Still deviating (see REMAINING.md): the turn player's choice of staged Showdown (R11); Tank+Backline choice (467.2.c.8); Equip's Power cost.
 
 Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Ganking, Hidden, Shield, Tank, Temporary, Equip, Quick-Draw, Backline) was cut off when the page was fetched; read the official PDF linked from riftbound.gg/rules/core-rules to check the exact keyword text.
