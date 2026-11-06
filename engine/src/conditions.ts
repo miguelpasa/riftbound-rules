@@ -4,12 +4,15 @@
  * runes) and the SIZE of hands, never the contents of a hidden zone, so a sanitized state yields the
  * same answer as the full one.
  *
+ * R44: the source may also be a Battlefield card (its battlefield id), whose "here" is itself.
+ *
  * Moments (see docs/ASSUMPTIONS.md R43): a trigger's `when` is checked as the ability triggers (the
  * Chain item is not created otherwise) and again as it resolves; `entersReadyWhen` is checked as
  * the permanent enters.
  */
 import { playerIndex } from './types/constants.js';
 import { isUnitDef } from './tokens.js';
+import { hereOfSource } from './sources.js';
 import type {
   CardDatabase,
   CardInstance,
@@ -25,11 +28,6 @@ const compare = (value: number, cmp: CountCmp, n: number): boolean =>
 const onBoard = (o: CardInstance): boolean =>
   o.zone.kind === 'base' || o.zone.kind === 'battlefield';
 
-/** Battlefield id the object is at, or null (base, off the board, or missing). */
-function battlefieldOf(o: CardInstance | undefined): string | null {
-  return o && o.zone.kind === 'battlefield' ? o.zone.battlefieldId : null;
-}
-
 export function evalCondition(
   state: GameState,
   cards: CardDatabase,
@@ -37,10 +35,9 @@ export function evalCondition(
   controller: PlayerId,
   sourceId: string,
 ): boolean {
-  const source = state.objects[sourceId];
   switch (cond.kind) {
     case 'AT_BATTLEFIELD':
-      return battlefieldOf(source) !== null;
+      return hereOfSource(state, sourceId) !== null;
     case 'CONTROL_SUBTYPE':
       return Object.values(state.objects).some((o) => {
         const def = cards[o.cardId];
@@ -58,7 +55,10 @@ export function evalCondition(
       if (cond.where === 'hand') {
         return compare(state.players[playerIndex(side)].hand.length, cond.cmp, cond.n);
       }
-      const here = battlefieldOf(source);
+      if (cond.where === 'runeDeck') {
+        return compare(state.players[playerIndex(side)].runeDeck.length, cond.cmp, cond.n);
+      }
+      const here = hereOfSource(state, sourceId);
       if (cond.where === 'here' && here === null) return false;
       let count = 0;
       for (const o of Object.values(state.objects)) {

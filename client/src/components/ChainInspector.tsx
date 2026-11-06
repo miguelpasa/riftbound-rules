@@ -4,7 +4,7 @@ import { useGame } from '../app/gameApi';
 import { describeAbilityAt } from '../game/abilities';
 import { useGameStore } from '../store/gameStore';
 import { useIntentSender } from './useIntentSender';
-import { battlefieldName, defOf, nameOf, visibleObject } from './viewObjects';
+import { battlefieldCardName, battlefieldName, defOf, nameOf, visibleObject } from './viewObjects';
 
 const STATE_TOOLTIPS = {
   'NEUTRAL-true':
@@ -123,6 +123,10 @@ export function ChainInspector() {
   };
 
   const itemTitle = (item: ChainItem): string => {
+    if (item.sourceBattlefieldId !== undefined) {
+      // R44: the ability of a Battlefield card (not an object): show the card's name.
+      return `${battlefieldCardName(view, cards, item.sourceBattlefieldId)} (battlefield ability)`;
+    }
     if (item.kind === 'ABILITY') {
       // The source may be gone (killed as a cost), so fall back to the card id on the item (R40).
       const known = visibleObject(view, item.sourceObjectId)

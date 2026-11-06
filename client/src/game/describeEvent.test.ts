@@ -79,6 +79,7 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   UNIT_RETURNED: { seq: 42, type: 'UNIT_RETURNED', player: 'p1', unitId: 'o9', cardId: 'fx-grunt' },
   CARDS_LOOKED_AT: { seq: 43, type: 'CARDS_LOOKED_AT', player: 'p0', count: 3 },
   CARDS_RECYCLED: { seq: 44, type: 'CARDS_RECYCLED', player: 'p0', count: 2 },
+  CARDS_BURNED: { seq: 144, type: 'CARDS_BURNED', player: 'p0', count: 3 },
   CARD_REVEALED: {
     seq: 45,
     type: 'CARD_REVEALED',
@@ -178,6 +179,13 @@ describe('describeEvent', () => {
     expect(describeEvent(SAMPLES.TRIGGER_NO_TARGET, view, SCENARIO_CARDS)).toContain(
       'no legal target',
     );
+  });
+
+  it('names the Battlefield card behind a battlefield-sourced ability (R44)', () => {
+    const bfCard = SCENARIO_CARDS[view.battlefields[1]!.cardId]!.name;
+    const targeted: GameEvent = { ...SAMPLES.TRIGGER_NO_TARGET, sourceId: 'bf1' };
+    expect(describeEvent(targeted, view, SCENARIO_CARDS)).toContain(bfCard);
+    expect(describeEvent(SAMPLES.CARDS_BURNED, view, SCENARIO_CARDS)).toContain('3 cards');
   });
 
   it('classifies announcement and log events', () => {

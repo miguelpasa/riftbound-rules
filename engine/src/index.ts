@@ -25,7 +25,7 @@ export * from './ai/determinize.js';
 export * from './ai/evaluate.js';
 export * from './ai/bot.js';
 export * from './sandbox.js';
-export { parseCardAbilities, parseSpellText } from './cardText.js';
+export { parseBattlefieldAbilities, parseCardAbilities, parseSpellText } from './cardText.js';
 export {
   enumerateSpellTargets,
   isLegalEffectTarget,
@@ -34,6 +34,7 @@ export {
   targetRequirements,
 } from './effects.js';
 export { fireTriggers } from './triggers.js';
+export { itemSourceId, hereOfSource } from './sources.js';
 export { TOKEN_CARDS, GOLD_TOKEN_ID, isGearDef, isUnitDef, tokenIdFor } from './tokens.js';
 export { defWithTemp, GRANTABLE_KEYWORDS } from './tempKeywords.js';
 export { evalCondition } from './conditions.js';

@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { Scenario } from '../../../engine/src/testing/scenario.js';
+import type { CardDef } from '@riftbound/engine';
+import { Scenario, SCENARIO_CARDS } from '../../../engine/src/testing/scenario.js';
 import { GameProvider } from '../app/gameApi';
 import { ChainInspector } from './ChainInspector';
 import { combatShowdown } from './testing/combatScenario';
@@ -135,5 +136,34 @@ describe('ChainInspector', () => {
     mount(api);
     fireEvent.click(screen.getByRole('button', { name: 'Pass (resolve)' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('[Rule Error] nope');
+  });
+
+  it('names the Battlefield card for a battlefield-sourced ability (R44)', () => {
+    const cards = { ...SCENARIO_CARDS };
+    for (const id of ['fx-bf-1', 'fx-bf-2', 'fx-bf-3', 'fx-bf-4', 'fx-bf-5', 'fx-bf-6']) {
+      cards[id] = {
+        ...(SCENARIO_CARDS[id] as CardDef),
+        supportLevel: 'full',
+        triggers: [{ on: 'CONQUER', effects: [{ op: 'DRAW', amount: 1 }] }],
+      };
+    }
+    const sc = Scenario.start({}, cards);
+    const unit = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.do({
+      type: 'STANDARD_MOVE',
+      playerId: 'p0',
+      unitIds: [unit],
+      destination: { kind: 'battlefield', battlefieldId: 'bf1' },
+    });
+    sc.pass('p0');
+    sc.pass('p1');
+    expect(sc.state.flow.chain[0]?.sourceBattlefieldId).toBe('bf1');
+    const bfName = cards[sc.state.battlefields[1]!.cardId]!.name;
+    mount(fakeApi(sc, 'p1'));
+    const list = screen.getByRole('list', { name: 'Chain items, newest first' });
+    const [item] = within(list).getAllByRole('listitem');
+    expect(item).toHaveTextContent(bfName);
+    expect(item).toHaveTextContent('battlefield ability');
+    expect(item).not.toHaveTextContent('Unknown card');
   });
 });

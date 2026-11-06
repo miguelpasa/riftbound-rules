@@ -5,7 +5,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import Ajv from 'ajv';
-import { parseCardAbilities, parseRepeatCost, parseSpellText } from '../../engine/src/cardText';
+import {
+  parseBattlefieldAbilities,
+  parseCardAbilities,
+  parseRepeatCost,
+  parseSpellText,
+} from '../../engine/src/cardText';
 import { DOMAINS, MVP_KEYWORDS } from '../../engine/src/types/card';
 import type {
   CardDef,
@@ -296,6 +301,18 @@ export function convertRow(row: RawRow): ConvertResult {
       if (parsed.legionCostReduction !== undefined) {
         card.legionCostReduction = parsed.legionCostReduction;
       }
+      card.supportLevel = 'full';
+    }
+  }
+  // R44: Battlefield cards whose every sentence is a "When you hold / conquer / defend / attack here" trigger.
+  if (
+    type === 'BATTLEFIELD' &&
+    card.supportLevel === 'partial' &&
+    keywords.every((k) => MVP_SET.has(k.name))
+  ) {
+    const triggers = parseBattlefieldAbilities(text);
+    if (triggers) {
+      card.triggers = triggers;
       card.supportLevel = 'full';
     }
   }

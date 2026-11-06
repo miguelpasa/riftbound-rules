@@ -347,6 +347,11 @@ export function findMulligan(legal: readonly Intent[], cardIds: readonly string[
 
 export function cardNameOf(id: string, view: ClientGameState, cards: CardDatabase): string {
   const o = view.objects[id];
+  if (!o) {
+    // R44: the id of a Battlefield card's ability source is a battlefield id.
+    const bf = view.battlefields.find((b) => b.id === id);
+    if (bf) return cards[bf.cardId]?.name ?? 'Battlefield';
+  }
   if (!o || isHiddenCard(o)) return 'Face-down card';
   return cards[o.cardId]?.name ?? 'Card';
 }

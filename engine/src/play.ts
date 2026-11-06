@@ -206,6 +206,22 @@ export const playResolver: ChainResolver = (state, item, cards) => {
     }
     return { state: s, events };
   }
+  if (
+    item.kind === 'ABILITY' &&
+    item.sourceBattlefieldId !== undefined &&
+    item.triggerIndex !== undefined
+  ) {
+    // R44: a Battlefield card's trigger. Its "here" and conditions are the battlefield itself and
+    // "you" is the item's controller (the scorer / attacker / defender it was put on the Chain for).
+    const bf = s.battlefields.find((b) => b.id === item.sourceBattlefieldId);
+    const trig = bf ? cards[bf.cardId]?.triggers?.[item.triggerIndex] : undefined;
+    if (bf && trig && (!trig.when || evalCondition(s, cards, trig.when, item.controller, bf.id))) {
+      events.push(
+        ...runEffects(s, item.controller, trig.effects, cards, item.targets, bf.cardId, bf.id),
+      );
+    }
+    return { state: s, events };
+  }
   if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
     const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
     // R43: the general condition is checked again as the ability resolves.

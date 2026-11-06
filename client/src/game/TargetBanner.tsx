@@ -1,3 +1,4 @@
+import { itemSourceId } from '@riftbound/engine';
 import { cardNameOf, triggerDeclineIntent } from './interaction';
 import type { BoardUi } from './useBoardUi';
 
@@ -12,7 +13,7 @@ export function TargetBanner({ ui }: { ui: BoardUi }) {
   const pc = api.view.flow.pendingChoice;
   if (!t && pc?.kind === 'TRIGGER_TARGET' && pc.player !== api.seat && !api.gameOver) {
     const item = api.view.flow.chain.find((i) => i.id === pc.chainItemId);
-    const name = item ? cardNameOf(item.sourceObjectId, api.view, api.cards) : 'a card';
+    const name = item ? cardNameOf(itemSourceId(item), api.view, api.cards) : 'a card';
     return (
       <section
         aria-label="Waiting for targets"

@@ -6,7 +6,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import type { ActivateAbilityIntent, CardInstance, Intent } from '@riftbound/engine';
-import { isHiddenCard } from '@riftbound/engine';
+import { isHiddenCard, itemSourceId } from '@riftbound/engine';
 import type { GameApi } from '../app/gameApi';
 import { toastFromRuleError } from '../components/Toasts';
 import { abilityGroups, describeAbilityAt } from './abilities';
@@ -183,7 +183,7 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
         source: {
           kind: 'trigger',
           chainItemId: pendingTrigger.chainItemId,
-          sourceId: item?.sourceObjectId ?? '',
+          sourceId: item ? itemSourceId(item) : '',
         },
         chosen,
       };

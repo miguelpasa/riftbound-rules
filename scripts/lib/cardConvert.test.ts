@@ -316,3 +316,43 @@ describe('R43 converter wiring', () => {
     expect(conv('Spell', 'Give a unit [Deflect] this turn.')?.supportLevel).toBe('partial');
   });
 });
+
+describe('R44 converter wiring (Battlefield cards)', () => {
+  const conv = (text: string) =>
+    convertRow(
+      row({
+        cardType: 'Battlefield',
+        cardTypeLabels: ['Battlefield'],
+        energy: 0,
+        might: null,
+        abilityEffective: text,
+      }),
+    ).card;
+  const validate = createCardValidator();
+
+  it('makes a Battlefield card full when every sentence is a parsed trigger, and stores the triggers', () => {
+    const grove = conv('When you hold here, draw 1.');
+    expect(grove?.supportLevel).toBe('full');
+    expect(grove?.triggers).toEqual([{ on: 'HOLD', effects: [{ op: 'DRAW', amount: 1 }] }]);
+    expect(validate(grove)).toEqual([]);
+    const temple = conv(
+      'When you hold here, [Burn 3]. (Put the top 3 cards of your Main Deck into your trash.)',
+    );
+    expect(temple?.supportLevel).toBe('full');
+    expect(temple?.triggers?.[0]?.effects).toEqual([{ op: 'BURN', amount: 3 }]);
+  });
+
+  it('keeps Battlefield cards with any unparsed sentence partial', () => {
+    expect(conv('When you hold here, draw 1. Units here have +1 [M].')?.supportLevel).toBe(
+      'partial',
+    );
+    expect(conv('Units here have [Ganking].')?.supportLevel).toBe('partial');
+    expect(conv('When you conquer here, you may pay [1] to draw 1.')?.supportLevel).toBe('partial');
+    expect(conv('')?.supportLevel).toBe('full'); // vanilla stays full as before
+  });
+
+  it('does not give Units a battlefield-only head', () => {
+    const unit = convertRow(row({ abilityEffective: 'When you hold here, draw 1.' })).card;
+    expect(unit?.supportLevel).toBe('partial');
+  });
+});

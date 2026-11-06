@@ -7,6 +7,9 @@
  *  - HOLD / CONQUER: fires for the scoring player's units at the scored battlefield (BATTLEFIELD_SCORED).
  *  - DEATH (Deathknell): fires for a unit that died (UNIT_KILLED) and sits in its owner's Trash.
  *  - MOVE (R43): fires for a unit that moved to a battlefield (UNIT_MOVED).
+ *  - R44, Battlefield cards: "When you hold / conquer here" fires for the scoring player's battlefield (BATTLEFIELD_SCORED),
+ *    "When you attack / defend here" for the combat's attacker / defender (SHOWDOWN_STARTED isCombat). The Chain item
+ *    carries `sourceBattlefieldId` (no object); the battlefield's trigger is put on the Chain before the units' triggers.
  *  - ATTACK / DEFEND (R42): fire for each unit of the attacker / defender at the battlefield when a
  *    combat Showdown starts (SHOWDOWN_STARTED with isCombat; a unit is an Attacker iff its controller
  *    is the attacker, 466.2.c).
@@ -27,6 +30,7 @@ import { deriveTurnState } from './chain.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { abilityTargetsLegal, enumerateSpellTargets } from './effects.js';
 import { legionActive } from './keywords.js';
+import { itemSourceId } from './sources.js';
 import { evalCondition } from './conditions.js';
 import { ruleError } from './types/index.js';
 import type {
@@ -45,7 +49,10 @@ import type {
 } from './types/index.js';
 
 interface Pending {
-  source: CardInstance;
+  /** Object id, or (R44) the battlefield id of a Battlefield card's ability. */
+  sourceId: string;
+  cardId: string;
+  battlefield: boolean;
   index: number;
   controller: PlayerId;
 }
@@ -63,7 +70,20 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       if (t.condition === 'LEGION' && !legionActive(state, controller, obj.id)) return;
       // R43: a general condition must hold as the ability triggers.
       if (t.when && !evalCondition(state, cards, t.when, controller, obj.id)) return;
-      out.push({ source: obj, index, controller });
+      out.push({ sourceId: obj.id, cardId: obj.cardId, battlefield: false, index, controller });
+    });
+  };
+  /**
+   * R44: a Battlefield card's triggers ("When you hold / conquer / defend / attack here, ..."). The
+   * controller is the player the moment is about (the scorer, the defender, the attacker); a
+   * condition's "here" is the battlefield itself.
+   */
+  const addBattlefield = (battlefieldId: string, kind: TriggerKind, controller: PlayerId): void => {
+    const bf = state.battlefields.find((b) => b.id === battlefieldId);
+    cards[bf?.cardId ?? '']?.triggers?.forEach((t, index) => {
+      if (!bf || t.on !== kind) return;
+      if (t.when && !evalCondition(state, cards, t.when, controller, bf.id)) return;
+      out.push({ sourceId: bf.id, cardId: bf.cardId, battlefield: true, index, controller });
     });
   };
   for (const e of events) {
@@ -73,6 +93,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         add(o, 'PLAY', o.controller);
       }
     } else if (e.type === 'BATTLEFIELD_SCORED') {
+      addBattlefield(e.battlefieldId, e.method, e.player);
       for (const o of Object.values(state.objects)) {
         if (
           o.controller === e.player &&
@@ -102,6 +123,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     } else if (e.type === 'SHOWDOWN_STARTED' && e.isCombat) {
       const c = state.flow.combat;
       if (!c || c.battlefieldId !== e.battlefieldId) continue;
+      addBattlefield(e.battlefieldId, 'ATTACK', c.attacker);
+      addBattlefield(e.battlefieldId, 'DEFEND', c.defender);
       for (const o of Object.values(state.objects)) {
         if (
           o.zone.kind === 'battlefield' &&
@@ -134,19 +157,20 @@ export function fireTriggers(
   const raw: GameEventInput[] = [];
   let added = 0;
   for (const p of ordered) {
-    const effects = cards[p.source.cardId]?.triggers?.[p.index]?.effects;
-    const choices = enumerateSpellTargets(s, cards, p.controller, effects, p.source.id, {
+    const effects = cards[p.cardId]?.triggers?.[p.index]?.effects;
+    const choices = enumerateSpellTargets(s, cards, p.controller, effects, p.sourceId, {
       allowNone: true,
     });
     if (choices !== null && choices.length === 0) {
-      raw.push({ type: 'TRIGGER_NO_TARGET', player: p.controller, sourceId: p.source.id });
+      raw.push({ type: 'TRIGGER_NO_TARGET', player: p.controller, sourceId: p.sourceId });
       continue;
     }
     const auto = choices !== null && choices.length === 1 ? (choices[0] as Target[]) : undefined;
     const item: ChainItem = {
       id: allocObjectId(s),
       kind: 'ABILITY',
-      sourceObjectId: p.source.id,
+      sourceObjectId: p.battlefield ? '' : p.sourceId,
+      ...(p.battlefield ? { sourceBattlefieldId: p.sourceId } : {}),
       controller: p.controller,
       status: choices !== null && auto === undefined ? 'PENDING' : 'FINALIZED',
       targets: auto ?? [],
@@ -161,7 +185,7 @@ export function fireTriggers(
       raw.push({
         type: 'TRIGGER_TARGETED',
         player: p.controller,
-        sourceId: p.source.id,
+        sourceId: p.sourceId,
         targets: auto,
       });
     }
@@ -177,6 +201,14 @@ export function fireTriggers(
   return { state: s, events: stampEvents(s, raw) };
 }
 
+/** The card whose `triggers` a triggered ABILITY item runs: the object's, or (R44) the Battlefield card's. */
+export function triggerSourceCardId(state: GameState, item: ChainItem): string | undefined {
+  if (item.sourceBattlefieldId !== undefined) {
+    return state.battlefields.find((b) => b.id === item.sourceBattlefieldId)?.cardId;
+  }
+  return state.objects[item.sourceObjectId]?.cardId;
+}
+
 /** The effects of the triggered or activated ability behind a Chain item (undefined for others). */
 export function abilityItemEffects(
   state: GameState,
@@ -185,8 +217,10 @@ export function abilityItemEffects(
 ): readonly CardEffect[] | undefined {
   if (item.kind !== 'ABILITY') return undefined;
   const obj = state.objects[item.sourceObjectId];
-  if (item.triggerIndex !== undefined)
-    return obj ? cards[obj.cardId]?.triggers?.[item.triggerIndex]?.effects : undefined;
+  if (item.triggerIndex !== undefined) {
+    const cardId = triggerSourceCardId(state, item);
+    return cardId === undefined ? undefined : cards[cardId]?.triggers?.[item.triggerIndex]?.effects;
+  }
   if (item.activatedIndex !== undefined) {
     const cardId = item.sourceCardId ?? obj?.cardId ?? '';
     return cards[cardId]?.abilities?.[item.activatedIndex]?.effects;
@@ -231,14 +265,7 @@ export function chooseTriggerTarget(
   const effects = abilityItemEffects(state, cards, item);
   if (
     !Array.isArray(intent.targets) ||
-    !abilityTargetsLegal(
-      state,
-      cards,
-      item.controller,
-      effects,
-      intent.targets,
-      item.sourceObjectId,
-    )
+    !abilityTargetsLegal(state, cards, item.controller, effects, intent.targets, itemSourceId(item))
   ) {
     return ruleError('ILLEGAL_TARGET', 'those are not legal targets for this ability (355.10)');
   }
@@ -250,7 +277,7 @@ export function chooseTriggerTarget(
   delete s.flow.pendingChoice;
   askNextTrigger(s);
   const events = stampEvents(s, [
-    { type: 'TRIGGER_TARGETED', player: live.controller, sourceId: live.sourceObjectId, targets },
+    { type: 'TRIGGER_TARGETED', player: live.controller, sourceId: itemSourceId(live), targets },
   ]);
   return { ok: true, state: s, events };
 }

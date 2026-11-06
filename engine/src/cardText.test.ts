@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseCardAbilities, parseSpellText, parseTriggerText } from './cardText.js';
+import {
+  parseBattlefieldAbilities,
+  parseCardAbilities,
+  parseCondition,
+  parseSpellText,
+  parseTriggerText,
+} from './cardText.js';
 
 describe('parseSpellText', () => {
   it('parses draw, damage and buff sentences', () => {
@@ -499,5 +505,105 @@ describe('parseCardAbilities (R38)', () => {
       )?.triggers,
     ).toHaveLength(1);
     expect(parseCardAbilities('I enter ready if you control a battlefield.')).toBeNull();
+  });
+});
+
+describe('parseBattlefieldAbilities (R44)', () => {
+  it('rewrites "When you hold / conquer / defend here" into the trigger kinds', () => {
+    // Tests Rule 473.2: Hold and Conquer triggers of a Battlefield card
+    expect(parseBattlefieldAbilities('When you hold here, draw 1.')).toEqual([
+      { on: 'HOLD', effects: [{ op: 'DRAW', amount: 1 }] },
+    ]);
+    expect(parseBattlefieldAbilities('When you conquer here, draw 1.')?.[0]?.on).toBe('CONQUER');
+    expect(
+      parseBattlefieldAbilities('When you defend here, you may move a friendly unit here to base.'),
+    ).toEqual([
+      {
+        on: 'DEFEND',
+        effects: [
+          { op: 'MOVE_BASE_TARGET', side: 'friendly', here: true, count: { min: 0, max: 1 } },
+        ],
+      },
+    ]);
+  });
+
+  it('parses the effect shapes of the supported battlefield cards', () => {
+    // Tests Rule 473.2: the effects of Battlefield card triggers
+    const one = (t: string) => parseBattlefieldAbilities(t)?.[0];
+    expect(
+      one('When you hold here, [Burn 3]. (Put the top 3 cards of your Main Deck into your trash.)')
+        ?.effects,
+    ).toEqual([{ op: 'BURN', amount: 3 }]);
+    expect(
+      one('When you conquer here, put the top 2 cards of your Main Deck into your trash.')?.effects,
+    ).toEqual([{ op: 'BURN', amount: 2 }]);
+    expect(one('When you hold here, each player channels 1 rune exhausted.')?.effects).toEqual([
+      { op: 'CHANNEL', amount: 1, exhausted: true, eachPlayer: true },
+    ]);
+    expect(
+      one('When you conquer here, draw 1 for each other battlefield you or allies control.')
+        ?.effects,
+    ).toEqual([{ op: 'DRAW', amount: 1, perOtherBattlefield: true }]);
+    expect(
+      one('When you hold here, play a 1 [M] Recruit unit token in your base.')?.effects[0],
+    ).toMatchObject({ op: 'PLAY_TOKEN', count: 1 });
+    const vista = one('When you hold here, if your Rune Deck is empty, you score 1 point.');
+    expect(vista?.when).toEqual({
+      kind: 'COUNT',
+      what: 'card',
+      where: 'runeDeck',
+      who: 'friendly',
+      cmp: 'EQ',
+      n: 0,
+    });
+    expect(vista?.effects).toEqual([{ op: 'GAIN_POINT', amount: 1 }]);
+    const plaza = one('When you hold here, if you have 7+ units here, you win the game.');
+    expect(plaza?.when).toMatchObject({
+      kind: 'COUNT',
+      what: 'unit',
+      where: 'here',
+      cmp: 'GTE',
+      n: 7,
+    });
+    expect(plaza?.effects).toEqual([{ op: 'WIN_GAME' }]);
+  });
+
+  it('is all-or-nothing and refuses static, non-trigger and unsupported text', () => {
+    // Tests Rule 473.2: partially understood text is never half-executed
+    expect(parseBattlefieldAbilities('Units here have +1 [M].')).toBeNull();
+    expect(
+      parseBattlefieldAbilities('When you hold here, draw 1. Units here have [Ganking].'),
+    ).toBeNull();
+    expect(
+      parseBattlefieldAbilities('When you conquer here, you may pay [1] to draw 1.'),
+    ).toBeNull();
+    expect(
+      parseBattlefieldAbilities('When you hold here, activate the conquer effects of units here.'),
+    ).toBeNull();
+    expect(parseBattlefieldAbilities('When you win here, draw 1.')).toBeNull();
+    expect(parseBattlefieldAbilities('')).toBeNull();
+  });
+
+  it('parseCondition: units / gear "here" with "+" or "or more", and the Rune Deck', () => {
+    // Tests Rule 473.2: conditions evaluated at the battlefield
+    expect(parseCondition('you control 3+ gear here')).toMatchObject({
+      what: 'gear',
+      where: 'here',
+      cmp: 'GTE',
+      n: 3,
+    });
+    expect(parseCondition('you have two or more units here')).toMatchObject({
+      what: 'unit',
+      where: 'here',
+      cmp: 'GTE',
+      n: 2,
+    });
+    expect(parseCondition('you control 4 or fewer runes')).toMatchObject({
+      what: 'rune',
+      where: 'board',
+      cmp: 'LTE',
+      n: 4,
+    });
+    expect(parseCondition('you have 7+ cards here')).toBeNull();
   });
 });

@@ -127,7 +127,12 @@ export interface TargetScope {
 }
 
 export type CardEffect =
-  | { op: 'DRAW'; amount: number }
+  /** `perOtherBattlefield`: draw `amount` for each OTHER battlefield the controller controls (R44). */
+  | { op: 'DRAW'; amount: number; perOtherBattlefield?: boolean }
+  /** R44: put the top `amount` cards of the controller's Main Deck into their Trash ([Burn N]). */
+  | { op: 'BURN'; amount: number }
+  /** R44: the controller wins the game. */
+  | { op: 'WIN_GAME' }
   | { op: 'GAIN_POINT'; amount: number }
   /** Deal damage to the target unit(s); Cleanup kills a unit if lethal. */
   | ({
@@ -215,9 +220,9 @@ export type CardEffect =
   | { op: 'EXHAUST_ALL'; side: TargetSide }
   /**
    * Channel runes (431), optionally exhausted. If fewer than `amount` runes could be channeled,
-   * draw `elseDraw` ("If you can't, draw 1").
+   * draw `elseDraw` ("If you can't, draw 1"). `eachPlayer` (R44): every player channels, the controller first.
    */
-  | { op: 'CHANNEL'; amount: number; exhausted?: boolean; elseDraw?: number }
+  | { op: 'CHANNEL'; amount: number; exhausted?: boolean; elseDraw?: number; eachPlayer?: boolean }
   /**
    * Play `count` tokens (R3 round 2): `token` is a TOKEN_CARDS id (tokens.ts). They enter exhausted
    * unless `ready`, in the controller's Base, or at the source's location with `here`.
@@ -313,7 +318,7 @@ export type TargetedEffect = Extract<
  * `evalCondition` (conditions.ts) for a source object and its controller.
  *  - COUNT: number of `what` ("unit" | "gear" | "rune" | "card" in hand) that `who` controls in
  *    `where` ('here' = at the source's battlefield, false when the source is not at one; 'base';
- *    'board' = base + battlefields; 'hand'; 'runes' for runes), `other` excludes the source. Compared with `cmp` to `n`.
+ *    'board' = base + battlefields; 'hand'; 'runeDeck' = the size of the Rune Deck (R44)), `other` excludes the source. Compared with `cmp` to `n`.
  *  - CONTROL_SUBTYPE: the controller controls a Unit with the subtype/tag (`other`: not the source).
  *  - AT_BATTLEFIELD: the source is at a battlefield ("while I'm at a battlefield").
  */
@@ -322,7 +327,7 @@ export type Condition =
   | {
       kind: 'COUNT';
       what: 'unit' | 'gear' | 'rune' | 'card';
-      where: 'here' | 'base' | 'board' | 'hand';
+      where: 'here' | 'base' | 'board' | 'hand' | 'runeDeck';
       who: 'friendly' | 'enemy';
       other?: boolean;
       cmp: CountCmp;

@@ -13,6 +13,7 @@ import { effectiveMight } from './combat.js';
 import { equipTotalCost, hasKeyword, removeTokenFromGame } from './keywords.js';
 import { autoPlan, payCost } from './resources.js';
 import { allocObjectId } from './setup.js';
+import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
@@ -186,13 +187,9 @@ function legalForSpec(
       return false;
     }
     if (spec.here) {
-      const src = state.objects[sourceId];
-      if (
-        !src ||
-        src.zone.kind !== 'battlefield' ||
-        u.zone.kind !== 'battlefield' ||
-        u.zone.battlefieldId !== src.zone.battlefieldId
-      ) {
+      // R44: "here" is the source's battlefield, or the Battlefield card's own battlefield.
+      const here = hereOfSource(state, sourceId);
+      if (here === null || u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== here) {
         return false;
       }
     }
@@ -484,12 +481,12 @@ function playTokens(
   sourceObjectId: string,
   out: GameEventInput[],
 ): void {
-  const src = state.objects[sourceObjectId];
+  const here = opts.here ? hereOfSource(state, sourceObjectId) : null;
   for (let i = 0; i < count; i++) {
     const id = allocObjectId(state);
     const zone: CardInstance['zone'] =
-      opts.here && src?.zone.kind === 'battlefield'
-        ? { kind: 'battlefield', player: controller, battlefieldId: src.zone.battlefieldId }
+      here !== null
+        ? { kind: 'battlefield', player: controller, battlefieldId: here }
         : { kind: 'base', player: controller };
     state.objects[id] = {
       id,
@@ -537,8 +534,32 @@ export function runEffects(
   for (const e of effects) {
     if (state.gameStatus !== 'IN_PROGRESS') break;
     switch (e.op) {
-      case 'DRAW':
-        out.push(...drawWithBurnOut(state, controller, e.amount, cards));
+      case 'DRAW': {
+        // R44: "draw 1 for each other battlefield you control" (the source's own battlefield is excluded).
+        const here = hereOfSource(state, sourceObjectId);
+        const n = e.perOtherBattlefield
+          ? e.amount *
+            state.battlefields.filter((b) => b.controller === controller && b.id !== here).length
+          : e.amount;
+        if (n > 0) out.push(...drawWithBurnOut(state, controller, n, cards));
+        break;
+      }
+      case 'BURN': {
+        // R44: the top cards of the Main Deck go to the Trash; running out of cards is not a Burn Out.
+        const ps = state.players[playerIndex(controller)];
+        const milled = ps.mainDeck.splice(0, e.amount);
+        for (const id of milled) {
+          const o = state.objects[id];
+          if (o) o.zone = { kind: 'trash', player: o.owner };
+          ps.trash.push(id);
+        }
+        out.push({ type: 'CARDS_BURNED', player: controller, count: milled.length });
+        break;
+      }
+      case 'WIN_GAME':
+        state.gameStatus = 'FINISHED';
+        state.winner = controller;
+        out.push({ type: 'GAME_ENDED', winner: controller });
         break;
       case 'DAMAGE_TARGET':
       case 'BUFF_TARGET':
@@ -729,10 +750,15 @@ export function runEffects(
         }
         break;
       case 'CHANNEL': {
-        const r = channelRunes(state, controller, e.amount, e.exhausted === true);
-        out.push(...r.events);
-        if (r.channeled < e.amount && e.elseDraw) {
-          out.push(...drawWithBurnOut(state, controller, e.elseDraw, cards));
+        const players: PlayerId[] = e.eachPlayer
+          ? [controller, controller === 'p0' ? 'p1' : 'p0']
+          : [controller];
+        for (const who of players) {
+          const r = channelRunes(state, who, e.amount, e.exhausted === true);
+          out.push(...r.events);
+          if (r.channeled < e.amount && e.elseDraw) {
+            out.push(...drawWithBurnOut(state, who, e.elseDraw, cards));
+          }
         }
         break;
       }

@@ -32,6 +32,7 @@ import { enumerateSpellTargets } from './effects.js';
 import { hasUnitAt } from './play.js';
 import { applyIntent, reduce } from './reducer.js';
 import { abilityItemEffects } from './triggers.js';
+import { itemSourceId } from './sources.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
 import type { TotalCost } from './resources.js';
 import { isUnitDef } from './tokens.js';
@@ -305,7 +306,7 @@ export function getLegalActions(
             cards,
             item.controller,
             abilityItemEffects(state, cards, item),
-            item.sourceObjectId,
+            itemSourceId(item),
             { allowNone: true },
           ) ?? [])
         : [];

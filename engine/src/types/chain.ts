@@ -17,8 +17,13 @@ export type ChoiceValue = string | number | boolean | string[];
 export interface ChainItem {
   id: string;
   kind: 'CARD' | 'ABILITY';
-  /** Card instance (for CARD) or object whose ability this is. */
+  /** Card instance (for CARD) or object whose ability this is ('' for a Battlefield card's ability). */
   sourceObjectId: string;
+  /**
+   * R44: set for an ability of a Battlefield card ("When you conquer here, ..."), which is not an
+   * object. The id of its `BattlefieldState`; `sourceObjectId` is then ''. Absent for every other item.
+   */
+  sourceBattlefieldId?: string;
   controller: PlayerId;
   /** PENDING while being played (Rule 328); FINALIZED once costs paid. */
   status: 'PENDING' | 'FINALIZED';

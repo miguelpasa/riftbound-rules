@@ -21,6 +21,15 @@ export function nameOf(view: ClientGameState, cards: CardDatabase, id: string): 
   return defOf(view, cards, id)?.name ?? 'Unknown card';
 }
 
+/** The name of the Battlefield CARD at a battlefield id (R44), never the raw id when the card is known. */
+export function battlefieldCardName(
+  view: ClientGameState,
+  cards: CardDatabase,
+  battlefieldId: string,
+): string {
+  return battlefieldName(view, cards, battlefieldId);
+}
+
 export function battlefieldName(
   view: ClientGameState,
   cards: CardDatabase,

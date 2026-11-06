@@ -102,6 +102,24 @@ export function parseClause(sen: string): CardEffect[] | null {
       { op: 'CHANNEL', amount: Number(m[2]), exhausted: true },
     ];
   }
+  m = /^Each player channels? (\d+) runes?( exhausted)?$/i.exec(sen);
+  if (m) {
+    return [
+      {
+        op: 'CHANNEL',
+        amount: Number(m[1]),
+        eachPlayer: true,
+        ...(m[2] ? { exhausted: true } : {}),
+      },
+    ];
+  }
+  m =
+    /^\[Burn (\d+)\]$/i.exec(sen) ??
+    /^Put the top (\d+) cards? of your Main Deck into your trash$/i.exec(sen);
+  if (m) return [{ op: 'BURN', amount: Number(m[1]) }];
+  if (/^You win the game$/i.test(sen)) return [{ op: 'WIN_GAME' }];
+  m = /^Draw (\d+) for each other battlefield you(?: or allies)? control$/i.exec(sen);
+  if (m) return [{ op: 'DRAW', amount: Number(m[1]), perOtherBattlefield: true }];
   m = /^Channel (\d+) runes?( exhausted)?$/i.exec(sen);
   if (m) return [{ op: 'CHANNEL', amount: Number(m[1]), ...(m[2] ? { exhausted: true } : {}) }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
@@ -176,7 +194,7 @@ function parseTokenClause(sen: string): CardEffect | null {
     return { op: 'PLAY_TOKEN', token: GOLD_TOKEN_ID, count: n, ...(g[2] ? { ready: true } : {}) };
   }
   const m =
-    /^Play (an?|one|two|three|four|\d+) (ready )?(\d+) \[M\] (.+?) unit tokens?(?: with (\w+))?( here| (?:to|into|at) your base)?$/i.exec(
+    /^Play (an?|one|two|three|four|\d+) (ready )?(\d+) \[M\] (.+?) unit tokens?(?: with (\w+))?( here| (?:to|into|at|in) your base)?$/i.exec(
       sen,
     );
   if (!m) return null;
@@ -815,14 +833,17 @@ export function parseCondition(raw: string): Condition | null {
       n,
     };
   }
+  if (/^your Rune Deck is empty$/i.test(text)) {
+    return { kind: 'COUNT', what: 'card', where: 'runeDeck', who: 'friendly', cmp: 'EQ', n: 0 };
+  }
   m = new RegExp(
-    `^you (?:control|have) ${NUM}(?: or (more|fewer))? (other )?(units?|gear|runes?|cards?)(?: (in your base|in your hand))?$`,
+    `^you (?:control|have) ${NUM}(?:(\\+)| or (more|fewer))? (other )?(units?|gear|runes?|cards?)(?: (in your base|in your hand|here))?$`,
     'i',
   ).exec(text);
   if (m) {
     const n = numberOf(m[1]);
     if (n === null) return null;
-    const noun = (m[4] ?? '').toLowerCase();
+    const noun = (m[5] ?? '').toLowerCase();
     const what = noun.startsWith('unit')
       ? 'unit'
       : noun === 'gear'
@@ -830,22 +851,26 @@ export function parseCondition(raw: string): Condition | null {
         : noun.startsWith('rune')
           ? 'rune'
           : 'card';
-    const place = (m[5] ?? '').toLowerCase();
-    // "N cards" only makes sense in the hand; runes only on the board.
+    const place = (m[6] ?? '').toLowerCase();
+    // "N cards" only makes sense in the hand; runes only on the board; "here" holds units and gear.
     if ((what === 'card') !== (place === 'in your hand')) return null;
     if (what === 'rune' && place !== '') return null;
-    const where = place === 'in your base' ? 'base' : place === 'in your hand' ? 'hand' : 'board';
-    const cmp: CountCmp = /^more$/i.test(m[2] ?? '')
-      ? 'GTE'
-      : /^fewer$/i.test(m[2] ?? '')
-        ? 'LTE'
-        : 'EQ';
+    const where =
+      place === 'in your base'
+        ? 'base'
+        : place === 'in your hand'
+          ? 'hand'
+          : place === 'here'
+            ? 'here'
+            : 'board';
+    const cmp: CountCmp =
+      m[2] || /^more$/i.test(m[3] ?? '') ? 'GTE' : /^fewer$/i.test(m[3] ?? '') ? 'LTE' : 'EQ';
     return {
       kind: 'COUNT',
       what,
       where,
       who: 'friendly',
-      ...(m[3] ? { other: true } : {}),
+      ...(m[4] ? { other: true } : {}),
       cmp,
       n,
     };
@@ -1017,6 +1042,27 @@ export function parseCardAbilities(
     out.entersExhausted === true ||
     out.legionCostReduction !== undefined;
   return any ? out : null;
+}
+
+/**
+ * R44: the abilities of a Battlefield card: "When you hold / conquer / defend / attack here, <effects>".
+ * The text is rewritten to the unit forms ("When I hold, ...") and parsed by the same interpreter, so
+ * every effect and condition shape of triggered abilities is available; "here" is the battlefield
+ * itself and "you" the player the moment is about. Null unless the whole text is such triggers
+ * (all-or-nothing, like units). Static and "while you control this battlefield" text stays partial.
+ */
+export function parseBattlefieldAbilities(text: string): CardTrigger[] | null {
+  const rewritten = text.replace(
+    /(^|[.\n]\s*)When you (hold|conquer|defend|attack) here\b/gi,
+    (_m, pre: string, k: string) => `${pre}When I ${k.toLowerCase()}`,
+  );
+  const r = parseCardAbilities(rewritten);
+  if (!r || r.triggers.length === 0) return null;
+  if (r.abilities.length > 0 || r.entersReady || r.entersReadyWhen || r.entersExhausted)
+    return null;
+  if (r.legionCostReduction !== undefined || r.triggers.some((t) => t.condition)) return null;
+  if (r.triggers.some((t) => !['HOLD', 'CONQUER', 'DEFEND', 'ATTACK'].includes(t.on))) return null;
+  return r.triggers;
 }
 
 /** Triggered abilities only (kept for callers and tests): null unless the text has a trigger. */

@@ -23,7 +23,12 @@ function objectName(
   fallback = 'a card',
 ): string {
   const o = view.objects[id];
-  if (!o || isHiddenCard(o)) return fallback;
+  if (!o) {
+    // R44: the source of a Battlefield card's ability is a battlefield id; show the card's name.
+    const bf = view.battlefields.find((b) => b.id === id);
+    return (bf && cards[bf.cardId]?.name) || fallback;
+  }
+  if (isHiddenCard(o)) return fallback;
   return cards[o.cardId]?.name ?? fallback;
 }
 
@@ -94,8 +99,14 @@ export function describeEvent(
       return `A facedown card at ${battlefieldName(event.battlefieldId, view, cards)} was revealed: ${cards[event.cardId]?.name ?? 'a card'}.`;
     case 'EQUIPPED':
       return `${objectName(event.equipmentId, view, cards, 'Equipment')} was attached to ${objectName(event.unitId, view, cards, 'a unit')}.`;
-    case 'CHAIN_ITEM_ADDED':
+    case 'CHAIN_ITEM_ADDED': {
+      // R44: name the Battlefield card whose ability was put on the Chain.
+      const item = view.flow.chain.find((i) => i.id === event.chainItemId);
+      if (item?.sourceBattlefieldId !== undefined) {
+        return `${objectName(item.sourceBattlefieldId, view, cards, 'A battlefield')} triggered and its ability was added to the chain.`;
+      }
       return `${who(event.controller, view)} added an item to the chain.`;
+    }
     case 'CHAIN_ITEM_RESOLVED':
       return 'A chain item resolved.';
     case 'EFFECT_DAMAGE':
@@ -160,6 +171,8 @@ export function describeEvent(
       return `${who(event.player, view)} looked at the top ${plural(event.count, 'card')} of ${event.player === view.viewer ? 'your' : 'their'} Main Deck.`;
     case 'CARDS_RECYCLED':
       return `${who(event.player, view)} recycled ${plural(event.count, 'card')}.`;
+    case 'CARDS_BURNED':
+      return `${who(event.player, view)} put the top ${plural(event.count, 'card')} of ${event.player === view.viewer ? 'your' : 'their'} Main Deck into the Trash.`;
     case 'CARD_REVEALED':
       return `${who(event.player, view)} revealed ${cards[event.cardId]?.name ?? 'a card'}.`;
     case 'ABILITY_ACTIVATED':

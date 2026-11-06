@@ -61,19 +61,20 @@ Verification at the last commit: 435 engine tests, 298 client tests, 6 Playwrigh
 
 Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 and 2, target selection, spell parser, kill/ready/mass buff, Burn Out and heal fixes (R12/R13 part), Equip on the Chain (R9), Universal Power (R10), triggered abilities (R5 first slice), Pass-button banner fix. See the session log in [../REMAINING.md](../REMAINING.md).
 
-| ID                                   | Task                                                                                                 | Model  | Status      |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------- | ------ | ----------- |
-| [R36](R36-keyword-fixes.md)          | Keyword mismatch fixes (Equip cost, Quick-Draw, Hidden gear, Temporary/Deflect on gear, Hide timing) | Sonnet | Done        |
-| [R2](R2-click-to-target.md)          | Click-to-target on the board                                                                         | Sonnet | Done        |
-| [R11-R13](R11-R13-showdown-order.md) | Turn player chooses staged showdown order; Tank+Backline choice                                      | Sonnet | Done        |
-| [R29](R29-ai-profiling.md)           | AI profiling and tuning on real decks                                                                | Sonnet | Done        |
-| [R6a](R6a-legion-disarm.md)          | Legion tracking (Disarm blocked)                                                                     | Haiku  | Partial     |
-| [B2](B2-more-effects.md)             | Parser round 2: tokens, choose-a-unit, return/move to base, look at top                              | Sonnet | Done        |
-| R17 audit                            | Browser audit (docs/BROWSER_AUDIT.md)                                                                | Haiku  | In progress |
-| [R37](R37-reduce-performance.md)     | Engine reduce performance (working copy, reduce p50 1.5 -> 0.32 ms) | Medium | Sonnet | Done | `e909ed3` |
-| [R39a](R39a-tutorial-ui.md)          | Tutorial UI audit fixes (A-01,02,03,05,06,09,11)            | Medium | Sonnet | Done | `e909ed3` |
-| [R39b](R39b-deck-card-ui.md)         | Deck picker and card UI audit fixes (A-04,07,08,10,12,13)   | Medium | Sonnet | Done | `e909ed3` |
-| [R40](R40-ability-ui.md)             | Activate abilities from the UI (Gold, Seals), Gold in gear row, Legion cost display | Medium | Sonnet | Done | uncommitted |
-| [R41](R41-targeted-triggers.md)        | Targeted triggered and activated abilities (CHOOSE_TRIGGER_TARGET, 18 cards full) | High | Sonnet | Done | uncommitted |
-| [R42](R42-parser-round3.md)            | Parser round 3: attack/defend triggers, here/another scopes, optional targets, Disarm, Weaponmaster, Repeat (183 -> 206 cards full) | Medium/High | Sonnet | Done | uncommitted |
-| [R43](R43-ambush-conditions.md)           | Ambush, condition language (COUNT/CONTROL_SUBTYPE/AT_BATTLEFIELD), When I move, temporary keyword grants (206 -> 226 cards full) | High | Sonnet | Done | uncommitted |
+| ID                                   | Task                                                                                                                                | Model       | Status      |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------- |
+| [R36](R36-keyword-fixes.md)          | Keyword mismatch fixes (Equip cost, Quick-Draw, Hidden gear, Temporary/Deflect on gear, Hide timing)                                | Sonnet      | Done        |
+| [R2](R2-click-to-target.md)          | Click-to-target on the board                                                                                                        | Sonnet      | Done        |
+| [R11-R13](R11-R13-showdown-order.md) | Turn player chooses staged showdown order; Tank+Backline choice                                                                     | Sonnet      | Done        |
+| [R29](R29-ai-profiling.md)           | AI profiling and tuning on real decks                                                                                               | Sonnet      | Done        |
+| [R6a](R6a-legion-disarm.md)          | Legion tracking (Disarm blocked)                                                                                                    | Haiku       | Partial     |
+| [B2](B2-more-effects.md)             | Parser round 2: tokens, choose-a-unit, return/move to base, look at top                                                             | Sonnet      | Done        |
+| R17 audit                            | Browser audit (docs/BROWSER_AUDIT.md)                                                                                               | Haiku       | In progress |
+| [R37](R37-reduce-performance.md)     | Engine reduce performance (working copy, reduce p50 1.5 -> 0.32 ms)                                                                 | Medium      | Sonnet      | Done | `e909ed3`   |
+| [R39a](R39a-tutorial-ui.md)          | Tutorial UI audit fixes (A-01,02,03,05,06,09,11)                                                                                    | Medium      | Sonnet      | Done | `e909ed3`   |
+| [R39b](R39b-deck-card-ui.md)         | Deck picker and card UI audit fixes (A-04,07,08,10,12,13)                                                                           | Medium      | Sonnet      | Done | `e909ed3`   |
+| [R40](R40-ability-ui.md)             | Activate abilities from the UI (Gold, Seals), Gold in gear row, Legion cost display                                                 | Medium      | Sonnet      | Done | uncommitted |
+| [R41](R41-targeted-triggers.md)      | Targeted triggered and activated abilities (CHOOSE_TRIGGER_TARGET, 18 cards full)                                                   | High        | Sonnet      | Done | uncommitted |
+| [R42](R42-parser-round3.md)          | Parser round 3: attack/defend triggers, here/another scopes, optional targets, Disarm, Weaponmaster, Repeat (183 -> 206 cards full) | Medium/High | Sonnet      | Done | uncommitted |
+| [R43](R43-ambush-conditions.md)      | Ambush, condition language (COUNT/CONTROL_SUBTYPE/AT_BATTLEFIELD), When I move, temporary keyword grants (206 -> 226 cards full)    | High        | Sonnet      | Done | uncommitted |
+| [R44](R44-battlefield-triggers.md)   | Battlefield card triggers (hold/conquer/defend/attack here; BURN, WIN_GAME, each-player Channel; 226 -> 235 cards full)             | High        | Sonnet      | Done | uncommitted |
