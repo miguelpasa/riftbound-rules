@@ -10,6 +10,9 @@
  *    Closed state or Showdown, the others only in a Neutral Open state on your turn).
  *  - Costs: exhaust the source ([E]), Energy (paid from the Rune Pool, so `payment` may exhaust
  *    runes first) and "Kill this" (Gear or gear-like token; a token ceases to exist, 186.1).
+ *  - Card-choice costs (R46, `AbilityCost.card`): "Discard a gear, [1], [E]: ...", "Recycle 1 from your
+ *    trash: ...". The intent carries the chosen cards (`costCards`), checked before anything is paid and
+ *    paid together with the rest of the cost; [C] / [A] in the cost are paid like Energy (`payment`).
  *  - Targets (R41): an ability that chooses units takes `ACTIVATE_ABILITY.targets`, validated like a
  *    spell's (355.10) before any cost is paid and re-checked when it resolves (fizzles if illegal).
  */
@@ -21,7 +24,9 @@ import {
   abilityTargetsLegal,
   targetRequirements,
 } from './effects.js';
-import { autoPlan, payCost } from './resources.js';
+import { costCardCombos, costCardsLegal, costCardsPayable, payCostCards } from './costCards.js';
+import { autoPlan, genericPower, payCost } from './resources.js';
+import type { TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { isGearDef } from './tokens.js';
 import { ruleError } from './types/index.js';
@@ -47,6 +52,14 @@ export function isAddAbility(a: ActivatedAbility): boolean {
   return (
     a.effects.length > 0 && a.effects.every((e) => e.op === 'ADD_ENERGY' || e.op === 'ADD_POWER')
   );
+}
+
+/** The Energy / Power part of an ability cost ([C] = Power of the source card's Domain). */
+function abilityTotalCost(def: CardDef, a: ActivatedAbility): TotalCost {
+  const power: TotalCost['power'] = [];
+  if (a.cost.power) power.push(genericPower(def, a.cost.power));
+  if (a.cost.anyPower) power.push({ domain: 'ANY', amount: a.cost.anyPower });
+  return { energy: a.cost.energy ?? 0, power };
 }
 
 const targetRequirementsOf = (a: ActivatedAbility): boolean =>
@@ -88,13 +101,18 @@ export function activateAbility(
   if (ability.cost.exhaust && !src.ready) {
     return ruleError('UNIT_EXHAUSTED', `${src.id} is exhausted`);
   }
-  const paid = payCost(
-    state,
-    cards,
-    pid,
-    { energy: ability.cost.energy ?? 0, power: [] },
-    intent.payment ?? [],
-  );
+  // R46: the chosen cards are checked before anything is paid.
+  if (ability.cost.card) {
+    if (intent.costCards === undefined) {
+      return ruleError('MISSING_TARGET', 'choose the cards that pay the cost');
+    }
+    if (!costCardsLegal(state, cards, pid, src.id, ability.cost.card, intent.costCards)) {
+      return ruleError('ILLEGAL_TARGET', 'those cards cannot pay the cost');
+    }
+  } else if (intent.costCards !== undefined && intent.costCards.length > 0) {
+    return ruleError('ILLEGAL_TARGET', 'this ability has no card cost');
+  }
+  const paid = payCost(state, cards, pid, abilityTotalCost(def, ability), intent.payment ?? []);
   if (!paid.ok) return paid;
 
   const work = paid.state;
@@ -103,6 +121,9 @@ export function activateAbility(
     { type: 'ABILITY_ACTIVATED', player: pid, sourceId: src.id, abilityIndex: intent.abilityIndex },
   ];
   if (ability.cost.exhaust) obj.ready = false;
+  if (ability.cost.card && intent.costCards) {
+    events.push(...payCostCards(work, cards, pid, src.id, ability.cost.card, intent.costCards));
+  }
   if (ability.cost.killSelf) {
     killGear(work, obj);
     events.push({ type: 'GEAR_KILLED', gearId: src.id });
@@ -147,20 +168,29 @@ export function abilityCandidates(
     const abilities = cards[o.cardId]?.abilities;
     abilities?.forEach((a, abilityIndex) => {
       if (chainOnly && isAddAbility(a)) return;
-      const need = a.cost.energy ?? 0;
-      const payment = autoPlan(state, cards, pid, { energy: need, power: [] });
+      const def = cards[o.cardId];
+      if (!def) return;
+      const payment = autoPlan(state, cards, pid, abilityTotalCost(def, a));
       if (payment === null) return;
+      // R46: one candidate per choice of cost cards; none = not activatable.
+      if (a.cost.card && !costCardsPayable(state, cards, pid, o.id, a.cost.card)) return;
+      const picks: (string[] | undefined)[] = a.cost.card
+        ? costCardCombos(state, cards, pid, o.id, a.cost.card)
+        : [undefined];
       // R41: one candidate per target choice (capped by MAX_TARGET_COMBOS); none = not activatable.
       const choices = enumerateSpellTargets(state, cards, pid, a.effects, o.id) ?? [undefined];
-      for (const targets of choices) {
-        out.push({
-          type: 'ACTIVATE_ABILITY',
-          playerId: pid,
-          sourceId: o.id,
-          abilityIndex,
-          ...(targets ? { targets } : {}),
-          payment,
-        });
+      for (const costCards of picks) {
+        for (const targets of choices) {
+          out.push({
+            type: 'ACTIVATE_ABILITY',
+            playerId: pid,
+            sourceId: o.id,
+            abilityIndex,
+            ...(targets ? { targets } : {}),
+            ...(costCards ? { costCards } : {}),
+            payment,
+          });
+        }
       }
     });
   }

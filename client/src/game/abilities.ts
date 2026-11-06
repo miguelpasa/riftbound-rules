@@ -1,4 +1,4 @@
-import { legionActive } from '@riftbound/engine';
+import { costCardText, legionActive } from '@riftbound/engine';
 import type {
   ActivateAbilityIntent,
   ActivatedAbility,
@@ -66,6 +66,10 @@ export function describeAbility(def: CardDef, ability: ActivatedAbility): Abilit
   const parts: string[] = [];
   if (ability.cost.exhaust) parts.push('Exhaust');
   if (ability.cost.energy) parts.push(`${ability.cost.energy} Energy`);
+  if (ability.cost.power)
+    parts.push(`${ability.cost.power} Power (${def.domains.join(' or ') || 'any'})`);
+  if (ability.cost.anyPower) parts.push(`${ability.cost.anyPower} Power (any Domain)`);
+  if (ability.cost.card) parts.push(costCardText(ability.cost.card));
   if (ability.cost.killSelf) parts.push('Kill this');
   const cost = parts.length > 0 ? parts.join(', ') : 'No cost';
   const effects = ability.effects.map((e) => describeEffect(e, def));

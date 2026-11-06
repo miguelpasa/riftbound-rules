@@ -163,6 +163,8 @@ export type CardEffect =
       atBattlefield?: boolean;
       /** Only units whose current Might is at most this. */
       maxMight?: number;
+      /** R46: "kill a unit or gear": the target may also be a gear (killed like KILL_GEAR). */
+      orGear?: boolean;
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
@@ -351,6 +353,35 @@ export interface OptionalCost {
   power?: number;
   anyPower?: number;
   burn?: number;
+  /** R46: cards the controller picks and pays (discard / kill / exhaust / return / recycle). */
+  card?: CostCardChoice;
+}
+
+/**
+ * R46: a cost that needs the payer to CHOOSE cards ("discard 1", "kill a friendly unit", "exhaust a
+ * unit you control", "return a unit you control here to its owner's hand", "recycle a unit from your
+ * trash"). The choice is part of the intent (`DECIDE_OPTIONAL.costCards` / `ACTIVATE_ABILITY.costCards`),
+ * validated by the engine and paid atomically with the rest of the cost.
+ *  - DISCARD: cards from the payer's hand go to their Trash (the Trash is public, so the opponent only
+ *    learns the card once it is discarded).
+ *  - KILL: friendly units / gear on the board are killed (lethal damage / gear to the Trash; Deathknell
+ *    and the Cleanup follow as for any kill).
+ *  - EXHAUST: ready friendly units become exhausted.
+ *  - RETURN: friendly units / gear return to their owner's hand (tokens cease to exist).
+ *  - RECYCLE: cards from the payer's Trash go to the bottom of their Main Deck.
+ */
+export type CostCardKind = 'DISCARD' | 'KILL' | 'EXHAUST' | 'RETURN' | 'RECYCLE';
+
+export interface CostCardChoice {
+  kind: CostCardKind;
+  /** How many cards (default 1); all distinct. */
+  count?: number;
+  /** Which cards qualify: a card type for hand / Trash; unit, gear or either on the board. */
+  what?: 'unit' | 'gear' | 'unitOrGear' | 'spell';
+  /** Board kinds: at the source's battlefield ("a unit you control here"). */
+  here?: boolean;
+  /** Board kinds: not the ability's own source ("another friendly unit"). */
+  another?: boolean;
 }
 
 /** When a triggered ability fires (R5). */
@@ -391,6 +422,11 @@ export interface AbilityCost {
   energy?: number;
   /** "Kill this": the source (Gear / token Gear) is killed as a cost. */
   killSelf?: boolean;
+  /** R46: [C] (Power of the source's Domain) and [A] (any Power) in the cost, e.g. "[1][C], [E]:". */
+  power?: number;
+  anyPower?: number;
+  /** R46: a card-choice cost ("Discard a gear", "Recycle 1 from your trash"). */
+  card?: CostCardChoice;
 }
 
 /**

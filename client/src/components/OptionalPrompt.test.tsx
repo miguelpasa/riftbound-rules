@@ -188,3 +188,108 @@ describe('optional ability: host timeout and the wire (R45)', () => {
     expect(guest.view?.flow.pendingChoice).toBeUndefined();
   });
 });
+
+describe('optional ability with a card-choice cost (R46)', () => {
+  const DISCARD_TO_DRAW: CardTrigger = {
+    on: 'PLAY',
+    optional: { card: { kind: 'DISCARD' } },
+    effects: [{ op: 'DRAW', amount: 1 }],
+  };
+
+  it('lists the hand cards, enables the accept only with a chosen card and sends it', async () => {
+    const sc = paused(DISCARD_TO_DRAW);
+    const api = fakeApi(sc, 'p0');
+    mount(api);
+    expect(screen.getByTestId('optional-cost')).toHaveTextContent('Cost: Discard 1 card.');
+    const hand = sc.player('p0').hand;
+    for (const id of hand) expect(screen.getByTestId(`cost-card-${id}`)).toBeInTheDocument();
+    expect(screen.queryByTestId('optional-accept')).toBeNull(); // the picker's confirm is the accept
+    expect(screen.getByTestId('cost-confirm')).toBeDisabled();
+    fireEvent.click(screen.getByTestId(`cost-card-${hand[2]}`));
+    expect(screen.getByTestId(`cost-card-${hand[2]}`)).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('cost-confirm')).toBeEnabled();
+    fireEvent.click(screen.getByTestId(`cost-card-${hand[0]}`)); // one card only: replaces
+    expect(screen.getByTestId(`cost-card-${hand[2]}`)).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByTestId('cost-confirm'));
+    await waitFor(() => expect(api.send).toHaveBeenCalledTimes(1));
+    expect(api.send.mock.calls[0]![0]).toMatchObject({
+      type: 'DECIDE_OPTIONAL',
+      playerId: 'p0',
+      accept: true,
+      costCards: [hand[0]],
+    });
+  });
+
+  it('declining needs no card, and the opponent sees no picker and no hand card', () => {
+    const sc = paused(DISCARD_TO_DRAW);
+    const api = fakeApi(sc, 'p0');
+    mount(api);
+    fireEvent.click(screen.getByTestId('optional-decline'));
+    expect(api.send.mock.calls[0]![0]).toMatchObject({ type: 'DECIDE_OPTIONAL', accept: false });
+    expect(api.send.mock.calls[0]![0]).not.toHaveProperty('costCards');
+    cleanup();
+    const other = mount(fakeApi(sc, 'p1'));
+    expect(screen.queryByTestId('cost-picker')).toBeNull();
+    expect(screen.getByTestId('optional-waiting')).toBeInTheDocument();
+    for (const id of sc.player('p0').hand) expect(other.container.innerHTML).not.toContain(id);
+  });
+
+  it('a board cost lists the qualifying units with where they are', () => {
+    const trigger: CardTrigger = {
+      on: 'PLAY',
+      optional: { card: { kind: 'KILL', what: 'unit', another: true } },
+      effects: [{ op: 'DRAW', amount: 1 }],
+    };
+    const sc = Scenario.start({}, cardsWith(trigger));
+    sc.giveRunes('p0', 4);
+    const tank = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const unit = sc.putInHand('p0', 'fx-grunt');
+    sc.play('p0', unit, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+    sc.pass('p1');
+    sc.pass('p0');
+    mount(fakeApi(sc, 'p0'));
+    expect(screen.getByTestId('optional-cost')).toHaveTextContent('Kill another friendly unit');
+    expect(screen.getAllByTestId(/^cost-card-/)).toHaveLength(1);
+    expect(screen.getByTestId(`cost-card-${tank}`)).toHaveTextContent('in your base');
+  });
+
+  it('words a card cost next to the rune cost', () => {
+    expect(describeOptionalCost({ energy: 1, card: { kind: 'DISCARD' } }, [])).toBe(
+      'Pay 1 Energy, Discard 1 card',
+    );
+    expect(describeOptionalCost({ card: { kind: 'RETURN', what: 'unit', here: true } }, [])).toBe(
+      'Return a friendly unit here to hand',
+    );
+  });
+
+  it('the host timeout declines a card-choice ability and discards nothing', () => {
+    vi.useFakeTimers();
+    try {
+      const sc = paused(DISCARD_TO_DRAW);
+      const bridge = createHostBridge();
+      const session = new HostSession({
+        cards: sc.cards,
+        state: sc.state,
+        hostSeat: 'p0',
+        ...bridge.callbacks,
+      });
+      const timers = new HostTimers({
+        session,
+        cards: sc.cards,
+        bridge,
+        humanSeats: ['p0', 'p1'],
+        reactionWindowMs: 1000,
+      });
+      const hand = [...sc.player('p0').hand];
+      vi.advanceTimersByTime(1001);
+      const after = session.getFullStateForPersistence();
+      expect(after.flow.pendingChoice).toBeUndefined();
+      expect(after.players[0]!.hand).toEqual(hand);
+      expect(after.players[0]!.trash).toEqual(sc.player('p0').trash);
+      timers.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

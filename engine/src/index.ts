@@ -35,6 +35,7 @@ export {
 } from './effects.js';
 export { fireTriggers } from './triggers.js';
 export { optionalPlan, optionalTotalCost } from './optional.js';
+export { costCardCandidates, costCardCount, costCardText, type CostCardView } from './costCards.js';
 export { itemSourceId, hereOfSource } from './sources.js';
 export { TOKEN_CARDS, GOLD_TOKEN_ID, isGearDef, isUnitDef, tokenIdFor } from './tokens.js';
 export { defWithTemp, GRANTABLE_KEYWORDS } from './tempKeywords.js';

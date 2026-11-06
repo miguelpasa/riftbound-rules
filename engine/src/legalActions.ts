@@ -33,6 +33,7 @@ import { hasUnitAt } from './play.js';
 import { applyIntent, reduce } from './reducer.js';
 import { abilityItemEffects, triggerSourceCardId } from './triggers.js';
 import { optionalPlan } from './optional.js';
+import { costCardCombos } from './costCards.js';
 import { itemSourceId } from './sources.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
 import type { TotalCost } from './resources.js';
@@ -326,19 +327,23 @@ export function getLegalActions(
       // can be paid, with the automatic payment plan spelled out.
       const item = flow.chain.find((i) => i.id === pc.chainItemId);
       const cardId = item ? (triggerSourceCardId(state, item) ?? '') : '';
-      const plan = optionalPlan(state, cards, pc.player, cardId, pc.cost);
+      const sourceId = item ? itemSourceId(item) : '';
+      const plan = optionalPlan(state, cards, pc.player, cardId, pc.cost, sourceId);
+      // R46: a card-choice cost is one accept per choice of cards (capped by MAX_TARGET_COMBOS).
+      const picks: (string[] | undefined)[] = pc.cost.card
+        ? costCardCombos(state, cards, pc.player, sourceId, pc.cost.card)
+        : [undefined];
       const accept: Intent[] =
         plan === null
           ? []
-          : [
-              {
-                type: 'DECIDE_OPTIONAL',
-                playerId,
-                chainItemId: pc.chainItemId,
-                accept: true,
-                ...(plan.length > 0 ? { payment: plan } : {}),
-              },
-            ];
+          : picks.map((costCards): Intent => ({
+              type: 'DECIDE_OPTIONAL',
+              playerId,
+              chainItemId: pc.chainItemId,
+              accept: true,
+              ...(costCards ? { costCards } : {}),
+              ...(plan.length > 0 ? { payment: plan } : {}),
+            }));
       return keep([
         { type: 'DECIDE_OPTIONAL', playerId, chainItemId: pc.chainItemId, accept: false },
         ...accept,

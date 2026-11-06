@@ -347,7 +347,7 @@ describe('R44 converter wiring (Battlefield cards)', () => {
       'partial',
     );
     expect(conv('Units here have [Ganking].')?.supportLevel).toBe('partial');
-    expect(conv('When you conquer here, you may discard 1 to draw 1.')?.supportLevel).toBe(
+    expect(conv('When you conquer here, you may banish a card to draw 1.')?.supportLevel).toBe(
       'partial',
     );
     expect(conv('')?.supportLevel).toBe('full'); // vanilla stays full as before
@@ -368,8 +368,37 @@ describe('R44 converter wiring (Battlefield cards)', () => {
     expect(validate(unit)).toEqual([]);
     // costs the engine does not model keep the card partial
     expect(
-      convertRow(row({ abilityEffective: 'When I attack, you may discard 1 to draw 1.' })).card
+      convertRow(row({ abilityEffective: 'When I attack, you may banish a card to draw 1.' })).card
         ?.supportLevel,
+    ).toBe('partial');
+  });
+
+  it('stores card-choice costs (discard / kill / return / recycle) structurally (R46)', () => {
+    const monastery = conv(
+      'When you conquer here, you may discard 1 and channel 1 rune exhausted.',
+    );
+    expect(monastery?.supportLevel).toBe('full');
+    expect(monastery?.triggers).toEqual([
+      {
+        on: 'CONQUER',
+        optional: { card: { kind: 'DISCARD' } },
+        effects: [{ op: 'CHANNEL', amount: 1, exhausted: true }],
+      },
+    ]);
+    expect(validate(monastery)).toEqual([]);
+    const cruiser = convertRow(
+      row({ abilityEffective: 'Discard a gear, [T], [1]: Deal 4 to a unit at a battlefield.' }),
+    ).card;
+    expect(cruiser?.supportLevel).toBe('full');
+    expect(cruiser?.abilities?.[0]?.cost).toEqual({
+      card: { kind: 'DISCARD', what: 'gear' },
+      exhaust: true,
+      energy: 1,
+    });
+    expect(validate(cruiser)).toEqual([]);
+    // an enemy kill is not a cost, a second card choice is not modelled
+    expect(
+      convertRow(row({ abilityEffective: 'Kill an enemy unit, [T]: Draw 1.' })).card?.supportLevel,
     ).toBe('partial');
   });
 

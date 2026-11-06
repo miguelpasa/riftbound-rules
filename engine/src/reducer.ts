@@ -114,6 +114,11 @@ function isLocation(v: unknown): boolean {
   return v.kind === 'base' || (v.kind === 'battlefield' && isStr(v.battlefieldId));
 }
 
+/** R46: the cards chosen to pay a card-choice cost: a short list of object ids. */
+function isIdList(v: unknown): boolean {
+  return Array.isArray(v) && v.length <= 16 && v.every(isStr);
+}
+
 function isTarget(v: unknown): boolean {
   if (!isObj(v)) return false;
   if (v.kind === 'object') return isStr(v.id);
@@ -135,6 +140,8 @@ function shapeProblem(i: Obj): string | null {
     case 'CONCEDE':
       return null;
     case 'ACTIVATE_ABILITY':
+      if (!(i.costCards === undefined || isIdList(i.costCards)))
+        return 'costCards must be a list of ids';
       return i.targets === undefined || (Array.isArray(i.targets) && i.targets.every(isTarget))
         ? null
         : 'bad targets';
@@ -144,6 +151,8 @@ function shapeProblem(i: Obj): string | null {
     case 'DECIDE_OPTIONAL':
       if (!isStr(i.chainItemId)) return 'chainItemId must be a string';
       if (typeof i.accept !== 'boolean') return 'accept must be a boolean';
+      if (!(i.costCards === undefined || isIdList(i.costCards)))
+        return 'costCards must be a list of ids';
       return i.payment === undefined || isPayment(i.payment) ? null : 'bad payment';
     case 'PLAY_CARD':
       if (!isStr(i.cardInstanceId)) return 'cardInstanceId must be a string';

@@ -5,7 +5,12 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import type { ActivateAbilityIntent, CardInstance, Intent } from '@riftbound/engine';
+import type {
+  ActivateAbilityIntent,
+  CardInstance,
+  CostCardChoice,
+  Intent,
+} from '@riftbound/engine';
 import { isHiddenCard, itemSourceId } from '@riftbound/engine';
 import type { GameApi } from '../app/gameApi';
 import { toastFromRuleError } from '../components/Toasts';
@@ -46,7 +51,7 @@ export interface PopoverState {
 /** What a click-to-target flow chooses targets for (R41 adds abilities and triggers). */
 export type TargetSource =
   | { kind: 'play'; cardId: string }
-  | { kind: 'ability'; sourceId: string; abilityIndex: number }
+  | { kind: 'ability'; sourceId: string; abilityIndex: number; costCards?: string[] }
   | { kind: 'trigger'; chainItemId: string; sourceId: string };
 
 /** Active click-to-target flow for a spell, ability or trigger (derived from `legal`; never invented). */
@@ -67,6 +72,16 @@ export interface TargetingState {
   confirmOptions: { label: string; onSelect: () => void }[];
 }
 
+/** R46: an activated ability with a card-choice cost is waiting for the player to pick the cards. */
+export interface CostPickState {
+  sourceId: string;
+  abilityIndex: number;
+  cost: CostCardChoice;
+}
+
+const sameCards = (a: readonly string[] | undefined, b: readonly string[]): boolean =>
+  (a ?? []).length === b.length && b.every((x) => (a ?? []).includes(x));
+
 /** Everything the board components need to be interactive; derived from `api.legal`. */
 export interface BoardUi {
   api: GameApi;
@@ -85,6 +100,14 @@ export interface BoardUi {
   cancelTargeting: () => void;
   /** Start choosing the targets of a targeted activated ability (R41). */
   startAbilityTargeting: (sourceId: string, abilityIndex: number) => void;
+  /**
+   * Activate an ability the way its shape needs (R46): a card-choice cost opens the cost picker first,
+   * then the targets (if any) are clicked on the board, otherwise the first legal variant is sent.
+   */
+  activateAbility: (sourceId: string, abilityIndex: number) => void;
+  costPick: CostPickState | null;
+  confirmCostPick: (cards: string[]) => void;
+  cancelCostPick: () => void;
   closePopover: () => void;
   /** Sends an intent; shows the engine's rule error as a toast when rejected. Resolves true when accepted. */
   submit: (intent: Intent) => Promise<boolean>;
@@ -111,6 +134,7 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
   const [selected, setSelected] = useState<string[]>([]);
   const [dragIds, setDragIds] = useState<string[] | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [costPick, setCostPick] = useState<CostPickState | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [targetingRaw, setTargetingRaw] = useState<{
     source: Exclude<TargetSource, { kind: 'trigger' }>;
@@ -163,6 +187,70 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
     setTargetingRaw({ source: { kind: 'ability', sourceId, abilityIndex }, chosen: [] });
   }, []);
 
+  const activateAbility = useCallback(
+    (sourceId: string, abilityIndex: number) => {
+      setPopover(null);
+      const obj = view.objects[sourceId];
+      const def = obj && !isHiddenCard(obj) ? cards[obj.cardId] : undefined;
+      const cost = def?.abilities?.[abilityIndex]?.cost.card;
+      if (cost) {
+        setTargetingRaw(null);
+        setCostPick({ sourceId, abilityIndex, cost });
+        return;
+      }
+      if (abilityTargetedVariants(legal, sourceId, abilityIndex, view).length > 0) {
+        setTargetingRaw({ source: { kind: 'ability', sourceId, abilityIndex }, chosen: [] });
+        return;
+      }
+      const first = legal.find(
+        (i): i is ActivateAbilityIntent =>
+          i.type === 'ACTIVATE_ABILITY' &&
+          i.sourceId === sourceId &&
+          i.abilityIndex === abilityIndex,
+      );
+      if (first) void submit(first);
+    },
+    [view, cards, legal, submit],
+  );
+
+  const cancelCostPick = useCallback(() => setCostPick(null), []);
+
+  const confirmCostPick = useCallback(
+    (chosen: string[]) => {
+      const pick = costPick;
+      if (!pick) return;
+      setCostPick(null);
+      const mine = legal.filter(
+        (i): i is ActivateAbilityIntent =>
+          i.type === 'ACTIVATE_ABILITY' &&
+          i.sourceId === pick.sourceId &&
+          i.abilityIndex === pick.abilityIndex,
+      );
+      const matching = mine.filter((i) => sameCards(i.costCards, chosen));
+      const scoped = legal.filter(
+        (i) =>
+          !mine.includes(i as ActivateAbilityIntent) ||
+          matching.includes(i as ActivateAbilityIntent),
+      );
+      if (abilityTargetedVariants(scoped, pick.sourceId, pick.abilityIndex, view).length > 0) {
+        setTargetingRaw({
+          source: {
+            kind: 'ability',
+            sourceId: pick.sourceId,
+            abilityIndex: pick.abilityIndex,
+            costCards: chosen,
+          },
+          chosen: [],
+        });
+        return;
+      }
+      // The engine lists a capped set of card choices; any legal choice is sent with the cards swapped in.
+      const template = matching[0] ?? mine[0];
+      if (template) void submit({ ...template, costCards: chosen });
+    },
+    [costPick, legal, view, submit],
+  );
+
   const submitTargeted = useCallback(
     async (intent: TargetedIntent): Promise<void> => {
       if (await submit(intent)) {
@@ -196,8 +284,22 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       switch (source.kind) {
         case 'play':
           return targetedVariants(legal, source.cardId, view);
-        case 'ability':
-          return abilityTargetedVariants(legal, source.sourceId, source.abilityIndex, view);
+        case 'ability': {
+          // R46: only the variants that pay with the cards already chosen.
+          const cc = source.costCards;
+          const scoped = cc
+            ? legal.filter(
+                (i) =>
+                  !(
+                    i.type === 'ACTIVATE_ABILITY' &&
+                    i.sourceId === source.sourceId &&
+                    i.abilityIndex === source.abilityIndex
+                  ) ||
+                  (i.type === 'ACTIVATE_ABILITY' && sameCards(i.costCards, cc)),
+              )
+            : legal;
+          return abilityTargetedVariants(scoped, source.sourceId, source.abilityIndex, view);
+        }
         case 'trigger':
           return triggerTargetVariants(legal, source.chainItemId, view);
       }
@@ -256,6 +358,15 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
     },
     [targeting, variantsOf, setChosen, submitTargeted],
   );
+
+  useEffect(() => {
+    if (!costPick) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCostPick(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [costPick]);
 
   const targetingActive = targeting !== null && targeting.cancelable;
   useEffect(() => {
@@ -391,18 +502,11 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       }
       for (const g of abilityGroups(legal, id)) {
         const d = describeAbilityAt(cards[obj.cardId], g.abilityIndex);
-        const first = g.variants[0] as ActivateAbilityIntent;
         const targeted = abilityTargetedVariants(legal, id, g.abilityIndex, view).length > 0;
+        const paid = cards[obj.cardId]?.abilities?.[g.abilityIndex]?.cost.card !== undefined;
         items.push({
-          label: `Activate: ${d?.summary ?? `ability ${g.abilityIndex + 1}`}${targeted ? ' (choose target)' : ''}`,
-          onSelect: () => {
-            if (targeted) {
-              startAbilityTargeting(id, g.abilityIndex);
-            } else {
-              setPopover(null);
-              void submit(first);
-            }
-          },
+          label: `Activate: ${d?.summary ?? `ability ${g.abilityIndex + 1}`}${paid ? ' (choose cards)' : targeted ? ' (choose target)' : ''}`,
+          onSelect: () => activateAbility(id, g.abilityIndex),
         });
       }
       if (items.length === 0) {
@@ -414,7 +518,7 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       }
       setPopover({ title: cardNameOf(id, view, cards), items, x: e.clientX, y: e.clientY });
     },
-    [view, legal, cards, submit, startAbilityTargeting],
+    [view, legal, cards, submit, activateAbility],
   );
 
   const startDrag = useCallback(
@@ -449,6 +553,10 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
     pickTarget,
     cancelTargeting,
     startAbilityTargeting,
+    activateAbility,
+    costPick,
+    confirmCostPick,
+    cancelCostPick,
     closePopover,
     submit,
     clickUnit,

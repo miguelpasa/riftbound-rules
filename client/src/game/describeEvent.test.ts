@@ -103,6 +103,15 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
     targets: [{ kind: 'object', id: myCard.id }],
   },
   TRIGGER_NO_TARGET: { seq: 49, type: 'TRIGGER_NO_TARGET', player: 'p0', sourceId: myCard.id },
+  COST_CARDS_PAID: {
+    seq: 51,
+    type: 'COST_CARDS_PAID',
+    player: 'p0',
+    sourceId: myCard.id,
+    kind: 'DISCARD',
+    cardIds: ['o1'],
+    cardNames: ['Cinder Grunt'],
+  },
   OPTIONAL_EFFECT_DECIDED: {
     seq: 50,
     type: 'OPTIONAL_EFFECT_DECIDED',
@@ -197,6 +206,21 @@ describe('describeEvent', () => {
       accepted: false,
     } as GameEvent;
     expect(describeEvent(declined, view, SCENARIO_CARDS)).toContain('declined');
+  });
+
+  it('words each kind of card-choice cost (R46)', () => {
+    const base = SAMPLES.COST_CARDS_PAID as Extract<GameEvent, { type: 'COST_CARDS_PAID' }>;
+    expect(describeEvent(base, view, SCENARIO_CARDS)).toContain(
+      'discarded Cinder Grunt to pay for',
+    );
+    for (const [kind, word] of [
+      ['KILL', 'killed'],
+      ['EXHAUST', 'exhausted'],
+      ['RETURN', 'returned to hand'],
+      ['RECYCLE', 'recycled from their Trash'],
+    ] as const) {
+      expect(describeEvent({ ...base, kind }, view, SCENARIO_CARDS)).toContain(word);
+    }
   });
 
   it('names the Battlefield card behind a battlefield-sourced ability (R44)', () => {

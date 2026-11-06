@@ -201,7 +201,7 @@ function runTrigger(
   if (trig.optional) {
     const player = item.controller;
     if (item.optionalDecision === undefined) {
-      if (optionalPlan(s, cards, player, cardId, trig.optional) === null) {
+      if (optionalPlan(s, cards, player, cardId, trig.optional, sourceId) === null) {
         events.push({ type: 'OPTIONAL_EFFECT_DECIDED', player, sourceId, accepted: false });
         return;
       }

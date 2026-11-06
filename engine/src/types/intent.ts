@@ -63,6 +63,8 @@ export interface ActivateAbilityIntent extends IntentBase {
   sourceId: string;
   abilityIndex: number;
   targets?: Target[];
+  /** R46: the cards that pay a card-choice cost (`AbilityCost.card`): object ids, validated by the engine. */
+  costCards?: string[];
   payment: PaymentPlan;
 }
 export interface EquipIntent extends IntentBase {
@@ -95,6 +97,8 @@ export interface DecideOptionalIntent extends IntentBase {
   chainItemId: string;
   accept: boolean;
   payment?: PaymentPlan;
+  /** R46: the cards that pay a card-choice cost (`OptionalCost.card`); required on accept when the cost has one. */
+  costCards?: string[];
 }
 export interface ConcedeIntent extends IntentBase {
   type: 'CONCEDE';

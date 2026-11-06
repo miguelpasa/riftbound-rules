@@ -473,7 +473,8 @@ describe('parseCardAbilities (R38)', () => {
     expect(parseCardAbilities('Kill this, [E]: [Add] [A].')).toBeNull(); // not gear-like
     expect(parseCardAbilities('[E]: [Action] — [Add] [A][A].')).toBeNull();
     expect(parseCardAbilities('[E]: [Reaction] — [Add] [2]. Use only to play spells.')).toBeNull();
-    expect(parseCardAbilities('Kill a friendly unit or gear, [E]: [Add] [A].')).toBeNull();
+    expect(parseCardAbilities('Kill an enemy unit, [E]: [Add] [A].')).toBeNull(); // not a cost
+    expect(parseCardAbilities('Discard 1, Discard 1: [Add] [A].')).toBeNull(); // one card choice
     expect(parseCardAbilities('[E]: Give a unit +3 [M] this turn. Then fly.')).toBeNull();
   });
 
@@ -575,7 +576,9 @@ describe('parseBattlefieldAbilities (R44)', () => {
       parseBattlefieldAbilities('When you hold here, draw 1. Units here have [Ganking].'),
     ).toBeNull();
     expect(
-      parseBattlefieldAbilities('When you conquer here, you may pay [1] and discard 1 to draw 1.'),
+      parseBattlefieldAbilities(
+        'When you conquer here, you may pay [1] and discard 1 and discard 1 to draw 1.',
+      ),
     ).toBeNull();
     expect(
       parseBattlefieldAbilities('When you hold here, activate the conquer effects of units here.'),
@@ -674,10 +677,8 @@ describe('optional ("you may") triggered abilities (R45)', () => {
 
   it('refuses costs and effects it does not model (discard, kill, extra costs)', () => {
     // Tests Rule 473.2: partially understood text is never half-executed
-    expect(parseCardAbilities('When I conquer, you may discard 1 to draw 1.')).toBeNull();
-    expect(
-      parseCardAbilities('When I conquer, you may pay [1] and discard 1 to draw 1.'),
-    ).toBeNull();
+    expect(parseCardAbilities('When I conquer, you may banish a card to draw 1.')).toBeNull();
+    expect(parseCardAbilities('When I conquer, you may kill an enemy unit to draw 1.')).toBeNull();
     expect(parseCardAbilities('When I conquer, you may pay to draw 1.')).toBeNull();
     expect(parseCardAbilities('When I conquer, you may pay [E] to draw 1.')).toBeNull();
     expect(parseCardAbilities('When I conquer, you may do something odd.')).toBeNull();
@@ -714,5 +715,113 @@ describe('optional ("you may") triggered abilities (R45)', () => {
         effects: [{ op: 'MOVE_BASE_TARGET', atBattlefield: true, count: { min: 0, max: 1 } }],
       },
     ]);
+  });
+});
+
+describe('card-choice costs (R46)', () => {
+  it('optional triggers: "you may discard 1 and ..." and "you may discard 1 to ..."', () => {
+    // Tests Rule 357.1.a: a cost that needs a choice of cards
+    expect(
+      parseBattlefieldAbilities(
+        'When you conquer here, you may discard 1 and channel 1 rune exhausted.',
+      ),
+    ).toEqual([
+      {
+        on: 'CONQUER',
+        optional: { card: { kind: 'DISCARD' } },
+        effects: [{ op: 'CHANNEL', amount: 1, exhausted: true }],
+      },
+    ]);
+    expect(
+      parseCardAbilities('When I conquer, you may discard two cards to draw 1.')?.triggers,
+    ).toEqual([
+      {
+        on: 'CONQUER',
+        optional: { card: { kind: 'DISCARD', count: 2 } },
+        effects: [{ op: 'DRAW', amount: 1 }],
+      },
+    ]);
+  });
+
+  it('kill / exhaust / return need "friendly" or "you control", and carry here / another', () => {
+    // Tests Rule 357.1.a: only your own permanents can be a cost
+    expect(
+      parseCardAbilities('When I defend, you may kill a friendly gear to give me +2 [M] this turn.')
+        ?.triggers,
+    ).toEqual([
+      {
+        on: 'DEFEND',
+        optional: { card: { kind: 'KILL', what: 'gear' } },
+        effects: [{ op: 'BUFF_SELF', amount: 2 }],
+      },
+    ]);
+    expect(
+      parseCardAbilities(
+        'When I hold, you may kill another unit or gear you control here to draw 1.',
+      )?.triggers?.[0]?.optional,
+    ).toEqual({ card: { kind: 'KILL', what: 'unitOrGear', another: true, here: true } });
+    expect(
+      parseCardAbilities('When I hold, you may exhaust three other friendly units to draw 1.')
+        ?.triggers?.[0]?.optional,
+    ).toEqual({ card: { kind: 'EXHAUST', count: 3, another: true } });
+    expect(parseCardAbilities('When I hold, you may kill an enemy unit to draw 1.')).toBeNull();
+    expect(parseCardAbilities('When I hold, you may kill a unit to draw 1.')).toBeNull();
+  });
+
+  it('combines with a payment: "pay [1] and return a unit you control here to its owner\'s hand to ..."', () => {
+    // Tests Rule 357.1.a: Energy and a card choice together
+    expect(
+      parseBattlefieldAbilities(
+        "When you conquer here, you may pay [1] and return a unit you control here to its owner's hand to play a 2 [M] Sand Soldier unit token here.",
+      ),
+    ).toEqual([
+      {
+        on: 'CONQUER',
+        optional: { energy: 1, card: { kind: 'RETURN', what: 'unit', here: true } },
+        effects: [{ op: 'PLAY_TOKEN', token: 'tok-sand-soldier', count: 1, here: true }],
+      },
+    ]);
+  });
+
+  it('"When you play me or when I attack" and "kill a unit or gear" (Mordekaiser)', () => {
+    // Tests Rule 355.10: the target of the kill is chosen when the ability goes on the Chain
+    const r = parseCardAbilities(
+      'When you play me or when I attack, you may discard 1 to kill a unit or gear.',
+    );
+    expect(r?.triggers.map((t) => t.on)).toEqual(['PLAY', 'ATTACK']);
+    expect(r?.triggers[0]).toEqual({
+      on: 'PLAY',
+      optional: { card: { kind: 'DISCARD' } },
+      effects: [{ op: 'KILL_TARGET', orGear: true }],
+    });
+  });
+
+  it('a Deathknell that says "here" stays partial (the place of death is not kept)', () => {
+    // Tests Rule 473.2: partially understood text is never half-executed
+    expect(parseCardAbilities('[Deathknell][>] You may kill a unit or gear here.')).toBeNull();
+    expect(parseCardAbilities('[Deathknell][>] Kill a unit or gear.')?.triggers).toHaveLength(1);
+  });
+
+  it('activated abilities: "Discard a gear, [1], [E]:", "Recycle 3 from your trash, [1], [E]:", "[1][C], ...:"', () => {
+    // Tests Rule 145.1: the part before the colon is the cost
+    expect(
+      parseCardAbilities('Discard a gear, [1], [E]: Deal 4 to a unit at a battlefield.')
+        ?.abilities[0]?.cost,
+    ).toEqual({ card: { kind: 'DISCARD', what: 'gear' }, energy: 1, exhaust: true });
+    expect(
+      parseCardAbilities('Recycle 3 from your trash, [1], [E]: Draw 1.')?.abilities[0]?.cost,
+    ).toEqual({ card: { kind: 'RECYCLE', count: 3 }, energy: 1, exhaust: true });
+    expect(
+      parseCardAbilities(
+        '[1][C], Recycle a unit from your trash, [E]: Play a 3 [M] Mech unit token to your base.',
+      )?.abilities[0]?.cost,
+    ).toEqual({ energy: 1, power: 1, card: { kind: 'RECYCLE', what: 'unit' }, exhaust: true });
+    expect(
+      parseCardAbilities('Kill a friendly gear, [E]: Play a 1 [M] Recruit unit token.', {
+        gearLike: true,
+      })?.abilities[0]?.cost,
+    ).toEqual({ card: { kind: 'KILL', what: 'gear' }, exhaust: true });
+    expect(parseCardAbilities('Discard 1, Kill a friendly unit: Draw 1.')).toBeNull(); // one choice only
+    expect(parseCardAbilities('Banish a card, [E]: Draw 1.')).toBeNull();
   });
 });

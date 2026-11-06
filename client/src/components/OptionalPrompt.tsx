@@ -1,8 +1,15 @@
-import { itemSourceId } from '@riftbound/engine';
-import type { CardDatabase, ClientGameState, OptionalCost, PaymentPlan } from '@riftbound/engine';
+import { costCardText, itemSourceId } from '@riftbound/engine';
+import type {
+  CardDatabase,
+  ClientGameState,
+  DecideOptionalIntent,
+  OptionalCost,
+  PaymentPlan,
+} from '@riftbound/engine';
 import { useGame } from '../app/gameApi';
 import { useIntentSender } from './useIntentSender';
 import { cardNameOf } from '../game/interaction';
+import { CostCardPicker, costCandidates } from './CostCardPicker';
 
 /** The card id behind an ability source: an object on the board, or a Battlefield card (R44). */
 function sourceCardId(view: ClientGameState, id: string): string | undefined {
@@ -23,7 +30,8 @@ export function describeOptionalCost(cost: OptionalCost, domains: readonly strin
   const burn = cost.burn
     ? `Burn ${cost.burn} card${cost.burn === 1 ? '' : 's'} (top of your Main Deck to your Trash)`
     : '';
-  return [pay, burn].filter(Boolean).join(', ') || 'Free';
+  const card = cost.card ? costCardText(cost.card) : '';
+  return [pay, burn, card].filter(Boolean).join(', ') || 'Free';
 }
 
 /** What the automatic payment plan will do to the player's runes. */
@@ -42,7 +50,8 @@ export function describePlan(plan: PaymentPlan | undefined): string {
  * "You may [pay COST to] ..." (R45): shown while the engine is paused on an OPTIONAL_EFFECT choice.
  * The controller sees the card, what accepting costs and two buttons (the engine's own legal
  * DECIDE_OPTIONAL intents, so the payment plan is the engine's automatic one); the opponent sees a
- * waiting notice.
+ * waiting notice. A card-choice cost (R46: discard, kill, exhaust, return) adds a picker listing the
+ * cards that may pay; the accept button is the picker's confirm and sends the chosen cards.
  */
 export function OptionalPrompt() {
   const api = useGame();
@@ -72,6 +81,20 @@ export function OptionalPrompt() {
   const decline = answers.find((i) => i.type === 'DECIDE_OPTIONAL' && !i.accept);
   const costText = describeOptionalCost(choice.cost, def?.domains ?? []);
   const free = costText === 'Free';
+  const cardCost = choice.cost.card;
+  const candidates = cardCost
+    ? costCandidates(api.view, api.cards as CardDatabase, api.seat, sourceId, cardCost)
+    : [];
+  /** The engine's own accept intent for exactly these cards, else the first one with the cards swapped in. */
+  const acceptFor = (ids: string[]): DecideOptionalIntent | undefined => {
+    const same = (a: readonly string[], b: readonly string[]): boolean =>
+      a.length === b.length && a.every((x) => b.includes(x));
+    const listed = answers.find(
+      (i) => i.type === 'DECIDE_OPTIONAL' && i.accept && same(i.costCards ?? [], ids),
+    );
+    if (listed && listed.type === 'DECIDE_OPTIONAL') return listed;
+    return accept && accept.type === 'DECIDE_OPTIONAL' ? { ...accept, costCards: ids } : undefined;
+  };
 
   return (
     <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -94,16 +117,32 @@ export function OptionalPrompt() {
             <span className="text-slate-300">{describePlan(accept.payment)}</span>
           ) : null}
         </p>
+        {cardCost && accept ? (
+          <CostCardPicker
+            view={api.view}
+            cards={api.cards as CardDatabase}
+            cost={cardCost}
+            candidates={candidates}
+            confirmLabel="Pay and do it"
+            busy={pending}
+            onConfirm={(ids) => {
+              const intent = acceptFor(ids);
+              if (intent) void send(intent);
+            }}
+          />
+        ) : null}
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={pending || !accept}
-            data-testid="optional-accept"
-            onClick={() => accept && void send(accept)}
-            className="rounded-md bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50"
-          >
-            {free ? 'Yes, do it' : 'Pay and do it'}
-          </button>
+          {cardCost ? null : (
+            <button
+              type="button"
+              disabled={pending || !accept}
+              data-testid="optional-accept"
+              onClick={() => accept && void send(accept)}
+              className="rounded-md bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50"
+            >
+              {free ? 'Yes, do it' : 'Pay and do it'}
+            </button>
+          )}
           <button
             type="button"
             disabled={pending || !decline}

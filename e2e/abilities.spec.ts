@@ -90,3 +90,64 @@ for (const accept of [true, false]) {
     expect(log.errors).toEqual([]);
   });
 }
+
+// R46: a card-choice cost. `?mock&costcard=1` gives the human a Cinder Grunt in hand with "When you play me,
+// you may discard 1 to draw 2", a ready Cinder Grunt in the base with "Discard a card, [E]: Give me +2 [M]
+// this turn" and two extra ready runes. The picker lists the hand cards; Decline needs no card.
+for (const accept of [true, false]) {
+  test(`optional discard-to-draw trigger: ${accept ? 'pick a card and accept' : 'decline'}`, async ({
+    page,
+    log,
+  }) => {
+    log.watch(page);
+    await page.goto('/?mock&costcard=1');
+    await keepHand(page);
+    await expect(endTurnButton(page)).toBeVisible({ timeout: 60_000 });
+    const hand = page.getByRole('region', { name: 'Your hand' }).locator('[data-card-id]');
+    const before = await hand.count();
+    await page
+      .getByRole('region', { name: 'Your hand' })
+      .locator('[data-card-id][aria-label^="Cinder Grunt"]')
+      .first()
+      .click();
+    const pop = page.getByRole('menu').first();
+    if (await pop.isVisible().catch(() => false)) {
+      await pop.getByRole('menuitem').first().click();
+    }
+    await page.getByRole('button', { name: /^Pass \(let it resolve\)/ }).click({ timeout: 60_000 });
+    const prompt = page.getByTestId('optional-prompt');
+    await expect(prompt).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId('optional-cost')).toContainText('Discard 1 card');
+    if (accept) {
+      await expect(page.getByTestId('cost-confirm')).toBeDisabled();
+      await page.getByTestId('cost-picker').getByRole('button', { pressed: false }).first().click();
+      await page.getByTestId('cost-confirm').click();
+    } else {
+      await page.getByTestId('optional-decline').click();
+    }
+    await expect(prompt).toBeHidden();
+    // played one card; accepting discards one and draws two
+    await expect.poll(() => hand.count()).toBe(accept ? before : before - 1);
+    expect(log.errors).toEqual([]);
+  });
+}
+
+test('activate an ability with a discard cost: pick the card', async ({ page, log }) => {
+  log.watch(page);
+  await page.goto('/?mock&costcard=1');
+  await keepHand(page);
+  const activate = page.getByRole('button', { name: /^Activate Cinder Grunt/ });
+  await expect(activate).toHaveCount(1, { timeout: 60_000 });
+  const hand = page.getByRole('region', { name: 'Your hand' }).locator('[data-card-id]');
+  const before = await hand.count();
+  await activate.click();
+  const prompt = page.getByTestId('ability-cost-prompt');
+  await expect(prompt).toBeVisible();
+  await expect(page.getByTestId('ability-cost-text')).toContainText('Discard 1 card');
+  await page.getByTestId('cost-picker').getByRole('button', { pressed: false }).first().click();
+  await page.getByTestId('cost-confirm').click();
+  await expect(prompt).toBeHidden();
+  await expect(activate).toHaveCount(0); // exhausted
+  await expect.poll(() => hand.count()).toBe(before - 1);
+  expect(log.errors).toEqual([]);
+});

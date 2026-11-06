@@ -229,6 +229,12 @@ export interface MockGameOptions {
    * starts in the human's hand and the human starts with two extra ready runes to pay for it.
    */
   optional?: boolean;
+  /**
+   * Dev/e2e (`?mock&costcard=1`, R46): Cinder Grunts have "When you play me, you may discard 1 to draw 2" and
+   * "Discard a card, [E]: Give me +2 [M] this turn"; one starts in the human's hand and one, ready, in the
+   * human's base.
+   */
+  costcard?: boolean;
 }
 
 /** A local game on the synthetic fixture decks; the human plays deck A, the AI plays deck B. */
@@ -261,6 +267,52 @@ export function createMockGame(opts: MockGameOptions = {}): LocalGame {
       src.zone = { kind: 'base', player: seat };
       src.ready = true;
       ps.base.push(src.id);
+    }
+  }
+  if (opts.costcard) {
+    const grunt = cards['fx-grunt'] as CardDef;
+    cards = {
+      ...cards,
+      'fx-grunt': {
+        ...grunt,
+        triggers: [
+          {
+            on: 'PLAY',
+            optional: { card: { kind: 'DISCARD' } },
+            effects: [{ op: 'DRAW', amount: 2 }],
+          },
+        ],
+        abilities: [
+          {
+            cost: { exhaust: true, card: { kind: 'DISCARD' } },
+            effects: [{ op: 'BUFF_SELF', amount: 2 }],
+          },
+        ],
+      },
+    };
+    const ps = state.players[playerIndex(seat)] as GameState['players'][number];
+    const grunts = Object.values(state.objects).filter(
+      (o) => o.cardId === 'fx-grunt' && o.owner === seat && o.zone.kind === 'mainDeck',
+    );
+    const [toHand, toBase] = grunts;
+    if (toHand) {
+      ps.mainDeck = ps.mainDeck.filter((x) => x !== toHand.id);
+      toHand.zone = { kind: 'hand', player: seat };
+      ps.hand.push(toHand.id);
+    }
+    if (toBase) {
+      ps.mainDeck = ps.mainDeck.filter((x) => x !== toBase.id);
+      toBase.zone = { kind: 'base', player: seat };
+      toBase.ready = true;
+      ps.base.push(toBase.id);
+    }
+    for (let i = 0; i < 2; i++) {
+      const id = ps.runeDeck.shift();
+      const rune = id ? state.objects[id] : undefined;
+      if (!id || !rune) break;
+      rune.zone = { kind: 'base', player: seat };
+      rune.ready = true;
+      ps.base.push(id);
     }
   }
   if (opts.optional) {
@@ -336,11 +388,13 @@ export function MockGameScreen() {
   const gold = Math.min(8, Math.max(0, Number(params.get('gold')) || 0));
   const buffer = params.get('buffer') === '1';
   const optional = params.get('optional') === '1';
+  const costcard = params.get('costcard') === '1';
   const api = useMockGameApi({
     ...(seed ? { seed } : {}),
     ...(gold ? { gold } : {}),
     ...(buffer ? { buffer } : {}),
     ...(optional ? { optional } : {}),
+    ...(costcard ? { costcard } : {}),
   });
   return (
     <GameProvider value={api}>

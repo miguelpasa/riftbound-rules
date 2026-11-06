@@ -24,6 +24,9 @@
  * "another ... unit", the optional "You may <chooser>." (declined with an empty choice), "Kill a gear
  * with Energy cost N or less", "This enters exhausted." (Gear) and the keywords [Disarm N] (an attack
  * trigger: "give an enemy unit here -N [M] this turn") and [Weaponmaster] (a play trigger).
+ * R46: card-choice costs: "you may discard 1 [and|to] ...", "you may kill a friendly unit to ...", "you may pay [1] and
+ * return a unit you control here to its owner's hand to ..." (exhaust / kill / return / discard, also in activated
+ * ability costs: "Discard a gear, [1], [E]:", "Recycle 1 from your trash:") and "Kill a unit or gear".
  * R45: optional trigger bodies "you may pay [1][C][A] to ...", "you may [Burn N] to ..." and a free "you may ..."
  * become `CardTrigger.optional` (accept / decline when the ability resolves); "a unit you control" = a friendly unit.
  */
@@ -35,6 +38,7 @@ import type {
   CardEffect,
   CardTrigger,
   Condition,
+  CostCardChoice,
   CountCmp,
   KeywordInstance,
   OptionalCost,
@@ -272,8 +276,9 @@ function parseChooser(sen: string): Chooser | null {
   }
   // R45: "a unit you control (here)" is "a friendly unit (here)".
   text = text.replace(/\b(an? |another )(units?) you control\b/i, '$1friendly $2');
-  const here = /\b(units?) here\b/i.test(text);
-  if (here) text = text.replace(/\b(units?) here\b/i, '$1');
+  const hereRe = /\b(units? or gear|units?) here\b/i;
+  const here = hereRe.test(text);
+  if (here) text = text.replace(hereRe, (_m, noun: string) => noun);
   const anotherRe = /\banother (?=(?:friendly |enemy )?unit\b)/i;
   const another = anotherRe.test(text);
   if (another) text = text.replace(anotherRe, 'a ');
@@ -402,6 +407,10 @@ function parseChooserBase(sen: string): Chooser | null {
       },
       decl: { side: s ?? 'any' },
     };
+  }
+  if (/^Kill an? unit or gear$/i.test(sen)) {
+    // R46: either kind of permanent (any side).
+    return { effect: { op: 'KILL_TARGET', orGear: true }, decl: { side: 'any' } };
   }
   m = new RegExp(`^Kill an? ${SIDE}gear(?: with Energy cost \\[?(\\d+)\\]? or less)?$`, 'i').exec(
     sen,
@@ -775,16 +784,111 @@ function parseAddClause(sen: string): CardEffect[] | null {
   return n > 0 ? [{ op: 'ADD_ENERGY', amount: n }] : null;
 }
 
-/** "[E]", "[N]" (Energy), "Kill this" joined by commas. */
+/**
+ * R46: the card-choice cost phrases, matched at the start of a string: "discard 1" / "discard a gear",
+ * "kill a friendly unit [or gear] [here]", "kill another unit you control", "kill 3 other friendly units and/or
+ * gear", "exhaust a friendly unit", "return a unit you control here to its owner's hand", "recycle a unit from
+ * your trash". Kill / exhaust / return need "friendly" or "you control" (an enemy choice is an effect, not a
+ * cost). Returns the choice and how many characters it used.
+ */
+const CC_N = '(a|an|one|two|three|four|five|\\d+)';
+const CC_BOARD = '(units? or gear|units? and/or gear|units?|gear)';
+const CC_RE: { kind: CostCardChoice['kind']; re: RegExp }[] = [
+  {
+    kind: 'DISCARD',
+    re: new RegExp(`discard ${CC_N}(?: (gear|unit|spell))?(?: cards?)?(?![\\w\\[])`, 'iy'),
+  },
+  {
+    kind: 'KILL',
+    re: new RegExp(
+      `kill (another|${CC_N}( other)?) (friendly )?${CC_BOARD}( you control)?( here)?`,
+      'iy',
+    ),
+  },
+  {
+    kind: 'EXHAUST',
+    re: new RegExp(
+      `exhaust (another|${CC_N}( other)?) (friendly )?(units?)( you control)?( here)?`,
+      'iy',
+    ),
+  },
+  {
+    kind: 'RETURN',
+    re: new RegExp(
+      `return (another|${CC_N}( other)?) (friendly )?${CC_BOARD}( you control)?( here)? to its owner['’]s hand`,
+      'iy',
+    ),
+  },
+  {
+    kind: 'RECYCLE',
+    re: new RegExp(`recycle ${CC_N}(?: (unit|gear|spell|card))?(?: cards?)? from your trash`, 'iy'),
+  },
+];
+
+function parseCostCardAt(s: string): { cc: CostCardChoice; len: number } | null {
+  for (const { kind, re } of CC_RE) {
+    re.lastIndex = 0;
+    const m = re.exec(s);
+    if (!m) continue;
+    if (kind === 'DISCARD' || kind === 'RECYCLE') {
+      const word = (m[1] ?? '').toLowerCase();
+      const count = numberOf(word === 'a' || word === 'an' ? 'one' : word);
+      if (count === null || count < 1) return null;
+      const what = (m[2] ?? '').toLowerCase();
+      const cc: CostCardChoice = { kind };
+      if (count > 1) cc.count = count;
+      if (what === 'unit' || what === 'gear' || what === 'spell') cc.what = what;
+      return { cc, len: m[0].length };
+    }
+    // Board kinds: m = [all, "another" | "N other?", N, other?, friendly?, noun, "you control"?, "here"?]
+    const another = (m[1] ?? '').toLowerCase() === 'another';
+    const word = (m[2] ?? '').toLowerCase();
+    const count = another ? 1 : numberOf(word === 'a' || word === 'an' ? 'one' : word);
+    if (count === null || count < 1) return null;
+    if (m[4] === undefined && m[6] === undefined) return null; // not "friendly" / "you control"
+    const noun = (m[5] ?? '').toLowerCase();
+    const cc: CostCardChoice = { kind };
+    if (count > 1) cc.count = count;
+    if (kind !== 'EXHAUST') {
+      cc.what = noun === 'gear' ? 'gear' : /^units?$/.test(noun) ? 'unit' : 'unitOrGear';
+    }
+    if (another || m[3] !== undefined) cc.another = true;
+    if (m[7] !== undefined) cc.here = true;
+    return { cc, len: m[0].length };
+  }
+  return null;
+}
+
+/** A whole string that is exactly one card-choice cost phrase. */
+function parseCostCard(part: string): CostCardChoice | null {
+  const t = part.trim();
+  const r = parseCostCardAt(t);
+  return r && r.len === t.length ? r.cc : null;
+}
+
+/** "[E]", "[N]" / "[C]" / "[A]" (Energy / Power), "Kill this", a card-choice cost, joined by commas. */
 function parseAbilityCost(text: string, gearLike: boolean): AbilityCost | null {
   const cost: AbilityCost = {};
   for (const part of text.split(/\s*,\s*/)) {
+    const res = /^((?:\[(?:\d+|C|A)\])+)$/i.exec(part);
     if (/^\[E\]$/i.test(part)) cost.exhaust = true;
-    else if (/^\[\d+\]$/.test(part)) cost.energy = (cost.energy ?? 0) + Number(part.slice(1, -1));
-    else if (/^Kill this$/i.test(part) && gearLike) cost.killSelf = true;
-    else return null;
+    else if (res) {
+      for (const t of (res[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
+        const tok = (t[1] ?? '').toUpperCase();
+        if (tok === 'C') cost.power = (cost.power ?? 0) + 1;
+        else if (tok === 'A') cost.anyPower = (cost.anyPower ?? 0) + 1;
+        else cost.energy = (cost.energy ?? 0) + Number(tok);
+      }
+    } else if (/^Kill this$/i.test(part) && gearLike) cost.killSelf = true;
+    else {
+      const cc = parseCostCard(part);
+      if (!cc || cost.card) return null; // one card-choice component per cost
+      cost.card = cc;
+    }
   }
-  return cost.exhaust || cost.energy || cost.killSelf ? cost : null;
+  return cost.exhaust || cost.energy || cost.power || cost.anyPower || cost.killSelf || cost.card
+    ? cost
+    : null;
 }
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -921,27 +1025,64 @@ function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest:
   if (!may) return null;
   const body = may[1] as string;
   const rest = (s: string): string[] => [s, ...sens.slice(1)];
-  let m = /^pay ((?:\[(?:\d+|C|A)\]\s*)+) to (.+)$/i.exec(body);
-  if (m) {
-    const optional: OptionalCost = {};
-    for (const t of (m[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
-      const tok = (t[1] ?? '').toUpperCase();
-      if (tok === 'C') optional.power = (optional.power ?? 0) + 1;
-      else if (tok === 'A') optional.anyPower = (optional.anyPower ?? 0) + 1;
-      else optional.energy = (optional.energy ?? 0) + Number(tok);
+  // R45 / R46: the cost is a list of parts joined by " and " and ended by " to " (or, after an " and ", by
+  // the effect itself: "discard 1 and channel 1 rune exhausted"). Parts: pay [..], [Burn N], a card choice.
+  const optional: OptionalCost = {};
+  let s = body;
+  let parts = 0;
+  for (;;) {
+    let used = 0;
+    const pay = /^pay ((?:\[(?:\d+|C|A)\]\s*)+)/i.exec(s);
+    const burn = /^\[Burn (\d+)\]/i.exec(s);
+    if (pay) {
+      for (const t of (pay[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
+        const tok = (t[1] ?? '').toUpperCase();
+        if (tok === 'C') optional.power = (optional.power ?? 0) + 1;
+        else if (tok === 'A') optional.anyPower = (optional.anyPower ?? 0) + 1;
+        else optional.energy = (optional.energy ?? 0) + Number(tok);
+      }
+      used = pay[0].trimEnd().length;
+    } else if (burn) {
+      optional.burn = (optional.burn ?? 0) + Number(burn[1]);
+      used = burn[0].length;
+    } else {
+      const cc = parseCostCardAt(s);
+      if (cc) {
+        if (optional.card) return null; // one card-choice component per cost
+        optional.card = cc.cc;
+        used = cc.len;
+      }
     }
-    return optional.energy || optional.power || optional.anyPower
-      ? { optional, rest: rest(m[2] as string) }
-      : null;
+    if (used === 0) {
+      // No (more) cost part. After an " and " the rest is the effect; with no part at all it is a free
+      // "you may <effects>"; a stray "pay" is not understood.
+      if (parts === 0) {
+        if (/^pay\b/i.test(s)) return null;
+        return { optional: {}, rest: rest(s) };
+      }
+      return { optional, rest: rest(s) };
+    }
+    parts++;
+    s = s.slice(used);
+    if (/^ to /i.test(s)) return { optional, rest: rest(s.slice(4)) };
+    if (/^ and /i.test(s)) {
+      s = s.slice(5);
+      continue;
+    }
+    // A cost phrase with nothing after it is not a cost (the effect sentences were tried first).
+    return null;
   }
-  m = /^\[Burn (\d+)\] to (.+)$/i.exec(body);
-  if (m) return { optional: { burn: Number(m[1]) }, rest: rest(m[2] as string) };
-  if (/^pay\b/i.test(body)) return null;
-  return { optional: {}, rest: rest(body) };
 }
 
+const OR_WHEN: Record<string, TriggerKind> = {
+  hold: 'HOLD',
+  conquer: 'CONQUER',
+  attack: 'ATTACK',
+  defend: 'DEFEND',
+};
+
 const TRIGGER_HEAD =
-  /^(When you play me or when I (hold|conquer)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -992,7 +1133,7 @@ export function parseCardAbilities(
     if (m) {
       const head = (m[1] ?? '').toLowerCase();
       const ons: TriggerKind[] = head.startsWith('when you play me or')
-        ? ['PLAY', m[2]?.toLowerCase() === 'hold' ? 'HOLD' : 'CONQUER']
+        ? ['PLAY', OR_WHEN[m[2]?.toLowerCase() ?? ''] ?? 'CONQUER']
         : head.startsWith('when you play me')
           ? ['PLAY']
           : head.startsWith('when i hold')
@@ -1072,6 +1213,15 @@ export function parseCardAbilities(
       optional = opt?.optional;
     }
     if (!effects || effects.length === 0) return null;
+    // R46: a Deathknell's "here" would be where the unit died, which the engine does not keep (the
+    // object is already in the Trash): such a card stays partial rather than silently doing nothing.
+    if (
+      g.kind === 'trigger' &&
+      g.ons.includes('DEATH') &&
+      (optional?.card?.here || JSON.stringify(effects).includes('"here":true'))
+    ) {
+      return null;
+    }
     if (g.kind === 'ability') {
       out.abilities.push({ cost: g.cost, ...(g.reaction ? { reaction: true } : {}), effects });
     } else {

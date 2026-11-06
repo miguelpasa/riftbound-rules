@@ -402,6 +402,18 @@ export class Scenario {
     return id;
   }
 
+  /** Move every card of `player`'s hand back to their Main Deck (an empty hand). */
+  emptyHand(player: PlayerId): this {
+    return this.edit((s) => {
+      const p = s.players[playerIndex(player)] as GameState['players'][number];
+      for (const id of p.hand) {
+        (s.objects[id] as CardInstance).zone = { kind: 'mainDeck', player };
+        p.mainDeck.push(id);
+      }
+      p.hand = [];
+    });
+  }
+
   /** Set a player's points. */
   setPoints(player: PlayerId, points: number): this {
     return this.edit((s) => {

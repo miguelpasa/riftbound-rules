@@ -194,6 +194,17 @@ export function describeEvent(
       return `${objectName(event.sourceId, view, cards, 'An ability')} ${
         event.accepted ? 'was used' : 'was not used (optional effect declined)'
       }.`;
+    case 'COST_CARDS_PAID': {
+      const verb = {
+        DISCARD: 'discarded',
+        KILL: 'killed',
+        EXHAUST: 'exhausted',
+        RETURN: 'returned to hand',
+        RECYCLE: 'recycled from their Trash:',
+      }[event.kind];
+      const names = event.cardNames.join(' and ') || 'cards';
+      return `${who(event.player, view)} ${verb} ${names} to pay for ${objectName(event.sourceId, view, cards, 'an ability')}.`;
+    }
     case 'TRIGGER_NO_TARGET':
       return `${objectName(event.sourceId, view, cards, 'An ability')} had no legal target and did nothing.`;
     case 'CLEANUP_ITERATION':

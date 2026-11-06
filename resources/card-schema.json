@@ -5,6 +5,21 @@
   "type": "object",
   "required": ["cardId", "name", "type", "cost"],
   "additionalProperties": false,
+  "definitions": {
+    "costCardChoice": {
+      "description": "A cost that needs the payer to choose cards (R46): discard from hand, kill / exhaust / return friendly permanents, recycle from the Trash.",
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["DISCARD", "KILL", "EXHAUST", "RETURN", "RECYCLE"] },
+        "count": { "type": "integer", "minimum": 2 },
+        "what": { "enum": ["unit", "gear", "unitOrGear", "spell"] },
+        "here": { "type": "boolean" },
+        "another": { "type": "boolean" }
+      }
+    }
+  },
   "properties": {
     "cardId": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
@@ -53,10 +68,34 @@
         "properties": {
           "name": {
             "enum": [
-              "Action", "Reaction", "Tank", "Backline", "Assault", "Shield", "Ganking",
-              "Accelerate", "Temporary", "Hidden", "Deflect", "Unique", "Equip", "QuickDraw",
-              "Deathknell", "Legion", "Ambush", "Level", "Hunt", "Flow", "Repeat", "Predict", "ShowOff",
-              "Weaponmaster", "Empower", "Deploy", "Vision", "Disarm"
+              "Action",
+              "Reaction",
+              "Tank",
+              "Backline",
+              "Assault",
+              "Shield",
+              "Ganking",
+              "Accelerate",
+              "Temporary",
+              "Hidden",
+              "Deflect",
+              "Unique",
+              "Equip",
+              "QuickDraw",
+              "Deathknell",
+              "Legion",
+              "Ambush",
+              "Level",
+              "Hunt",
+              "Flow",
+              "Repeat",
+              "Predict",
+              "ShowOff",
+              "Weaponmaster",
+              "Empower",
+              "Deploy",
+              "Vision",
+              "Disarm"
             ]
           },
           "value": { "type": "integer" }
@@ -66,8 +105,37 @@
     "text": { "type": "string" },
     "supportLevel": { "enum": ["full", "partial"] },
     "effects": { "type": "array", "items": { "type": "object" } },
-    "triggers": { "type": "array", "items": { "type": "object" } },
-    "abilities": { "type": "array", "items": { "type": "object" } },
+    "triggers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "optional": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "energy": { "type": "integer", "minimum": 1 },
+              "power": { "type": "integer", "minimum": 1 },
+              "anyPower": { "type": "integer", "minimum": 1 },
+              "burn": { "type": "integer", "minimum": 1 },
+              "card": { "$ref": "#/definitions/costCardChoice" }
+            }
+          }
+        }
+      }
+    },
+    "abilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cost": {
+            "type": "object",
+            "properties": { "card": { "$ref": "#/definitions/costCardChoice" } }
+          }
+        }
+      }
+    },
     "entersReady": { "type": "boolean" },
     "entersReadyWhen": { "type": "object" },
     "entersExhausted": { "type": "boolean" },

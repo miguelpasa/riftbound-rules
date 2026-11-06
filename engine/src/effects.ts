@@ -32,7 +32,7 @@ import type {
 /** Maximum number of target combinations offered to the AI / UI per spell. */
 export const MAX_TARGET_COMBOS = 48;
 
-type TargetKind = 'unit' | 'gear' | 'spell' | 'equipment';
+type TargetKind = 'unit' | 'gear' | 'unitOrGear' | 'spell' | 'equipment';
 
 /** What a slot may hold. */
 interface Spec {
@@ -82,9 +82,11 @@ function specOf(e: TargetedEffect): Spec {
       ? 'equipment'
       : e.op === 'KILL_GEAR' || (e.op === 'RETURN_TARGET' && e.gear)
         ? 'gear'
-        : e.op === 'COUNTER_SPELL'
-          ? 'spell'
-          : 'unit';
+        : e.op === 'KILL_TARGET' && e.orGear
+          ? 'unitOrGear'
+          : e.op === 'COUNTER_SPELL'
+            ? 'spell'
+            : 'unit';
   const spec: Spec = {
     kind,
     side: e.op === 'WEAPONMASTER_EQUIP' ? 'friendly' : 'side' in e && e.side ? e.side : 'any',
@@ -178,9 +180,12 @@ function legalForSpec(
       return false;
     }
   } else {
-    if (!isUnitDef(cards[u.cardId])) return false;
+    // R46: "kill a unit or gear": a gear passes the location checks of a unit, not the Might ones.
+    const gearOk = spec.kind === 'unitOrGear' && isGearDef(cards[u.cardId]);
+    if (!gearOk && !isUnitDef(cards[u.cardId])) return false;
     if (spec.atBattlefield && u.zone.kind !== 'battlefield') return false;
     if (
+      !gearOk &&
       spec.maxMight !== undefined &&
       effectiveMight(state, cards, u.id, { role: null }) > spec.maxMight
     ) {
@@ -394,7 +399,7 @@ export function killGear(state: GameState, g: CardInstance): void {
 }
 
 /** Return a unit or gear to its owner's hand (a token ceases to exist, 186.1). Mutates. */
-function returnToHand(state: GameState, o: CardInstance, out: GameEventInput[]): void {
+export function returnToHand(state: GameState, o: CardInstance, out: GameEventInput[]): void {
   const player = o.owner;
   const cardId = o.cardId;
   const ps = state.players[playerIndex(o.controller)];
@@ -606,6 +611,11 @@ export function runEffects(
         for (const u of legal) {
           if (e.op === 'DAMAGE_TARGET') {
             damage(u, e.amount);
+          } else if (e.op === 'KILL_TARGET' && isGearDef(cards[u.cardId])) {
+            // R46: "kill a unit or gear" chose a gear.
+            doneSlots.set(slot, u.controller);
+            killGear(state, u);
+            out.push({ type: 'GEAR_KILLED', gearId: u.id });
           } else if (e.op === 'KILL_TARGET') {
             // Lethal damage: Cleanup (323) then moves it to the Trash.
             const lethal = Math.max(1, mightOf(u)) - u.damage;

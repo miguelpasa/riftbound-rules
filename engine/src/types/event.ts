@@ -68,6 +68,19 @@ export type GameEvent = EventBase &
     | { type: 'TRIGGER_NO_TARGET'; player: PlayerId; sourceId: string }
     /** R45: an optional ("you may [pay] ...") triggered ability was accepted or declined (declined automatically when it could not be paid). */
     | { type: 'OPTIONAL_EFFECT_DECIDED'; player: PlayerId; sourceId: string; accepted: boolean }
+    /**
+     * R46: cards were paid as (part of) a cost: discarded, killed, exhausted, returned or recycled.
+     * `cardIds` are object ids; a discarded / recycled card is public from then on (Trash), so the
+     * event reveals nothing the board does not.
+     */
+    | {
+        type: 'COST_CARDS_PAID';
+        player: PlayerId;
+        sourceId: string;
+        kind: 'DISCARD' | 'KILL' | 'EXHAUST' | 'RETURN' | 'RECYCLE';
+        cardIds: string[];
+        cardNames: string[];
+      }
   );
 
 export type GameEventType = GameEvent['type'];

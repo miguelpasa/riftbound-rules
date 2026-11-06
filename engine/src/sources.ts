@@ -10,7 +10,10 @@ export const itemSourceId = (item: ChainItem): string =>
   item.sourceBattlefieldId ?? item.sourceObjectId;
 
 /** The battlefield a source is "here" at: its own battlefield for a Battlefield card, else where the object stands. */
-export function hereOfSource(state: GameState, sourceId: string): string | null {
+export function hereOfSource(
+  state: Pick<GameState, 'objects' | 'battlefields'>,
+  sourceId: string,
+): string | null {
   const o: CardInstance | undefined = state.objects[sourceId];
   if (o) return o.zone.kind === 'battlefield' ? o.zone.battlefieldId : null;
   return state.battlefields.some((b) => b.id === sourceId) ? sourceId : null;
