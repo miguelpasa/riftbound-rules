@@ -1,5 +1,5 @@
 import type { DragEvent } from 'react';
-import { isHiddenCard } from '@riftbound/engine';
+import { isGearDef, isHiddenCard } from '@riftbound/engine';
 import type { PlayerId } from '@riftbound/engine';
 import { CardBack } from '../components/Card';
 import { domainColor } from '../components/cardStyles';
@@ -58,9 +58,9 @@ export function BaseRow({ owner, ui }: BaseRowProps) {
       units.push(id);
       continue;
     }
-    const type = cards[o.cardId]?.type;
-    if (type === 'RUNE') runes.push(id);
-    else if (type === 'GEAR') gear.push(id);
+    const def = cards[o.cardId];
+    if (def?.type === 'RUNE') runes.push(id);
+    else if (isGearDef(def)) gear.push(id);
     else units.push(id);
   }
 

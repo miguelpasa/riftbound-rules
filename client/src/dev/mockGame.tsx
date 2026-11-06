@@ -15,6 +15,8 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   actorToAct,
+  GOLD_TOKEN_ID,
+  TOKEN_CARDS,
   createGameWithSeating,
   getLegalActions,
   opponentOf,
@@ -37,7 +39,9 @@ import {
   FIXTURE_DECK_B,
 } from '../../../engine/src/testing/fixtures.js';
 import { createAiBot, type BotLike } from '../ai/aiClient';
+import { runEffects } from '../../../engine/src/effects.js';
 import { GameProvider, type GameApi } from '../app/gameApi';
+import { getUiLegalActions } from '../host/uiLegal';
 import { GameScreen } from '../game/GameScreen';
 
 export interface CommitInfo {
@@ -158,7 +162,7 @@ export function createLocalGameApi(opts: LocalGameOptions): LocalGame {
     cards,
     seat,
     view: sanitizeFor(state, seat),
-    legal: getLegalActions(state, cards, seat),
+    legal: getUiLegalActions(state, cards, seat),
     recentEvents: sanitizeEvents(events.slice(-RECENT), seat),
     connection: 'connected',
     opponentConnected: true,
@@ -211,6 +215,8 @@ export interface MockGameOptions {
   /** Pass `null` for no opponent bot. */
   opponent?: BotLike | null;
   botDelayMs?: number;
+  /** Dev/e2e: give the human this many ready Gold tokens (`?mock&gold=2`) so abilities can be tried. */
+  gold?: number;
 }
 
 /** A local game on the synthetic fixture decks; the human plays deck A, the AI plays deck B. */
@@ -222,6 +228,15 @@ export function createMockGame(opts: MockGameOptions = {}): LocalGame {
     seed,
   );
   const seat = seatOfDeck[0];
+  const cards: CardDatabase = opts.gold ? { ...FIXTURE_CARDS, ...TOKEN_CARDS } : FIXTURE_CARDS;
+  if (opts.gold) {
+    runEffects(
+      state,
+      seat,
+      [{ op: 'PLAY_TOKEN', token: GOLD_TOKEN_ID, count: opts.gold, ready: true }],
+      cards,
+    );
+  }
   const opponent =
     opts.opponent !== undefined
       ? opts.opponent
@@ -233,7 +248,7 @@ export function createMockGame(opts: MockGameOptions = {}): LocalGame {
           budgetMs: 300,
         });
   return createLocalGameApi({
-    cards: FIXTURE_CARDS,
+    cards,
     state,
     seat,
     opponent,
@@ -249,8 +264,10 @@ export function useMockGameApi(opts?: MockGameOptions): GameApi {
 
 /** The full screen on a mock game. Mount at `?mock` (see App.tsx notes in the task report). */
 export function MockGameScreen() {
-  const seed = new URLSearchParams(location.search).get('seed') ?? undefined;
-  const api = useMockGameApi(seed ? { seed } : undefined);
+  const params = new URLSearchParams(location.search);
+  const seed = params.get('seed') ?? undefined;
+  const gold = Math.min(8, Math.max(0, Number(params.get('gold')) || 0));
+  const api = useMockGameApi({ ...(seed ? { seed } : {}), ...(gold ? { gold } : {}) });
   return (
     <GameProvider value={api}>
       <GameScreen onBackToMenu={() => location.assign(location.pathname)} />

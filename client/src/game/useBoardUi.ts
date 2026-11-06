@@ -9,6 +9,7 @@ import type { CardInstance, Intent } from '@riftbound/engine';
 import { isHiddenCard } from '@riftbound/engine';
 import type { GameApi } from '../app/gameApi';
 import { toastFromRuleError } from '../components/Toasts';
+import { abilityVariants, describeAbilityAt } from './abilities';
 import {
   attemptMove,
   equipVariants,
@@ -308,6 +309,16 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
           onSelect: () => {
             setPopover(null);
             void submit(q);
+          },
+        });
+      }
+      for (const a of abilityVariants(legal, id)) {
+        const d = describeAbilityAt(cards[obj.cardId], a.abilityIndex);
+        items.push({
+          label: `Activate: ${d?.summary ?? `ability ${a.abilityIndex + 1}`}`,
+          onSelect: () => {
+            setPopover(null);
+            void submit(a);
           },
         });
       }

@@ -51,6 +51,8 @@ export interface CardProps {
   ariaLabel?: string;
   /** Native tooltip text. */
   title?: string;
+  /** Energy currently knocked off the printed cost (Legion, R40); shown on the cost badge. */
+  energyDiscount?: number;
 }
 
 export const PARTIAL_LABEL = 'Effect not implemented';
@@ -109,7 +111,8 @@ export function RulesText({ text }: { text: string }) {
   return <>{render(text, 't')}</>;
 }
 
-function CostDisplay({ def }: { def: CardDef }) {
+function CostDisplay({ def, discount = 0 }: { def: CardDef; discount?: number }) {
+  const energy = Math.max(0, def.cost.energy - discount);
   const pips: { key: string; domain?: Domain }[] = [];
   let domainTotal = 0;
   for (const [i, d] of (def.cost.domain ?? []).entries()) {
@@ -121,13 +124,19 @@ function CostDisplay({ def }: { def: CardDef }) {
   return (
     <div
       className="flex items-center gap-0.5"
-      aria-label={`Cost ${def.cost.energy} energy${pips.length ? `, ${pips.length} power` : ''}`}
+      aria-label={`Cost ${energy} energy${discount > 0 ? ` (Legion: ${discount} less)` : ''}${pips.length ? `, ${pips.length} power` : ''}`}
     >
       <span
         data-testid="cost-energy"
-        className="inline-flex h-[1.9em] w-[1.9em] items-center justify-center rounded-full bg-slate-100 font-bold text-slate-900"
+        {...(discount > 0
+          ? {
+              'data-discounted': 'true',
+              title: `Legion: costs ${discount} less (printed ${def.cost.energy})`,
+            }
+          : {})}
+        className={`inline-flex h-[1.9em] w-[1.9em] items-center justify-center rounded-full font-bold text-slate-900 ${discount > 0 ? 'bg-emerald-300 ring-2 ring-emerald-500' : 'bg-slate-100'}`}
       >
-        {def.cost.energy}
+        {energy}
       </span>
       {pips.map((p) => {
         const c = p.domain ? domainColor(p.domain) : COLORLESS;
@@ -190,6 +199,7 @@ export function Card({
   className = '',
   ariaLabel,
   title,
+  energyDiscount = 0,
 }: CardProps) {
   const ctx = useCardImages();
   const imagesOn = showImages ?? ctx.showImages;
@@ -276,7 +286,7 @@ export function Card({
             <div className="truncate text-[0.85em] text-slate-300">{def.subtitle}</div>
           ) : null}
         </div>
-        <CostDisplay def={def} />
+        <CostDisplay def={def} discount={energyDiscount} />
       </div>
       <div className="relative z-10 truncate text-[0.85em] text-slate-300">{typeLine(def)}</div>
       {def.keywords.length > 0 ? (

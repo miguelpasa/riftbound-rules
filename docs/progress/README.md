@@ -73,3 +73,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R37](R37-reduce-performance.md)     | Engine reduce performance (working copy, reduce p50 1.5 -> 0.32 ms) | Medium | Sonnet | Done | `e909ed3` |
 | [R39a](R39a-tutorial-ui.md)          | Tutorial UI audit fixes (A-01,02,03,05,06,09,11)            | Medium | Sonnet | Done | `e909ed3` |
 | [R39b](R39b-deck-card-ui.md)         | Deck picker and card UI audit fixes (A-04,07,08,10,12,13)   | Medium | Sonnet | Done | `e909ed3` |
+| [R40](R40-ability-ui.md)             | Activate abilities from the UI (Gold, Seals), Gold in gear row, Legion cost display | Medium | Sonnet | Done | uncommitted |

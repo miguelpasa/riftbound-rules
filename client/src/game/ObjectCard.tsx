@@ -1,6 +1,7 @@
-import { isHiddenCard } from '@riftbound/engine';
+import { isGearDef, isHiddenCard } from '@riftbound/engine';
 import { Card, CardBack } from '../components/Card';
 import type { CardSize } from '../components/cardStyles';
+import { abilityVariants, describeAbility, legionDiscount } from './abilities';
 import { deflectPower, equipVariants } from './interaction';
 import type { BoardUi } from './useBoardUi';
 
@@ -18,13 +19,14 @@ export interface ObjectCardProps {
  * Renders one game object. Hidden placeholders are ALWAYS drawn as a CardBack: this component never
  * reads a name for a HiddenCard. Interactivity is derived from `ui` (which is derived from api.legal).
  */
-export function ObjectCard({
+function ObjectCardBody({
   id,
   ui,
   size = 'board',
   className = '',
   inHand = false,
-}: ObjectCardProps) {
+  hasAbility,
+}: ObjectCardProps & { hasAbility: boolean }) {
   const { api } = ui;
   const obj = api.view.objects[id];
   if (!obj) return null;
@@ -35,11 +37,13 @@ export function ObjectCard({
   const mine = obj.controller === api.seat;
   const inPlay = obj.zone.kind === 'base' || obj.zone.kind === 'battlefield';
   const isUnit = def.type === 'UNIT' || (def.type === 'TOKEN' && def.stats.might !== undefined);
-  const isGear = def.type === 'GEAR';
+  const isGear = isGearDef(def);
+  const discount = inPlay ? 0 : legionDiscount(api.view, api.cards, api.seat, id, obj.cardId);
   const common = {
     def,
     instance: obj,
     size,
+    ...(discount > 0 ? { energyDiscount: discount } : {}),
     onMouseEnter: () => ui.setHovered(id),
     onMouseLeave: () => ui.setHovered(null),
   };
@@ -108,7 +112,7 @@ export function ObjectCard({
     return (
       <Card
         {...common}
-        highlighted={equippable}
+        highlighted={equippable || hasAbility}
         className={className}
         onClick={
           equippable
@@ -156,5 +160,67 @@ export function ObjectCard({
     );
   }
 
-  return <Card {...common} className={className} />;
+  return <Card {...common} highlighted={hasAbility} className={className} />;
+}
+
+/** Buttons for the legal activated abilities of one of my permanents (driven by api.legal). */
+function AbilityButtons({ id, ui }: { id: string; ui: BoardUi }) {
+  const { api } = ui;
+  const obj = api.view.objects[id];
+  if (!obj || isHiddenCard(obj)) return null;
+  const def = api.cards[obj.cardId];
+  const variants = abilityVariants(api.legal, id);
+  if (!def || variants.length === 0) return null;
+  return (
+    <ul aria-label={`${def.name} abilities`} className="flex w-full max-w-[8rem] flex-col gap-0.5">
+      {variants.map((v) => {
+        const ability = def.abilities?.[v.abilityIndex];
+        const d = ability ? describeAbility(def, ability) : null;
+        const label = variants.length > 1 ? `Activate ${v.abilityIndex + 1}` : 'Activate';
+        return (
+          <li key={v.abilityIndex} className="flex flex-col items-center">
+            <button
+              type="button"
+              data-ability={`${id}:${v.abilityIndex}`}
+              aria-label={`${label} ${def.name}${d ? `: ${d.summary}` : ''}`}
+              title={`${d ? `${d.summary}. ` : ''}${def.text}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                void ui.submit(v);
+              }}
+              className="w-full rounded-md bg-amber-300 px-1.5 py-0.5 text-xs font-semibold text-slate-950 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              {label}
+            </button>
+            {d ? (
+              <span className="text-center text-[10px] leading-tight break-words text-slate-300">
+                {d.summary}
+              </span>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function ObjectCard(props: ObjectCardProps) {
+  const { api } = props.ui;
+  const obj = api.view.objects[props.id];
+  const usable =
+    !props.inHand &&
+    obj !== undefined &&
+    !isHiddenCard(obj) &&
+    obj.controller === api.seat &&
+    (obj.zone.kind === 'base' || obj.zone.kind === 'battlefield') &&
+    !props.ui.targeting?.candidates.has(props.id) &&
+    abilityVariants(api.legal, props.id).length > 0;
+  const body = <ObjectCardBody {...props} hasAbility={usable} />;
+  if (!usable) return body;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {body}
+      <AbilityButtons id={props.id} ui={props.ui} />
+    </div>
+  );
 }

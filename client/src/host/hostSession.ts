@@ -32,6 +32,7 @@ import {
   type Transport,
 } from '@riftbound/engine';
 import { checkHello, parseC2S } from '../net/protocol.js';
+import { getUiLegalActions } from './uiLegal.js';
 
 /** What N3 persists after every accepted intent. Kept minimal on purpose. */
 export interface CommitEntry {
@@ -212,7 +213,7 @@ export class HostSession {
   /** Intents the engine would accept from the given seat right now (never throws; [] on internal error). */
   getLegal(seat: PlayerId): Intent[] {
     try {
-      return getLegalActions(this.state, this.cards, seat);
+      return getUiLegalActions(this.state, this.cards, seat);
     } catch (e) {
       console.error('[host] getLegalActions threw', e);
       return [];

@@ -1,8 +1,9 @@
 import { vi } from 'vitest';
-import { getLegalActions, reduce, sanitizeFor } from '@riftbound/engine';
+import { reduce, sanitizeFor } from '@riftbound/engine';
 import type { GameEvent, Intent, PlayerId, RuleError } from '@riftbound/engine';
 import type { Scenario } from '../../../../engine/src/testing/scenario.js';
 import type { GameApi } from '../../app/gameApi';
+import { getUiLegalActions } from '../../host/uiLegal';
 
 export interface FakeApi extends GameApi {
   send: ReturnType<typeof vi.fn<(intent: Intent) => Promise<{ ok: true } | RuleError>>>;
@@ -28,7 +29,7 @@ export function fakeApi(
     cards: sc.cards,
     seat,
     view: sanitizeFor(state, seat),
-    legal: getLegalActions(state, sc.cards, seat),
+    legal: getUiLegalActions(state, sc.cards, seat),
     recentEvents: opts.events ?? [],
     connection: 'connected',
     opponentConnected: true,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ChainItem, Intent, PlayCardIntent, PlayerId, Target } from '@riftbound/engine';
 import { useGame } from '../app/gameApi';
+import { describeAbilityAt } from '../game/abilities';
 import { useGameStore } from '../store/gameStore';
 import { useIntentSender } from './useIntentSender';
 import { battlefieldName, defOf, nameOf, visibleObject } from './viewObjects';
@@ -122,8 +123,14 @@ export function ChainInspector() {
   };
 
   const itemTitle = (item: ChainItem): string => {
+    if (item.kind === 'ABILITY') {
+      // The source may be gone (killed as a cost), so fall back to the card id on the item (R40).
+      const known = visibleObject(view, item.sourceObjectId)
+        ? nameOf(view, cards, item.sourceObjectId)
+        : undefined;
+      return `${known ?? cards[item.sourceCardId ?? '']?.name ?? 'Unknown card'} (ability)`;
+    }
     const name = nameOf(view, cards, item.sourceObjectId);
-    if (item.kind === 'ABILITY') return `${name} (ability)`;
     return visibleObject(view, item.sourceObjectId) ? name : 'Unknown card';
   };
 
@@ -203,6 +210,12 @@ export function ChainInspector() {
                   </span>
                 )}
               </div>
+              {item.kind === 'ABILITY' && item.activatedIndex !== undefined && (
+                <span data-testid="chain-ability" className="text-xs text-slate-300">
+                  {describeAbilityAt(cards[item.sourceCardId ?? ''], item.activatedIndex)
+                    ?.summary ?? `Ability ${item.activatedIndex + 1}`}
+                </span>
+              )}
               {item.targets.length > 0 && (
                 <span className="text-xs text-slate-400">
                   {`Targets: ${item.targets.map((t) => describeTarget(t, describe)).join(', ')}`}

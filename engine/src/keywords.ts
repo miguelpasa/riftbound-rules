@@ -464,14 +464,20 @@ export function attachedMightBonus(state: GameState, cards: CardDatabase, unitId
 
 // ---------------------------------------------------------------- Legion (812)
 
+/** The part of the state Legion reads; a `GameState` or a sanitised `ClientGameState` both fit (R40). */
+export interface LegionState {
+  turn: { number: number };
+  players: readonly { playedThisTurn?: { turn: number; objectIds: string[] } }[];
+}
+
 /**
  * Legion (812, dependent keyword): the Legion effect is active while `playerId` has played another
  * card this turn, i.e. a card other than `sourceId` (the Legion card itself does not count). Plays
  * are recorded by playCard (Hidden plays included) and only count for the current turn number.
  * Pure read; the card effects that depend on it are not wired yet (see docs/progress/R6a).
  */
-export function legionActive(state: GameState, playerId: PlayerId, sourceId: string): boolean {
-  const rec = state.players[playerIndex(playerId)].playedThisTurn;
+export function legionActive(state: LegionState, playerId: PlayerId, sourceId: string): boolean {
+  const rec = state.players[playerIndex(playerId)]?.playedThisTurn;
   if (!rec || rec.turn !== state.turn.number) return false;
   return rec.objectIds.some((id) => id !== sourceId);
 }
