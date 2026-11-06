@@ -23,6 +23,8 @@
  * `reduce` would reject anyway. When the list exceeds `maxActions` the essential actions
  * (PASS_PRIORITY, END_TURN, the combat assignment) are always kept and the rest is truncated.
  */
+import { abilityCandidates } from './abilities.js';
+import { legionActive } from './keywords.js';
 import { autoAssign } from './combat.js';
 import { enumerateSpellTargets } from './effects.js';
 import { applyIntent, reduce } from './reducer.js';
@@ -115,6 +117,10 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
       : [undefined];
     const accelOptions = isUnit && hasKw(def, 'Accelerate') ? [false, true] : [false];
     const costDef = costDefFor(obj, def);
+    const discounts =
+      def.legionCostReduction && legionActive(state, pid, obj.id)
+        ? [{ energy: def.legionCostReduction }]
+        : [];
     // Quick-Draw gear: one variant per unit its controller controls (the unit is a Target).
     // Targeted spells (R2): one variant per unit on the board (either side).
     const targetOptions: (Target[] | undefined)[] =
@@ -124,7 +130,7 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
           ? (enumerateSpellTargets(state, cards, pid, def.effects) ?? [undefined])
           : [undefined];
     for (const accelerate of accelOptions) {
-      const plan = plannedPayment(computeTotalCost(costDef, { accelerate }));
+      const plan = plannedPayment(computeTotalCost(costDef, { accelerate, discounts }));
       if (plan === null) continue;
       for (const location of locations) {
         for (const targets of targetOptions) {
@@ -304,7 +310,19 @@ export function getLegalActions(
     take(hideCandidates(state, cards, playerId));
     take(equipCandidates(state, cards, playerId));
   }
+  // Activated abilities that use the Chain (R38); [Add] abilities are offered like runes.
+  take(abilityCandidates(state, cards, playerId, true));
   return [...others, ...essential];
+}
+
+/** [Add] ability activations (Gold, Seals, ...) the player may perform now, for the UI. */
+export function getAbilityActivations(
+  state: GameState,
+  cards: CardDatabase,
+  playerId: PlayerId,
+): Intent[] {
+  if (state.gameStatus !== 'IN_PROGRESS' || state.turn.phase === 'MULLIGAN') return [];
+  return abilityCandidates(state, cards, playerId, false).filter((i) => reduce(state, cards, i).ok);
 }
 
 /** Rune activations (EXHAUST for energy, RECYCLE for power) the player may perform now, for the UI. */

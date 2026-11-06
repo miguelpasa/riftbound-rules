@@ -18,13 +18,14 @@ export * from './cleanup.js';
 export * from './reducer.js';
 export * from './validator.js';
 export * from './legalActions.js';
+export { activateAbility, isAddAbility } from './abilities.js';
 export * from './invariants.js';
 export * from './replay.js';
 export * from './ai/determinize.js';
 export * from './ai/evaluate.js';
 export * from './ai/bot.js';
 export * from './sandbox.js';
-export { parseSpellText } from './cardText.js';
+export { parseCardAbilities, parseSpellText } from './cardText.js';
 export {
   enumerateSpellTargets,
   isLegalEffectTarget,
@@ -33,4 +34,4 @@ export {
   targetRequirements,
 } from './effects.js';
 export { fireTriggers } from './triggers.js';
-export { TOKEN_CARDS, isUnitDef, tokenIdFor } from './tokens.js';
+export { TOKEN_CARDS, GOLD_TOKEN_ID, isGearDef, isUnitDef, tokenIdFor } from './tokens.js';

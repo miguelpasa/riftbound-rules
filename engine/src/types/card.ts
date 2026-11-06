@@ -225,7 +225,19 @@ export type CardEffect =
       op: 'LOOK_TOP';
       count: number;
       take?: { filter?: 'unit' | 'gear'; reveal?: boolean };
-    };
+    }
+  /** [Add] [N]: put `amount` Energy in the controller's Rune Pool (168, 166.1). */
+  | { op: 'ADD_ENERGY'; amount: number }
+  /**
+   * [Add] [C] / [A]: put `amount` Power in the Rune Pool (168, 166.1). 'SOURCE' = [C], Power of the
+   * source card's Domain (Universal [A] when it has none); 'ANY' = [A], Universal Power.
+   */
+  | { op: 'ADD_POWER'; amount: number; domain: 'SOURCE' | 'ANY' }
+  /**
+   * "Its controller plays a Gold gear token exhausted": the controller of the object that the
+   * earlier KILL_GEAR / KILL_TARGET (same slot) removed plays tokens (like TARGET_CONTROLLER_DRAW).
+   */
+  | { op: 'TARGET_CONTROLLER_PLAY_TOKEN'; token: string; count: number; slot?: number };
 
 /** Effects that choose one unit (or gear / spell) through `PLAY_CARD.targets`. */
 export type TargetedEffect = Extract<
@@ -254,6 +266,33 @@ export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH';
  */
 export interface CardTrigger {
   on: TriggerKind;
+  effects: CardEffect[];
+  /**
+   * Dependent keyword condition (812): "LEGION" = the controller has played another card this
+   * turn when the ability triggers. Absent = unconditional.
+   */
+  condition?: 'LEGION';
+}
+
+/** Costs of an activated ability (145.1, 151.1): the part before the colon. */
+export interface AbilityCost {
+  /** [E]: exhaust the source (needs it ready). */
+  exhaust?: boolean;
+  /** Energy to pay ([N]). */
+  energy?: number;
+  /** "Kill this": the source (Gear / token Gear) is killed as a cost. */
+  killSelf?: boolean;
+}
+
+/**
+ * An activated ability of a permanent ("[Reaction][>] Kill this, [E]: [Add] [A]."). Abilities
+ * whose effects are all [Add] effects resolve at once without the Chain (168); the others go on
+ * the Chain as an ABILITY item (`activatedIndex`). Target-free effects only.
+ */
+export interface ActivatedAbility {
+  cost: AbilityCost;
+  /** Reaction speed (usable in a Closed state / Showdown). */
+  reaction?: boolean;
   effects: CardEffect[];
 }
 
@@ -292,6 +331,12 @@ export interface CardDef {
   effects?: CardEffect[];
   /** Triggered abilities of a unit or gear. */
   triggers?: CardTrigger[];
+  /** Activated abilities of a permanent, indexed by `ACTIVATE_ABILITY.abilityIndex`. */
+  abilities?: ActivatedAbility[];
+  /** "I enter ready.": the permanent enters ready instead of exhausted (359.2.c). */
+  entersReady?: boolean;
+  /** "[Legion] - I cost [N] less.": Energy discount while Legion is active (812). */
+  legionCostReduction?: number;
   /** Equip cost of Equipment (rule 818); absent = free (no parsable cost). */
   equipCost?: EquipCost;
   imageUrl?: string;

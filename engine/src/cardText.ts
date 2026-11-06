@@ -21,8 +21,15 @@
  * "When I conquer, <effect>.", "[Deathknell][>] <effect>." with target-free effects only.
  */
 import { targetRequirements } from './effects.js';
-import { tokenIdFor } from './tokens.js';
-import type { CardEffect, CardTrigger, TargetSide, TriggerKind } from './types/card.js';
+import { GOLD_TOKEN_ID, tokenIdFor } from './tokens.js';
+import type {
+  AbilityCost,
+  ActivatedAbility,
+  CardEffect,
+  CardTrigger,
+  TargetSide,
+  TriggerKind,
+} from './types/card.js';
 
 const side = (w: string | undefined): TargetSide | undefined =>
   w === 'friendly' ? 'friendly' : w === 'enemy' ? 'enemy' : undefined;
@@ -105,7 +112,7 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (/^Kill all units$/i.test(sen)) return [{ op: 'KILL_ALL_UNITS' }];
   const tok = parseTokenClause(sen);
   if (tok) return [tok];
-  return null;
+  return parseAddClause(sen);
 }
 
 const COUNT_WORDS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4 };
@@ -116,6 +123,14 @@ const COUNT_WORDS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three
  * battlefield you control is not modelled).
  */
 function parseTokenClause(sen: string): CardEffect | null {
+  const g = /^Play (an?|one|two|three|four|\d+) (ready )?Gold gear tokens?( exhausted)?$/i.exec(
+    sen,
+  );
+  if (g) {
+    const n = COUNT_WORDS[(g[1] ?? '').toLowerCase()] ?? Number(g[1]);
+    if (!(n >= 1) || (g[2] && g[3])) return null;
+    return { op: 'PLAY_TOKEN', token: GOLD_TOKEN_ID, count: n, ...(g[2] ? { ready: true } : {}) };
+  }
   const m =
     /^Play (an?|one|two|three|four|\d+) (ready )?(\d+) \[M\] (.+?) unit tokens?(?: with (\w+))?( here| (?:to|into|at) your base)?$/i.exec(
       sen,
@@ -448,6 +463,20 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     });
     return true;
   }
+  m = /^Its controller plays (an?|one|two) Gold gear tokens?( exhausted)?$/i.exec(sen);
+  if (m) {
+    const prev = out[out.length - 1];
+    if (!prev || (prev.op !== 'KILL_TARGET' && prev.op !== 'KILL_GEAR') || 'count' in prev) {
+      return false;
+    }
+    out.push({
+      op: 'TARGET_CONTROLLER_PLAY_TOKEN',
+      token: GOLD_TOKEN_ID,
+      count: COUNT_WORDS[(m[1] ?? '').toLowerCase()] ?? 1,
+      ...(prev.slot ? { slot: prev.slot } : {}),
+    });
+    return true;
+  }
   m = GIVE_PAIR.exec(sen);
   if (m) {
     const s1 = side(m[1]);
@@ -539,28 +568,83 @@ const TOKEN_WITH = /(tokens?) with \[(\w+)\]/gi;
 const KEYWORD_TOKENS =
   /\[(Tank|Backline|Assault(?: \d+)?|Shield(?: \d+)?|Ganking|Accelerate|Temporary|Hidden|Deflect(?: \d+)?|Action|Reaction)\]/gi;
 
+/** What a unit / gear / token text defines besides keywords (R5, R38). */
+export interface ParsedAbilities {
+  triggers: CardTrigger[];
+  abilities: ActivatedAbility[];
+  entersReady?: boolean;
+  legionCostReduction?: number;
+}
+
+/** "[Add] [N]" (Energy), "[Add] [C]" (Power of the source's Domain), "[Add] [A]" (Universal Power). */
+function parseAddClause(sen: string): CardEffect[] | null {
+  const m = /^\[Add\] \[(\d+|A|C)\]$/i.exec(sen);
+  if (!m) return null;
+  const t = (m[1] ?? '').toUpperCase();
+  if (t === 'A') return [{ op: 'ADD_POWER', amount: 1, domain: 'ANY' }];
+  if (t === 'C') return [{ op: 'ADD_POWER', amount: 1, domain: 'SOURCE' }];
+  const n = Number(t);
+  return n > 0 ? [{ op: 'ADD_ENERGY', amount: n }] : null;
+}
+
+/** "[E]", "[N]" (Energy), "Kill this" joined by commas. */
+function parseAbilityCost(text: string, gearLike: boolean): AbilityCost | null {
+  const cost: AbilityCost = {};
+  for (const part of text.split(/\s*,\s*/)) {
+    if (/^\[E\]$/i.test(part)) cost.exhaust = true;
+    else if (/^\[\d+\]$/.test(part)) cost.energy = (cost.energy ?? 0) + Number(part.slice(1, -1));
+    else if (/^Kill this$/i.test(part) && gearLike) cost.killSelf = true;
+    else return null;
+  }
+  return cost.exhaust || cost.energy || cost.killSelf ? cost : null;
+}
+
+const TRIGGER_HEAD =
+  /^(When you play me or when I (hold|conquer)|When you play me|When I hold|When I conquer|Deathknell:)\s*,?\s*(.*)$/i;
+
 /**
- * Parse the triggered abilities of a unit or gear. Returns null unless the whole text is made of
- * implemented keywords plus recognised triggers, and there is at least one trigger.
+ * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
+ * conquer", Deathknell), their Legion-conditioned forms ("[Legion] - When you play me, ..."),
+ * activated abilities ("[E]: [Reaction] - [Add] [C]", "[Reaction][>] Kill this, [E]: [Add] [A]"),
+ * "I enter ready" and "[Legion] - I cost [N] less". Returns null unless the whole text is made of
+ * implemented keywords plus these forms (all-or-nothing) and there is at least one of them.
+ * `gearLike`: the card may use "Kill this" as a cost (gear and gear-like tokens).
  */
-export function parseTriggerText(text: string): CardTrigger[] | null {
+export function parseCardAbilities(
+  text: string,
+  opts: { gearLike?: boolean } = {},
+): ParsedAbilities | null {
   const cleaned = text
+    .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
     .replace(TOKEN_WITH, '$1 with $2')
+    .replace(
+      /\[(Reaction|Action)\]\s*(?:\[>\]|[—–-])\s*/gi,
+      (_m, k: string) => `${k.toUpperCase()} `,
+    )
+    .replace(/\[Legion\]\s*(?:\[>\]|[—–-])\s*/gi, 'LEGION ')
     .replace(KEYWORD_TOKENS, ' ')
     .replace(/\[Deathknell\]\s*(?:\[>\]|[—–-])/gi, ' Deathknell: ')
     .replace(/\s+/g, ' ')
     .trim();
-  // A trigger sentence starts a group; the sentences after it belong to the same ability.
-  const groups: { ons: TriggerKind[]; sens: string[] }[] = [];
-  for (const sen of cleaned
+  const out: ParsedAbilities = { triggers: [], abilities: [] };
+  // A trigger / ability sentence starts a group; the sentences after it belong to the same ability.
+  type Group =
+    | { kind: 'trigger'; ons: TriggerKind[]; legion: boolean; sens: string[] }
+    | { kind: 'ability'; cost: AbilityCost; reaction: boolean; sens: string[] };
+  const groups: Group[] = [];
+  let cur: Group | null = null;
+  for (const raw of cleaned
     .split('.')
     .map((x) => x.trim())
     .filter(Boolean)) {
-    const m =
-      /^(When you play me or when I (hold|conquer)|When you play me|When I hold|When I conquer|Deathknell:)\s*,?\s*(.*)$/i.exec(
-        sen,
-      );
+    let sen = raw;
+    let legion = false;
+    if (/^LEGION /.test(sen)) {
+      legion = true;
+      sen = sen.slice(7).trim();
+    }
+    const m = TRIGGER_HEAD.exec(sen);
     if (m) {
       const head = (m[1] ?? '').toLowerCase();
       const ons: TriggerKind[] = head.startsWith('when you play me or')
@@ -572,16 +656,35 @@ export function parseTriggerText(text: string): CardTrigger[] | null {
             : head.startsWith('when i conquer')
               ? ['CONQUER']
               : ['DEATH'];
-      groups.push({ ons, sens: m[3] ? [m[3]] : [] });
-    } else {
-      const g = groups[groups.length - 1];
-      if (!g) return null;
-      g.sens.push(sen);
+      cur = { kind: 'trigger', ons, legion, sens: m[3] ? [m[3]] : [] };
+      groups.push(cur);
+      continue;
     }
+    if (/^I enter ready$/i.test(sen) && !legion) {
+      out.entersReady = true;
+      cur = null;
+      continue;
+    }
+    const cr = /^I cost \[(\d+)\] less$/i.exec(sen);
+    if (cr && legion) {
+      out.legionCostReduction = Number(cr[1]);
+      cur = null;
+      continue;
+    }
+    if (legion) return null;
+    const ab = /^(?:(REACTION|ACTION) )?([^:]+): (?:(REACTION|ACTION) )?(.+)$/.exec(sen);
+    if (ab && ab[1] !== 'ACTION' && ab[3] !== 'ACTION') {
+      const cost = parseAbilityCost(ab[2] ?? '', opts.gearLike === true);
+      if (!cost) return null;
+      cur = { kind: 'ability', cost, reaction: !!(ab[1] ?? ab[3]), sens: [ab[4] as string] };
+      groups.push(cur);
+      continue;
+    }
+    if (!cur) return null;
+    cur.sens.push(sen);
   }
-  const out: CardTrigger[] = [];
   for (const g of groups) {
-    // Triggers cannot choose targets yet: only slot-free clauses.
+    // Triggers and abilities cannot choose targets yet: only slot-free clauses.
     const list = g.sens
       .flatMap((x) => x.split(/, then /i))
       .map((x) => x.replace(/^Then /i, '').trim());
@@ -598,7 +701,26 @@ export function parseTriggerText(text: string): CardTrigger[] | null {
       effects.push(...c);
     }
     if (effects.length === 0) return null;
-    for (const on of g.ons) out.push({ on, effects });
+    if (g.kind === 'ability') {
+      out.abilities.push({ cost: g.cost, ...(g.reaction ? { reaction: true } : {}), effects });
+    } else {
+      for (const on of g.ons) {
+        out.triggers.push({ on, effects, ...(g.legion ? { condition: 'LEGION' as const } : {}) });
+      }
+    }
   }
-  return out.length > 0 ? out : null;
+  const any =
+    out.triggers.length > 0 ||
+    out.abilities.length > 0 ||
+    out.entersReady === true ||
+    out.legionCostReduction !== undefined;
+  return any ? out : null;
+}
+
+/** Triggered abilities only (kept for callers and tests): null unless the text has a trigger. */
+export function parseTriggerText(text: string): CardTrigger[] | null {
+  const r = parseCardAbilities(text);
+  if (!r || r.triggers.length === 0) return null;
+  if (r.abilities.length > 0 || r.entersReady || r.legionCostReduction !== undefined) return null;
+  return r.triggers;
 }

@@ -32,6 +32,10 @@ export interface ChainItem {
   triggerIndex?: number;
   /** For ABILITY items: index into the source's abilities. */
   abilityIndex?: number;
+  /** For ABILITY items from ACTIVATE_ABILITY: index into the source card's `abilities`. */
+  activatedIndex?: number;
+  /** For ACTIVATE_ABILITY items: the source's card id (the source may be gone, e.g. killed as a cost). */
+  sourceCardId?: string;
   /** Location chosen when playing a unit/gear. */
   location?: { kind: 'base' } | { kind: 'battlefield'; battlefieldId: string };
   /** Additional costs chosen (Accelerate). */

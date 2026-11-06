@@ -56,6 +56,8 @@ export type GameEvent = EventBase &
     | { type: 'CARDS_LOOKED_AT'; player: PlayerId; count: number }
     | { type: 'CARDS_RECYCLED'; player: PlayerId; count: number }
     | { type: 'CARD_REVEALED'; player: PlayerId; cardInstanceId: string; cardId: string }
+    | { type: 'ABILITY_ACTIVATED'; player: PlayerId; sourceId: string; abilityIndex: number }
+    | { type: 'RESOURCES_ADDED'; player: PlayerId; energy: number; power: number }
   );
 
 export type GameEventType = GameEvent['type'];

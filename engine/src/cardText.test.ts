@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSpellText, parseTriggerText } from './cardText.js';
+import { parseCardAbilities, parseSpellText, parseTriggerText } from './cardText.js';
 
 describe('parseSpellText', () => {
   it('parses draw, damage and buff sentences', () => {
@@ -237,7 +237,7 @@ describe('parseSpellText: tokens, "it" sentences, return / move / look (R3 round
     // Tests Rule 186.1: never invent a token
     expect(parseSpellText('Play a 4 [M] Recruit unit token.')).toBeNull();
     expect(parseSpellText('Play a 1 [M] Bird unit token.')).toBeNull(); // the table Bird has Deflect
-    expect(parseSpellText('Play a Gold gear token exhausted.')).toBeNull();
+    expect(parseSpellText('Play a Bomb gear token to a battlefield.')).toBeNull();
     expect(parseSpellText('Play three 1 [M] Recruit unit tokens there.')).toBeNull();
   });
 
@@ -362,5 +362,104 @@ describe('parseTriggerText: tokens and multi-sentence abilities (R3 round 2)', (
     ]);
     // A sentence that is not part of an ability still refuses the whole text.
     expect(parseTriggerText('When I hold, draw 1. I enter ready.')).toBeNull();
+  });
+});
+
+describe('parseCardAbilities (R38)', () => {
+  const gold = { op: 'PLAY_TOKEN', token: 'tok-gold', count: 1 };
+
+  it('parses Gold gear token clauses in spells and triggers', () => {
+    // Tests Rule 186.1: tokens are created on the Board
+    expect(
+      parseSpellText(
+        '[Action] Deal 3 to a unit at a battlefield. Play a Gold gear token exhausted.',
+      ),
+    ).toEqual([{ op: 'DAMAGE_TARGET', amount: 3, atBattlefield: true }, gold]);
+    expect(
+      parseCardAbilities('When I hold, play two Gold gear tokens exhausted.')?.triggers,
+    ).toEqual([{ on: 'HOLD', effects: [{ ...gold, count: 2 }] }]);
+    expect(parseSpellText('Play three ready Gold gear tokens.')).toEqual([
+      { ...gold, count: 3, ready: true },
+    ]);
+    expect(
+      parseSpellText('Kill a gear. Its controller plays a Gold gear token exhausted.'),
+    ).toEqual([
+      { op: 'KILL_GEAR' },
+      { op: 'TARGET_CONTROLLER_PLAY_TOKEN', token: 'tok-gold', count: 1 },
+    ]);
+    // "Its controller plays" needs an earlier kill
+    expect(parseSpellText('Its controller plays a Gold gear token exhausted.')).toBeNull();
+  });
+
+  it('parses [Add] effects and activated abilities', () => {
+    // Tests Rule 168: [Add] puts Energy or Power in the Rune Pool
+    expect(
+      parseCardAbilities(
+        '[E]: [Reaction] — [Add] [C]. (Abilities that add resources cannot be reacted to.)',
+      )?.abilities,
+    ).toEqual([
+      {
+        cost: { exhaust: true },
+        reaction: true,
+        effects: [{ op: 'ADD_POWER', amount: 1, domain: 'SOURCE' }],
+      },
+    ]);
+    expect(parseCardAbilities('[Reaction][>] [E]: [Add] [1].')?.abilities).toEqual([
+      { cost: { exhaust: true }, reaction: true, effects: [{ op: 'ADD_ENERGY', amount: 1 }] },
+    ]);
+    expect(
+      parseCardAbilities('[Reaction][>] Kill this, [E]: [Add] [A].', { gearLike: true })?.abilities,
+    ).toEqual([
+      {
+        cost: { exhaust: true, killSelf: true },
+        reaction: true,
+        effects: [{ op: 'ADD_POWER', amount: 1, domain: 'ANY' }],
+      },
+    ]);
+    expect(parseCardAbilities('[1], [E]: Draw 1.')?.abilities).toEqual([
+      { cost: { exhaust: true, energy: 1 }, effects: [{ op: 'DRAW', amount: 1 }] },
+    ]);
+    expect(parseCardAbilities('When I conquer, [Add] [A].')?.triggers[0]?.effects).toEqual([
+      { op: 'ADD_POWER', amount: 1, domain: 'ANY' },
+    ]);
+  });
+
+  it('refuses abilities it cannot run', () => {
+    // Tests Rule 145.1: an unknown cost, speed or follow-up sentence refuses the whole text
+    expect(parseCardAbilities('Kill this, [E]: [Add] [A].')).toBeNull(); // not gear-like
+    expect(parseCardAbilities('[E]: [Action] — [Add] [A][A].')).toBeNull();
+    expect(parseCardAbilities('[E]: [Reaction] — [Add] [2]. Use only to play spells.')).toBeNull();
+    expect(parseCardAbilities('Kill a friendly unit or gear, [E]: [Add] [A].')).toBeNull();
+    expect(parseCardAbilities('[E]: Give a unit +3 [M] this turn.')).toBeNull(); // needs a target
+  });
+
+  it('parses Legion forms', () => {
+    // Tests Rule 812: Legion effects are gotten only while another card was played this turn
+    const r = parseCardAbilities(
+      '[Legion] — When you play me, play two 1 [M] Recruit unit tokens here. (Get the effect if you have played another card this turn.)',
+    );
+    expect(r?.triggers).toEqual([
+      {
+        on: 'PLAY',
+        condition: 'LEGION',
+        effects: [{ op: 'PLAY_TOKEN', token: 'tok-recruit', count: 2, here: true }],
+      },
+    ]);
+    expect(parseCardAbilities('[Legion] — I cost [2] less.')?.legionCostReduction).toBe(2);
+    expect(
+      parseCardAbilities('[Legion][>] You may play me from your trash for [3][C].'),
+    ).toBeNull();
+    expect(parseCardAbilities('I cost [2] less.')).toBeNull(); // only the Legion form is modelled
+  });
+
+  it('parses "I enter ready"', () => {
+    // Tests Rule 359.2.c: Units enter exhausted unless an effect says otherwise
+    expect(parseCardAbilities('I enter ready.')).toMatchObject({ entersReady: true });
+    expect(
+      parseCardAbilities(
+        'I enter ready. When you play me, play a ready 3 [M] Mech unit token here.',
+      )?.triggers,
+    ).toHaveLength(1);
+    expect(parseCardAbilities('I enter ready if you control another Mech.')).toBeNull();
   });
 });

@@ -30,6 +30,37 @@ function token(
   };
 }
 
+/**
+ * The Gold gear token: a TOKEN without Might is a gear-like permanent. Its one ability is the
+ * reminder text printed on every Gold card: "[Reaction][>] Kill this, [E]: [Add] [A]."
+ */
+const GOLD: CardDef = {
+  cardId: 'tok-gold',
+  name: 'Gold token',
+  type: 'TOKEN',
+  subtypes: ['Gold'],
+  cost: { energy: 0 },
+  domains: [],
+  stats: {},
+  keywords: [],
+  text: '[Reaction][>] Kill this, [E]: [Add] [A].',
+  supportLevel: 'full',
+  abilities: [
+    {
+      cost: { exhaust: true, killSelf: true },
+      reaction: true,
+      effects: [{ op: 'ADD_POWER', amount: 1, domain: 'ANY' }],
+    },
+  ],
+};
+
+export const GOLD_TOKEN_ID = 'tok-gold';
+
+/** Gear, or a token without Might (a gear-like permanent such as Gold). */
+export const isGearDef = (def: CardDef | undefined): boolean =>
+  def !== undefined &&
+  (def.type === 'GEAR' || (def.type === 'TOKEN' && def.stats.might === undefined));
+
 export const TOKEN_CARDS: CardDatabase = Object.fromEntries(
   [
     token('tok-recruit', 'Recruit', 1),
@@ -37,6 +68,7 @@ export const TOKEN_CARDS: CardDatabase = Object.fromEntries(
     token('tok-bird', 'Bird', 1, [{ name: 'Deflect' }]),
     token('tok-mech', 'Mech', 3),
     token('tok-sand-soldier', 'Sand Soldier', 2),
+    GOLD,
   ].map((c) => [c.cardId, c]),
 );
 

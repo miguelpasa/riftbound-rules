@@ -27,6 +27,7 @@ import type { ChainResolver } from './chain.js';
 import { computeTotalCost, payCost } from './resources.js';
 import type { CostMod } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
+import { legionActive } from './keywords.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -141,7 +142,10 @@ function placingResolver(
         owner.base.push(obj.id);
       }
       // 359.2.c Units enter exhausted (ready if Accelerate was paid); 359.2.d Gear enters ready.
-      obj.ready = def.type === 'GEAR' ? true : item.additionalCosts?.accelerate === true;
+      obj.ready =
+        def.type === 'GEAR'
+          ? true
+          : item.additionalCosts?.accelerate === true || def.entersReady === true;
       obj.enteredTurn = turnNumber;
       if (hooks?.onEnter) events.push(...hooks.onEnter(s, cards, obj.id, item));
     }
@@ -159,6 +163,18 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   const s = fork(state);
   const events: GameEventInput[] = [];
   const obj = s.objects[item.sourceObjectId];
+  if (item.kind === 'ABILITY' && item.activatedIndex !== undefined) {
+    // Activated ability (145.1): the source may be gone (killed as a cost), so its card id rides
+    // on the item. A Closed-state resolution of a target-free effect list.
+    const cardId = item.sourceCardId ?? obj?.cardId ?? '';
+    const ability = cards[cardId]?.abilities?.[item.activatedIndex];
+    if (ability) {
+      events.push(
+        ...runEffects(s, item.controller, ability.effects, cards, [], cardId, item.sourceObjectId),
+      );
+    }
+    return { state: s, events };
+  }
   if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
     const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
     if (trig) {
@@ -281,7 +297,13 @@ export function playCard(
     return ruleError('KEYWORD_RESTRICTION', 'Accelerate was requested but the card has none');
   }
   const extra = hooks?.extraCosts?.(state, cards, pid, def, intent) ?? null;
-  const cost = computeTotalCost(def, { accelerate, increases: extra ? [extra] : [] });
+  // Legion (812): "I cost [N] less" while another card was played this turn (checked before this
+  // play is recorded; the source itself never counts).
+  const discounts: CostMod[] =
+    def.legionCostReduction && legionActive(state, pid, src.id)
+      ? [{ energy: def.legionCostReduction }]
+      : [];
+  const cost = computeTotalCost(def, { accelerate, increases: extra ? [extra] : [], discounts });
 
   // 6. Pay (357). Failure = the whole play is undone (358.5): the caller's state is untouched.
   const paid = payCost(state, cards, pid, cost, intent.payment);

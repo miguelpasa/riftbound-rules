@@ -12,6 +12,7 @@
 import { fork } from './workingCopy.js';
 import { deriveTurnState } from './chain.js';
 import { allocObjectId, stampEvents } from './setup.js';
+import { legionActive } from './keywords.js';
 import type {
   CardDatabase,
   CardInstance,
@@ -37,7 +38,10 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
   const add = (obj: CardInstance | undefined, kind: TriggerKind, controller: PlayerId): void => {
     const triggers = obj ? cards[obj.cardId]?.triggers : undefined;
     triggers?.forEach((t, index) => {
-      if (obj && t.on === kind) out.push({ source: obj, index, controller });
+      if (!obj || t.on !== kind) return;
+      // 812: a Legion-dependent ability triggers only while another card was played this turn.
+      if (t.condition === 'LEGION' && !legionActive(state, controller, obj.id)) return;
+      out.push({ source: obj, index, controller });
     });
   };
   for (const e of events) {

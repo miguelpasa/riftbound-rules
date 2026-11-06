@@ -12,6 +12,7 @@ import { drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
 import { removeTokenFromGame } from './keywords.js';
 import { allocObjectId } from './setup.js';
+import { isGearDef, isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
@@ -123,9 +124,9 @@ function legalForSpec(
   const onBoard = u.zone.kind === 'base' || u.zone.kind === 'battlefield';
   if (!onBoard) return false;
   if (spec.kind === 'gear') {
-    if (type !== 'GEAR') return false;
+    if (!isGearDef(cards[u.cardId])) return false;
   } else {
-    if (type !== 'UNIT' && type !== 'TOKEN') return false;
+    if (!isUnitDef(cards[u.cardId])) return false;
     if (spec.atBattlefield && u.zone.kind !== 'battlefield') return false;
     if (
       spec.maxMight !== undefined &&
@@ -244,8 +245,7 @@ function boardUnits(state: GameState, cards: CardDatabase): CardInstance[] {
   return Object.values(state.objects)
     .filter(
       (o) =>
-        (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
-        (cards[o.cardId]?.type === 'UNIT' || cards[o.cardId]?.type === 'TOKEN'),
+        (o.zone.kind === 'base' || o.zone.kind === 'battlefield') && isUnitDef(cards[o.cardId]),
     )
     .sort((a, b) => num(a.id) - num(b.id));
 }
@@ -289,9 +289,13 @@ function counterSpell(state: GameState, spell: CardInstance): void {
 }
 
 /** Kill a gear: to its owner's Trash, Equipment detached (mutates). */
-function killGear(state: GameState, g: CardInstance): void {
+export function killGear(state: GameState, g: CardInstance): void {
   const ps = state.players[playerIndex(g.controller)];
   ps.base = ps.base.filter((x) => x !== g.id);
+  if (isTokenInstance(g)) {
+    removeTokenFromGame(state, g.id); // 186.1
+    return;
+  }
   const owner = state.players[playerIndex(g.owner)];
   owner.trash.push(g.id);
   g.zone = { kind: 'trash', player: g.owner };
@@ -375,6 +379,39 @@ function lookAtTop(
   ps.mainDeck.push(...rest);
   if (rest.length > 0) out.push({ type: 'CARDS_RECYCLED', player, count: rest.length });
   return out;
+}
+
+/** Play `count` tokens for `controller` (Base, or the source's battlefield with `here`). Mutates. */
+function playTokens(
+  state: GameState,
+  controller: PlayerId,
+  token: string,
+  count: number,
+  opts: { ready?: boolean; here?: boolean },
+  sourceObjectId: string,
+  out: GameEventInput[],
+): void {
+  const src = state.objects[sourceObjectId];
+  for (let i = 0; i < count; i++) {
+    const id = allocObjectId(state);
+    const zone: CardInstance['zone'] =
+      opts.here && src?.zone.kind === 'battlefield'
+        ? { kind: 'battlefield', player: controller, battlefieldId: src.zone.battlefieldId }
+        : { kind: 'base', player: controller };
+    state.objects[id] = {
+      id,
+      cardId: token,
+      owner: controller,
+      controller,
+      zone,
+      ready: opts.ready === true,
+      damage: 0,
+      mightBonus: 0,
+      enteredTurn: state.turn.number,
+    };
+    if (zone.kind === 'base') state.players[playerIndex(controller)].base.push(id);
+    out.push({ type: 'TOKEN_PLAYED', player: controller, unitId: id, cardId: token });
+  }
 }
 
 export function runEffects(
@@ -498,7 +535,7 @@ export function runEffects(
           .filter(
             (o) =>
               (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
-              cards[o.cardId]?.type === 'GEAR',
+              isGearDef(cards[o.cardId]),
           )
           .sort((a, b) => num(a.id) - num(b.id));
         for (const g of gear) {
@@ -551,32 +588,30 @@ export function runEffects(
         }
         break;
       case 'PLAY_TOKEN': {
-        const def = cards[e.token];
-        if (!def) {
+        if (!cards[e.token]) {
           fizzle();
           break;
         }
-        const src = state.objects[sourceObjectId];
-        for (let i = 0; i < e.count; i++) {
-          const id = allocObjectId(state);
-          const zone: CardInstance['zone'] =
-            e.here && src?.zone.kind === 'battlefield'
-              ? { kind: 'battlefield', player: controller, battlefieldId: src.zone.battlefieldId }
-              : { kind: 'base', player: controller };
-          state.objects[id] = {
-            id,
-            cardId: e.token,
-            owner: controller,
-            controller,
-            zone,
-            ready: e.ready === true,
-            damage: 0,
-            mightBonus: 0,
-            enteredTurn: state.turn.number,
-          };
-          if (zone.kind === 'base') state.players[playerIndex(controller)].base.push(id);
-          out.push({ type: 'TOKEN_PLAYED', player: controller, unitId: id, cardId: e.token });
-        }
+        playTokens(state, controller, e.token, e.count, e, sourceObjectId, out);
+        break;
+      }
+      case 'TARGET_CONTROLLER_PLAY_TOKEN': {
+        const who = doneSlots.get(e.slot ?? 0);
+        if (who === undefined || !cards[e.token]) break; // the earlier effect fizzled
+        playTokens(state, who, e.token, e.count, {}, sourceObjectId, out);
+        break;
+      }
+      case 'ADD_ENERGY': {
+        state.players[playerIndex(controller)].runePool.energy += e.amount;
+        out.push({ type: 'RESOURCES_ADDED', player: controller, energy: e.amount, power: 0 });
+        break;
+      }
+      case 'ADD_POWER': {
+        const pool = state.players[playerIndex(controller)].runePool;
+        const domain = e.domain === 'SOURCE' ? cards[sourceCardId]?.domains[0] : undefined;
+        if (domain) pool.power[domain] = (pool.power[domain] ?? 0) + e.amount;
+        else pool.universal = (pool.universal ?? 0) + e.amount;
+        out.push({ type: 'RESOURCES_ADDED', player: controller, energy: 0, power: e.amount });
         break;
       }
       case 'LOOK_TOP':

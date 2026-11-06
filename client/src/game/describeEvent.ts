@@ -160,6 +160,15 @@ export function describeEvent(
       return `${who(event.player, view)} recycled ${plural(event.count, 'card')}.`;
     case 'CARD_REVEALED':
       return `${who(event.player, view)} revealed ${cards[event.cardId]?.name ?? 'a card'}.`;
+    case 'ABILITY_ACTIVATED':
+      return `${who(event.player, view)} activated ${objectName(event.sourceId, view, cards, 'an ability')}.`;
+    case 'RESOURCES_ADDED': {
+      const parts = [
+        event.energy > 0 ? `${event.energy} Energy` : '',
+        event.power > 0 ? `${event.power} Power` : '',
+      ].filter(Boolean);
+      return `${who(event.player, view)} added ${parts.join(' and ') || 'nothing'} to the Rune Pool.`;
+    }
     case 'CLEANUP_ITERATION':
       return `Cleanup pass ${event.iteration}.`;
     default:

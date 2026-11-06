@@ -85,6 +85,14 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
     cardInstanceId: 'o9',
     cardId: 'fx-grunt',
   },
+  ABILITY_ACTIVATED: {
+    seq: 46,
+    type: 'ABILITY_ACTIVATED',
+    player: 'p0',
+    sourceId: 'o9',
+    abilityIndex: 0,
+  },
+  RESOURCES_ADDED: { seq: 47, type: 'RESOURCES_ADDED', player: 'p0', energy: 0, power: 1 },
 };
 
 describe('describeEvent', () => {
@@ -118,6 +126,13 @@ describe('describeEvent', () => {
       `${SCENARIO_CARDS['fx-flare']!.name} was countered.`,
     );
     expect(describeEvent(SAMPLES.EFFECT_STUNNED, view, SCENARIO_CARDS)).toContain('stunned');
+  });
+
+  it('words the ability and resource events', () => {
+    expect(describeEvent(SAMPLES.RESOURCES_ADDED, view, SCENARIO_CARDS)).toBe(
+      'You added 1 Power to the Rune Pool.',
+    );
+    expect(describeEvent(SAMPLES.ABILITY_ACTIVATED, view, SCENARIO_CARDS)).toContain('activated');
   });
 
   it('words the token, return and look-at events', () => {

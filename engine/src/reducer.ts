@@ -15,7 +15,8 @@
  *    card).  STANDARD_MOVE, ASSIGN_COMBAT_DAMAGE, HIDE_CARD, EQUIP: their modules.
  *  - ACTIVATE_RUNE: a Reaction-speed mana ability that does not use the chain (164.2): allowed at any
  *    time while the game is in progress, except during the MULLIGAN phase.
- *  - ACTIVATE_ABILITY: no activated abilities in the MVP -> ABILITY_NOT_AVAILABLE.
+ *  - ACTIVATE_ABILITY: abilities.activateAbility (R38); an object without that ability gives
+ *    ABILITY_NOT_AVAILABLE.
  *  - CONCEDE (649-651): the opponent wins at once (GAME_ENDED).
  *  - After every successful non-concede reduce the Cleanup loop runs (318-324) and its events are
  *    appended. All sub-steps thread the same state, so event `seq` values are strictly increasing and
@@ -42,6 +43,7 @@ import { endTurn, runStartOfTurn } from './phases.js';
 import type { PhaseHooks } from './phases.js';
 import { playCard, playResolver } from './play.js';
 import type { PlayHooks } from './play.js';
+import { activateAbility } from './abilities.js';
 import { activateRune } from './resources.js';
 import { holdScoringStep } from './scoring.js';
 import { stampEvents } from './setup.js';
@@ -212,7 +214,7 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
     case 'CHOOSE_STAGED':
       return chooseStaged(state, cards, intent, ENGINE_HOOKS.showdown);
     case 'ACTIVATE_ABILITY':
-      return ruleError('ABILITY_NOT_AVAILABLE', 'no activated abilities in the MVP');
+      return activateAbility(state, cards, intent);
     case 'CONCEDE': {
       const next = fork(state);
       const winner = opponentOf(intent.playerId);
