@@ -576,6 +576,22 @@ export function runEffects(
         }
         break;
       }
+      case 'PREDICT': {
+        // R55: keep a card on top only when it is playable soon: Energy cost at most (runes + 2).
+        const ps = state.players[playerIndex(controller)] as GameState['players'][number];
+        const ids = ps.mainDeck.splice(0, e.count);
+        out.push({ type: 'CARDS_LOOKED_AT', player: controller, count: ids.length });
+        const runes = Object.values(state.objects).filter(
+          (o) => o.controller === controller && o.zone.kind === 'base' && cards[o.cardId]?.type === 'RUNE',
+        ).length;
+        const costOf = (id: string): number => cards[(state.objects[id] as CardInstance).cardId]?.cost.energy ?? 0;
+        const keep = ids.filter((id) => costOf(id) <= runes + 2);
+        const recycle = ids.filter((id) => costOf(id) > runes + 2);
+        ps.mainDeck.unshift(...keep);
+        ps.mainDeck.push(...recycle);
+        if (recycle.length > 0) out.push({ type: 'CARDS_RECYCLED', player: controller, count: recycle.length });
+        break;
+      }
       case 'GAIN_XP': {
         const n = e.perFriendlyUnit
           ? e.amount *

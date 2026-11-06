@@ -118,6 +118,8 @@ const PARSED_KEYWORDS = new Set<string>([
   'Weaponmaster',
   'Empower',
   'Hunt',
+  'Vision',
+  'Predict',
 ]);
 
 /** Errata marker; in the real data it may be split across lines ("▲\n[OLD TEXT]"). */
@@ -304,7 +306,10 @@ export function convertRow(row: RawRow): ConvertResult {
   if (
     type === 'SPELL' &&
     card.supportLevel === 'partial' &&
-    keywords.every((k) => MVP_SET.has(k.name) || (k.name === 'Repeat' && repeatCost !== null))
+    keywords.every(
+      (k) =>
+        MVP_SET.has(k.name) || (k.name === 'Repeat' && repeatCost !== null) || k.name === 'Predict',
+    )
   ) {
     const effects = parseSpellText(text);
     if (effects) {

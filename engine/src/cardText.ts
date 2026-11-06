@@ -138,6 +138,8 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (/^(?:\[Buff\]|Buff) me$/i.test(sen)) return [{ op: 'BUFF_SELF', amount: 1, buff: true }];
   if (/^Ready me$/i.test(sen)) return [{ op: 'READY_SELF' }];
   if (/^Empower me$/i.test(sen)) return [{ op: 'EMPOWER_SELF' }];
+  m = /^\[Predict(?: (\d+))?\]$/i.exec(sen);
+  if (m) return [{ op: 'PREDICT', count: Number(m[1] ?? 1) }];
   m = /^Gain (\d+) XP(?: for each friendly unit)?$/i.exec(sen);
   if (m) {
     return [
@@ -954,6 +956,10 @@ function keywordTriggers(text: string): CardTrigger[] {
       effects: [{ op: 'DEBUFF_TARGET', amount: disarm, side: 'enemy', here: true }],
     });
   }
+  // R55: Vision = "When you play me, look at the top card of your Main Deck. You may recycle it."
+  if (/(?:^|\n)\s*\[Vision\]/i.test(text)) {
+    out.push({ on: 'PLAY', effects: [{ op: 'PREDICT', count: 1 }] });
+  }
   // R53: Hunt N = "When I conquer or hold, gain N XP".
   let hunt = 0;
   for (const m of text.matchAll(/(?:^|\n)\s*\[Hunt(?: (\d+))?\]/gi)) hunt += Number(m[1] ?? 1);
@@ -1326,7 +1332,7 @@ export function parseCardAbilities(
 ): ParsedAbilities | null {
   const kwTriggers = keywordTriggers(text);
   const cleaned = protectGrants(text)
-    .replace(/(?:^|\n)\s*\[(?:Disarm(?: \d+)?|Weaponmaster|Hunt(?: \d+)?)\]/gi, '\n')
+    .replace(/(?:^|\n)\s*\[(?:Disarm(?: \d+)?|Weaponmaster|Hunt(?: \d+)?|Vision)\]/gi, '\n')
     .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
     .replace(TOKEN_WITH, '$1 with $2')

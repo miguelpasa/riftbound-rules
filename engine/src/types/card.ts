@@ -135,6 +135,11 @@ export type CardEffect =
   | { op: 'WIN_GAME' }
   /** R45: "give me +N [M] this turn" (the source unit; nothing if it left the board). */
   | { op: 'BUFF_SELF'; amount: number; /** R54: [Buff] me. */ buff?: boolean }
+  /**
+   * R55: Predict N / Vision: look at the top N cards of the Main Deck, recycle those that cost too much
+   * and put the rest back in order. A deterministic policy until choices exist (see ASSUMPTIONS R55).
+   */
+  | { op: 'PREDICT'; count: number }
   /** R53: "gain N XP" (optionally per friendly unit on the board). */
   | { op: 'GAIN_XP'; amount: number; perFriendlyUnit?: boolean }
   /** R52: "Empower me": the source becomes Empowered (nothing if it is not on the board or already is). */

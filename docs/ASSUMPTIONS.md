@@ -183,3 +183,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Parsed:** "[Buff] a [friendly|enemy] unit" / "Buff a unit" (target chosen like any unit spell), "[Buff] me" / "buff me", and the condition "I'm buffed" (statics and "if" clauses).
 - **Not parsed (cards stay partial):** "buff all units here", "buff up to N units", "buff another friendly unit", "If it's already buffed ... instead", "Spend my buff ...", "when you buff ...", "any number of buffs" (Lee Sin), "buffed units have ...".
 - **Rule numbers:** tests cite 143.2 only.
+
+## R55: Predict and Vision (A-R55)
+
+- **Rules (from the reminder text):** Predict N = look at the top N cards of your Main Deck, recycle any of them and put the rest back in any order (Predict 1: "you may recycle it"). Vision = "When you play me, look at the top card of your Main Deck. You may recycle it."
+- **Deterministic policy (no choice UI yet, like LOOK_TOP):** a looked-at card stays on top, in its original order, when its printed Energy cost is at most (your channeled runes + 2); the others are recycled to the bottom. Players cannot choose; a Predict-heavy deck is slightly weaker or stronger than the real game depending on the heuristic. Hidden information is preserved: the opponent only sees CARDS_LOOKED_AT / CARDS_RECYCLED counts.
+- **Not done:** the interactive choice (pick what to recycle and the order), "Predict equal to its Power cost" (The Empyrean, needs Show Off), "they [Predict]" for each player (Rakelstake), "When I become exhausted, [Predict]" (no exhausted trigger).
+- **Rule numbers:** tests cite 359 only.
