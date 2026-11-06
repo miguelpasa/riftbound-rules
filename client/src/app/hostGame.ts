@@ -55,7 +55,7 @@ export interface BotFactoryOptions {
   deck: DeckList;
   seat: PlayerId;
   seed: string;
-  difficulty: 'easy' | 'normal';
+  difficulty: 'easy' | 'normal' | 'hard';
 }
 
 export interface HostEnv {
@@ -227,7 +227,7 @@ function assemble(o: AssembleOptions): HostGame {
 export interface SoloOptions {
   deck: DeckList;
   botDeck: DeckList;
-  difficulty: 'easy' | 'normal';
+  difficulty: 'easy' | 'normal' | 'hard';
   seed?: string;
   timersEnabled: boolean;
 }
@@ -409,7 +409,7 @@ export type ResumeResult = { ok: true; game: HostGame } | { ok: false; message: 
 export async function resumeSavedGame(
   env: HostEnv,
   gameId: string,
-  opts: { timersEnabled: boolean; difficulty?: 'easy' | 'normal' },
+  opts: { timersEnabled: boolean; difficulty?: 'easy' | 'normal' | 'hard' },
 ): Promise<ResumeResult> {
   // The saved header wins; `opts.difficulty` is only a fallback for saves made before the header had it.
   const bridge = createHostBridge();

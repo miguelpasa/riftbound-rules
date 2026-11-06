@@ -34,7 +34,7 @@ export interface CreateAiBotOptions {
   seat: PlayerId;
   seed?: string;
   budgetMs?: number;
-  difficulty?: 'easy' | 'normal';
+  difficulty?: 'easy' | 'normal' | 'hard';
   /** Per-decision timeout in the worker path (default 5000 ms). */
   timeoutMs?: number;
   /** `null` = force inline, a function = custom worker. Default: a real Worker when available. */

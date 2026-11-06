@@ -37,6 +37,9 @@ import type { DeterminizeOptions } from './determinize.js';
 import { DEFAULT_WEIGHTS, evaluate } from './evaluate.js';
 import type { EvalWeights } from './evaluate.js';
 
+/** easy: noisy and short-sighted; normal: 1-ply; hard: 1-ply plus a rollout of the rest of the turn. */
+export type BotDifficulty = 'easy' | 'normal' | 'hard';
+
 /** Minimal synchronous bot contract. */
 export interface SyncBot {
   decide(view: ClientGameState): Intent | null;
@@ -54,8 +57,10 @@ export interface AIControllerOptions {
   maxCandidates?: number;
   /** Clock, injectable for deterministic tests (default Date.now). */
   now?: () => number;
-  /** 'easy' adds seeded noise to the scores (default 'normal'). */
-  difficulty?: 'easy' | 'normal';
+  /** See BotDifficulty (default 'normal'). Sets the defaults of the options below. */
+  difficulty?: BotDifficulty;
+  /** Top candidates re-scored by playing the rest of the turn out (default: 4 on hard, else 0). */
+  lookahead?: number;
   weights?: Readonly<EvalWeights>;
   /** Overrides the mirror assumption for the opponent (see determinize.ts). */
   determinize?: DeterminizeOptions;
@@ -86,7 +91,11 @@ const EPS = 0.5;
 const MAX_EQUIP = 3;
 const MAX_MOVES = 8;
 const SETTLE_STEPS = 12;
-const EASY_JITTER = 40;
+const EASY_JITTER = 400;
+/** Chance (per mille) that an easy bot just ends its turn / passes instead of acting. */
+const EASY_LAZY = 150;
+const ROLLOUT_STEPS = 10;
+const ROLLOUT_CANDIDATES = 10;
 
 function fnv1a(s: string): string {
   let h = 0x811c9dc5;
@@ -107,7 +116,8 @@ export class AIController implements SyncBot {
   private readonly budgetMs: number;
   private readonly maxCandidates: number;
   private readonly now: () => number;
-  private readonly difficulty: 'easy' | 'normal';
+  private readonly difficulty: BotDifficulty;
+  private readonly lookahead: number;
   private readonly weights: Readonly<EvalWeights>;
   private readonly detOpts: DeterminizeOptions;
   private readonly onProfile: ((p: DecisionProfile) => void) | undefined;
@@ -120,9 +130,10 @@ export class AIController implements SyncBot {
     this.deck = opts.deck;
     this.seed = opts.seed ?? 'bot';
     this.budgetMs = opts.budgetMs ?? 500;
-    this.maxCandidates = Math.max(1, opts.maxCandidates ?? 60);
-    this.now = opts.now ?? (() => Date.now());
     this.difficulty = opts.difficulty ?? 'normal';
+    this.maxCandidates = Math.max(1, opts.maxCandidates ?? (this.difficulty === 'easy' ? 12 : 60));
+    this.lookahead = Math.max(0, opts.lookahead ?? (this.difficulty === 'hard' ? 4 : 0));
+    this.now = opts.now ?? (() => Date.now());
     this.weights = opts.weights ?? DEFAULT_WEIGHTS;
     this.detOpts = opts.determinize ?? {};
     this.onProfile = opts.onProfile;
@@ -380,9 +391,81 @@ export class AIController implements SyncBot {
         ? t
         : bestOther.intent;
     }
+    // An easy bot sometimes just stops acting.
+    if (this.difficulty === 'easy') {
+      const [v, next] = randomInt(rng.r, 1000);
+      rng.r = next;
+      if (v < EASY_LAZY) return bestTerminal.intent;
+    }
     // PASS is compared with its own outcome; END_TURN with the do-nothing baseline.
     const threshold = pass ? pass.score : evaluate(state, this.cards, this.playerId, this.weights);
-    return bestOther.score > threshold + EPS ? bestOther.intent : bestTerminal.intent;
+    if (bestOther.score <= threshold + EPS) return bestTerminal.intent;
+
+    // Hard: replay the rest of the turn after each of the best few actions and compare end-of-turn
+    // positions. Only at the end-of-turn decision (END_TURN legal), where a combination matters.
+    if (this.lookahead > 0 && end && !pass) {
+      const top = [...others]
+        .sort((a, b) => b.score - a.score)
+        .filter((x) => x.score > threshold + EPS)
+        .slice(0, this.lookahead);
+      let choice: { intent: Intent; score: number } | undefined;
+      for (const c of top) {
+        if (this.now() >= deadline) break;
+        const r = reduce(state, this.cards, c.intent);
+        this.reduceCalls++;
+        if (!r.ok) continue;
+        const v = this.rollout(r.state, deadline);
+        if (choice === undefined || v > choice.score) choice = { intent: c.intent, score: v };
+      }
+      if (choice !== undefined && choice.score > end.score + EPS) return choice.intent;
+      return choice === undefined ? bestOther.intent : end.intent;
+    }
+    return bestOther.intent;
+  }
+
+  /**
+   * Play the rest of my turn greedily (best 1-ply action each step, opponent just passes) and return
+   * the evaluation once my turn is over (or the step / time cap hits).
+   */
+  private rollout(start: GameState, deadline: number): number {
+    const me = this.playerId;
+    let s = this.settle(start, deadline);
+    for (let k = 0; k < ROLLOUT_STEPS; k++) {
+      if (s.gameStatus !== 'IN_PROGRESS' || actorToAct(s) !== me || this.now() >= deadline) break;
+      if (s.turn.activePlayer !== me) break;
+      const legal = getLegalActions(s, this.cards, me).filter((i) => i.type !== 'CONCEDE');
+      if (legal.length === 0) break;
+      const pick = this.rolloutStep(s, legal, deadline);
+      const r = reduce(s, this.cards, pick);
+      this.reduceCalls++;
+      if (!r.ok) break;
+      s = this.settle(r.state, deadline);
+      if (pick.type === 'END_TURN') break;
+    }
+    return evaluate(s, this.cards, me, this.weights);
+  }
+
+  /** The 1-ply choice used inside a rollout: few candidates, no jitter, no recursion. */
+  private rolloutStep(state: GameState, legal: Intent[], deadline: number): Intent {
+    if (legal.length === 1) return legal[0] as Intent;
+    if (legal.every(isTerminal))
+      return legal.find((i) => i.type === 'END_TURN') ?? (legal[0] as Intent);
+    const end = legal.find((i) => i.type === 'END_TURN');
+    const body = this.candidates(state, legal)
+      .filter((i) => !isTerminal(i))
+      .slice(0, ROLLOUT_CANDIDATES);
+    const baseline = evaluate(state, this.cards, this.playerId, this.weights);
+    let best: Intent | undefined;
+    let bestScore = baseline + EPS;
+    for (const c of body) {
+      if (this.now() >= deadline) break;
+      const v = this.score(state, c, deadline);
+      if (v !== null && v > bestScore) {
+        bestScore = v;
+        best = c;
+      }
+    }
+    return best ?? end ?? (legal.find(isTerminal) as Intent);
   }
 
   /** Cheap fallback when no candidate could be scored in time. */

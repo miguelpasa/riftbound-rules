@@ -49,7 +49,7 @@ function randomPlayer(seed: number): Player {
   };
 }
 
-function botPlayer(opts: { seed: string; difficulty?: 'easy' | 'normal' }): {
+function botPlayer(opts: { seed: string; difficulty?: 'easy' | 'normal' | 'hard' }): {
   player: Player;
   rejected: string[];
 } {
@@ -412,7 +412,10 @@ describe('strength and regression', () => {
     let finished = 0;
     for (let g = 0; g < 6; g++) {
       const a = botPlayer({ seed: `A${g}` });
-      const b = botPlayer({ seed: `B${g}`, difficulty: g % 2 === 0 ? 'easy' : 'normal' });
+      const b = botPlayer({
+        seed: `B${g}`,
+        difficulty: (['easy', 'normal', 'hard'] as const)[g % 3] as 'easy' | 'normal' | 'hard',
+      });
       const res = playMatch(`y2-${g}`, { p0: a.player, p1: b.player });
       expect(res.status).not.toBe('ABORTED');
       expect(a.rejected).toEqual([]);
@@ -420,5 +423,18 @@ describe('strength and regression', () => {
       if (res.status === 'FINISHED') finished++;
     }
     expect(finished).toBeGreaterThanOrEqual(4);
+  }, 60_000);
+
+  it('hard mode plays full games with no rejected intents and is deterministic', () => {
+    // Tests Rule 473: the rollout lookahead only ever returns legal intents, and is a pure function of (seed, view)
+    const run = (): string => {
+      const a = botPlayer({ seed: 'H', difficulty: 'hard' });
+      const b = botPlayer({ seed: 'N' });
+      const res = playMatch('hard-1', { p0: a.player, p1: b.player });
+      expect(res.status).not.toBe('ABORTED');
+      expect(a.rejected).toEqual([]);
+      return JSON.stringify(res);
+    };
+    expect(run()).toBe(run());
   }, 60_000);
 });

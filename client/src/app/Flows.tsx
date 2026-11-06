@@ -329,7 +329,7 @@ export function JoinFlow({ onBack, onGame }: FlowProps) {
 
 // ---------------------------------------------------------------- solo
 
-export type Difficulty = 'easy' | 'normal';
+export type Difficulty = 'easy' | 'normal' | 'hard';
 
 export function pickBotDeck(
   presets: { id: string; deck: DeckChoice['deck'] }[],
@@ -376,7 +376,7 @@ export function SoloFlow({ onBack, onGame }: FlowProps) {
       <fieldset className="flex flex-col gap-1">
         <legend className="text-sm text-slate-300">Difficulty</legend>
         <div className="flex gap-4">
-          {(['easy', 'normal'] as const).map((d) => (
+          {(['easy', 'normal', 'hard'] as const).map((d) => (
             <label key={d} className="flex items-center gap-2 text-slate-200">
               <input
                 type="radio"
@@ -386,7 +386,7 @@ export function SoloFlow({ onBack, onGame }: FlowProps) {
                 onChange={() => setDifficulty(d)}
                 className="accent-amber-400"
               />
-              {d === 'easy' ? 'Easy' : 'Normal'}
+              {d === 'easy' ? 'Easy' : d === 'hard' ? 'Hard' : 'Normal'}
             </label>
           ))}
         </div>

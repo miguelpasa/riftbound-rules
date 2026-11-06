@@ -19,7 +19,7 @@ export interface AiInitMessage {
   seat: PlayerId;
   cardsJson: string | CardDatabase;
   budgetMs?: number;
-  difficulty?: 'easy' | 'normal';
+  difficulty?: 'easy' | 'normal' | 'hard';
 }
 export interface AiDecideMessage {
   type: 'decide';

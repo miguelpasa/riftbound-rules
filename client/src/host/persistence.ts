@@ -46,7 +46,7 @@ export interface GameHeader {
   hostSeat: PlayerId;
   mode: 'MULTIPLAYER' | 'SOLO';
   /** Solo only: the bot's difficulty. Optional so saves made before it existed still load. */
-  difficulty?: 'easy' | 'normal';
+  difficulty?: 'easy' | 'normal' | 'hard';
   roomCode?: string;
   guestSeatToken?: string;
   createdAt: number;
@@ -640,7 +640,7 @@ export interface PersistedHostOptions extends Omit<
   gameId?: string;
   roomCode?: string;
   /** Solo only: saved in the header so Resume keeps the bot's difficulty. */
-  difficulty?: 'easy' | 'normal';
+  difficulty?: 'easy' | 'normal' | 'hard';
   onCommit?: CreateHostOptions['onCommit'];
   onSeatClaimed?: CreateHostOptions['onSeatClaimed'];
   onError?: PersistErrorHandler;
