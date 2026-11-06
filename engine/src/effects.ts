@@ -60,6 +60,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'BUFF_TARGET' ||
   e.op === 'KILL_TARGET' ||
   e.op === 'READY_TARGET' ||
+  e.op === 'LOCK_MOVE_TARGET' ||
   e.op === 'STUN_TARGET' ||
   e.op === 'DEBUFF_TARGET' ||
   e.op === 'KILL_GEAR' ||
@@ -582,14 +583,19 @@ export function runEffects(
         const ids = ps.mainDeck.splice(0, e.count);
         out.push({ type: 'CARDS_LOOKED_AT', player: controller, count: ids.length });
         const runes = Object.values(state.objects).filter(
-          (o) => o.controller === controller && o.zone.kind === 'base' && cards[o.cardId]?.type === 'RUNE',
+          (o) =>
+            o.controller === controller &&
+            o.zone.kind === 'base' &&
+            cards[o.cardId]?.type === 'RUNE',
         ).length;
-        const costOf = (id: string): number => cards[(state.objects[id] as CardInstance).cardId]?.cost.energy ?? 0;
+        const costOf = (id: string): number =>
+          cards[(state.objects[id] as CardInstance).cardId]?.cost.energy ?? 0;
         const keep = ids.filter((id) => costOf(id) <= runes + 2);
         const recycle = ids.filter((id) => costOf(id) > runes + 2);
         ps.mainDeck.unshift(...keep);
         ps.mainDeck.push(...recycle);
-        if (recycle.length > 0) out.push({ type: 'CARDS_RECYCLED', player: controller, count: recycle.length });
+        if (recycle.length > 0)
+          out.push({ type: 'CARDS_RECYCLED', player: controller, count: recycle.length });
         break;
       }
       case 'GAIN_XP': {
@@ -647,6 +653,7 @@ export function runEffects(
       case 'BUFF_TARGET':
       case 'KILL_TARGET':
       case 'READY_TARGET':
+      case 'LOCK_MOVE_TARGET':
       case 'STUN_TARGET':
       case 'DEBUFF_TARGET':
       case 'KILL_GEAR':
@@ -682,6 +689,8 @@ export function runEffects(
             if (lethal > 0) u.damage += lethal;
             out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount: Math.max(lethal, 0) });
             doneSlots.set(slot, u.controller);
+          } else if (e.op === 'LOCK_MOVE_TARGET') {
+            u.cantMove = true;
           } else if (e.op === 'READY_TARGET') {
             u.ready = true;
             out.push({ type: 'EFFECT_READIED', unitId: u.id });
@@ -914,6 +923,7 @@ export function expireTurnEffects(
       delete o.tempMight;
     }
     if (o.stunned) delete o.stunned;
+    if (o.cantMove) delete o.cantMove;
     if (o.tempKeywords) delete o.tempKeywords;
   }
   return { state: s, events: [] };

@@ -197,3 +197,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Conditions:** "a unit died this turn" (either side), "a friendly unit died this turn", "an enemy unit has died this turn". "During your Beginning Phase" qualifiers (Shadow Watcher) are not parsed.
 - **Reversed forms:** "If <condition>, I enter ready." and "If <condition>, this costs [N] less." are read like their "... if ..." forms.
 - **Rule numbers:** tests cite 323 only; none checked against rule text.
+
+## R57: movement restrictions (A-R57)
+
+- **"Can't move to base" (static):** `StaticAbility.restrict = 'NO_MOVE_TO_BASE'` on SELF ("I can't move to base"), ALL_UNITS ("Units can't move to base") or UNITS_HERE (a Battlefield: "Units can't move from here to base" = units standing at it). It removes the Base as a destination for a standard move; recall in Cleanup, combat retreats and effects ("Move a unit to base") are not blocked (UNCLEAR: the text says "move", and effects that move to Base are a different action in this engine).
+- **"It can't move this turn":** new effect `LOCK_MOVE_TARGET` sets `CardInstance.cantMove`, which blocks every standard move of that unit until the Ending step. Entrenched Boar's "You may have me enter ready. If you do, I can't move this turn" is not parsed.
+- **Rule numbers:** tests cite 144 only; not checked against the rule text.

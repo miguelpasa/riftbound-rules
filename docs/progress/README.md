@@ -93,3 +93,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R54](R54-buff.md)                   | Buff state (+1 Might, one per unit), [Buff] a unit / me, "I'm buffed" condition (316 -> 321 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R55](R55-predict-vision.md)         | Predict N and Vision with a deterministic keep/recycle policy (321 -> 329 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R56](R56-died-this-turn.md)         | "A unit died this turn" condition (opt-in tracking), reversed "If X, I enter ready / costs less" (329 -> 332 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R57](R57-move-restrictions.md)      | Movement restrictions: can't move to base statics, "It can't move this turn" (332 -> 336 cards full) | Medium | Sonnet | Done | uncommitted |

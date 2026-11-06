@@ -16,7 +16,7 @@
  *  - UNIT_MOVED `from` / `to` are 'base' or a battlefield id.
  */
 import { fork } from './workingCopy.js';
-import { defWithGrants } from './statics.js';
+import { defWithGrants, staticBonus } from './statics.js';
 import { ruleError } from './types/errors.js';
 import { playerIndex } from './types/constants.js';
 import { stampEvents } from './setup.js';
@@ -81,6 +81,12 @@ export function canStandardMove(
       return ruleError('ILLEGAL_LOCATION', `unit ${id} is not on the board`);
     }
     if (!o.ready) return ruleError('UNIT_EXHAUSTED', `unit ${id}`); // 144.2
+    // R57: "It can't move this turn" and "can't move to base" restrictions.
+    if (o.cantMove)
+      return ruleError('ILLEGAL_MOVE_DESTINATION', `unit ${id} cannot move this turn`);
+    if (destination.kind === 'base' && staticBonus(state, cards, o).noMoveToBase) {
+      return ruleError('ILLEGAL_MOVE_DESTINATION', `unit ${id} cannot move to base`);
+    }
     const from = originOf(o);
     if (from === destOf(destination)) {
       return ruleError('ILLEGAL_MOVE_DESTINATION', `unit ${id} is already at ${from}`);

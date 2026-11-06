@@ -54,6 +54,8 @@ function applies(
   switch (s.affects) {
     case 'SELF':
       return target.id === sourceId;
+    case 'ALL_UNITS':
+      return isUnit(targetDef);
     case 'FRIENDLY_UNITS':
       return friendly && isUnit(targetDef);
     case 'FRIENDLY_GEAR':
@@ -80,6 +82,8 @@ function applies(
 export interface StaticBonus {
   might: number;
   keywords: KeywordInstance[];
+  /** R57: movement restrictions that apply to the target. */
+  noMoveToBase?: boolean;
 }
 
 const NONE: StaticBonus = { might: 0, keywords: [] };
@@ -97,6 +101,7 @@ export function staticBonus(
   if (!targetDef) return NONE;
   let might = 0;
   const keywords: KeywordInstance[] = [];
+  let noMoveToBase = false;
   const apply = (
     def: CardDef | undefined,
     sourceId: string,
@@ -108,6 +113,7 @@ export function staticBonus(
       if (!applies(s, sourceId, controller, here, target, targetDef)) continue;
       if (s.when && !when(s.when)) continue;
       might += s.might ?? 0;
+      if (s.restrict === 'NO_MOVE_TO_BASE') noMoveToBase = true;
       for (const k of s.keywords ?? []) keywords.push({ ...k });
     }
   };
@@ -125,7 +131,9 @@ export function staticBonus(
       evalCondition(state, cards, c, target.controller, bf.id),
     );
   }
-  return might === 0 && keywords.length === 0 ? NONE : { might, keywords };
+  return might === 0 && keywords.length === 0 && !noMoveToBase
+    ? NONE
+    : { might, keywords, ...(noMoveToBase ? { noMoveToBase } : {}) };
 }
 
 /** The printed definition plus temporary and static keyword grants (the same object if none). */

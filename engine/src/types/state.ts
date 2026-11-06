@@ -56,6 +56,8 @@ export interface CardInstance {
   empowered?: boolean;
   /** R54: carries a Buff (+1 Might until it leaves the board; at most one). */
   buffed?: boolean;
+  /** R57: cannot be moved this turn (expires in the Ending step). */
+  cantMove?: boolean;
   /** Equipment -> id of the unit it is attached to. */
   attachedTo?: string;
   facedown?: boolean;

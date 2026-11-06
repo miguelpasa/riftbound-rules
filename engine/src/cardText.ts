@@ -553,6 +553,7 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
   m = /^Deal (\d+) to it$/i.exec(sen);
   if (m) return { op: 'DAMAGE_TARGET', amount: Number(m[1]), ...sd, ...bf, ...at };
   if (/^Ready it$/i.test(sen)) return { op: 'READY_TARGET', ...sd, ...at };
+  if (/^It can['’]t move this turn$/i.test(sen)) return { op: 'LOCK_MOVE_TARGET', ...sd, ...at };
   if (/^Stun it$/i.test(sen)) return { op: 'STUN_TARGET', ...sd, ...bf, ...at };
   if (/^Kill it$/i.test(sen)) return { op: 'KILL_TARGET', ...sd, ...bf, ...at };
   if (/^Return it to its owner's hand$/i.test(sen)) {
@@ -734,6 +735,11 @@ const LEVEL_PREFIX = /^\[Level (\d+)\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
 const EMPOWERED_PREFIX = /^\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
 const STATIC_KW = 'Deflect|Ganking|Assault|Shield|Tank';
 const STATIC_GRANT = String.raw`((?:\+\d+ \[M\](?:,? and )?)?(?:\[(?:${STATIC_KW})(?: \d+)?\](?:,? and |, )?)*)`;
+const STATIC_RESTRICT = [
+  [/^(I) can['’]t move to base$/i, 'SELF'],
+  [/^(Units) can['’]t move to base$/i, 'ALL_UNITS'],
+  [/^(Units) can['’]t move from here to base$/i, 'UNITS_HERE'],
+] as const;
 const STATIC_AFF =
   '(I|Your gear|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here)';
 
@@ -786,6 +792,11 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
     // R53: "[Level N][>] I have ..." applies while the controller has N or more XP.
     const lv = em ? null : LEVEL_PREFIX.exec(plain);
     const body = em ? (em[1] ?? '') : lv ? (lv[2] ?? '') : plain;
+    const rs = STATIC_RESTRICT.find(([re]) => re.test(body));
+    if (rs) {
+      statics.push({ affects: rs[1], restrict: 'NO_MOVE_TO_BASE' });
+      continue;
+    }
     const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(body);
     const f2 = new RegExp(`^While (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(
       body,

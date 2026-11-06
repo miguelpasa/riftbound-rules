@@ -183,6 +183,13 @@ export type CardEffect =
     } & TargetScope)
   /** Ready the target unit. */
   | ({ op: 'READY_TARGET'; side?: TargetSide; slot?: number; count?: TargetCount } & TargetScope)
+  /** R57: "It can't move this turn": the target cannot be moved until the Ending step. */
+  | ({
+      op: 'LOCK_MOVE_TARGET';
+      side?: TargetSide;
+      slot?: number;
+      count?: TargetCount;
+    } & TargetScope)
   /** Stun the target unit: it deals no combat damage this turn (expires in the Ending step). */
   | ({
       op: 'STUN_TARGET';
@@ -320,6 +327,7 @@ export type TargetedEffect = Extract<
       | 'BUFF_TARGET'
       | 'KILL_TARGET'
       | 'READY_TARGET'
+      | 'LOCK_MOVE_TARGET'
       | 'STUN_TARGET'
       | 'DEBUFF_TARGET'
       | 'KILL_GEAR'
@@ -355,8 +363,11 @@ export interface StaticAbility {
     | 'FRIENDLY_GEAR'
     | 'FRIENDLY_SUBTYPE'
     | 'OTHER_FRIENDLY_HERE'
-    | 'UNITS_HERE';
+    | 'UNITS_HERE'
+    | 'ALL_UNITS';
   subtype?: string;
+  /** R57: a movement restriction instead of / besides a grant: units it affects cannot move to the Base. */
+  restrict?: 'NO_MOVE_TO_BASE';
   when?: Condition;
   might?: number;
   keywords?: KeywordInstance[];
