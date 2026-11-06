@@ -1138,14 +1138,13 @@ const numberOf = (w: string | undefined): number | null => {
  * Anything else is null, which keeps the card partial.
  */
 export function parseCondition(raw: string): Condition | null {
-  let m0: RegExpExecArray | null;
   const text = raw
     .trim()
     .replace(/[.\s]+$/, '')
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
-  m0 = /^(?:an? )?(friendly|enemy)? ?unit (?:has )?died this turn$/i.exec(text);
+  const m0 = /^(?:an? )?(friendly|enemy)? ?unit (?:has )?died this turn$/i.exec(text);
   if (m0) {
     const who = (m0[1] ?? '').toLowerCase();
     return {
