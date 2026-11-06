@@ -37,6 +37,7 @@ import type {
   ActivatedAbility,
   CardEffect,
   CardTrigger,
+  PlayFilter,
   Condition,
   CostCardChoice,
   CountCmp,
@@ -131,6 +132,7 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (m) return [{ op: 'CHANNEL', amount: Number(m[1]), ...(m[2] ? { exhausted: true } : {}) }];
   m = /^Give me \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) return [{ op: 'BUFF_SELF', amount: Number(m[1]) }];
+  if (/^Ready me$/i.test(sen)) return [{ op: 'READY_SELF' }];
   if (/^Ready your legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
@@ -1112,6 +1114,24 @@ const OR_WHEN: Record<string, TriggerKind> = {
   defend: 'DEFEND',
 };
 
+/** R49: "When you play [another] a spell / unit / gear / card [that costs [N] or more] [on an opponent's turn]". */
+const PLAY_HEAD =
+  /^When you play (?:(another) )?(?:an? )?(card|spell|unit|gear)(?: (?:that costs|with Energy cost) \[(\d+)\] or more)?( on an opponent's turn| during a showdown)?\s*,\s*(.+)$/i;
+
+function parsePlayHead(sen: string): { filter: PlayFilter; body: string } | null {
+  const m = PLAY_HEAD.exec(sen);
+  if (!m) return null;
+  const filter: PlayFilter = {};
+  const kind = (m[2] ?? '').toLowerCase();
+  if (kind !== 'card') filter.type = kind.toUpperCase() as 'SPELL' | 'UNIT' | 'GEAR';
+  if (m[1]) filter.other = true;
+  if (m[3]) filter.minEnergy = Number(m[3]);
+  const when = (m[4] ?? '').trim();
+  if (when.startsWith('on an')) filter.onOpponentTurn = true;
+  if (when.startsWith('during')) filter.inShowdown = true;
+  return { filter, body: m[5] ?? '' };
+}
+
 const TRIGGER_HEAD =
   /^(When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move|Deathknell:)\s*,?\s*(.*)$/i;
 
@@ -1146,7 +1166,14 @@ export function parseCardAbilities(
   const out: ParsedAbilities = { triggers: [...kwTriggers], abilities: [] };
   // A trigger / ability sentence starts a group; the sentences after it belong to the same ability.
   type Group =
-    | { kind: 'trigger'; ons: TriggerKind[]; legion: boolean; when?: Condition; sens: string[] }
+    | {
+        kind: 'trigger';
+        ons: TriggerKind[];
+        legion: boolean;
+        when?: Condition;
+        playFilter?: PlayFilter;
+        sens: string[];
+      }
     | { kind: 'ability'; cost: AbilityCost; reaction: boolean; sens: string[] };
   const groups: Group[] = [];
   let cur: Group | null = null;
@@ -1159,6 +1186,21 @@ export function parseCardAbilities(
     if (/^LEGION /.test(sen)) {
       legion = true;
       sen = sen.slice(7).trim();
+    }
+    const ph = parsePlayHead(sen);
+    if (ph) {
+      const split = splitCondition(ph.body);
+      if (!split) return null;
+      cur = {
+        kind: 'trigger',
+        ons: ['YOU_PLAY'],
+        legion,
+        ...(split.when ? { when: split.when } : {}),
+        playFilter: ph.filter,
+        sens: [split.rest],
+      };
+      groups.push(cur);
+      continue;
     }
     const m = TRIGGER_HEAD.exec(sen);
     if (m) {
@@ -1263,6 +1305,7 @@ export function parseCardAbilities(
           ...(optional ? { optional } : {}),
           ...(g.legion ? { condition: 'LEGION' as const } : {}),
           ...(g.when ? { when: g.when } : {}),
+          ...(g.playFilter ? { playFilter: g.playFilter } : {}),
         });
       }
     }

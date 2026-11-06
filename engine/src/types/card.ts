@@ -135,6 +135,8 @@ export type CardEffect =
   | { op: 'WIN_GAME' }
   /** R45: "give me +N [M] this turn" (the source unit; nothing if it left the board). */
   | { op: 'BUFF_SELF'; amount: number }
+  /** R49: "ready me": the source permanent becomes ready (nothing when it left the board). */
+  | { op: 'READY_SELF' }
   /** R45: "ready your legend". */
   | { op: 'READY_LEGEND' }
   | { op: 'GAIN_POINT'; amount: number }
@@ -387,7 +389,33 @@ export interface CostCardChoice {
 }
 
 /** When a triggered ability fires (R5). */
-export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH' | 'ATTACK' | 'DEFEND' | 'MOVE';
+export type TriggerKind =
+  | 'PLAY'
+  | 'HOLD'
+  | 'CONQUER'
+  | 'DEATH'
+  | 'ATTACK'
+  | 'DEFEND'
+  | 'MOVE'
+  /** R49: "When you play a <card>": fires for each of your permanents whose filter matches the played card. */
+  | 'YOU_PLAY';
+
+/**
+ * R49: which played card a YOU_PLAY trigger reacts to. Absent fields match anything. The source's own
+ * play never triggers its own YOU_PLAY ability ("When you play me" is the PLAY form; UNCLEAR).
+ */
+export interface PlayFilter {
+  /** Card type of the played card (a token is a Unit / Gear by its own stats). */
+  type?: 'SPELL' | 'UNIT' | 'GEAR';
+  /** "another": any source permanent other than the played card (always true here, kept for text fidelity). */
+  other?: boolean;
+  /** "that costs [N] or more" / "with Energy cost [N] or more": the printed Energy cost. */
+  minEnergy?: number;
+  /** "on an opponent's turn". */
+  onOpponentTurn?: boolean;
+  /** "during a showdown". */
+  inShowdown?: boolean;
+}
 
 /**
  * A triggered ability: "When you play me / When I hold / When I conquer / When I attack / When I
@@ -397,6 +425,8 @@ export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH' | 'ATTACK' | 'DE
 export interface CardTrigger {
   on: TriggerKind;
   effects: CardEffect[];
+  /** R49: only for `on: 'YOU_PLAY'`. */
+  playFilter?: PlayFilter;
   /**
    * R45: "you may [pay COST to] <effects>". When the ability resolves its controller is asked to
    * accept or decline (flow.pendingChoice OPTIONAL_EFFECT, DECIDE_OPTIONAL); the cost is paid only on

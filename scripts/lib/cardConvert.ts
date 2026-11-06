@@ -312,6 +312,26 @@ export function convertRow(row: RawRow): ConvertResult {
       card.supportLevel = 'full';
     }
   }
+  // R49: Legends whose text is only "When you play a <card>, ..." triggers (the Legend sits in its zone).
+  if (
+    type === 'LEGEND' &&
+    card.supportLevel === 'partial' &&
+    keywords.every((k) => MVP_SET.has(k.name))
+  ) {
+    const parsed = parseCardAbilities(text);
+    if (
+      parsed &&
+      parsed.abilities.length === 0 &&
+      parsed.triggers.length > 0 &&
+      parsed.triggers.every((t) => t.on === 'YOU_PLAY') &&
+      !parsed.entersReady &&
+      !parsed.entersExhausted &&
+      parsed.legionCostReduction === undefined
+    ) {
+      card.triggers = parsed.triggers;
+      card.supportLevel = 'full';
+    }
+  }
   // R44: Battlefield cards whose every sentence is a "When you hold / conquer / defend / attack here" trigger.
   if (
     type === 'BATTLEFIELD' &&

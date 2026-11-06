@@ -85,3 +85,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R28](R28-ai-strength.md)            | AI strength: match harness, real easy/normal/hard levels, rollout lookahead for hard (63% vs normal) | High | Sonnet | Done | uncommitted |
 | [R24](R24-polish.md)                 | Polish: synthesized sound cues + setting, pop animation, reduced-motion rule, focus ring, skip link | Medium | Sonnet | Done | uncommitted |
 | [R48](R48-rematch-history.md)        | Solo rematch button, result/difficulty in saved games, record vs AI | Medium | Sonnet | Done | uncommitted |
+| [R49](R49-you-play-triggers.md)      | "When you play a spell/unit/gear/card" triggers with filters, Ready me, Legend triggers (265 -> 275 cards full) | High | Sonnet | Done | uncommitted |

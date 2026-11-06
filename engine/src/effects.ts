@@ -569,6 +569,14 @@ export function runEffects(
         }
         break;
       }
+      case 'READY_SELF': {
+        const src = state.objects[sourceObjectId];
+        if (src && !src.ready && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
+          src.ready = true;
+          out.push({ type: 'EFFECT_READIED', unitId: src.id });
+        }
+        break;
+      }
       case 'READY_LEGEND': {
         const legend = state.players[playerIndex(controller)].legend;
         const lo = legend ? state.objects[legend] : undefined;

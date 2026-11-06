@@ -132,3 +132,11 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Legend cost modifiers** ("As an additional cost to play a spell, you may exhaust me ... to reduce the cost", Starry-Eyed Songstress) are a cost modifier of other cards, not an own additional cost; the card stays partial.
 - **Rule numbers:** tests cite 357.1.a, 358.5, 359.2, 323, 820; none of the sentences above was checked against the rule text.
 - **Not done:** required additional costs with an Energy / Power part, "if you paid the additional cost" effect text, Repeat with several costs or granted Repeat, board-click cost picking.
+
+## R49: "When you play a <card>" triggers (A-R49)
+
+- **Source's own play (UNCLEAR, no rule text read):** a permanent's "When you play a spell / unit / ..." ability does not fire for the play of that same card ("When you play me" is the separate PLAY form). "Another" is kept in the filter for fidelity but every non-self play already counts as another.
+- **Which permanents listen:** the player's units and gear on the board and their Legend in its zone. Triggers fire after the play (CARD_PLAYED), before the played card resolves, with the played card's controller as the controller of the ability.
+- **Filters:** card type (spell / unit / gear), the printed Energy cost ("with Energy cost [7] or more", "that costs [5] or more"), "on an opponent's turn" (the active player is not the player who played) and "during a showdown" (a Showdown is in progress). Power-cost, "from face down", "[Mighty]" and "if you spent" qualifiers are not parsed; those cards stay partial.
+- **Ready me:** new effect `READY_SELF`; "buff me" is still unmodelled (no Buff state).
+- **Rule numbers:** tests cite 303 only; not checked against the rule text.

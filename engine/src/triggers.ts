@@ -44,6 +44,7 @@ import type {
   GameState,
   CardEffect,
   ChooseTriggerTargetIntent,
+  PlayFilter,
   PlayerId,
   ReduceResult,
   Target,
@@ -61,6 +62,24 @@ interface Pending {
 
 const onBoard = (o: CardInstance): boolean =>
   o.zone.kind === 'base' || o.zone.kind === 'battlefield';
+
+/** R49: does the played card (`cardId`, played by `player`) satisfy a YOU_PLAY filter? */
+function playMatches(
+  state: GameState,
+  cards: CardDatabase,
+  f: PlayFilter | undefined,
+  cardId: string,
+  player: PlayerId,
+): boolean {
+  if (!f) return true;
+  const def = cards[cardId];
+  if (!def) return false;
+  if (f.type && def.type !== f.type) return false;
+  if (f.minEnergy !== undefined && def.cost.energy < f.minEnergy) return false;
+  if (f.onOpponentTurn && state.turn.activePlayer === player) return false;
+  if (f.inShowdown && !state.flow.showdown) return false;
+  return true;
+}
 
 function collect(state: GameState, cards: CardDatabase, events: readonly GameEvent[]): Pending[] {
   const out: Pending[] = [];
@@ -90,6 +109,23 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
   };
   for (const e of events) {
     if (e.type === 'CARD_PLAYED') {
+      // R49: "When you play a <card>" fires for the player's other permanents (and their Legend).
+      for (const src of Object.values(state.objects)) {
+        if (src.id === e.cardInstanceId || src.controller !== e.player) continue;
+        if (!onBoard(src) && src.zone.kind !== 'legend') continue;
+        cards[src.cardId]?.triggers?.forEach((t, index) => {
+          if (t.on !== 'YOU_PLAY' || !playMatches(state, cards, t.playFilter, e.cardId, e.player))
+            return;
+          if (t.when && !evalCondition(state, cards, t.when, e.player, src.id)) return;
+          out.push({
+            sourceId: src.id,
+            cardId: src.cardId,
+            battlefield: false,
+            index,
+            controller: e.player,
+          });
+        });
+      }
       const o = state.objects[e.cardInstanceId];
       if (o && onBoard(o) && ['UNIT', 'GEAR'].includes(cards[o.cardId]?.type ?? '')) {
         add(o, 'PLAY', o.controller);
