@@ -69,8 +69,10 @@
     "triggers": { "type": "array", "items": { "type": "object" } },
     "abilities": { "type": "array", "items": { "type": "object" } },
     "entersReady": { "type": "boolean" },
+    "entersExhausted": { "type": "boolean" },
     "legionCostReduction": { "type": "integer", "minimum": 0 },
     "equipCost": { "type": "object" },
+    "repeatCost": { "type": "object" },
     "imageUrl": { "type": "string" }
   }
 }

@@ -114,51 +114,69 @@ export interface TargetCount {
   max: number;
 }
 
+/**
+ * Scoping of a chosen unit relative to the ability's source (R42), for triggered and activated
+ * abilities: `here` = at the same battlefield as the source ("an enemy unit here"), `another` = not
+ * the source itself ("another friendly unit").
+ */
+export interface TargetScope {
+  here?: boolean;
+  another?: boolean;
+}
+
 export type CardEffect =
   | { op: 'DRAW'; amount: number }
   | { op: 'GAIN_POINT'; amount: number }
   /** Deal damage to the target unit(s); Cleanup kills a unit if lethal. */
-  | {
+  | ({
       op: 'DAMAGE_TARGET';
       amount: number;
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;
       count?: TargetCount;
-    }
+    } & TargetScope)
   /** Give the target unit(s) +amount Might (mightBonus). */
-  | {
+  | ({
       op: 'BUFF_TARGET';
       amount: number;
       side?: TargetSide;
       duration?: 'TURN';
       slot?: number;
       count?: TargetCount;
-    }
+    } & TargetScope)
   /** Kill the target unit (it is dealt lethal damage; Cleanup trashes it). */
-  | {
+  | ({
       op: 'KILL_TARGET';
       side?: TargetSide;
       atBattlefield?: boolean;
       /** Only units whose current Might is at most this. */
       maxMight?: number;
       slot?: number;
-    }
+      count?: TargetCount;
+    } & TargetScope)
   /** Ready the target unit. */
-  | { op: 'READY_TARGET'; side?: TargetSide; slot?: number }
+  | ({ op: 'READY_TARGET'; side?: TargetSide; slot?: number; count?: TargetCount } & TargetScope)
   /** Stun the target unit: it deals no combat damage this turn (expires in the Ending step). */
-  | { op: 'STUN_TARGET'; side?: TargetSide; atBattlefield?: boolean; slot?: number }
+  | ({
+      op: 'STUN_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+      count?: TargetCount;
+    } & TargetScope)
   /**
    * Give the target unit -amount Might this turn, but never below `minMight` (e.g. 1) when set.
    */
-  | {
+  | ({
       op: 'DEBUFF_TARGET';
       amount: number;
       minMight?: number;
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;
-    }
+      count?: TargetCount;
+    } & TargetScope)
   /** Two chosen units each deal damage equal to their Might to the other (simultaneously). */
   | {
       op: 'MUTUAL_DAMAGE';
@@ -167,7 +185,14 @@ export type CardEffect =
       atBattlefield?: boolean;
     }
   /** Kill the target gear (it goes to its owner's Trash; Equipment detaches). */
-  | { op: 'KILL_GEAR'; side?: TargetSide; slot?: number; count?: TargetCount }
+  | ({
+      op: 'KILL_GEAR';
+      side?: TargetSide;
+      slot?: number;
+      count?: TargetCount;
+      /** Only gear whose Energy cost is at most this ("a gear with Energy cost 2 or less"). */
+      maxEnergy?: number;
+    } & TargetScope)
   /** Kill every gear on the board. */
   | { op: 'KILL_ALL_GEAR' }
   /** Counter the target spell on the Chain (it is removed and trashed without resolving). */
@@ -197,22 +222,23 @@ export type CardEffect =
    */
   | { op: 'PLAY_TOKEN'; token: string; count: number; ready?: boolean; here?: boolean }
   /** Return the target unit (or gear with `gear`) to its owner's hand; a token ceases to exist. */
-  | {
+  | ({
       op: 'RETURN_TARGET';
       side?: TargetSide;
       atBattlefield?: boolean;
       maxMight?: number;
       gear?: boolean;
       slot?: number;
-    }
+      count?: TargetCount;
+    } & TargetScope)
   /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
-  | {
+  | ({
       op: 'MOVE_BASE_TARGET';
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;
       count?: TargetCount;
-    }
+    } & TargetScope)
   /** Kill every unit on the board. */
   | { op: 'KILL_ALL_UNITS' }
   /**
@@ -237,7 +263,13 @@ export type CardEffect =
    * "Its controller plays a Gold gear token exhausted": the controller of the object that the
    * earlier KILL_GEAR / KILL_TARGET (same slot) removed plays tokens (like TARGET_CONTROLLER_DRAW).
    */
-  | { op: 'TARGET_CONTROLLER_PLAY_TOKEN'; token: string; count: number; slot?: number };
+  | { op: 'TARGET_CONTROLLER_PLAY_TOKEN'; token: string; count: number; slot?: number }
+  /**
+   * Weaponmaster (821, R42): "you may Equip one of your Equipment to me for [A] less". The chosen
+   * Equipment (an optional target: none = decline) is attached to the source unit and its Equip
+   * cost, reduced by one Power ([A]), is paid at resolution from the Rune Pool and runes (auto plan).
+   */
+  | { op: 'WEAPONMASTER_EQUIP'; slot?: number; count?: TargetCount };
 
 /** Effects that choose one unit (or gear / spell) through `PLAY_CARD.targets`. */
 export type TargetedEffect = Extract<
@@ -253,16 +285,18 @@ export type TargetedEffect = Extract<
       | 'KILL_GEAR'
       | 'RETURN_TARGET'
       | 'MOVE_BASE_TARGET'
-      | 'COUNTER_SPELL';
+      | 'COUNTER_SPELL'
+      | 'WEAPONMASTER_EQUIP';
   }
 >;
 
 /** When a triggered ability fires (R5). */
-export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH';
+export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH' | 'ATTACK' | 'DEFEND';
 
 /**
- * A triggered ability: "When you play me / When I hold / When I conquer / Deathknell: <effects>".
- * Effects must be target-free for now (DRAW, GAIN_POINT, BUFF_ALL).
+ * A triggered ability: "When you play me / When I hold / When I conquer / When I attack / When I
+ * defend / Deathknell: <effects>". Effects may choose targets (R41); ATTACK and DEFEND (R42) fire
+ * for each of the attacker's / defender's units when a combat Showdown begins (466.2.c).
  */
 export interface CardTrigger {
   on: TriggerKind;
@@ -335,8 +369,15 @@ export interface CardDef {
   abilities?: ActivatedAbility[];
   /** "I enter ready.": the permanent enters ready instead of exhausted (359.2.c). */
   entersReady?: boolean;
+  /** "This enters exhausted." (R42): Gear that would enter ready (359.2.d) enters exhausted. */
+  entersExhausted?: boolean;
   /** "[Legion] - I cost [N] less.": Energy discount while Legion is active (812). */
   legionCostReduction?: number;
+  /**
+   * Repeat cost of a spell (820, R42): an optional additional cost; paying it runs the spell's
+   * effects one more time on resolution. `energy` is [N]; `power` counts [C] (Power of the spell's Domain).
+   */
+  repeatCost?: { energy: number; power: number };
   /** Equip cost of Equipment (rule 818); absent = free (no parsable cost). */
   equipCost?: EquipCost;
   imageUrl?: string;

@@ -6,6 +6,9 @@
  *  - PLAY: "When you play me" fires for a Unit/Gear that entered the board (CARD_PLAYED).
  *  - HOLD / CONQUER: fires for the scoring player's units at the scored battlefield (BATTLEFIELD_SCORED).
  *  - DEATH (Deathknell): fires for a unit that died (UNIT_KILLED) and sits in its owner's Trash.
+ *  - ATTACK / DEFEND (R42): fire for each unit of the attacker / defender at the battlefield when a
+ *    combat Showdown starts (SHOWDOWN_STARTED with isCombat; a unit is an Attacker iff its controller
+ *    is the attacker, 466.2.c).
  * The turn player's triggers are added first, the other player's after, so the other player's
  * resolve first (last in, first out). The player who does not control the top item gets Priority.
  *
@@ -15,6 +18,8 @@
  * otherwise the item waits as PENDING and flow.pendingChoice {kind:'TRIGGER_TARGET'} asks its
  * controller (CHOOSE_TRIGGER_TARGET, `chooseTriggerTarget`) before anyone else may act. Resolution
  * re-checks the targets and fizzles when they are illegal (runEffects).
+ * "You may" (R42): an effect whose targets are optional ("up to one") also accepts an empty choice,
+ * which is how its controller declines; with no legal target at all the ability is skipped.
  */
 import { fork } from './workingCopy.js';
 import { deriveTurnState } from './chain.js';
@@ -77,6 +82,19 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     } else if (e.type === 'UNIT_KILLED') {
       const o = state.objects[e.unitId];
       if (o && o.zone.kind === 'trash') add(o, 'DEATH', o.owner);
+    } else if (e.type === 'SHOWDOWN_STARTED' && e.isCombat) {
+      const c = state.flow.combat;
+      if (!c || c.battlefieldId !== e.battlefieldId) continue;
+      for (const o of Object.values(state.objects)) {
+        if (
+          o.zone.kind === 'battlefield' &&
+          o.zone.battlefieldId === e.battlefieldId &&
+          cards[o.cardId]?.type === 'UNIT'
+        ) {
+          if (o.controller === c.attacker) add(o, 'ATTACK', o.controller);
+          else if (o.controller === c.defender) add(o, 'DEFEND', o.controller);
+        }
+      }
     }
   }
   return out;
@@ -100,7 +118,9 @@ export function fireTriggers(
   let added = 0;
   for (const p of ordered) {
     const effects = cards[p.source.cardId]?.triggers?.[p.index]?.effects;
-    const choices = enumerateSpellTargets(s, cards, p.controller, effects);
+    const choices = enumerateSpellTargets(s, cards, p.controller, effects, p.source.id, {
+      allowNone: true,
+    });
     if (choices !== null && choices.length === 0) {
       raw.push({ type: 'TRIGGER_NO_TARGET', player: p.controller, sourceId: p.source.id });
       continue;
@@ -194,7 +214,14 @@ export function chooseTriggerTarget(
   const effects = abilityItemEffects(state, cards, item);
   if (
     !Array.isArray(intent.targets) ||
-    !abilityTargetsLegal(state, cards, item.controller, effects, intent.targets)
+    !abilityTargetsLegal(
+      state,
+      cards,
+      item.controller,
+      effects,
+      intent.targets,
+      item.sourceObjectId,
+    )
   ) {
     return ruleError('ILLEGAL_TARGET', 'those are not legal targets for this ability (355.10)');
   }

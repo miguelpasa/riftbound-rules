@@ -128,7 +128,12 @@ export class HostTimers {
     let res = intent ? session.forceIntent(info.player, intent) : null;
     if (!res || !res.ok) {
       const legal = session.getLegal(info.player);
+      // R42: an optional ("you may") trigger is declined on timeout; otherwise the lowest index.
+      const decline = legal.find(
+        (i) => i.type === 'CHOOSE_TRIGGER_TARGET' && i.targets.length === 0,
+      );
       const fb =
+        decline ??
         legal.find((i) => i.type === 'CHOOSE_STAGED' || i.type === 'CHOOSE_TRIGGER_TARGET') ?? // lowest index (R11 / R41 timeout default)
         legal.find((i) => i.type === 'PASS_PRIORITY' || i.type === 'END_TURN') ??
         legal.find((i) => i.type === 'MULLIGAN' && i.cardIds.length === 0);

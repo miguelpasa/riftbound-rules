@@ -99,3 +99,32 @@ describe('targeted activated abilities (R41)', () => {
     expect(send.mock.calls[0]![0]).toMatchObject(expected);
   });
 });
+
+describe('optional triggered abilities (R42)', () => {
+  const MAY = { ...BUFF, count: { min: 0, max: 1 } } as const;
+
+  function pendingOptional() {
+    const sc = Scenario.start({}, withGrunt({ triggers: [{ on: 'PLAY', effects: [MAY] }] }));
+    sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const unit = sc.putInHand('p0', 'fx-grunt');
+    sc.play('p0', unit, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+    return sc;
+  }
+
+  it('offers a Decline button next to click-to-target and sends the empty choice', async () => {
+    const sc = pendingOptional();
+    const send = mount(sc, 'p0');
+    // Still click-to-target for real choices (the empty answer does not break driving the board)
+    expect(targetBtn('fx-tide-grunt')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Decline (do nothing)' }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    const sent = send.mock.calls[0]![0];
+    expect(sent).toMatchObject({ type: 'CHOOSE_TRIGGER_TARGET', playerId: 'p0', targets: [] });
+  });
+
+  it('a mandatory trigger shows no Decline button', () => {
+    const sc = pendingTrigger();
+    mount(sc, 'p0');
+    expect(screen.queryByRole('button', { name: 'Decline (do nothing)' })).toBeNull();
+  });
+});

@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import Ajv from 'ajv';
-import { parseCardAbilities, parseSpellText } from '../../engine/src/cardText';
+import { parseCardAbilities, parseRepeatCost, parseSpellText } from '../../engine/src/cardText';
 import { DOMAINS, MVP_KEYWORDS } from '../../engine/src/types/card';
 import type {
   CardDef,
@@ -38,7 +38,8 @@ export interface RawRow {
   imageUrl?: string | null;
 }
 
-const snakeToCamel = (k: string): string => k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+const snakeToCamel = (k: string): string =>
+  k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
 /** Accept either camelCase (real file) or snake_case (original HF names). */
 export function normalizeRow(input: Record<string, unknown>): RawRow {
@@ -101,6 +102,8 @@ const KEYWORD_LOOKUP: Record<string, KeywordName> = {
 };
 
 const MVP_SET = new Set<string>(MVP_KEYWORDS);
+/** Keywords whose behaviour the ability parser turns into triggers (R5, R42): not MVP, but not blockers. */
+const PARSED_KEYWORDS = new Set<string>(['Deathknell', 'Disarm', 'Weaponmaster']);
 
 /** Errata marker; in the real data it may be split across lines ("▲\n[OLD TEXT]"). */
 const OLD_TEXT_RE = /▲?\s*\[OLD TEXT\][\s\S]*$/;
@@ -262,10 +265,17 @@ export function convertRow(row: RawRow): ConvertResult {
     supportLevel: computeSupportLevel(text, keywords),
   };
   // R3: spells whose every sentence the text parser understands become executable.
-  if (type === 'SPELL' && card.supportLevel === 'partial' && keywords.every((k) => MVP_SET.has(k.name))) {
+  // R42: a printed Repeat cost ("[Repeat] [2]") is an optional additional cost, stored on the card.
+  const repeatCost = type === 'SPELL' ? parseRepeatCost(text) : null;
+  if (
+    type === 'SPELL' &&
+    card.supportLevel === 'partial' &&
+    keywords.every((k) => MVP_SET.has(k.name) || (k.name === 'Repeat' && repeatCost !== null))
+  ) {
     const effects = parseSpellText(text);
     if (effects) {
       card.effects = effects;
+      if (repeatCost) card.repeatCost = repeatCost;
       card.supportLevel = 'full';
     }
   }
@@ -273,13 +283,14 @@ export function convertRow(row: RawRow): ConvertResult {
   if (
     (type === 'UNIT' || type === 'GEAR') &&
     card.supportLevel === 'partial' &&
-    keywords.every((k) => MVP_SET.has(k.name) || k.name === 'Deathknell')
+    keywords.every((k) => MVP_SET.has(k.name) || PARSED_KEYWORDS.has(k.name))
   ) {
     const parsed = parseCardAbilities(text, { gearLike: type === 'GEAR' });
     if (parsed) {
       if (parsed.triggers.length > 0) card.triggers = parsed.triggers;
       if (parsed.abilities.length > 0) card.abilities = parsed.abilities;
       if (parsed.entersReady) card.entersReady = true;
+      if (parsed.entersExhausted) card.entersExhausted = true;
       if (parsed.legionCostReduction !== undefined) {
         card.legionCostReduction = parsed.legionCostReduction;
       }
@@ -300,7 +311,9 @@ export function convertRow(row: RawRow): ConvertResult {
 function isAlternate(row: RawRow): boolean {
   const num = String(row.cardNumber ?? '');
   return (
-    String(row.rarity ?? '').toLowerCase() === 'showcase' || /sp/i.test(num) || /^\d+[a-z]/i.test(num)
+    String(row.rarity ?? '').toLowerCase() === 'showcase' ||
+    /sp/i.test(num) ||
+    /^\d+[a-z]/i.test(num)
   );
 }
 

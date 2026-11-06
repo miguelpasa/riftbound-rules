@@ -82,7 +82,7 @@ export function activateAbility(
     if (!timing.ok) return timing;
   }
   const targets = intent.targets ?? [];
-  if (!abilityTargetsLegal(state, cards, pid, ability.effects, targets)) {
+  if (!abilityTargetsLegal(state, cards, pid, ability.effects, targets, src.id)) {
     return ruleError('ILLEGAL_TARGET', 'this ability needs legal targets (355.10)');
   }
   if (ability.cost.exhaust && !src.ready) {
@@ -151,7 +151,7 @@ export function abilityCandidates(
       const payment = autoPlan(state, cards, pid, { energy: need, power: [] });
       if (payment === null) return;
       // R41: one candidate per target choice (capped by MAX_TARGET_COMBOS); none = not activatable.
-      const choices = enumerateSpellTargets(state, cards, pid, a.effects) ?? [undefined];
+      const choices = enumerateSpellTargets(state, cards, pid, a.effects, o.id) ?? [undefined];
       for (const targets of choices) {
         out.push({
           type: 'ACTIVATE_ABILITY',

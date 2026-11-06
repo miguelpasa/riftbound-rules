@@ -75,3 +75,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R39b](R39b-deck-card-ui.md)         | Deck picker and card UI audit fixes (A-04,07,08,10,12,13)   | Medium | Sonnet | Done | `e909ed3` |
 | [R40](R40-ability-ui.md)             | Activate abilities from the UI (Gold, Seals), Gold in gear row, Legion cost display | Medium | Sonnet | Done | uncommitted |
 | [R41](R41-targeted-triggers.md)        | Targeted triggered and activated abilities (CHOOSE_TRIGGER_TARGET, 18 cards full) | High | Sonnet | Done | uncommitted |
+| [R42](R42-parser-round3.md)            | Parser round 3: attack/defend triggers, here/another scopes, optional targets, Disarm, Weaponmaster, Repeat (183 -> 206 cards full) | Medium/High | Sonnet | Done | uncommitted |

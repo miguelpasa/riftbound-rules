@@ -144,7 +144,7 @@ function placingResolver(
       // 359.2.c Units enter exhausted (ready if Accelerate was paid); 359.2.d Gear enters ready.
       obj.ready =
         def.type === 'GEAR'
-          ? true
+          ? def.entersExhausted !== true
           : item.additionalCosts?.accelerate === true || def.entersReady === true;
       obj.enteredTurn = turnNumber;
       if (hooks?.onEnter) events.push(...hooks.onEnter(s, cards, obj.id, item));
@@ -210,10 +210,16 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   if (!obj || item.kind !== 'CARD') return { state: s, events };
   if (item.unimplementedEffect) events.push({ type: 'EFFECT_UNIMPLEMENTED', cardId: obj.cardId });
   const def = cards[obj.cardId];
-  if (def?.type === 'SPELL')
-    events.push(
-      ...runEffects(s, item.controller, def.effects ?? [], cards, item.targets, obj.cardId),
-    );
+  if (def?.type === 'SPELL') {
+    // Repeat (820): the effects run one more time when the Repeat cost was paid. The same targets
+    // are used again (UNCLEAR, docs/ASSUMPTIONS.md R42); runEffects re-checks them each time.
+    const times = item.additionalCosts?.repeat === true ? 2 : 1;
+    for (let i = 0; i < times; i++) {
+      events.push(
+        ...runEffects(s, item.controller, def.effects ?? [], cards, item.targets, obj.cardId),
+      );
+    }
+  }
   if (def?.type === 'SPELL' && obj.zone.kind === 'chain') {
     const owner = s.players[playerIndex(obj.owner)];
     if (!owner.trash.includes(obj.id)) owner.trash.push(obj.id);
@@ -306,6 +312,11 @@ export function playCard(
   if (accelerate && !(isUnit && hasKeyword(def, 'Accelerate'))) {
     return ruleError('KEYWORD_RESTRICTION', 'Accelerate was requested but the card has none');
   }
+  // Repeat (820): an optional additional cost on a spell that has one.
+  const repeat = intent.additionalCosts?.repeat === true;
+  if (repeat && !(def.type === 'SPELL' && def.repeatCost)) {
+    return ruleError('KEYWORD_RESTRICTION', 'Repeat was requested but the card has none');
+  }
   const extra = hooks?.extraCosts?.(state, cards, pid, def, intent) ?? null;
   // Legion (812): "I cost [N] less" while another card was played this turn (checked before this
   // play is recorded; the source itself never counts).
@@ -313,7 +324,11 @@ export function playCard(
     def.legionCostReduction && legionActive(state, pid, src.id)
       ? [{ energy: def.legionCostReduction }]
       : [];
-  const cost = computeTotalCost(def, { accelerate, increases: extra ? [extra] : [], discounts });
+  const increases: CostMod[] = [
+    ...(extra ? [extra] : []),
+    ...(repeat && def.repeatCost ? [def.repeatCost] : []),
+  ];
+  const cost = computeTotalCost(def, { accelerate, increases, discounts });
 
   // 6. Pay (357). Failure = the whole play is undone (358.5): the caller's state is untouched.
   const paid = payCost(state, cards, pid, cost, intent.payment);
@@ -344,7 +359,14 @@ export function playCard(
       ? { unimplementedEffect: true }
       : {}),
     ...(isUnit || def.type === 'GEAR' ? { location } : {}),
-    ...(accelerate ? { additionalCosts: { accelerate: true } } : {}),
+    ...(accelerate || repeat
+      ? {
+          additionalCosts: {
+            ...(accelerate ? { accelerate: true } : {}),
+            ...(repeat ? { repeat: true } : {}),
+          },
+        }
+      : {}),
   };
   events.push({ type: 'CARD_PLAYED', player: pid, cardInstanceId: obj.id, cardId: obj.cardId });
   const playedEvents = stampEvents(work, events);

@@ -42,7 +42,7 @@ export function playVariants(legal: readonly Intent[], cardInstanceId: string): 
   for (const i of legal) {
     if (i.type !== 'PLAY_CARD' || i.cardInstanceId !== cardInstanceId) continue;
     const tgt = (i.targets ?? []).map((t) => (t.kind === 'object' ? t.id : '')).join(',');
-    const key = `${i.location ? destKey(i.location) : '-'}|${i.additionalCosts?.accelerate ? 'acc' : ''}|${tgt}`;
+    const key = `${i.location ? destKey(i.location) : '-'}|${i.additionalCosts?.accelerate ? 'acc' : ''}${i.additionalCosts?.repeat ? 'rep' : ''}|${tgt}`;
     if (seen.has(key)) continue; // first matching payment wins
     seen.add(key);
     out.push(i);
@@ -93,6 +93,8 @@ export function variantLabel(
   if (intent.location) parts.push(`Play to ${locationName(intent.location, view, cards)}`);
   else parts.push('Play');
   if (intent.additionalCosts?.accelerate) parts.push('Accelerate (+1 energy +1 power)');
+  if (intent.additionalCosts?.repeat)
+    parts.push('Repeat (pay the Repeat cost, effect happens twice)');
   for (const t of intent.targets ?? []) {
     if (t.kind !== 'object') continue;
     const o = view.objects[t.id];
@@ -161,7 +163,11 @@ export function abilityTargetedVariants(
   );
 }
 
-/** Legal answers to a pending trigger-target choice (R41); [] when the board cannot drive it. */
+/**
+ * Legal answers to a pending trigger-target choice (R41) that pick at least one target; [] when the
+ * board cannot drive it. The empty answer of an optional ("you may", R42) trigger is separate:
+ * `triggerDeclineIntent`.
+ */
 export function triggerTargetVariants(
   legal: readonly Intent[],
   chainItemId: string,
@@ -170,9 +176,20 @@ export function triggerTargetVariants(
   return drivable(
     legal.filter(
       (i): i is ChooseTriggerTargetIntent =>
-        i.type === 'CHOOSE_TRIGGER_TARGET' && i.chainItemId === chainItemId,
+        i.type === 'CHOOSE_TRIGGER_TARGET' && i.chainItemId === chainItemId && i.targets.length > 0,
     ),
     view,
+  );
+}
+
+/** The "choose nothing" answer of an optional triggered ability (R42), when the engine offers it. */
+export function triggerDeclineIntent(
+  legal: readonly Intent[],
+  chainItemId: string,
+): ChooseTriggerTargetIntent | undefined {
+  return legal.find(
+    (i): i is ChooseTriggerTargetIntent =>
+      i.type === 'CHOOSE_TRIGGER_TARGET' && i.chainItemId === chainItemId && i.targets.length === 0,
   );
 }
 
@@ -187,7 +204,7 @@ export interface TargetStep {
 
 function exactKey(v: TargetedIntent): string {
   return v.type === 'PLAY_CARD'
-    ? `${v.location ? destKey(v.location) : '-'}|${v.additionalCosts?.accelerate ? 'acc' : ''}`
+    ? `${v.location ? destKey(v.location) : '-'}|${v.additionalCosts?.accelerate ? 'acc' : ''}${v.additionalCosts?.repeat ? 'rep' : ''}`
     : '';
 }
 

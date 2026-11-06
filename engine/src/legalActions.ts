@@ -119,6 +119,8 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
           ]
       : [undefined];
     const accelOptions = isUnit && hasKw(def, 'Accelerate') ? [false, true] : [false];
+    // Repeat (820): spells with a Repeat cost may also be played with it paid.
+    const repeatOptions = def.type === 'SPELL' && def.repeatCost ? [false, true] : [false];
     const costDef = costDefFor(obj, def);
     const discounts =
       def.legionCostReduction && legionActive(state, pid, obj.id)
@@ -133,20 +135,32 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
           ? (enumerateSpellTargets(state, cards, pid, def.effects) ?? [undefined])
           : [undefined];
     for (const accelerate of accelOptions) {
-      const plan = plannedPayment(computeTotalCost(costDef, { accelerate, discounts }));
-      if (plan === null) continue;
-      for (const location of locations) {
-        for (const targets of targetOptions) {
-          const intent: PlayCardIntent = {
-            type: 'PLAY_CARD',
-            playerId: pid,
-            cardInstanceId: obj.id,
-            ...(location ? { location } : {}),
-            ...(targets ? { targets } : {}),
-            ...(accelerate ? { additionalCosts: { accelerate: true } } : {}),
-            payment: plan,
-          };
-          out.push(intent);
+      for (const repeat of repeatOptions) {
+        const increases = repeat && def.repeatCost ? [def.repeatCost] : [];
+        const plan = plannedPayment(
+          computeTotalCost(costDef, { accelerate, discounts, increases }),
+        );
+        if (plan === null) continue;
+        for (const location of locations) {
+          for (const targets of targetOptions) {
+            const intent: PlayCardIntent = {
+              type: 'PLAY_CARD',
+              playerId: pid,
+              cardInstanceId: obj.id,
+              ...(location ? { location } : {}),
+              ...(targets ? { targets } : {}),
+              ...(accelerate || repeat
+                ? {
+                    additionalCosts: {
+                      ...(accelerate ? { accelerate: true } : {}),
+                      ...(repeat ? { repeat: true } : {}),
+                    },
+                  }
+                : {}),
+              payment: plan,
+            };
+            out.push(intent);
+          }
         }
       }
     }
@@ -284,6 +298,8 @@ export function getLegalActions(
             cards,
             item.controller,
             abilityItemEffects(state, cards, item),
+            item.sourceObjectId,
+            { allowNone: true },
           ) ?? [])
         : [];
       return keep(

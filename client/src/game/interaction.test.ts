@@ -4,6 +4,7 @@ import { Scenario, SCENARIO_CARDS } from '../../../engine/src/testing/scenario.j
 import {
   moveOptions,
   movableUnitIds,
+  type PlayIntent,
   playVariants,
   playableIds,
   primaryAction,
@@ -50,5 +51,22 @@ describe('interaction helpers', () => {
     const { legal, view } = setup();
     expect(primaryAction(view, legal)?.label).toBe('End turn');
     expect(primaryAction(view, [])).toBeNull();
+  });
+});
+
+describe('Repeat variants (R42)', () => {
+  it('keeps the Repeat and plain plays of one spell apart and labels the Repeat one', () => {
+    const { hand, view } = setup();
+    const base: PlayIntent = {
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: hand,
+      payment: [],
+    };
+    const plain = { ...base };
+    const rep: PlayIntent = { ...base, additionalCosts: { repeat: true } };
+    expect(playVariants([plain, rep], hand)).toHaveLength(2);
+    expect(variantLabel(rep, view, SCENARIO_CARDS)).toContain('Repeat');
+    expect(variantLabel(plain, view, SCENARIO_CARDS)).not.toContain('Repeat');
   });
 });

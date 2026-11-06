@@ -411,6 +411,7 @@ export function equipTotalCost(
   cards: CardDatabase,
   eqDef: CardDef,
   unit?: CardInstance,
+  discount?: { power?: number },
 ): TotalCost {
   const ec = eqDef.equipCost;
   if (!ec) return { energy: keywordValue(eqDef, 'Equip'), power: [] };
@@ -423,7 +424,10 @@ export function equipTotalCost(
   }
   return computeTotalCost(
     { ...eqDef, cost: { energy, power: ec.power } },
-    { increases: ec.anyPower > 0 ? [{ anyPower: ec.anyPower }] : [] },
+    {
+      increases: ec.anyPower > 0 ? [{ anyPower: ec.anyPower }] : [],
+      ...(discount ? { discounts: [discount] } : {}),
+    },
   );
 }
 

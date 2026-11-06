@@ -1,4 +1,4 @@
-import { cardNameOf } from './interaction';
+import { cardNameOf, triggerDeclineIntent } from './interaction';
 import type { BoardUi } from './useBoardUi';
 
 /**
@@ -47,7 +47,7 @@ export function TargetBanner({ ui }: { ui: BoardUi }) {
                   .map((x) =>
                     x.kind === 'object' ? cardNameOf(x.id, api.view, api.cards) : 'target',
                   )
-                  .join(' + ') || 'No target'
+                  .join(' + ') || 'Decline (do nothing)'
               : ''}
           </button>
         ))}
@@ -55,6 +55,8 @@ export function TargetBanner({ ui }: { ui: BoardUi }) {
     );
   }
   if (!t) return null;
+  const declineIntent =
+    t.source.kind === 'trigger' ? triggerDeclineIntent(api.legal, t.source.chainItemId) : undefined;
   return (
     <section
       aria-label="Targeting"
@@ -73,6 +75,15 @@ export function TargetBanner({ ui }: { ui: BoardUi }) {
           {o.label}
         </button>
       ))}
+      {t.source.kind === 'trigger' && declineIntent ? (
+        <button
+          type="button"
+          onClick={() => void ui.submit(declineIntent)}
+          className="rounded-md border border-slate-500 px-3 py-1 text-slate-100 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-amber-300"
+        >
+          Decline (do nothing)
+        </button>
+      ) : null}
       {t.cancelable ? (
         <button
           type="button"

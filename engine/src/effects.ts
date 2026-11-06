@@ -10,12 +10,14 @@
 import { fork } from './workingCopy.js';
 import { drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
-import { removeTokenFromGame } from './keywords.js';
+import { equipTotalCost, hasKeyword, removeTokenFromGame } from './keywords.js';
+import { autoPlan, payCost } from './resources.js';
 import { allocObjectId } from './setup.js';
 import { isGearDef, isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
+  CardDef,
   CardEffect,
   CardInstance,
   GameEventInput,
@@ -29,7 +31,7 @@ import type {
 /** Maximum number of target combinations offered to the AI / UI per spell. */
 export const MAX_TARGET_COMBOS = 48;
 
-type TargetKind = 'unit' | 'gear' | 'spell';
+type TargetKind = 'unit' | 'gear' | 'spell' | 'equipment';
 
 /** What a slot may hold. */
 interface Spec {
@@ -37,6 +39,11 @@ interface Spec {
   side: TargetSide;
   atBattlefield?: boolean;
   maxMight?: number;
+  /** Gear only: Energy cost at most this. */
+  maxEnergy?: number;
+  /** R42: at the source's battlefield / not the source itself (needs the source object). */
+  here?: boolean;
+  another?: boolean;
 }
 
 export interface TargetReq extends Spec {
@@ -57,7 +64,8 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'KILL_GEAR' ||
   e.op === 'RETURN_TARGET' ||
   e.op === 'MOVE_BASE_TARGET' ||
-  e.op === 'COUNTER_SPELL';
+  e.op === 'COUNTER_SPELL' ||
+  e.op === 'WEAPONMASTER_EQUIP';
 
 /** The first targeted effect of a spell, if any. */
 export function targetedEffect(
@@ -68,13 +76,21 @@ export function targetedEffect(
 
 function specOf(e: TargetedEffect): Spec {
   const kind: TargetKind =
-    e.op === 'KILL_GEAR' || (e.op === 'RETURN_TARGET' && e.gear)
-      ? 'gear'
-      : e.op === 'COUNTER_SPELL'
-        ? 'spell'
-        : 'unit';
-  const spec: Spec = { kind, side: 'side' in e && e.side ? e.side : 'any' };
+    e.op === 'WEAPONMASTER_EQUIP'
+      ? 'equipment'
+      : e.op === 'KILL_GEAR' || (e.op === 'RETURN_TARGET' && e.gear)
+        ? 'gear'
+        : e.op === 'COUNTER_SPELL'
+          ? 'spell'
+          : 'unit';
+  const spec: Spec = {
+    kind,
+    side: e.op === 'WEAPONMASTER_EQUIP' ? 'friendly' : 'side' in e && e.side ? e.side : 'any',
+  };
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
+  if ('here' in e && e.here) spec.here = true;
+  if ('another' in e && e.another) spec.another = true;
+  if (e.op === 'KILL_GEAR' && e.maxEnergy !== undefined) spec.maxEnergy = e.maxEnergy;
   if ((e.op === 'KILL_TARGET' || e.op === 'RETURN_TARGET') && e.maxMight !== undefined) {
     spec.maxMight = e.maxMight;
   }
@@ -105,15 +121,46 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
   return [...reqs.values()].sort((a, b) => a.slot - b.slot);
 }
 
+/** Weaponmaster (821): the Equip cost of `equipment` for `unit`, reduced by one Power ([A]). */
+function weaponmasterCost(
+  state: GameState,
+  cards: CardDatabase,
+  equipment: CardInstance,
+  unit: CardInstance,
+): ReturnType<typeof equipTotalCost> {
+  return equipTotalCost(state, cards, cards[equipment.cardId] as CardDef, unit, { power: 1 });
+}
+
 function legalForSpec(
   state: GameState,
   cards: CardDatabase,
   controller: PlayerId,
   spec: Spec,
   u: CardInstance | undefined,
+  sourceId = '',
 ): boolean {
   if (!u) return false;
   const type = cards[u.cardId]?.type;
+  if (spec.kind === 'equipment') {
+    // Weaponmaster: an Equipment you control, and its reduced Equip cost must be payable.
+    const def = cards[u.cardId];
+    const src = state.objects[sourceId];
+    if (
+      !def ||
+      def.type !== 'GEAR' ||
+      !def.subtypes.includes('Equipment') ||
+      !hasKeyword(def, 'Equip') ||
+      u.zone.kind !== 'base' ||
+      u.controller !== controller ||
+      !src ||
+      src.controller !== controller ||
+      !isUnitDef(cards[src.cardId]) ||
+      (src.zone.kind !== 'base' && src.zone.kind !== 'battlefield')
+    ) {
+      return false;
+    }
+    return autoPlan(state, cards, controller, weaponmasterCost(state, cards, u, src)) !== null;
+  }
   if (spec.kind === 'spell') {
     return (
       type === 'SPELL' &&
@@ -125,6 +172,9 @@ function legalForSpec(
   if (!onBoard) return false;
   if (spec.kind === 'gear') {
     if (!isGearDef(cards[u.cardId])) return false;
+    if (spec.maxEnergy !== undefined && (cards[u.cardId]?.cost.energy ?? 0) > spec.maxEnergy) {
+      return false;
+    }
   } else {
     if (!isUnitDef(cards[u.cardId])) return false;
     if (spec.atBattlefield && u.zone.kind !== 'battlefield') return false;
@@ -134,6 +184,18 @@ function legalForSpec(
     ) {
       return false;
     }
+    if (spec.here) {
+      const src = state.objects[sourceId];
+      if (
+        !src ||
+        src.zone.kind !== 'battlefield' ||
+        u.zone.kind !== 'battlefield' ||
+        u.zone.battlefieldId !== src.zone.battlefieldId
+      ) {
+        return false;
+      }
+    }
+    if (spec.another && u.id === sourceId) return false;
   }
   if (spec.side === 'friendly') return u.controller === controller;
   if (spec.side === 'enemy') return u.controller !== controller;
@@ -147,8 +209,9 @@ export function isLegalEffectTarget(
   controller: PlayerId,
   e: TargetedEffect,
   u: CardInstance | undefined,
+  sourceId = '',
 ): boolean {
-  return legalForSpec(state, cards, controller, specOf(e), u);
+  return legalForSpec(state, cards, controller, specOf(e), u, sourceId);
 }
 
 function objectIds(targets: readonly Target[]): string[] {
@@ -162,6 +225,7 @@ export function spellTargetsLegal(
   controller: PlayerId,
   effects: readonly CardEffect[] | undefined,
   targets: readonly Target[],
+  sourceId = '',
 ): boolean {
   const reqs = targetRequirements(effects);
   if (reqs.length === 0) return true;
@@ -173,7 +237,7 @@ export function spellTargetsLegal(
     const max = r.count ? r.count.max : 1;
     if (picks.length < min || picks.length > max) return false;
     for (const id of picks) {
-      if (seen.has(id) || !legalForSpec(state, cards, controller, r, state.objects[id])) {
+      if (seen.has(id) || !legalForSpec(state, cards, controller, r, state.objects[id], sourceId)) {
         return false;
       }
       seen.add(id);
@@ -192,10 +256,11 @@ export function abilityTargetsLegal(
   controller: PlayerId,
   effects: readonly CardEffect[] | undefined,
   targets: readonly Target[],
+  sourceId = '',
 ): boolean {
   const max = targetRequirements(effects).reduce((n, r) => n + (r.count ? r.count.max : 1), 0);
   if (targets.length > max || targets.some((t) => t.kind !== 'object')) return false;
-  return spellTargetsLegal(state, cards, controller, effects, targets);
+  return spellTargetsLegal(state, cards, controller, effects, targets, sourceId);
 }
 
 function combinations<T>(items: readonly T[], k: number): T[][] {
@@ -227,12 +292,16 @@ export function enumerateSpellTargets(
   cards: CardDatabase,
   controller: PlayerId,
   effects: readonly CardEffect[] | undefined,
+  sourceId = '',
+  opts: { allowNone?: boolean } = {},
 ): Target[][] | null {
   const reqs = targetRequirements(effects);
   if (reqs.length === 0) return null;
   const all = Object.values(state.objects).sort((a, b) => num(a.id) - num(b.id));
   const options = reqs.map((r) => {
-    const cand = all.filter((o) => legalForSpec(state, cards, controller, r, o)).map((o) => o.id);
+    const cand = all
+      .filter((o) => legalForSpec(state, cards, controller, r, o, sourceId))
+      .map((o) => o.id);
     if (!r.count) return cand.map((id) => [id]);
     const out: string[][] = [];
     for (let k = Math.max(1, r.count.min); k <= r.count.max; k++) {
@@ -252,6 +321,12 @@ export function enumerateSpellTargets(
       if (next.length >= MAX_TARGET_COMBOS) break;
     }
     acc = next;
+  }
+  // R42 "you may": when every slot is optional, choosing nothing (declining) is a legal answer. With
+  // no legal target at all the ability is skipped, so there is nothing to decline.
+  if (opts.allowNone && reqs.every((r) => r.count !== undefined && r.count.min === 0)) {
+    if (acc.length === 0) return [];
+    acc.push([]);
   }
   return acc.map((ids) => ids.map((id) => ({ kind: 'object' as const, id })));
 }
@@ -480,7 +555,9 @@ export function runEffects(
         // Targets must still be legal; those that are not are skipped. If none is, fizzle.
         const legal = picks
           .map((id) => state.objects[id])
-          .filter((u): u is CardInstance => isLegalEffectTarget(state, cards, controller, e, u));
+          .filter((u): u is CardInstance =>
+            isLegalEffectTarget(state, cards, controller, e, u, sourceObjectId),
+          );
         if (legal.length === 0) {
           fizzle();
           break;
@@ -519,6 +596,42 @@ export function runEffects(
             addTemp(u, e.amount, e.duration === 'TURN');
           }
         }
+        break;
+      }
+      case 'WEAPONMASTER_EQUIP': {
+        const id = ids[e.slot ?? 0];
+        if (id === undefined) break; // declined ("you may")
+        const gear = state.objects[id];
+        const unit = state.objects[sourceObjectId];
+        if (
+          !gear ||
+          !unit ||
+          !legalForSpec(
+            state,
+            cards,
+            controller,
+            { kind: 'equipment', side: 'friendly' },
+            gear,
+            sourceObjectId,
+          )
+        ) {
+          fizzle();
+          break;
+        }
+        const cost = weaponmasterCost(state, cards, gear, unit);
+        const plan = autoPlan(state, cards, controller, cost);
+        const paid = plan ? payCost(state, cards, controller, cost, plan) : null;
+        if (!paid || !paid.ok) {
+          fizzle();
+          break;
+        }
+        // Inside a reduce session the paid state IS `state`; elsewhere copy the changed parts back.
+        if (paid.state !== state) {
+          state.players = paid.state.players;
+          state.objects = paid.state.objects;
+        }
+        (state.objects[id] as CardInstance).attachedTo = unit.id;
+        out.push({ type: 'EQUIPPED', equipmentId: id, unitId: unit.id });
         break;
       }
       case 'MUTUAL_DAMAGE': {

@@ -39,7 +39,7 @@ export interface ChainItem {
   /** Location chosen when playing a unit/gear. */
   location?: { kind: 'base' } | { kind: 'battlefield'; battlefieldId: string };
   /** Additional costs chosen (Accelerate). */
-  additionalCosts?: { accelerate?: boolean };
+  additionalCosts?: { accelerate?: boolean; repeat?: boolean };
 }
 
 export interface ShowdownState {

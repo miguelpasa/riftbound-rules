@@ -15,10 +15,11 @@ const LEGION_CARDS: CardDatabase = {
 };
 
 describe('Legion (812): cards played this turn', () => {
-  it('Legion is an implemented keyword and Disarm is still deferred', () => {
+  it('Legion is an implemented keyword; Disarm lives in the parser, not the MVP list', () => {
     // Tests Rule 812: Legion is a dependent keyword the engine now tracks
     expect(KEYWORD_IMPLEMENTED.Legion).toBe(true);
-    // Tests Rule 831: Disarm stays deferred until its attack trigger can take a target
+    // Tests Rule 831: since R42 Disarm runs as a parsed attack trigger (cardText.ts, parserRound3.test.ts);
+    // the MVP keyword table (KEYWORD_IMPLEMENTED) still lists it as deferred because the keyword has no engine hook
     expect(KEYWORD_IMPLEMENTED.Disarm).toBe(false);
   });
 

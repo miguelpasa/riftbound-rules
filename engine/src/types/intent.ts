@@ -34,7 +34,8 @@ export interface PlayCardIntent extends IntentBase {
   location?: PlayLocation;
   targets?: Target[];
   choices?: Record<string, ChoiceValue>;
-  additionalCosts?: { accelerate?: boolean };
+  /** Accelerate (units) and Repeat (spells with a Repeat cost, 820) are optional additional costs. */
+  additionalCosts?: { accelerate?: boolean; repeat?: boolean };
   payment: PaymentPlan;
 }
 /** Activate a rune's ability (adds to Rune Pool; Reaction speed). */

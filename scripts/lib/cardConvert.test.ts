@@ -83,7 +83,8 @@ describe('cardConvert', () => {
     expect(lvl('')).toBe('full');
     expect(lvl('[Tank] [Assault 2] (Reminder text.)')).toBe('full');
     expect(lvl('[Equip] [1][C]')).toBe('full');
-    expect(lvl('When I attack, draw 1.')).toBe('partial');
+    expect(lvl('When I attack, draw 1.')).toBe('full'); // R42: attack triggers are parsed
+    expect(lvl('When I move, draw 1.')).toBe('partial');
     expect(lvl('[Deathknell] (Reminder.)')).toBe('partial');
     expect(lvl('[Tank] [Buff]')).toBe('partial');
   });
@@ -136,7 +137,11 @@ describe('parseEquipCost (Rule 818)', () => {
       power: 1,
       anyPower: 0,
     });
-    expect(parseEquipCost('[Equip] [C] ([C]: Attach)')).toEqual({ energy: 0, power: 1, anyPower: 0 });
+    expect(parseEquipCost('[Equip] [C] ([C]: Attach)')).toEqual({
+      energy: 0,
+      power: 1,
+      anyPower: 0,
+    });
   });
   it('flags non-resource parts and the Might reduction', () => {
     expect(parseEquipCost('[Equip] — [C], Kill a friendly unit (Pay the cost: Attach)')).toEqual({
@@ -145,13 +150,19 @@ describe('parseEquipCost (Rule 818)', () => {
       anyPower: 0,
       nonResource: 'Kill a friendly unit',
     });
-    expect(parseEquipCost('[Equip] [3][A]. This ability Energy cost is reduced by the Might of the unit you choose. (x)')).toEqual({
+    expect(
+      parseEquipCost(
+        '[Equip] [3][A]. This ability Energy cost is reduced by the Might of the unit you choose. (x)',
+      ),
+    ).toEqual({
       energy: 3,
       power: 0,
       anyPower: 1,
       energyReducedByMight: true,
     });
-    expect(parseEquipCost('[Equip] — Spend 1 XP (Pay the cost: Attach)')?.nonResource).toBe('Spend 1 XP');
+    expect(parseEquipCost('[Equip] — Spend 1 XP (Pay the cost: Attach)')?.nonResource).toBe(
+      'Spend 1 XP',
+    );
     expect(parseEquipCost('[Tank]')).toBeUndefined();
   });
 });
@@ -167,7 +178,10 @@ describe('cardConvert: unit tokens (R3 round 2)', () => {
     );
     expect(card?.keywords).toEqual([]);
     expect(card?.supportLevel).toBe('full');
-    expect(card?.triggers?.[0]?.effects[0]).toMatchObject({ op: 'PLAY_TOKEN', token: 'tok-sprite' });
+    expect(card?.triggers?.[0]?.effects[0]).toMatchObject({
+      op: 'PLAY_TOKEN',
+      token: 'tok-sprite',
+    });
   });
 });
 
@@ -183,13 +197,19 @@ describe('cardConvert: abilities (R38)', () => {
     );
     expect(card?.supportLevel).toBe('full');
     expect(card?.abilities).toEqual([
-      { cost: { exhaust: true }, reaction: true, effects: [{ op: 'ADD_POWER', amount: 1, domain: 'SOURCE' }] },
+      {
+        cost: { exhaust: true },
+        reaction: true,
+        effects: [{ op: 'ADD_POWER', amount: 1, domain: 'SOURCE' }],
+      },
     ]);
   });
 
   // Tests Rule 812: Legion cost reduction and "I enter ready" land on the card definition
   it('records Legion cost reduction and entering ready', () => {
-    const a = convertRow(row({ abilityEffective: "[Legion] — I cost [2] less. (Get the effect.)" })).card;
+    const a = convertRow(
+      row({ abilityEffective: '[Legion] — I cost [2] less. (Get the effect.)' }),
+    ).card;
     expect(a?.supportLevel).toBe('full');
     expect(a?.legionCostReduction).toBe(2);
     const b = convertRow(row({ abilityEffective: 'I enter ready.' })).card;
@@ -200,5 +220,50 @@ describe('cardConvert: abilities (R38)', () => {
   it('refuses Kill this on a unit', () => {
     const { card } = convertRow(row({ abilityEffective: '[E]: Kill this, draw 1.' }));
     expect(card?.supportLevel).toBe('partial');
+  });
+});
+
+describe('R42 converter wiring', () => {
+  const conv = (cardType: string, text: string) =>
+    convertRow(row({ cardType, abilityEffective: text })).card;
+
+  it('turns [Disarm N] and [Weaponmaster] into triggers and makes the card full', () => {
+    const disarm = conv(
+      'Unit',
+      '[Disarm 2] (When I attack, give an enemy unit here -2 [M] this turn.)',
+    );
+    expect(disarm?.supportLevel).toBe('full');
+    expect(disarm?.triggers?.[0]).toMatchObject({ on: 'ATTACK' });
+    const wm = conv(
+      'Unit',
+      '[Weaponmaster] (When you play me, you may [Equip] one of your Equipment to me for [A] less.)',
+    );
+    expect(wm?.supportLevel).toBe('full');
+    expect(wm?.triggers?.[0]?.effects[0]).toMatchObject({ op: 'WEAPONMASTER_EQUIP' });
+    // Disarm mentioned in prose stays partial
+    expect(conv('Unit', 'Your Mechs have [Disarm].')?.supportLevel).toBe('partial');
+  });
+
+  it('stores a Repeat cost on spells and keeps odd Repeat costs partial', () => {
+    const ok = conv(
+      'Spell',
+      "[Repeat] [2] (You may pay the cost to repeat this spell's effect.)\nReady a unit.",
+    );
+    expect(ok?.supportLevel).toBe('full');
+    expect(ok?.repeatCost).toEqual({ energy: 2, power: 0 });
+    const c = conv('Spell', '[Repeat] [1][C] (Reminder.)\nDraw 1.');
+    expect(c?.repeatCost).toEqual({ energy: 1, power: 1 });
+    expect(conv('Spell', '[Repeat] — Discard 1 (Reminder.)\nReady a unit.')?.supportLevel).toBe(
+      'partial',
+    );
+  });
+
+  it('marks Gear that enters exhausted, and the result validates against the schema', () => {
+    const g = conv('Gear', 'This enters exhausted.\n[T]: Deal 2 to a unit at a battlefield.');
+    expect(g?.supportLevel).toBe('full');
+    expect(g?.entersExhausted).toBe(true);
+    const validate = createCardValidator();
+    expect(validate(g)).toEqual([]);
+    expect(validate(conv('Spell', '[Repeat] [2]\nReady a unit.'))).toEqual([]);
   });
 });

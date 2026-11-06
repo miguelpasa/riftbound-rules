@@ -186,3 +186,50 @@ describe('HostTimers: pending trigger-target choice (R41)', () => {
     }
   });
 });
+
+describe('HostTimers: optional trigger choice (R42)', () => {
+  it('the timeout declines a "you may" trigger instead of taking a target', () => {
+    vi.useFakeTimers();
+    try {
+      const cards = {
+        ...SCENARIO_CARDS,
+        'fx-grunt': {
+          ...(SCENARIO_CARDS['fx-grunt'] as CardDef),
+          triggers: [
+            {
+              on: 'PLAY' as const,
+              effects: [{ op: 'BUFF_TARGET' as const, amount: 2, count: { min: 0, max: 1 } }],
+            },
+          ],
+        },
+      };
+      const sc = Scenario.start({}, cards);
+      const foe = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+      const unit = sc.putInHand('p0', 'fx-grunt');
+      sc.play('p0', unit, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+      expect(sc.state.flow.pendingChoice?.kind).toBe('TRIGGER_TARGET');
+      const bridge = createHostBridge();
+      const session = new HostSession({
+        cards,
+        state: sc.state,
+        hostSeat: 'p0',
+        ...bridge.callbacks,
+      });
+      const timers = new HostTimers({
+        session,
+        cards,
+        bridge,
+        humanSeats: ['p0', 'p1'],
+        reactionWindowMs: 1000,
+      });
+      vi.advanceTimersByTime(1001);
+      const after = session.getFullStateForPersistence();
+      expect(after.flow.pendingChoice).toBeUndefined();
+      expect(after.flow.chain[0]?.targets).toEqual([]);
+      expect(after.objects[foe]?.mightBonus).toBe(0);
+      timers.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

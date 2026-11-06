@@ -20,6 +20,10 @@
  * Units and gear (`parseTriggerText`): "When you play me, <effect>.", "When I hold, <effect>.",
  * "When I conquer, <effect>.", "[Deathknell][>] <effect>." and activated abilities "[E]: <effect>."; since R41
  * their effects may choose units like a spell's (the controller picks when the ability is put on the Chain).
+ * R42 adds "When I attack / defend / attack or defend, <effect>.", the scopes "... unit here" and
+ * "another ... unit", the optional "You may <chooser>." (declined with an empty choice), "Kill a gear
+ * with Energy cost N or less", "This enters exhausted." (Gear) and the keywords [Disarm N] (an attack
+ * trigger: "give an enemy unit here -N [M] this turn") and [Weaponmaster] (a play trigger).
  */
 import { targetRequirements } from './effects.js';
 import { GOLD_TOKEN_ID, tokenIdFor } from './tokens.js';
@@ -28,6 +32,7 @@ import type {
   ActivatedAbility,
   CardEffect,
   CardTrigger,
+  TargetCount,
   TargetSide,
   TriggerKind,
 } from './types/card.js';
@@ -48,6 +53,8 @@ interface SlotDecl {
   another?: boolean;
   /** "Choose a unit at a battlefield". */
   atBattlefield?: boolean;
+  /** R42: "... unit here" / "another ... unit" (relative to the ability's source). */
+  here?: boolean;
 }
 
 interface ParseState {
@@ -190,7 +197,52 @@ interface Chooser {
   multi?: boolean;
 }
 
+/**
+ * R42: scopes and optionality around a chooser sentence. "here" after a unit noun and "another" before
+ * a unit are lifted off the sentence and put on the effect; "You may <chooser>" makes the choice
+ * optional ("up to one": choosing nothing declines).
+ */
 function parseChooser(sen: string): Chooser | null {
+  let text = sen;
+  let optional = false;
+  const may = /^You may (.+)$/i.exec(text);
+  if (may && !/^kill up to one gear$/i.test(may[1] ?? '')) {
+    optional = true;
+    text = may[1] ?? '';
+  }
+  const here = /\b(units?) here\b/i.test(text);
+  if (here) text = text.replace(/\b(units?) here\b/i, '$1');
+  const anotherRe = /\banother (?=(?:friendly |enemy )?unit\b)/i;
+  const another = anotherRe.test(text);
+  if (another) text = text.replace(anotherRe, 'a ');
+  const ch = parseChooserBase(text);
+  if (!ch) return null;
+  if (!here && !another && !optional) return ch;
+  const op = ch.effect.op;
+  // Scopes are about units; counters and gear choices cannot carry them.
+  if (op === 'COUNTER_SPELL' || op === 'WEAPONMASTER_EQUIP') return null;
+  if ((here || another) && (op === 'KILL_GEAR' || (op === 'RETURN_TARGET' && ch.effect.gear))) {
+    return null;
+  }
+  // "You may" needs a single-target choice that is not already a multi-target one.
+  if (optional && (ch.multi === true || 'count' in ch.effect)) return null;
+  const effect = { ...ch.effect } as CardEffect & {
+    here?: boolean;
+    another?: boolean;
+    count?: TargetCount;
+  };
+  if (here) effect.here = true;
+  if (another) effect.another = true;
+  const decl: SlotDecl = { ...ch.decl, ...(here ? { here: true } : {}) };
+  if (another) decl.another = true;
+  if (optional) {
+    effect.count = { min: 0, max: 1 };
+    return { effect, decl, multi: true };
+  }
+  return { effect, decl, ...(ch.multi ? { multi: true } : {}) };
+}
+
+function parseChooserBase(sen: string): Chooser | null {
   let m = new RegExp(`^Deal (\\d+) to an? ${SIDE}unit( at a battlefield)?$`, 'i').exec(sen);
   if (m) {
     const s = side(m[2]);
@@ -279,10 +331,15 @@ function parseChooser(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
-  m = new RegExp(`^Kill an? ${SIDE}gear$`, 'i').exec(sen);
+  m = new RegExp(`^Kill an? ${SIDE}gear(?: with Energy cost \\[?(\\d+)\\]? or less)?$`, 'i').exec(
+    sen,
+  );
   if (m) {
     const s = side(m[1]);
-    return { effect: { op: 'KILL_GEAR', ...sideProp(s) }, decl: { side: s ?? 'any' } };
+    return {
+      effect: { op: 'KILL_GEAR', ...sideProp(s), ...(m[2] ? { maxEnergy: Number(m[2]) } : {}) },
+      decl: { side: s ?? 'any' },
+    };
   }
   if (/^(?:You may )?kill up to one gear$/i.test(sen)) {
     return {
@@ -537,8 +594,27 @@ function sentences(text: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * "[Repeat] [2]" / "[Repeat] [1][C]" / "[Repeat] [C]" (820, R42): the printed Repeat cost of a spell.
+ * Null for other cost shapes ("Discard 1", several costs, [A]) so the card stays partial.
+ */
+export function parseRepeatCost(text: string): { energy: number; power: number } | null {
+  const m = /(?:^|\n)\s*\[Repeat\]\s*((?:\[[0-9C]+\]\s*)+)(?=\(|\n|$)/i.exec(text);
+  if (!m) return null;
+  let energy = 0;
+  let power = 0;
+  for (const t of (m[1] ?? '').matchAll(/\[([0-9C]+)\]/gi)) {
+    const tok = (t[1] ?? '').toUpperCase();
+    if (tok === 'C') power += 1;
+    else if (/^\d+$/.test(tok)) energy += Number(tok);
+    else return null;
+  }
+  return energy > 0 || power > 0 ? { energy, power } : null;
+}
+
 export function parseSpellText(text: string): CardEffect[] | null {
   const cleaned = text
+    .replace(/(?:^|\n)\s*\[Repeat\]\s*(?:\[[0-9C]+\]\s*)+/gi, '\n')
     .replace(/\[(Action|Reaction|Hidden)\]/gi, ' ')
     .replace(/\[Stun\]/gi, 'Stun')
     .replace(TOKEN_WITH, '$1 with $2')
@@ -582,7 +658,30 @@ export interface ParsedAbilities {
   triggers: CardTrigger[];
   abilities: ActivatedAbility[];
   entersReady?: boolean;
+  /** "This enters exhausted." (R42). */
+  entersExhausted?: boolean;
   legionCostReduction?: number;
+}
+
+/** [Disarm N] (831) and [Weaponmaster] (821) as the triggers their reminder text describes (R42). */
+function keywordTriggers(text: string): CardTrigger[] {
+  const out: CardTrigger[] = [];
+  let disarm = 0;
+  for (const m of text.matchAll(/(?:^|\n)\s*\[Disarm(?: (\d+))?\]/gi)) disarm += Number(m[1] ?? 1);
+  // 831: several instances sum into one trigger.
+  if (disarm > 0) {
+    out.push({
+      on: 'ATTACK',
+      effects: [{ op: 'DEBUFF_TARGET', amount: disarm, side: 'enemy', here: true }],
+    });
+  }
+  if (/(?:^|\n)\s*\[Weaponmaster\]/i.test(text)) {
+    out.push({
+      on: 'PLAY',
+      effects: [{ op: 'WEAPONMASTER_EQUIP', count: { min: 0, max: 1 } }],
+    });
+  }
+  return out;
 }
 
 /** "[Add] [N]" (Energy), "[Add] [C]" (Power of the source's Domain), "[Add] [A]" (Universal Power). */
@@ -609,7 +708,7 @@ function parseAbilityCost(text: string, gearLike: boolean): AbilityCost | null {
 }
 
 const TRIGGER_HEAD =
-  /^(When you play me or when I (hold|conquer)|When you play me|When I hold|When I conquer|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you play me or when I (hold|conquer)|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -623,7 +722,9 @@ export function parseCardAbilities(
   text: string,
   opts: { gearLike?: boolean } = {},
 ): ParsedAbilities | null {
+  const kwTriggers = keywordTriggers(text);
   const cleaned = text
+    .replace(/(?:^|\n)\s*\[(?:Disarm(?: \d+)?|Weaponmaster)\]/gi, '\n')
     .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
     .replace(TOKEN_WITH, '$1 with $2')
@@ -637,7 +738,7 @@ export function parseCardAbilities(
     .replace(/\[Deathknell\]\s*(?:\[>\]|[—–-])/gi, ' Deathknell: ')
     .replace(/\s+/g, ' ')
     .trim();
-  const out: ParsedAbilities = { triggers: [], abilities: [] };
+  const out: ParsedAbilities = { triggers: [...kwTriggers], abilities: [] };
   // A trigger / ability sentence starts a group; the sentences after it belong to the same ability.
   type Group =
     | { kind: 'trigger'; ons: TriggerKind[]; legion: boolean; sens: string[] }
@@ -665,9 +766,20 @@ export function parseCardAbilities(
             ? ['HOLD']
             : head.startsWith('when i conquer')
               ? ['CONQUER']
-              : ['DEATH'];
+              : head.startsWith('when i attack or defend')
+                ? ['ATTACK', 'DEFEND']
+                : head.startsWith('when i attack')
+                  ? ['ATTACK']
+                  : head.startsWith('when i defend')
+                    ? ['DEFEND']
+                    : ['DEATH'];
       cur = { kind: 'trigger', ons, legion, sens: m[3] ? [m[3]] : [] };
       groups.push(cur);
+      continue;
+    }
+    if (/^This enters exhausted$/i.test(sen) && !legion && opts.gearLike === true) {
+      out.entersExhausted = true;
+      cur = null;
       continue;
     }
     if (/^I enter ready$/i.test(sen) && !legion) {
@@ -709,6 +821,7 @@ export function parseCardAbilities(
     out.triggers.length > 0 ||
     out.abilities.length > 0 ||
     out.entersReady === true ||
+    out.entersExhausted === true ||
     out.legionCostReduction !== undefined;
   return any ? out : null;
 }
@@ -717,6 +830,13 @@ export function parseCardAbilities(
 export function parseTriggerText(text: string): CardTrigger[] | null {
   const r = parseCardAbilities(text);
   if (!r || r.triggers.length === 0) return null;
-  if (r.abilities.length > 0 || r.entersReady || r.legionCostReduction !== undefined) return null;
+  if (
+    r.abilities.length > 0 ||
+    r.entersReady ||
+    r.entersExhausted ||
+    r.legionCostReduction !== undefined
+  ) {
+    return null;
+  }
   return r.triggers;
 }
