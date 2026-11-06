@@ -26,6 +26,7 @@ export type GameEvent = EventBase &
     | { type: 'EFFECT_BUFF'; unitId: string; amount: number }
     | { type: 'EFFECT_READIED'; unitId: string }
     | { type: 'EFFECT_EMPOWERED'; unitId: string }
+    | { type: 'XP_GAINED'; player: PlayerId; amount: number }
     | { type: 'EFFECT_FIZZLED'; cardId: string }
     | { type: 'EFFECT_STUNNED'; unitId: string }
     | { type: 'EFFECT_KEYWORD_GRANTED'; unitId: string }

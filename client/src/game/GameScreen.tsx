@@ -331,7 +331,11 @@ export function GameScreen({
         <div className="w-full md:w-60" data-tutorial-id="score">
           <Scoreboard
             me={seat}
-            players={view.players.map((p) => ({ id: p.id, points: p.points }))}
+            players={view.players.map((p) => ({
+              id: p.id,
+              points: p.points,
+              ...(p.xp ? { xp: p.xp } : {}),
+            }))}
             victoryScore={view.victoryScore}
           />
         </div>

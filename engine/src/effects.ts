@@ -570,6 +570,23 @@ export function runEffects(
         }
         break;
       }
+      case 'GAIN_XP': {
+        const n = e.perFriendlyUnit
+          ? e.amount *
+            Object.values(state.objects).filter(
+              (o) =>
+                o.controller === controller &&
+                (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+                cards[o.cardId]?.type === 'UNIT',
+            ).length
+          : e.amount;
+        if (n > 0) {
+          const ps = state.players[playerIndex(controller)] as GameState['players'][number];
+          ps.xp = (ps.xp ?? 0) + n;
+          out.push({ type: 'XP_GAINED', player: controller, amount: n });
+        }
+        break;
+      }
       case 'EMPOWER_SELF': {
         const src = state.objects[sourceObjectId];
         if (src && !src.empowered && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {

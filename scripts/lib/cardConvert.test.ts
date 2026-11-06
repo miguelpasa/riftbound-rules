@@ -85,7 +85,7 @@ describe('cardConvert', () => {
     expect(lvl('[Equip] [1][C]')).toBe('full');
     expect(lvl('When I attack, draw 1.')).toBe('full'); // R42: attack triggers are parsed
     expect(lvl('When I move, draw 1.')).toBe('full'); // R43: move triggers are parsed
-    expect(lvl('When I move to a battlefield, draw 1.')).toBe('partial');
+    expect(lvl('When I move to a battlefield, draw 1.')).toBe('full');
     expect(lvl('[Deathknell] (Reminder.)')).toBe('partial');
     expect(lvl('[Tank] [Buff]')).toBe('partial');
   });

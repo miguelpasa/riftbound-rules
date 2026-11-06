@@ -135,6 +135,8 @@ export type CardEffect =
   | { op: 'WIN_GAME' }
   /** R45: "give me +N [M] this turn" (the source unit; nothing if it left the board). */
   | { op: 'BUFF_SELF'; amount: number }
+  /** R53: "gain N XP" (optionally per friendly unit on the board). */
+  | { op: 'GAIN_XP'; amount: number; perFriendlyUnit?: boolean }
   /** R52: "Empower me": the source becomes Empowered (nothing if it is not on the board or already is). */
   | { op: 'EMPOWER_SELF' }
   /** R49: "ready me": the source permanent becomes ready (nothing when it left the board). */
@@ -386,7 +388,9 @@ export type Condition =
   | { kind: 'CONTROL_SUBTYPE'; subtype: string; other?: boolean }
   | { kind: 'AT_BATTLEFIELD' }
   /** R52: the source is Empowered. */
-  | { kind: 'EMPOWERED' };
+  | { kind: 'EMPOWERED' }
+  /** R53: Level N: the controller has at least `n` XP. */
+  | { kind: 'XP'; n: number };
 
 /**
  * The price of an optional effect (R45, "you may pay [1] to ..."). `energy` = [N], `power` = [C]

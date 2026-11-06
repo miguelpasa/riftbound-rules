@@ -137,6 +137,16 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (m) return [{ op: 'BUFF_SELF', amount: Number(m[1]) }];
   if (/^Ready me$/i.test(sen)) return [{ op: 'READY_SELF' }];
   if (/^Empower me$/i.test(sen)) return [{ op: 'EMPOWER_SELF' }];
+  m = /^Gain (\d+) XP(?: for each friendly unit)?$/i.exec(sen);
+  if (m) {
+    return [
+      {
+        op: 'GAIN_XP',
+        amount: Number(m[1]),
+        ...(/for each friendly unit/i.test(sen) ? { perFriendlyUnit: true } : {}),
+      },
+    ];
+  }
   if (/^Ready your legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
@@ -709,9 +719,10 @@ export function parseAdditionalCost(text: string): { cost: CostCardChoice; rest:
   };
 }
 
+const LEVEL_PREFIX = /^\[Level (\d+)\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
 const EMPOWERED_PREFIX = /^\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
 const STATIC_KW = 'Deflect|Ganking|Assault|Shield|Tank';
-const STATIC_GRANT = String.raw`((?:\[(?:${STATIC_KW})(?: \d+)?\](?:,? and |, )?)+|\+\d+ \[M\])`;
+const STATIC_GRANT = String.raw`((?:\+\d+ \[M\](?:,? and )?)?(?:\[(?:${STATIC_KW})(?: \d+)?\](?:,? and |, )?)*)`;
 const STATIC_AFF =
   '(I|Your gear|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here)';
 
@@ -734,15 +745,15 @@ function staticAffects(raw: string): Pick<StaticAbility, 'affects' | 'subtype'> 
 }
 
 function staticGrant(raw: string): Pick<StaticAbility, 'might' | 'keywords'> | null {
-  const mm = /^\+(\d+) \[M\]$/.exec(raw.trim());
-  if (mm) return { might: Number(mm[1]) };
+  const mm = /\+(\d+) \[M\]/.exec(raw);
   const keywords: KeywordInstance[] = [];
   for (const m of raw.matchAll(/\[(Deflect|Ganking|Assault|Shield|Tank)(?: (\d+))?\]/gi)) {
     const n = (m[1] ?? '').toLowerCase();
     const name = (n.charAt(0).toUpperCase() + n.slice(1)) as KeywordInstance['name'];
     keywords.push(m[2] ? { name, value: Number(m[2]) } : { name });
   }
-  return keywords.length > 0 ? { keywords } : null;
+  if (!mm && keywords.length === 0) return null;
+  return { ...(mm ? { might: Number(mm[1]) } : {}), ...(keywords.length > 0 ? { keywords } : {}) };
 }
 
 /**
@@ -761,7 +772,9 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       .replace(/\.$/, '');
     // R52: "[Empowered][>] ..." is a static that applies only while the source is Empowered.
     const em = EMPOWERED_PREFIX.exec(plain);
-    const body = em ? (em[1] ?? '') : plain;
+    // R53: "[Level N][>] I have ..." applies while the controller has N or more XP.
+    const lv = em ? null : LEVEL_PREFIX.exec(plain);
+    const body = em ? (em[1] ?? '') : lv ? (lv[2] ?? '') : plain;
     const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(body);
     const f2 = new RegExp(`^While (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(
       body,
@@ -783,14 +796,20 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
     const a = staticAffects(aff);
     const g = staticGrant(grant);
     const when = cond === undefined ? undefined : parseCondition(cond);
-    if (!a || !g || (cond !== undefined && !when) || (em && cond !== undefined)) {
+    if (!a || !g || (cond !== undefined && !when) || ((em || lv) && cond !== undefined)) {
       keep.push(line);
       continue;
     }
     statics.push({
       ...a,
       ...g,
-      ...(em ? { when: { kind: 'EMPOWERED' as const } } : when ? { when } : {}),
+      ...(em
+        ? { when: { kind: 'EMPOWERED' as const } }
+        : lv
+          ? { when: { kind: 'XP' as const, n: Number(lv[1]) } }
+          : when
+            ? { when }
+            : {}),
     });
   }
   return statics.length > 0 ? { statics, rest: keep.join('\n').trim() } : null;
@@ -925,6 +944,14 @@ function keywordTriggers(text: string): CardTrigger[] {
       on: 'ATTACK',
       effects: [{ op: 'DEBUFF_TARGET', amount: disarm, side: 'enemy', here: true }],
     });
+  }
+  // R53: Hunt N = "When I conquer or hold, gain N XP".
+  let hunt = 0;
+  for (const m of text.matchAll(/(?:^|\n)\s*\[Hunt(?: (\d+))?\]/gi)) hunt += Number(m[1] ?? 1);
+  if (hunt > 0) {
+    for (const on of ['CONQUER', 'HOLD'] as const) {
+      out.push({ on, effects: [{ op: 'GAIN_XP', amount: hunt }] });
+    }
   }
   if (/(?:^|\n)\s*\[Weaponmaster\]/i.test(text)) {
     out.push({
@@ -1273,7 +1300,7 @@ function parsePlayHead(sen: string): { filter: PlayFilter; body: string } | null
 }
 
 const TRIGGER_HEAD =
-  /^(When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -1289,7 +1316,7 @@ export function parseCardAbilities(
 ): ParsedAbilities | null {
   const kwTriggers = keywordTriggers(text);
   const cleaned = protectGrants(text)
-    .replace(/(?:^|\n)\s*\[(?:Disarm(?: \d+)?|Weaponmaster)\]/gi, '\n')
+    .replace(/(?:^|\n)\s*\[(?:Disarm(?: \d+)?|Weaponmaster|Hunt(?: \d+)?)\]/gi, '\n')
     .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
     .replace(TOKEN_WITH, '$1 with $2')

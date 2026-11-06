@@ -38,6 +38,8 @@ export function evalCondition(
   switch (cond.kind) {
     case 'AT_BATTLEFIELD':
       return hereOfSource(state, sourceId) !== null;
+    case 'XP':
+      return (state.players[playerIndex(controller)]?.xp ?? 0) >= cond.n;
     case 'EMPOWERED':
       return state.objects[sourceId]?.empowered === true;
     case 'CONTROL_SUBTYPE':

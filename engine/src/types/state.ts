@@ -101,6 +101,8 @@ export interface PlayerState {
   championZone: string[];
   runePool: RunePool;
   points: number;
+  /** R53: XP (Hunt, Level); absent until first gained (= 0). Public. */
+  xp?: number;
   /**
    * Cards this player played (PLAY_CARD, Hidden plays included) during turn `turn` (Legion, 812).
    * A record from an earlier turn counts as nothing, so the counter resets at the start of each turn

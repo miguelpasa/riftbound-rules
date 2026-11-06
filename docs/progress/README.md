@@ -89,3 +89,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R50](R50-self-cost-reductions.md)   | Self cost reductions: for each / if / minimum, one discount function for play, legal actions and the card display (275 -> 282 cards full) | High | Sonnet | Done | uncommitted |
 | [R51](R51-static-abilities.md)       | Static abilities: Might / keyword grants to units, gear, subtypes, "here"; Battlefield and Legend sources (282 -> 292 cards full); schema fix for R50 | High | Sonnet | Done | uncommitted |
 | [R52](R52-empower.md)                | Empower keyword: Empowered state, Empower ability, conditional statics / triggers (292 -> 299 cards in cards.json) | High | Sonnet | Done | uncommitted |
+| [R53](R53-xp-hunt-level.md)          | XP counter, Hunt, Level statics, gain-XP effects, "When I move to a battlefield" (299 -> 316 cards full) | High | Sonnet | Done | uncommitted |

@@ -167,3 +167,12 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Costs:** Energy, [C] / [A] Power and "Discard N" costs parse (the existing ability cost parser). "This ability costs [N] less if / for each ..." modifiers are not parsed: those cards (Baccai Sandspinner, Frostcoat Mother, Grumpy Rockbear, ...) stay partial.
 - **Keyword:** `Empower` is now a parsed keyword (no longer a blocker by itself); `Empowered` is not extracted as a keyword.
 - **Rule numbers:** tests cite 145.1 only.
+
+## R53: XP, Hunt and Level (A-R53)
+
+- **XP (UNCLEAR, reminder text only, no rule text read):** each player has an XP counter (`PlayerState.xp`, absent = 0, public, never decreases yet). "Gain N XP" adds to the controller's counter; "for each friendly unit" counts the controller's units on the board.
+- **Hunt N** = "When I conquer or hold, gain N XP" (the reminder text), as two triggers. Several instances sum.
+- **Level N** lines ("[Level 3][>] I have +1 [M] and [Ganking].") are statics that apply while the controller has at least N XP (condition `XP`). Higher levels do not replace lower ones ("... instead" text is not parsed); a Level line with other content (cost reductions, "enter ready", draw triggers, "instead") keeps the card partial.
+- **"When I move to a battlefield"** is the same MOVE trigger as "When I move" (the engine only fires it for moves to a battlefield, as in R43).
+- **Not done:** spending XP ("Spend N XP: ..." costs, Legend abilities), "if you've gained XP this turn", "when it wins a combat, gain XP", Buff (no Buff state), Level effects on spells or on costs.
+- **Rule numbers:** tests cite 303 and 143.2 only.
