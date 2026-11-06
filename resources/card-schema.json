@@ -153,6 +153,32 @@
       "additionalProperties": false,
       "properties": { "card": { "$ref": "#/definitions/costCardChoice" } }
     },
+    "costReduction": {
+      "description": "Self cost reduction: I cost [N] less for each / if ... (R50).",
+      "type": "object",
+      "required": ["energy"],
+      "properties": {
+        "energy": { "type": "integer", "minimum": 1 },
+        "per": { "type": "string" },
+        "when": { "type": "object" },
+        "min": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "statics": {
+      "description": "Static abilities: grants of Might / keywords to some units or gear (R51).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["affects"],
+        "properties": {
+          "affects": { "type": "string" },
+          "subtype": { "type": "string" },
+          "when": { "type": "object" },
+          "might": { "type": "integer" },
+          "keywords": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    },
     "imageUrl": { "type": "string" }
   }
 }

@@ -50,7 +50,7 @@
  *    it is deleted from the game and UNIT_KILLED is still emitted.
  */
 import { fork } from './workingCopy.js';
-import { defWithTemp } from './tempKeywords.js';
+import { defWithGrants, staticBonus } from './statics.js';
 import { attachedMightBonus, removeTokenFromGame } from './keywords.js';
 import { syncTurnState } from './chain.js';
 import { onConquer as scoringOnConquer } from './scoring.js';
@@ -129,12 +129,13 @@ export function effectiveMight(
 ): number {
   const o = state.objects[unitId];
   if (!o) return 0;
-  const def = defWithTemp(cards[o.cardId], o);
+  const def = defWithGrants(state, cards, o);
   const role = ctx && 'role' in ctx ? (ctx.role ?? null) : roleOf(state, o);
   return (
     (def?.stats.might ?? 0) +
     o.mightBonus +
     keywordBonus(def, role) +
+    staticBonus(state, cards, o).might +
     attachedMightBonus(state, cards, unitId)
   );
 }
@@ -181,8 +182,8 @@ export function computeAssignmentConstraints(
     .map((o) => ({
       unitId: o.id,
       lethal: lethalNeeded(state, cards, o),
-      tier: tierOverrides[o.id] ?? tierOf(defWithTemp(cards[o.cardId], o)),
-      ...(isDualTier(defWithTemp(cards[o.cardId], o)) ? { dual: true as const } : {}),
+      tier: tierOverrides[o.id] ?? tierOf(defWithGrants(state, cards, o)),
+      ...(isDualTier(defWithGrants(state, cards, o)) ? { dual: true as const } : {}),
     }))
     .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || objNum(a.unitId) - objNum(b.unitId));
   return { total: sideTotal(state, cards, c.battlefieldId, assigner), ordered };

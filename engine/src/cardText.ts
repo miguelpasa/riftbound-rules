@@ -40,6 +40,7 @@ import type {
   CostCount,
   CostReduction,
   PlayFilter,
+  StaticAbility,
   Condition,
   CostCardChoice,
   CountCmp,
@@ -707,6 +708,85 @@ export function parseAdditionalCost(text: string): { cost: CostCardChoice; rest:
   };
 }
 
+const STATIC_KW = 'Deflect|Ganking|Assault|Shield|Tank';
+const STATIC_GRANT = String.raw`((?:\[(?:${STATIC_KW})(?: \d+)?\](?:,? and |, )?)+|\+\d+ \[M\])`;
+const STATIC_AFF =
+  '(I|Your gear|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here)';
+
+function staticAffects(raw: string): Pick<StaticAbility, 'affects' | 'subtype'> | null {
+  const w = raw.toLowerCase();
+  if (w === 'i') return { affects: 'SELF' };
+  if (w === 'your gear') return { affects: 'FRIENDLY_GEAR' };
+  if (w === 'friendly units') return { affects: 'FRIENDLY_UNITS' };
+  if (w === 'other friendly units here' || w === 'your other units here')
+    return { affects: 'OTHER_FRIENDLY_HERE' };
+  if (w === 'units here') return { affects: 'UNITS_HERE' };
+  const m = /^your ([a-z]+)s$/.exec(w);
+  if (m && m[1] !== 'unit' && m[1] !== 'gear') {
+    return {
+      affects: 'FRIENDLY_SUBTYPE',
+      subtype: (m[1] ?? '').replace(/^./, (c) => c.toUpperCase()),
+    };
+  }
+  return null;
+}
+
+function staticGrant(raw: string): Pick<StaticAbility, 'might' | 'keywords'> | null {
+  const mm = /^\+(\d+) \[M\]$/.exec(raw.trim());
+  if (mm) return { might: Number(mm[1]) };
+  const keywords: KeywordInstance[] = [];
+  for (const m of raw.matchAll(/\[(Deflect|Ganking|Assault|Shield|Tank)(?: (\d+))?\]/gi)) {
+    const n = (m[1] ?? '').toLowerCase();
+    const name = (n.charAt(0).toUpperCase() + n.slice(1)) as KeywordInstance['name'];
+    keywords.push(m[2] ? { name, value: Number(m[2]) } : { name });
+  }
+  return keywords.length > 0 ? { keywords } : null;
+}
+
+/**
+ * R51: lines that are static abilities: "<Your gear | Friendly units | Your Mechs | Other friendly units
+ * here | Units here | I> have [Keyword]... / +N [M]", optionally "While <condition>, ..." or
+ * "... while <condition>". Returns them and the text without those lines (null when there are none).
+ */
+export function parseStaticLines(text: string): { statics: StaticAbility[]; rest: string } | null {
+  const statics: StaticAbility[] = [];
+  const keep: string[] = [];
+  for (const line of text.split('\n')) {
+    const plain = line
+      .replace(/\([^)]*\)/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\.$/, '');
+    const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(plain);
+    const f2 = new RegExp(`^While (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(
+      plain,
+    );
+    const f3 = new RegExp(`^I have ${STATIC_GRANT} while (.+)$`, 'i').exec(plain);
+    let aff: string | undefined;
+    let grant: string | undefined;
+    let cond: string | undefined;
+    if (f1) [, aff, grant] = f1;
+    else if (f2) [, cond, aff, grant] = f2;
+    else if (f3) {
+      [, grant, cond] = f3;
+      aff = 'I';
+    }
+    if (aff === undefined || grant === undefined) {
+      keep.push(line);
+      continue;
+    }
+    const a = staticAffects(aff);
+    const g = staticGrant(grant);
+    const when = cond === undefined ? undefined : parseCondition(cond);
+    if (!a || !g || (cond !== undefined && !when)) {
+      keep.push(line);
+      continue;
+    }
+    statics.push({ ...a, ...g, ...(when ? { when } : {}) });
+  }
+  return statics.length > 0 ? { statics, rest: keep.join('\n').trim() } : null;
+}
+
 const COST_PER: [RegExp, CostCount][] = [
   [/^exhausted units? you control$/i, 'EXHAUSTED_UNIT'],
   [/^gear you control$/i, 'GEAR'],
@@ -1017,6 +1097,17 @@ export function parseCondition(raw: string): Condition | null {
       ...(m[3] ? { other: true } : {}),
       cmp: /least/i.test(m[1] ?? '') ? 'GTE' : 'EQ',
       n,
+    };
+  }
+  if (/^you (?:have|control) another unit here$/i.test(text)) {
+    return {
+      kind: 'COUNT',
+      what: 'unit',
+      where: 'here',
+      who: 'friendly',
+      other: true,
+      cmp: 'GTE',
+      n: 1,
     };
   }
   if (/^your Rune Deck is empty$/i.test(text)) {

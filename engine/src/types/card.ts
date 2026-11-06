@@ -330,6 +330,27 @@ export type TargetedEffect = Extract<
  *  - CONTROL_SUBTYPE: the controller controls a Unit with the subtype/tag (`other`: not the source).
  *  - AT_BATTLEFIELD: the source is at a battlefield ("while I'm at a battlefield").
  */
+/**
+ * R51: a static ability. `affects` picks the units / gear it applies to (SELF, FRIENDLY_UNITS,
+ * FRIENDLY_GEAR, FRIENDLY_SUBTYPE + `subtype`, OTHER_FRIENDLY_HERE = my other friendly units at my
+ * battlefield, UNITS_HERE = every unit at the source's battlefield); `when` is checked live from the
+ * source's controller. It grants Might and / or keywords (only Assault, Shield, Tank, Ganking and
+ * Deflect are read).
+ */
+export interface StaticAbility {
+  affects:
+    | 'SELF'
+    | 'FRIENDLY_UNITS'
+    | 'FRIENDLY_GEAR'
+    | 'FRIENDLY_SUBTYPE'
+    | 'OTHER_FRIENDLY_HERE'
+    | 'UNITS_HERE';
+  subtype?: string;
+  when?: Condition;
+  might?: number;
+  keywords?: KeywordInstance[];
+}
+
 /** R50: what "for each" counts in a self cost reduction (the player's own side, the card itself excluded). */
 export type CostCount =
   | 'GEAR' // each gear you control (board)
@@ -537,6 +558,8 @@ export interface CardDef {
   entersExhausted?: boolean;
   /** "[Legion] - I cost [N] less.": Energy discount while Legion is active (812). */
   legionCostReduction?: number;
+  /** R51: static abilities ("Your gear have [Deflect]", "While ..., I have +1 [M]"); see statics.ts. */
+  statics?: StaticAbility[];
   /** R50: "I cost [N] less for each ..." / "This costs [N] less if ...": a discount on this card's own Energy cost. */
   costReduction?: CostReduction;
   /**

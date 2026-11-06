@@ -350,7 +350,7 @@ describe('R44 converter wiring (Battlefield cards)', () => {
     expect(conv('When you hold here, draw 1. Units here have +1 [M].')?.supportLevel).toBe(
       'partial',
     );
-    expect(conv('Units here have [Ganking].')?.supportLevel).toBe('partial');
+    expect(conv('Units here have [Backline].')?.supportLevel).toBe('partial'); // R51: a Ganking grant is supported
     expect(conv('When you conquer here, you may banish a card to draw 1.')?.supportLevel).toBe(
       'partial',
     );

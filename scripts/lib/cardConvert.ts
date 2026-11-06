@@ -11,6 +11,7 @@ import {
   parseCardAbilities,
   parseRepeatCost,
   parseSelfCostReduction,
+  parseStaticLines,
   parseSpellText,
 } from '../../engine/src/cardText';
 import { DOMAINS, MVP_KEYWORDS } from '../../engine/src/types/card';
@@ -254,7 +255,13 @@ export function convertRow(row: RawRow): ConvertResult {
     type === 'UNIT' || type === 'SPELL' || type === 'GEAR'
       ? parseSelfCostReduction(afterAdditional)
       : null;
-  const text = selfCost ? selfCost.rest : afterAdditional;
+  const afterSelfCost = selfCost ? selfCost.rest : afterAdditional;
+  // R51: static abilities ("Your gear have [Deflect]", "While ..., I have +1 [M]") are lines of their own.
+  const staticLines =
+    type === 'UNIT' || type === 'GEAR' || type === 'LEGEND' || type === 'BATTLEFIELD'
+      ? parseStaticLines(afterSelfCost)
+      : null;
+  const text = staticLines ? staticLines.rest : afterSelfCost;
   // A keyword in "unit token with [Keyword]" belongs to the token, not to the card.
   let keywords = extractKeywords(text.replace(/(tokens?) with \[[^\]]+\]/gi, '$1'));
   // Rule 816: Temporary is a keyword of Permanents. On spells, legends and battlefields the bracket
@@ -351,6 +358,8 @@ export function convertRow(row: RawRow): ConvertResult {
       card.supportLevel = 'full';
     }
   }
+  // R51: likewise the static abilities.
+  if (staticLines && card.supportLevel === 'full') card.statics = staticLines.statics;
   // R50: likewise the self cost reduction.
   if (selfCost && card.supportLevel === 'full') card.costReduction = selfCost.reduction;
   // R47: the additional cost is stored only on a card that is fully supported without it.

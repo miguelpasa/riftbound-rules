@@ -37,6 +37,7 @@ import type { PlayHooks } from './play.js';
 import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import type { CostMod, TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
+import { defWithGrants } from './statics.js';
 import { DEFERRED_KEYWORDS, MVP_KEYWORDS, playerIndex, ruleError } from './types/index.js';
 import type {
   ChainItem,
@@ -317,7 +318,7 @@ export function deflectExtraCost(
     if (t.kind !== 'object') continue;
     const o = permanentOnBoard(state, cards, t.id);
     if (!o || o.controller === playerId) continue;
-    const def = cards[o.cardId] as CardDef;
+    const def = defWithGrants(state, cards, o) as CardDef;
     for (const k of def.keywords) if (k.name === 'Deflect') total += k.value ?? 1;
   }
   return total > 0 ? { anyPower: total } : null;

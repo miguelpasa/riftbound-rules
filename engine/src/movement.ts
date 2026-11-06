@@ -16,7 +16,7 @@
  *  - UNIT_MOVED `from` / `to` are 'base' or a battlefield id.
  */
 import { fork } from './workingCopy.js';
-import { defWithTemp } from './tempKeywords.js';
+import { defWithGrants } from './statics.js';
 import { ruleError } from './types/errors.js';
 import { playerIndex } from './types/constants.js';
 import { stampEvents } from './setup.js';
@@ -86,7 +86,7 @@ export function canStandardMove(
       return ruleError('ILLEGAL_MOVE_DESTINATION', `unit ${id} is already at ${from}`);
     }
     if (o.zone.kind === 'battlefield' && destination.kind === 'battlefield') {
-      if (!defWithTemp(def, o)?.keywords.some((k) => k.name === 'Ganking')) {
+      if (!defWithGrants(state, cards, o)?.keywords.some((k) => k.name === 'Ganking')) {
         return ruleError('ILLEGAL_MOVE_DESTINATION', `unit ${id} lacks Ganking`); // 144.4.c.1
       }
     }

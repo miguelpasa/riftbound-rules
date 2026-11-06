@@ -15,6 +15,7 @@ export * from './showdown.js';
 export * from './combat.js';
 export * from './keywords.js';
 export * from './costReduction.js';
+export { staticBonus, defWithGrants } from './statics.js';
 export * from './cleanup.js';
 export * from './reducer.js';
 export * from './validator.js';

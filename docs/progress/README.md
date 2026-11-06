@@ -87,3 +87,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R48](R48-rematch-history.md)        | Solo rematch button, result/difficulty in saved games, record vs AI | Medium | Sonnet | Done | uncommitted |
 | [R49](R49-you-play-triggers.md)      | "When you play a spell/unit/gear/card" triggers with filters, Ready me, Legend triggers (265 -> 275 cards full) | High | Sonnet | Done | uncommitted |
 | [R50](R50-self-cost-reductions.md)   | Self cost reductions: for each / if / minimum, one discount function for play, legal actions and the card display (275 -> 282 cards full) | High | Sonnet | Done | uncommitted |
+| [R51](R51-static-abilities.md)       | Static abilities: Might / keyword grants to units, gear, subtypes, "here"; Battlefield and Legend sources (282 -> 292 cards full); schema fix for R50 | High | Sonnet | Done | uncommitted |

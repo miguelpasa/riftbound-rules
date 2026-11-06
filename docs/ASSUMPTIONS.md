@@ -148,3 +148,14 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **"If" conditions** reuse the R43 Condition language (a subtype you control, counts); evaluated when the card is listed as playable and again when it is played.
 - **Not done:** "to play from anywhere other than your hand", Power reductions ([A] / [C]), "for each battlefield you conquered this turn" and "if an enemy unit died this turn" (no per-turn tracking), reductions of OTHER cards (Legends, battlefields, "your spells cost less"), "the next card you play costs less".
 - **Rule numbers:** tests cite 356.6 only.
+
+## R51: static abilities (A-R51)
+
+- **Model:** `CardDef.statics` grants Might and / or keywords to SELF, friendly units, friendly gear, friendly units of a subtype, my other friendly units at my battlefield, or all units at the source's battlefield (Battlefield cards). A condition is evaluated live from the source's controller. Sources: permanents on the board, a Legend in its zone, Battlefield cards. Read by `effectiveMight` (Might), combat tiers, Ganking moves and Deflect.
+- **Only Assault, Shield, Tank, Ganking and Deflect** are read at runtime from a grant (as with temporary grants). "Disarm" grants (Clanging Sentry) are not supported.
+- **Granted Assault / Shield** count in combat like printed ones (role based), stacking with them.
+- **"Other friendly units here"** needs the source to stand at a battlefield; a source in the Base grants nothing to units here.
+- **Battlefield sources** use the target unit's controller for the condition (the Battlefield itself has no controller for it).
+- **Not done:** "equal to the number of ..." values (Repair Specialist, Ancient Warmonger), "while I'm buffed / [Mighty]", "attacking or defending alone", spell keyword grants (Kai'Sa), "can't" restrictions, static cost changes of other cards.
+- **Rule numbers:** tests cite 143.2, 809, 144.4.c.1 only; not checked against the rule text.
+- **R50 correction:** `resources/card-schema.json` lacked `costReduction`, so the card build silently dropped those cards; fixed here (the R50 count of 282 only became true in `client/public/cards.json` with this change).
