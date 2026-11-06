@@ -176,3 +176,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **"When I move to a battlefield"** is the same MOVE trigger as "When I move" (the engine only fires it for moves to a battlefield, as in R43).
 - **Not done:** spending XP ("Spend N XP: ..." costs, Legend abilities), "if you've gained XP this turn", "when it wins a combat, gain XP", Buff (no Buff state), Level effects on spells or on costs.
 - **Rule numbers:** tests cite 303 and 143.2 only.
+
+## R54: Buff (A-R54)
+
+- **Model (from the printed reminder "give it a +1 [M] buff if it doesn't have one"):** a Buff is the flag `CardInstance.buffed`: +1 Might, at most one per unit, lost when the permanent returns to hand and cleared when a permanent enters play. It stays when the unit dies to the Trash but is cleared on its next play. "Spend my buff" is not modelled.
+- **Parsed:** "[Buff] a [friendly|enemy] unit" / "Buff a unit" (target chosen like any unit spell), "[Buff] me" / "buff me", and the condition "I'm buffed" (statics and "if" clauses).
+- **Not parsed (cards stay partial):** "buff all units here", "buff up to N units", "buff another friendly unit", "If it's already buffed ... instead", "Spend my buff ...", "when you buff ...", "any number of buffs" (Lee Sin), "buffed units have ...".
+- **Rule numbers:** tests cite 143.2 only.

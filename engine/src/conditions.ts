@@ -40,6 +40,8 @@ export function evalCondition(
       return hereOfSource(state, sourceId) !== null;
     case 'XP':
       return (state.players[playerIndex(controller)]?.xp ?? 0) >= cond.n;
+    case 'BUFFED':
+      return state.objects[sourceId]?.buffed === true;
     case 'EMPOWERED':
       return state.objects[sourceId]?.empowered === true;
     case 'CONTROL_SUBTYPE':

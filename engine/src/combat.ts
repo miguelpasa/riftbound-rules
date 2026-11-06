@@ -136,6 +136,7 @@ export function effectiveMight(
     o.mightBonus +
     keywordBonus(def, role) +
     staticBonus(state, cards, o).might +
+    (o.buffed ? 1 : 0) +
     attachedMightBonus(state, cards, unitId)
   );
 }

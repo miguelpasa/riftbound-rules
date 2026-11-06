@@ -134,7 +134,7 @@ export type CardEffect =
   /** R44: the controller wins the game. */
   | { op: 'WIN_GAME' }
   /** R45: "give me +N [M] this turn" (the source unit; nothing if it left the board). */
-  | { op: 'BUFF_SELF'; amount: number }
+  | { op: 'BUFF_SELF'; amount: number; /** R54: [Buff] me. */ buff?: boolean }
   /** R53: "gain N XP" (optionally per friendly unit on the board). */
   | { op: 'GAIN_XP'; amount: number; perFriendlyUnit?: boolean }
   /** R52: "Empower me": the source becomes Empowered (nothing if it is not on the board or already is). */
@@ -157,6 +157,8 @@ export type CardEffect =
   | ({
       op: 'BUFF_TARGET';
       amount: number;
+      /** R54: [Buff] the target: a +1 Might buff if it has none (amount is 1). */
+      buff?: boolean;
       side?: TargetSide;
       duration?: 'TURN';
       slot?: number;
@@ -389,6 +391,8 @@ export type Condition =
   | { kind: 'AT_BATTLEFIELD' }
   /** R52: the source is Empowered. */
   | { kind: 'EMPOWERED' }
+  /** R54: the source carries a Buff ("While I'm buffed"). */
+  | { kind: 'BUFFED' }
   /** R53: Level N: the controller has at least `n` XP. */
   | { kind: 'XP'; n: number };
 

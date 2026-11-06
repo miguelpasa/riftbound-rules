@@ -135,6 +135,7 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (m) return [{ op: 'CHANNEL', amount: Number(m[1]), ...(m[2] ? { exhausted: true } : {}) }];
   m = /^Give me \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) return [{ op: 'BUFF_SELF', amount: Number(m[1]) }];
+  if (/^(?:\[Buff\]|Buff) me$/i.test(sen)) return [{ op: 'BUFF_SELF', amount: 1, buff: true }];
   if (/^Ready me$/i.test(sen)) return [{ op: 'READY_SELF' }];
   if (/^Empower me$/i.test(sen)) return [{ op: 'EMPOWER_SELF' }];
   m = /^Gain (\d+) XP(?: for each friendly unit)?$/i.exec(sen);
@@ -355,6 +356,14 @@ function parseChooserBase(sen: string): Chooser | null {
       },
       decl: { side: s ?? 'any' },
       multi: true,
+    };
+  }
+  m = new RegExp(`^(?:\\[Buff\\]|Buff) an? ${SIDE}unit$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: { op: 'BUFF_TARGET', amount: 1, buff: true, ...sideProp(s) },
+      decl: { side: s ?? 'any' },
     };
   }
   m = new RegExp(`^Give an? ${SIDE}unit ${KW_LIST} this turn$`, 'i').exec(sen);
@@ -1115,6 +1124,7 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/[.\s]+$/, '')
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
+  if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
   if (/^there['’]?s? (?:is )?an enemy unit alone (?:here|at that battlefield)$/i.test(text)) {
     return { kind: 'COUNT', what: 'unit', where: 'here', who: 'enemy', cmp: 'EQ', n: 1 };
   }

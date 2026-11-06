@@ -54,6 +54,8 @@ export interface CardInstance {
   stunned?: boolean;
   /** R52: Empowered (the Empower keyword). Lost when the permanent leaves the board. */
   empowered?: boolean;
+  /** R54: carries a Buff (+1 Might until it leaves the board; at most one). */
+  buffed?: boolean;
   /** Equipment -> id of the unit it is attached to. */
   attachedTo?: string;
   facedown?: boolean;

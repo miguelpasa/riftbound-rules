@@ -419,6 +419,7 @@ export function returnToHand(state: GameState, o: CardInstance, out: GameEventIn
   delete o.tempKeywords;
   delete o.stunned;
   delete o.empowered;
+  delete o.buffed;
   delete o.attachedTo;
   state.players[playerIndex(player)].hand.push(o.id);
 }
@@ -566,7 +567,12 @@ export function runEffects(
         // R45: the source unit gets +N Might this turn (nothing when it is no longer on the board).
         const src = state.objects[sourceObjectId];
         if (src && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
-          addTemp(src, e.amount, true);
+          if (e.buff) {
+            if (!src.buffed) {
+              src.buffed = true;
+              out.push({ type: 'EFFECT_BUFF', unitId: src.id, amount: 1 });
+            }
+          } else addTemp(src, e.amount, true);
         }
         break;
       }
@@ -589,7 +595,11 @@ export function runEffects(
       }
       case 'EMPOWER_SELF': {
         const src = state.objects[sourceObjectId];
-        if (src && !src.empowered && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
+        if (
+          src &&
+          !src.empowered &&
+          (src.zone.kind === 'base' || src.zone.kind === 'battlefield')
+        ) {
           src.empowered = true;
           out.push({ type: 'EFFECT_EMPOWERED', unitId: src.id });
         }
@@ -680,6 +690,12 @@ export function runEffects(
           } else if (e.op === 'COUNTER_SPELL') {
             counterSpell(state, u);
             out.push({ type: 'EFFECT_COUNTERED', cardId: u.cardId });
+          } else if (e.buff) {
+            // R54: [Buff]: a +1 Might buff if the unit does not have one.
+            if (!u.buffed) {
+              u.buffed = true;
+              out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount: 1 });
+            }
           } else {
             addTemp(u, e.amount, e.duration === 'TURN');
           }

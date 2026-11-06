@@ -174,6 +174,7 @@ function placingResolver(
               evalCondition(s, cards, def.entersReadyWhen, obj.controller, obj.id));
       obj.enteredTurn = turnNumber;
       delete obj.empowered; // R52: a permanent always enters un-Empowered
+      delete obj.buffed; // R54: and without a Buff
       if (hooks?.onEnter) events.push(...hooks.onEnter(s, cards, obj.id, item));
     }
     const res = inner(s, item, cards);
