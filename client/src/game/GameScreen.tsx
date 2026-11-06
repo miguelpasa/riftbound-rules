@@ -83,7 +83,10 @@ function ConnectionIndicators({ api }: { api: GameApi }) {
           ? 'Host away'
           : 'Disconnected';
   return (
-    <ul aria-label="Connection status" className="flex flex-col gap-1 text-xs text-slate-300">
+    <ul
+      aria-label="Connection status"
+      className="flex gap-3 text-xs text-slate-300 md:flex-col md:gap-1"
+    >
       <li className="flex items-center gap-1.5">
         <span aria-hidden="true" className={`h-2 w-2 rounded-full ${tone}`} />
         {label}
@@ -282,15 +285,18 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-800 bg-slate-900 px-3 py-2 lg:sticky lg:top-0 lg:z-20">
-        <div className="w-60" data-tutorial-id="score">
+      <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-slate-800 bg-slate-900 px-3 py-2 md:gap-y-2">
+        <div className="w-full md:w-60" data-tutorial-id="score">
           <Scoreboard
             me={seat}
             players={view.players.map((p) => ({ id: p.id, points: p.points }))}
             victoryScore={view.victoryScore}
           />
         </div>
-        <div className="min-w-64 flex-1" data-tutorial-id="phase-tracker">
+        <div
+          className="w-full min-w-0 md:min-w-64 md:flex-1 md:w-auto"
+          data-tutorial-id="phase-tracker"
+        >
           <PhaseTracker
             phase={view.turn.phase}
             step={view.turn.step}
@@ -301,8 +307,11 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
         </div>
         <ConnectionIndicators api={api} />
         {headerExtra}
-        <div className="ml-auto flex items-center gap-3">
-          <span className="text-sm text-slate-400" data-testid="priority-text">
+        <div className="flex w-full items-center gap-2 md:ml-auto md:w-auto md:gap-3">
+          <span
+            className="mr-auto min-w-0 truncate text-sm text-slate-400 md:mr-0"
+            data-testid="priority-text"
+          >
             {priorityText}
           </span>
           {primary ? (
@@ -310,7 +319,7 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
               type="button"
               data-tutorial-id={primary.intent.type === 'END_TURN' ? 'btn-end-turn' : 'btn-pass'}
               onClick={() => void submit(primary.intent)}
-              className="rounded-lg bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="min-h-11 rounded-lg bg-amber-400 px-4 py-2 font-semibold md:min-h-0 text-slate-950 hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               {primary.label}
             </button>
@@ -321,7 +330,7 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
             type="button"
             disabled={api.gameOver !== null}
             onClick={() => setConfirmConcede(true)}
-            className="rounded-lg border border-rose-700 px-3 py-2 text-sm text-rose-200 hover:bg-rose-950 focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-40"
+            className="min-h-11 rounded-lg border border-rose-700 px-3 py-2 text-sm md:min-h-0 text-rose-200 hover:bg-rose-950 focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-40"
           >
             Concede
           </button>

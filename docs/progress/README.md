@@ -81,3 +81,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R45](R45-pay-or-decline.md)         | Optional "you may [pay] ..." abilities: OPTIONAL_EFFECT pending choice, DECIDE_OPTIONAL, payment plan, prompt UI (235 -> 249 cards full)            | High        | Sonnet      | Done | uncommitted |
 | [R46](R46-card-choice-costs.md)      | Card-choice costs (discard / kill / exhaust / return / recycle) for optional and activated abilities, "kill a unit or gear" (249 -> 257 cards full) | High        | Sonnet      | Done | uncommitted |
 | [R47](R47-play-extra-costs.md)       | Additional card-choice costs to play a card (`PLAY_CARD.costCards`: exhaust / return / kill [Mighty]; Repeat "Discard 1") (257 -> 265 cards full) | High        | Sonnet      | Done | uncommitted |
+| [R18](R18-mobile-layout.md)          | Mobile layout: compact sticky header, scrolling phase row, 44px action buttons, mobile e2e | Medium | Sonnet | Done | uncommitted |

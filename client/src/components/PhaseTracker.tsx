@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { Phase, PhaseStep, PlayerId } from '@riftbound/engine';
 
 export interface PhaseTrackerProps {
@@ -20,9 +21,18 @@ const SEQUENCE: { phase: Phase; label: string }[] = [
 /** Turn phase sequence with the current phase highlighted. */
 export function PhaseTracker({ phase, step, turnNumber, activePlayer, me }: PhaseTrackerProps) {
   const isMine = activePlayer === me;
+  const listRef = useRef<HTMLOListElement>(null);
+
+  // On a phone the row scrolls sideways: keep the current phase in view.
+  useEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }, [phase]);
 
   return (
-    <section aria-label="Turn phases" className="flex flex-col gap-2">
+    <section aria-label="Turn phases" className="flex flex-col gap-1 md:gap-2">
       <div className="flex items-baseline justify-between text-sm">
         <span className={isMine ? 'font-semibold text-amber-300' : 'font-semibold text-slate-300'}>
           {isMine ? 'Your turn' : "Opponent's turn"}
@@ -33,7 +43,10 @@ export function PhaseTracker({ phase, step, turnNumber, activePlayer, me }: Phas
       {phase === 'MULLIGAN' ? (
         <p className="text-sm text-slate-400">Mulligan</p>
       ) : (
-        <ol className="flex flex-wrap gap-1.5">
+        <ol
+          ref={listRef}
+          className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] md:flex-wrap md:overflow-visible"
+        >
           {SEQUENCE.map((item) => {
             const current = item.phase === phase;
             const scoring = current && item.phase === 'BEGINNING' && step === 'SCORING';
@@ -43,8 +56,8 @@ export function PhaseTracker({ phase, step, turnNumber, activePlayer, me }: Phas
                 aria-current={current ? 'step' : undefined}
                 className={
                   current
-                    ? 'rounded-md border border-amber-300 bg-amber-300/15 px-2.5 py-1 text-xs font-semibold text-amber-200'
-                    : 'rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs text-slate-400'
+                    ? 'shrink-0 rounded-md border border-amber-300 bg-amber-300/15 px-2.5 py-1 text-xs font-semibold text-amber-200'
+                    : 'shrink-0 rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs text-slate-400'
                 }
               >
                 {item.label}
