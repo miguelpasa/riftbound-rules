@@ -140,3 +140,11 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Filters:** card type (spell / unit / gear), the printed Energy cost ("with Energy cost [7] or more", "that costs [5] or more"), "on an opponent's turn" (the active player is not the player who played) and "during a showdown" (a Showdown is in progress). Power-cost, "from face down", "[Mighty]" and "if you spent" qualifiers are not parsed; those cards stay partial.
 - **Ready me:** new effect `READY_SELF`; "buff me" is still unmodelled (no Buff state).
 - **Rule numbers:** tests cite 303 only; not checked against the rule text.
+
+## R50: self cost reductions (A-R50)
+
+- **Where it applies:** the card's printed Energy cost, before Accelerate / Repeat / additional costs are added (the existing order: increases first, then discounts, clamped at 0, Rule 356.6 in the existing tests). It stacks with the Legion discount; a "minimum of [N]" is measured against the cost after Legion.
+- **"For each" counts (UNCLEAR, no rule text read):** only the player's own side, never the card itself. Gear = gear on the board; exhausted units, [Mighty] units (Might 5+, as in R47) on the board; cards in the Trash (any type); cards with the same name in the Trash; cards played this turn (the existing play record, Hidden plays included).
+- **"If" conditions** reuse the R43 Condition language (a subtype you control, counts); evaluated when the card is listed as playable and again when it is played.
+- **Not done:** "to play from anywhere other than your hand", Power reductions ([A] / [C]), "for each battlefield you conquered this turn" and "if an enemy unit died this turn" (no per-turn tracking), reductions of OTHER cards (Legends, battlefields, "your spells cost less"), "the next card you play costs less".
+- **Rule numbers:** tests cite 356.6 only.

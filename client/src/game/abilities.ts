@@ -1,4 +1,4 @@
-import { costCardText, legionActive } from '@riftbound/engine';
+import { costCardText, selfEnergyDiscount, type GameState } from '@riftbound/engine';
 import type {
   ActivateAbilityIntent,
   ActivatedAbility,
@@ -99,6 +99,7 @@ export function legionDiscount(
   objectId: string,
   cardId: string,
 ): number {
-  const n = cards[cardId]?.legionCostReduction ?? 0;
-  return n > 0 && legionActive(view, seat, objectId) ? n : 0;
+  const def = cards[cardId];
+  // The discount reads only public information, so the sanitised view answers like the full state.
+  return def ? selfEnergyDiscount(view as unknown as GameState, cards, seat, def, objectId) : 0;
 }

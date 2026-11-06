@@ -27,7 +27,7 @@ import type { ChainResolver } from './chain.js';
 import { computeTotalCost, payCost } from './resources.js';
 import type { CostMod } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
-import { legionActive } from './keywords.js';
+import { selfEnergyDiscount } from './costReduction.js';
 import { evalCondition } from './conditions.js';
 import { optionalPlan } from './optional.js';
 import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
@@ -424,10 +424,9 @@ export function playCard(
   const extra = hooks?.extraCosts?.(state, cards, pid, def, intent) ?? null;
   // Legion (812): "I cost [N] less" while another card was played this turn (checked before this
   // play is recorded; the source itself never counts).
-  const discounts: CostMod[] =
-    def.legionCostReduction && legionActive(state, pid, src.id)
-      ? [{ energy: def.legionCostReduction }]
-      : [];
+  // R50: plus the card's own "I cost [N] less ..." (selfEnergyDiscount covers both).
+  const selfDiscount = selfEnergyDiscount(state, cards, pid, def, src.id);
+  const discounts: CostMod[] = selfDiscount > 0 ? [{ energy: selfDiscount }] : [];
   const increases: CostMod[] = [
     ...(extra ? [extra] : []),
     ...(repeat && def.repeatCost

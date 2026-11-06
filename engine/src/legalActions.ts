@@ -26,7 +26,7 @@
  * (PASS_PRIORITY, END_TURN, the combat assignment) are always kept and the rest is truncated.
  */
 import { abilityCandidates } from './abilities.js';
-import { legionActive } from './keywords.js';
+import { selfEnergyDiscount } from './costReduction.js';
 import { autoAssign } from './combat.js';
 import { MAX_TARGET_COMBOS, enumerateSpellTargets } from './effects.js';
 import { hasUnitAt } from './play.js';
@@ -132,10 +132,8 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     // Repeat (820): spells with a Repeat cost may also be played with it paid.
     const repeatOptions = def.type === 'SPELL' && def.repeatCost ? [false, true] : [false];
     const costDef = costDefFor(obj, def);
-    const discounts =
-      def.legionCostReduction && legionActive(state, pid, obj.id)
-        ? [{ energy: def.legionCostReduction }]
-        : [];
+    const selfDiscount = selfEnergyDiscount(state, cards, pid, def, obj.id);
+    const discounts = selfDiscount > 0 ? [{ energy: selfDiscount }] : [];
     // Quick-Draw gear: one variant per unit its controller controls (the unit is a Target).
     // Targeted spells (R2): one variant per unit on the board (either side).
     const targetOptions: (Target[] | undefined)[] =

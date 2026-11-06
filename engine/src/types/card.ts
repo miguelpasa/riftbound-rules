@@ -330,6 +330,25 @@ export type TargetedEffect = Extract<
  *  - CONTROL_SUBTYPE: the controller controls a Unit with the subtype/tag (`other`: not the source).
  *  - AT_BATTLEFIELD: the source is at a battlefield ("while I'm at a battlefield").
  */
+/** R50: what "for each" counts in a self cost reduction (the player's own side, the card itself excluded). */
+export type CostCount =
+  | 'GEAR' // each gear you control (board)
+  | 'EXHAUSTED_UNIT' // each exhausted unit you control
+  | 'TRASH' // each card in your Trash
+  | 'TRASH_SAME_NAME' // each card with my name in your Trash
+  | 'MIGHTY_UNIT' // each of your [Mighty] units (Might 5+)
+  | 'CARDS_PLAYED'; // each card you have played this turn
+
+export interface CostReduction {
+  /** Energy discount: per counted item (`per`) or once (`when`, or unconditional). */
+  energy: number;
+  per?: CostCount;
+  /** "if <condition>": the discount applies only while it holds (checked as the card is played / listed). */
+  when?: Condition;
+  /** "to a minimum of [N]": the discounted Energy cost never goes below this. */
+  min?: number;
+}
+
 export type CountCmp = 'EQ' | 'GTE' | 'LTE';
 export type Condition =
   | {
@@ -518,6 +537,8 @@ export interface CardDef {
   entersExhausted?: boolean;
   /** "[Legion] - I cost [N] less.": Energy discount while Legion is active (812). */
   legionCostReduction?: number;
+  /** R50: "I cost [N] less for each ..." / "This costs [N] less if ...": a discount on this card's own Energy cost. */
+  costReduction?: CostReduction;
   /**
    * Repeat cost of a spell (820, R42): an optional additional cost; paying it runs the spell's
    * effects one more time on resolution. `energy` is [N]; `power` counts [C] (Power of the spell's Domain).

@@ -37,6 +37,8 @@ import type {
   ActivatedAbility,
   CardEffect,
   CardTrigger,
+  CostCount,
+  CostReduction,
   PlayFilter,
   Condition,
   CostCardChoice,
@@ -701,6 +703,44 @@ export function parseAdditionalCost(text: string): { cost: CostCardChoice; rest:
   if (mighty) cc.mighty = true;
   return {
     cost: cc,
+    rest: (text.slice(0, m.index) + '\n' + text.slice(m.index + m[0].length)).trim(),
+  };
+}
+
+const COST_PER: [RegExp, CostCount][] = [
+  [/^exhausted units? you control$/i, 'EXHAUSTED_UNIT'],
+  [/^gear you control$/i, 'GEAR'],
+  [/^cards? in your trash$/i, 'TRASH'],
+  [/^cards? with my name in your trash$/i, 'TRASH_SAME_NAME'],
+  [/^of your \[Mighty\] units$/i, 'MIGHTY_UNIT'],
+  [/^cards? you['’]ve played this turn$/i, 'CARDS_PLAYED'],
+];
+
+/**
+ * R50: "I cost [N] less for each <thing>[, to a minimum of [M]]." or "This costs [N] less if <condition>."
+ * as its own line of a card; returns the reduction and the text without that line. Null for other shapes
+ * (other zones, "to play from anywhere other than your hand", Power, several lines).
+ */
+export function parseSelfCostReduction(
+  text: string,
+): { reduction: CostReduction; rest: string } | null {
+  const re =
+    /(?:^|\n)[ \t]*(?:I cost|This costs) \[(\d+)\] less (?:for each ([^.\n,]+?)(?:, to a minimum of \[(\d+)\])?|if ([^.\n]+?))\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
+  const m = re.exec(text);
+  if (!m) return null;
+  const reduction: CostReduction = { energy: Number(m[1]) };
+  if (m[2] !== undefined) {
+    const per = COST_PER.find(([r]) => r.test((m[2] ?? '').trim()));
+    if (!per) return null;
+    reduction.per = per[1];
+    if (m[3] !== undefined) reduction.min = Number(m[3]);
+  } else {
+    const when = parseCondition(m[4] ?? '');
+    if (!when) return null;
+    reduction.when = when;
+  }
+  return {
+    reduction,
     rest: (text.slice(0, m.index) + '\n' + text.slice(m.index + m[0].length)).trim(),
   };
 }

@@ -124,14 +124,14 @@ function CostDisplay({ def, discount = 0 }: { def: CardDef; discount?: number })
   return (
     <div
       className="flex items-center gap-0.5"
-      aria-label={`Cost ${energy} energy${discount > 0 ? ` (Legion: ${discount} less)` : ''}${pips.length ? `, ${pips.length} power` : ''}`}
+      aria-label={`Cost ${energy} energy${discount > 0 ? ` (${discount} less now)` : ''}${pips.length ? `, ${pips.length} power` : ''}`}
     >
       <span
         data-testid="cost-energy"
         {...(discount > 0
           ? {
               'data-discounted': 'true',
-              title: `Legion: costs ${discount} less (printed ${def.cost.energy})`,
+              title: `Costs ${discount} less right now (printed ${def.cost.energy})`,
             }
           : {})}
         className={`inline-flex h-[1.9em] w-[1.9em] items-center justify-center rounded-full font-bold text-slate-900 ${discount > 0 ? 'bg-emerald-300 ring-2 ring-emerald-500' : 'bg-slate-100'}`}
