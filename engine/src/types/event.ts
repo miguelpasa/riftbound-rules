@@ -15,7 +15,14 @@ export type GameEvent = EventBase &
     | { type: 'CARD_DRAWN'; player: PlayerId; cardInstanceId: string }
     | { type: 'RUNE_CHANNELED'; player: PlayerId; runeId: string }
     | { type: 'PHASE_CHANGED'; player: PlayerId; turn: number; phase: Phase }
-    | { type: 'CARD_PLAYED'; player: PlayerId; cardInstanceId: string; cardId: string }
+    | {
+        type: 'CARD_PLAYED';
+        player: PlayerId;
+        cardInstanceId: string;
+        cardId: string;
+        /** R58: the optional additional cost was paid (public, as the payment is). */
+        paidExtra?: boolean;
+      }
     | { type: 'CARD_HIDDEN'; player: PlayerId; battlefieldId: string }
     | { type: 'FACEDOWN_REMOVED'; battlefieldId: string; cardId: string }
     | { type: 'EQUIPPED'; equipmentId: string; unitId: string }

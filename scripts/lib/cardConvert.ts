@@ -11,6 +11,7 @@ import {
   parseCardAbilities,
   parseRepeatCost,
   parseSelfCostReduction,
+  parseOptionalAdditionalCost,
   parseStaticLines,
   parseSpellText,
 } from '../../engine/src/cardText';
@@ -263,7 +264,14 @@ export function convertRow(row: RawRow): ConvertResult {
     type === 'UNIT' || type === 'SPELL' || type === 'GEAR'
       ? parseSelfCostReduction(afterAdditional)
       : null;
-  const afterSelfCost = selfCost ? selfCost.rest : afterAdditional;
+  // R58: "You may pay [N] as an additional cost to play me" (only kept when the text uses it: "if you paid ...").
+  const optionalExtra =
+    (type === 'UNIT' || type === 'SPELL' || type === 'GEAR') &&
+    /if you paid the additional cost/i.test(afterAdditional)
+      ? parseOptionalAdditionalCost(afterAdditional)
+      : null;
+  const afterExtra = optionalExtra ? optionalExtra.rest : afterAdditional;
+  const afterSelfCost = selfCost ? selfCost.rest : afterExtra;
   // R51: static abilities ("Your gear have [Deflect]", "While ..., I have +1 [M]") are lines of their own.
   const staticLines =
     type === 'UNIT' || type === 'GEAR' || type === 'LEGEND' || type === 'BATTLEFIELD'
@@ -369,6 +377,9 @@ export function convertRow(row: RawRow): ConvertResult {
       card.supportLevel = 'full';
     }
   }
+  // R58: likewise the optional additional cost.
+  if (optionalExtra && card.supportLevel === 'full')
+    card.optionalAdditionalCost = optionalExtra.cost;
   // R51: likewise the static abilities.
   if (staticLines && card.supportLevel === 'full') card.statics = staticLines.statics;
   // R50: likewise the self cost reduction.

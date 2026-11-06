@@ -83,6 +83,7 @@ function playMatches(
 
 function collect(state: GameState, cards: CardDatabase, events: readonly GameEvent[]): Pending[] {
   const out: Pending[] = [];
+  let paidExtra = false;
   const add = (obj: CardInstance | undefined, kind: TriggerKind, controller: PlayerId): void => {
     const triggers = obj ? cards[obj.cardId]?.triggers : undefined;
     triggers?.forEach((t, index) => {
@@ -90,7 +91,10 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       // 812: a Legion-dependent ability triggers only while another card was played this turn.
       if (t.condition === 'LEGION' && !legionActive(state, controller, obj.id)) return;
       // R43: a general condition must hold as the ability triggers.
-      if (t.when && !evalCondition(state, cards, t.when, controller, obj.id)) return;
+      // R58: "if you paid the additional cost" is read from the CARD_PLAYED event that caused the trigger.
+      if (t.when?.kind === 'PAID_ADDITIONAL') {
+        if (!paidExtra) return;
+      } else if (t.when && !evalCondition(state, cards, t.when, controller, obj.id)) return;
       out.push({ sourceId: obj.id, cardId: obj.cardId, battlefield: false, index, controller });
     });
   };
@@ -128,7 +132,9 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       }
       const o = state.objects[e.cardInstanceId];
       if (o && onBoard(o) && ['UNIT', 'GEAR'].includes(cards[o.cardId]?.type ?? '')) {
+        paidExtra = e.paidExtra === true;
         add(o, 'PLAY', o.controller);
+        paidExtra = false;
       }
     } else if (e.type === 'BATTLEFIELD_SCORED') {
       addBattlefield(e.battlefieldId, e.method, e.player);

@@ -429,8 +429,14 @@ export function playCard(
   // R50: plus the card's own "I cost [N] less ..." (selfEnergyDiscount covers both).
   const selfDiscount = selfEnergyDiscount(state, cards, pid, def, src.id);
   const discounts: CostMod[] = selfDiscount > 0 ? [{ energy: selfDiscount }] : [];
+  // R58: the optional additional cost ("You may pay [N] as an additional cost to play me").
+  const paidExtra = intent.additionalCosts?.extra === true;
+  if (paidExtra && !def.optionalAdditionalCost) {
+    return ruleError('KEYWORD_RESTRICTION', 'this card has no optional additional cost');
+  }
   const increases: CostMod[] = [
     ...(extra ? [extra] : []),
+    ...(paidExtra && def.optionalAdditionalCost ? [def.optionalAdditionalCost] : []),
     ...(repeat && def.repeatCost
       ? [{ energy: def.repeatCost.energy, power: def.repeatCost.power }]
       : []),
@@ -470,16 +476,23 @@ export function playCard(
       ? { unimplementedEffect: true }
       : {}),
     ...(isUnit || def.type === 'GEAR' ? { location } : {}),
-    ...(accelerate || repeat
+    ...(accelerate || repeat || paidExtra
       ? {
           additionalCosts: {
             ...(accelerate ? { accelerate: true } : {}),
             ...(repeat ? { repeat: true } : {}),
+            ...(paidExtra ? { extra: true } : {}),
           },
         }
       : {}),
   };
-  events.push({ type: 'CARD_PLAYED', player: pid, cardInstanceId: obj.id, cardId: obj.cardId });
+  events.push({
+    type: 'CARD_PLAYED',
+    player: pid,
+    cardInstanceId: obj.id,
+    cardId: obj.cardId,
+    ...(paidExtra ? { paidExtra: true } : {}),
+  });
   const playedEvents = stampEvents(work, events);
   const pushed = pushPendingItem(work, item);
 

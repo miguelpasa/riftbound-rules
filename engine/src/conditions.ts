@@ -81,6 +81,8 @@ export function evalCondition(
             : died(controller) + died(other);
       return n > 0;
     }
+    case 'PAID_ADDITIONAL':
+      return true; // decided by the triggering CARD_PLAYED event (triggers.ts); not re-checked later
     case 'BUFFED':
       return state.objects[sourceId]?.buffed === true;
     case 'EMPOWERED':

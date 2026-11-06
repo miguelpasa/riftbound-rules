@@ -35,7 +35,7 @@ export interface PlayCardIntent extends IntentBase {
   targets?: Target[];
   choices?: Record<string, ChoiceValue>;
   /** Accelerate (units) and Repeat (spells with a Repeat cost, 820) are optional additional costs. */
-  additionalCosts?: { accelerate?: boolean; repeat?: boolean };
+  additionalCosts?: { accelerate?: boolean; repeat?: boolean; extra?: boolean };
   /**
    * R47: the cards that pay a card-choice additional cost (`CardDef.additionalCost`, or the Repeat cost
    * `repeatCost.card` when Repeat is paid): object ids, validated before anything is paid.

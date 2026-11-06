@@ -409,6 +409,8 @@ export type Condition =
   | { kind: 'EMPOWERED' }
   /** R54: the source carries a Buff ("While I'm buffed"). */
   | { kind: 'BUFFED' }
+  /** R58: "if you paid the additional cost" (play triggers; read from the CARD_PLAYED event). */
+  | { kind: 'PAID_ADDITIONAL' }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any' }
   /** R53: Level N: the controller has at least `n` XP. */
@@ -590,6 +592,8 @@ export interface CardDef {
   legionCostReduction?: number;
   /** R51: static abilities ("Your gear have [Deflect]", "While ..., I have +1 [M]"); see statics.ts. */
   statics?: StaticAbility[];
+  /** R58: "You may pay [N] as an additional cost to play me": the optional extra (`additionalCosts.extra`). */
+  optionalAdditionalCost?: { energy: number; power?: number; anyPower?: number };
   /** R50: "I cost [N] less for each ..." / "This costs [N] less if ...": a discount on this card's own Energy cost. */
   costReduction?: CostReduction;
   /**

@@ -203,3 +203,11 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **"Can't move to base" (static):** `StaticAbility.restrict = 'NO_MOVE_TO_BASE'` on SELF ("I can't move to base"), ALL_UNITS ("Units can't move to base") or UNITS_HERE (a Battlefield: "Units can't move from here to base" = units standing at it). It removes the Base as a destination for a standard move; recall in Cleanup, combat retreats and effects ("Move a unit to base") are not blocked (UNCLEAR: the text says "move", and effects that move to Base are a different action in this engine).
 - **"It can't move this turn":** new effect `LOCK_MOVE_TARGET` sets `CardInstance.cantMove`, which blocks every standard move of that unit until the Ending step. Entrenched Boar's "You may have me enter ready. If you do, I can't move this turn" is not parsed.
 - **Rule numbers:** tests cite 144 only; not checked against the rule text.
+
+## R58: optional additional cost to play ("You may pay [N] as an additional cost to play me") (A-R58)
+
+- **Model (UNCLEAR, no rule text read):** the card stores `optionalAdditionalCost {energy, power?, anyPower?}`; a play with `additionalCosts.extra = true` pays it on top of the card's cost (Energy, [C] = Power of the card's Domain, [A] = any Power) and every legal-action list offers both variants when affordable. The chain item keeps `additionalCosts.extra`.
+- **"If you paid the additional cost, <effects>"** in "When you play me" triggers is read from the CARD_PLAYED event (`paidExtra`, public like the payment itself) when the trigger fires; the intervening-if is not re-checked at resolution (the answer cannot change).
+- **Only kept when used:** a card gets the optional cost only when its text also has an "if you paid the additional cost" clause; otherwise the line keeps the card partial (nothing to gain from paying).
+- **Not done:** "if you paid the additional cost, deal 5 to it instead" (replacement effects of spells), "If you paid ... , they cost [1][A] more instead", conditional costs ("If you've played a spell this turn, you may pay ..." Crescent Guardian), required Energy/Power additional costs.
+- **Rule numbers:** tests cite 356.2 only.

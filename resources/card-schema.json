@@ -153,6 +153,17 @@
       "additionalProperties": false,
       "properties": { "card": { "$ref": "#/definitions/costCardChoice" } }
     },
+    "optionalAdditionalCost": {
+      "description": "You may pay this as an additional cost to play the card (R58).",
+      "type": "object",
+      "required": ["energy"],
+      "additionalProperties": false,
+      "properties": {
+        "energy": { "type": "integer", "minimum": 0 },
+        "power": { "type": "integer", "minimum": 1 },
+        "anyPower": { "type": "integer", "minimum": 1 }
+      }
+    },
     "costReduction": {
       "description": "Self cost reduction: I cost [N] less for each / if ... (R50).",
       "type": "object",

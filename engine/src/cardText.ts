@@ -837,6 +837,33 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
   return statics.length > 0 ? { statics, rest: keep.join('\n').trim() } : null;
 }
 
+/**
+ * R58: "You may pay [N][C] as an additional cost to play me." as a line of its own. Returns the optional
+ * cost (Energy [N], [C] Power of the card's Domain, [A] any Power) and the text without that line.
+ */
+export function parseOptionalAdditionalCost(text: string): {
+  cost: { energy: number; power?: number; anyPower?: number };
+  rest: string;
+} | null {
+  const re =
+    /(?:^|\n)[ \t]*You may pay ((?:\[(?:\d+|C|A)\])+) as an additional cost to play (?:me|this)\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
+  const m = re.exec(text);
+  if (!m) return null;
+  let energy = 0;
+  let power = 0;
+  let anyPower = 0;
+  for (const t of (m[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
+    const tok = (t[1] ?? '').toUpperCase();
+    if (tok === 'C') power++;
+    else if (tok === 'A') anyPower++;
+    else energy += Number(tok);
+  }
+  return {
+    cost: { energy, ...(power ? { power } : {}), ...(anyPower ? { anyPower } : {}) },
+    rest: (text.slice(0, m.index) + '\n' + text.slice(m.index + m[0].length)).trim(),
+  };
+}
+
 const COST_PER: [RegExp, CostCount][] = [
   [/^exhausted units? you control$/i, 'EXHAUSTED_UNIT'],
   [/^gear you control$/i, 'GEAR'],
@@ -1155,6 +1182,7 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
+  if (/^you paid the additional cost$/i.test(text)) return { kind: 'PAID_ADDITIONAL' };
   const m0 = /^(?:an? )?(friendly|enemy)? ?unit (?:has )?died this turn$/i.exec(text);
   if (m0) {
     const who = (m0[1] ?? '').toLowerCase();
