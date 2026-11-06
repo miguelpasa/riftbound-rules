@@ -1,3 +1,4 @@
+import type { OptionalCost } from './card.js';
 import type { PlayerId } from './state.js';
 
 /** Neutral/Showdown, Open/Closed (Rules 307-310). Open = chain empty; Closed = chain non-empty. */
@@ -43,6 +44,8 @@ export interface ChainItem {
   sourceCardId?: string;
   /** Location chosen when playing a unit/gear. */
   location?: { kind: 'base' } | { kind: 'battlefield'; battlefieldId: string };
+  /** R45: the controller's answer to an optional ("you may pay ...") triggered ability, set before it resolves. */
+  optionalDecision?: 'ACCEPT' | 'DECLINE';
   /** Additional costs chosen (Accelerate). */
   additionalCosts?: { accelerate?: boolean; repeat?: boolean };
 }
@@ -98,7 +101,22 @@ export interface TriggerTargetChoice {
   chainItemId: string;
 }
 
-export type PendingChoice = StagedOrderChoice | TriggerTargetChoice;
+/**
+ * R45: a triggered ability with "you may [pay COST to] ..." reached the top of the Chain. The item stays
+ * on the Chain (FINALIZED, newest) and its controller answers with DECIDE_OPTIONAL: accept (pay the
+ * cost, run the effects) or decline (nothing happens). Nobody else may act meanwhile.
+ */
+export interface OptionalEffectChoice {
+  kind: 'OPTIONAL_EFFECT';
+  /** The controller of the triggered ability. */
+  player: PlayerId;
+  /** The ABILITY item waiting on top of `flow.chain`. */
+  chainItemId: string;
+  /** What accepting costs (public data copied from the card; `{}` = free). */
+  cost: OptionalCost;
+}
+
+export type PendingChoice = StagedOrderChoice | TriggerTargetChoice | OptionalEffectChoice;
 
 /** Everything about who may act and what is on the chain. */
 export interface FlowState {

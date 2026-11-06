@@ -29,11 +29,13 @@ import type { CostMod } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { legionActive } from './keywords.js';
 import { evalCondition } from './conditions.js';
+import { optionalPlan } from './optional.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
   CardDatabase,
   CardDef,
   CardInstance,
+  CardTrigger,
   ChainItem,
   GameEventInput,
   GameState,
@@ -182,6 +184,45 @@ function placingResolver(
  * EFFECT_UNIMPLEMENTED when flagged; Units/Gear are no-ops (already placed by playCard). Idempotent:
  * a card already in the trash is not trashed twice. The chain item has been popped by chain.ts.
  */
+/**
+ * Run a triggered ability's effects as it resolves. An optional one (R45, "you may [pay] ...") first
+ * asks its controller: the item goes back on top of the Chain and flow.pendingChoice waits for
+ * DECIDE_OPTIONAL (which sets `optionalDecision` and resolves it again). Unpayable = declined.
+ */
+function runTrigger(
+  s: GameState,
+  cards: CardDatabase,
+  item: ChainItem,
+  trig: CardTrigger,
+  cardId: string,
+  sourceId: string,
+  events: GameEventInput[],
+): void {
+  if (trig.optional) {
+    const player = item.controller;
+    if (item.optionalDecision === undefined) {
+      if (optionalPlan(s, cards, player, cardId, trig.optional) === null) {
+        events.push({ type: 'OPTIONAL_EFFECT_DECIDED', player, sourceId, accepted: false });
+        return;
+      }
+      s.flow.chain.push(cloneState(item));
+      s.flow.pendingChoice = {
+        kind: 'OPTIONAL_EFFECT',
+        player,
+        chainItemId: item.id,
+        cost: { ...trig.optional },
+      };
+      return;
+    }
+    const accepted = item.optionalDecision === 'ACCEPT';
+    events.push({ type: 'OPTIONAL_EFFECT_DECIDED', player, sourceId, accepted });
+    if (!accepted) return;
+  }
+  events.push(
+    ...runEffects(s, item.controller, trig.effects, cards, item.targets, cardId, sourceId),
+  );
+}
+
 export const playResolver: ChainResolver = (state, item, cards) => {
   const s = fork(state);
   const events: GameEventInput[] = [];
@@ -216,9 +257,7 @@ export const playResolver: ChainResolver = (state, item, cards) => {
     const bf = s.battlefields.find((b) => b.id === item.sourceBattlefieldId);
     const trig = bf ? cards[bf.cardId]?.triggers?.[item.triggerIndex] : undefined;
     if (bf && trig && (!trig.when || evalCondition(s, cards, trig.when, item.controller, bf.id))) {
-      events.push(
-        ...runEffects(s, item.controller, trig.effects, cards, item.targets, bf.cardId, bf.id),
-      );
+      runTrigger(s, cards, item, trig, bf.cardId, bf.id, events);
     }
     return { state: s, events };
   }
@@ -226,9 +265,7 @@ export const playResolver: ChainResolver = (state, item, cards) => {
     const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
     // R43: the general condition is checked again as the ability resolves.
     if (trig && (!trig.when || evalCondition(s, cards, trig.when, item.controller, obj.id))) {
-      events.push(
-        ...runEffects(s, item.controller, trig.effects, cards, item.targets, obj.cardId, obj.id),
-      );
+      runTrigger(s, cards, item, trig, obj.cardId, obj.id, events);
     }
     return { state: s, events };
   }

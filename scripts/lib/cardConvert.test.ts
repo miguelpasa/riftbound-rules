@@ -347,8 +347,30 @@ describe('R44 converter wiring (Battlefield cards)', () => {
       'partial',
     );
     expect(conv('Units here have [Ganking].')?.supportLevel).toBe('partial');
-    expect(conv('When you conquer here, you may pay [1] to draw 1.')?.supportLevel).toBe('partial');
+    expect(conv('When you conquer here, you may discard 1 to draw 1.')?.supportLevel).toBe(
+      'partial',
+    );
     expect(conv('')?.supportLevel).toBe('full'); // vanilla stays full as before
+  });
+
+  it('stores optional ("you may pay ...") triggers with their structured cost (R45)', () => {
+    const nexus = conv('When you hold here, you may pay [A][A][A][A] to score 1 point.');
+    expect(nexus?.supportLevel).toBe('full');
+    expect(nexus?.triggers).toEqual([
+      { on: 'HOLD', optional: { anyPower: 4 }, effects: [{ op: 'GAIN_POINT', amount: 1 }] },
+    ]);
+    expect(validate(nexus)).toEqual([]);
+    const unit = convertRow(
+      row({ abilityEffective: 'When I attack, you may pay [C] to give me +2 [M] this turn.' }),
+    ).card;
+    expect(unit?.supportLevel).toBe('full');
+    expect(unit?.triggers?.[0]).toMatchObject({ on: 'ATTACK', optional: { power: 1 } });
+    expect(validate(unit)).toEqual([]);
+    // costs the engine does not model keep the card partial
+    expect(
+      convertRow(row({ abilityEffective: 'When I attack, you may discard 1 to draw 1.' })).card
+        ?.supportLevel,
+    ).toBe('partial');
   });
 
   it('does not give Units a battlefield-only head', () => {

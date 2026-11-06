@@ -195,8 +195,11 @@ export function isImmediateItem(item: ChainItem, state: GameState, cards: CardDa
   return def !== undefined && (def.type === 'UNIT' || def.type === 'GEAR');
 }
 
-/** Resolve the newest item, then re-seed Priority/Focus (340). `state` must already be a clone. */
-function resolveTop(
+/**
+ * Resolve the newest item, then re-seed Priority/Focus (340). `state` must already be a clone.
+ * Exported for DECIDE_OPTIONAL (R45), which resolves the optional ability it was asked about.
+ */
+export function resolveTop(
   state: GameState,
   cards: CardDatabase,
   resolver: ChainResolver,
@@ -208,7 +211,10 @@ function resolveTop(
   const res = resolver(state, top, cards);
   const s = fork(res.state);
   events.push(...stamp(s, res.events));
-  events.push(...stamp(s, [{ type: 'CHAIN_ITEM_RESOLVED', chainItemId: top.id }]));
+  // R45: an optional ability the resolver put back on the Chain (it waits for DECIDE_OPTIONAL) has not resolved yet.
+  const suspended =
+    s.flow.pendingChoice?.kind === 'OPTIONAL_EFFECT' && s.flow.chain.some((i) => i.id === top.id);
+  if (!suspended) events.push(...stamp(s, [{ type: 'CHAIN_ITEM_RESOLVED', chainItemId: top.id }]));
   syncInPlace(s);
 
   const remaining = s.flow.chain;

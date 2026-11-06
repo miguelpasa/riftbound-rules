@@ -5,6 +5,7 @@ import { useGame, type GameApi } from '../app/gameApi';
 import { CardDetail } from '../components/CardDetail';
 import { ChainInspector } from '../components/ChainInspector';
 import { ChoicePrompt } from '../components/ChoicePrompt';
+import { OptionalPrompt } from '../components/OptionalPrompt';
 import { CombatDialog } from '../components/CombatDialog';
 import { HostAwayOverlay } from '../components/HostAwayOverlay';
 import { MulliganDialog } from '../components/MulliganDialog';
@@ -366,6 +367,7 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
 
       <CombatDialog />
       <ChoicePrompt />
+      <OptionalPrompt />
 
       <div aria-live="polite" role="status" className="sr-only" data-testid="announcer">
         {announcement}

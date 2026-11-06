@@ -84,6 +84,18 @@ export interface ChooseTriggerTargetIntent extends IntentBase {
   chainItemId: string;
   targets: Target[];
 }
+/**
+ * Answer to a flow.pendingChoice of kind OPTIONAL_EFFECT (R45): accept or decline a "you may [pay
+ * COST to] ..." triggered ability that is resolving. `payment` (accept only) is the rune plan used to
+ * pay an Energy / Power cost, exactly like PLAY_CARD.payment; when absent the engine uses an automatic
+ * plan (`autoPlan`).
+ */
+export interface DecideOptionalIntent extends IntentBase {
+  type: 'DECIDE_OPTIONAL';
+  chainItemId: string;
+  accept: boolean;
+  payment?: PaymentPlan;
+}
 export interface ConcedeIntent extends IntentBase {
   type: 'CONCEDE';
 }
@@ -101,6 +113,7 @@ export type Intent =
   | EquipIntent
   | ChooseStagedIntent
   | ChooseTriggerTargetIntent
+  | DecideOptionalIntent
   | ConcedeIntent;
 
 export type IntentType = Intent['type'];

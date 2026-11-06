@@ -30,6 +30,7 @@
 import { fork, runSession } from './workingCopy.js';
 import { passPriority } from './chain.js';
 import { chooseTriggerTarget, fireTriggers } from './triggers.js';
+import { decideOptional } from './optional.js';
 import { expireTurnEffects } from './effects.js';
 import { runCleanup, defaultShowdownDeps } from './cleanup.js';
 import { assignCombatDamage } from './combat.js';
@@ -140,6 +141,10 @@ function shapeProblem(i: Obj): string | null {
     case 'CHOOSE_TRIGGER_TARGET':
       if (!isStr(i.chainItemId)) return 'chainItemId must be a string';
       return Array.isArray(i.targets) && i.targets.every(isTarget) ? null : 'bad targets';
+    case 'DECIDE_OPTIONAL':
+      if (!isStr(i.chainItemId)) return 'chainItemId must be a string';
+      if (typeof i.accept !== 'boolean') return 'accept must be a boolean';
+      return i.payment === undefined || isPayment(i.payment) ? null : 'bad payment';
     case 'PLAY_CARD':
       if (!isStr(i.cardInstanceId)) return 'cardInstanceId must be a string';
       if (!isPayment(i.payment)) return 'payment must be an array of rune actions';
@@ -223,6 +228,14 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
       return chooseStaged(state, cards, intent, ENGINE_HOOKS.showdown);
     case 'CHOOSE_TRIGGER_TARGET':
       return chooseTriggerTarget(state, cards, intent);
+    case 'DECIDE_OPTIONAL': {
+      // R45: pays and resolves the optional ability, then continues like after a PASS_PRIORITY.
+      const r = decideOptional(state, cards, intent, ENGINE_HOOKS.resolver);
+      if (!r.ok || !r.state.flow.showdown) return r;
+      const s = showdownAfterPass(r.state, cards, ENGINE_HOOKS.showdown);
+      if (!s.ok) return s;
+      return { ok: true, state: s.state, events: [...r.events, ...s.events] };
+    }
     case 'ACTIVATE_ABILITY':
       return activateAbility(state, cards, intent);
     case 'CONCEDE': {
@@ -260,13 +273,20 @@ function applyIntentInSession(state: GameState, cards: CardDatabase, intent: Int
     if (problem !== null) return ruleError('UNKNOWN_INTENT', problem);
     // The Cleanup is paused on a decision (323.11/323.12): nothing else may happen until it is made.
     const pending = state.flow.pendingChoice;
-    const answers = pending?.kind === 'TRIGGER_TARGET' ? 'CHOOSE_TRIGGER_TARGET' : 'CHOOSE_STAGED';
+    const answers =
+      pending?.kind === 'TRIGGER_TARGET'
+        ? 'CHOOSE_TRIGGER_TARGET'
+        : pending?.kind === 'OPTIONAL_EFFECT'
+          ? 'DECIDE_OPTIONAL'
+          : 'CHOOSE_STAGED';
     if (pending && intent.type !== answers && intent.type !== 'CONCEDE') {
       return ruleError(
         'WRONG_PHASE',
         pending.kind === 'TRIGGER_TARGET'
           ? `waiting for ${pending.player} to choose the targets of a triggered ability`
-          : `waiting for ${pending.player} to choose which battlefield resolves first`,
+          : pending.kind === 'OPTIONAL_EFFECT'
+            ? `waiting for ${pending.player} to accept or decline an optional ability`
+            : `waiting for ${pending.player} to choose which battlefield resolves first`,
       );
     }
     return dispatch(state, cards, intent);

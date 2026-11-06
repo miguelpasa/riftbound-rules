@@ -224,6 +224,11 @@ export interface MockGameOptions {
    * in the human's base, and Cinder Grunts have "When you play me, give a unit +2 [M] this turn" (R41).
    */
   buffer?: boolean;
+  /**
+   * Dev/e2e (`?mock&optional=1`, R45): Cinder Grunts have "When you play me, you may pay [1] to draw 1"; one
+   * starts in the human's hand and the human starts with two extra ready runes to pay for it.
+   */
+  optional?: boolean;
 }
 
 /** A local game on the synthetic fixture decks; the human plays deck A, the AI plays deck B. */
@@ -256,6 +261,39 @@ export function createMockGame(opts: MockGameOptions = {}): LocalGame {
       src.zone = { kind: 'base', player: seat };
       src.ready = true;
       ps.base.push(src.id);
+    }
+  }
+  if (opts.optional) {
+    const grunt = cards['fx-grunt'] as CardDef;
+    cards = {
+      ...cards,
+      'fx-grunt': {
+        ...grunt,
+        triggers: [
+          {
+            on: 'PLAY',
+            optional: { energy: 1 },
+            effects: [{ op: 'DRAW', amount: 1 }],
+          },
+        ],
+      },
+    };
+    const ps = state.players[playerIndex(seat)] as GameState['players'][number];
+    const src = Object.values(state.objects).find(
+      (o) => o.cardId === 'fx-grunt' && o.owner === seat && o.zone.kind === 'mainDeck',
+    );
+    if (src) {
+      ps.mainDeck = ps.mainDeck.filter((x) => x !== src.id);
+      src.zone = { kind: 'hand', player: seat };
+      ps.hand.push(src.id);
+    }
+    for (let i = 0; i < 2; i++) {
+      const id = ps.runeDeck.shift();
+      const rune = id ? state.objects[id] : undefined;
+      if (!id || !rune) break;
+      rune.zone = { kind: 'base', player: seat };
+      rune.ready = true;
+      ps.base.push(id);
     }
   }
   if (opts.gold) {
@@ -297,10 +335,12 @@ export function MockGameScreen() {
   const seed = params.get('seed') ?? undefined;
   const gold = Math.min(8, Math.max(0, Number(params.get('gold')) || 0));
   const buffer = params.get('buffer') === '1';
+  const optional = params.get('optional') === '1';
   const api = useMockGameApi({
     ...(seed ? { seed } : {}),
     ...(gold ? { gold } : {}),
     ...(buffer ? { buffer } : {}),
+    ...(optional ? { optional } : {}),
   });
   return (
     <GameProvider value={api}>

@@ -190,6 +190,10 @@ export function describeEvent(
           .map((t) => (t.kind === 'object' ? objectName(t.id, view, cards, 'a unit') : 'a target'))
           .join(' and ') || 'nothing'
       }.`;
+    case 'OPTIONAL_EFFECT_DECIDED':
+      return `${objectName(event.sourceId, view, cards, 'An ability')} ${
+        event.accepted ? 'was used' : 'was not used (optional effect declined)'
+      }.`;
     case 'TRIGGER_NO_TARGET':
       return `${objectName(event.sourceId, view, cards, 'An ability')} had no legal target and did nothing.`;
     case 'CLEANUP_ITERATION':

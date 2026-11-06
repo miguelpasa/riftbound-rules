@@ -66,6 +66,8 @@ export type GameEvent = EventBase &
     | { type: 'TRIGGER_TARGETED'; player: PlayerId; sourceId: string; targets: Target[] }
     /** R41: a triggered ability had no legal target and was not put on the Chain. */
     | { type: 'TRIGGER_NO_TARGET'; player: PlayerId; sourceId: string }
+    /** R45: an optional ("you may [pay] ...") triggered ability was accepted or declined (declined automatically when it could not be paid). */
+    | { type: 'OPTIONAL_EFFECT_DECIDED'; player: PlayerId; sourceId: string; accepted: boolean }
   );
 
 export type GameEventType = GameEvent['type'];

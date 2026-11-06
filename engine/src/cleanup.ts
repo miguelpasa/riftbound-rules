@@ -209,7 +209,9 @@ export function runCleanup(
     // candidates the turn player chooses (flow.pendingChoice): the Cleanup then idles (the next
     // pass changes nothing, so it stabilises) until CHOOSE_STAGED arrives.
     // (A TRIGGER_TARGET choice belongs to fireTriggers and survives: the Chain is not empty then.)
-    if (s.flow.pendingChoice?.kind !== 'TRIGGER_TARGET') delete s.flow.pendingChoice;
+    // (Likewise an OPTIONAL_EFFECT choice, R45, belongs to the resolving optional ability.)
+    const pcKind = s.flow.pendingChoice?.kind;
+    if (pcKind !== 'TRIGGER_TARGET' && pcKind !== 'OPTIONAL_EFFECT') delete s.flow.pendingChoice;
     if (isNeutralOpen(s)) {
       const order = (id: string): number => s.battlefields.findIndex((b) => b.id === id);
       const sds = s.flow.stagedShowdowns

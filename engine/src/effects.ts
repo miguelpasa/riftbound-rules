@@ -556,6 +556,23 @@ export function runEffects(
         out.push({ type: 'CARDS_BURNED', player: controller, count: milled.length });
         break;
       }
+      case 'BUFF_SELF': {
+        // R45: the source unit gets +N Might this turn (nothing when it is no longer on the board).
+        const src = state.objects[sourceObjectId];
+        if (src && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
+          addTemp(src, e.amount, true);
+        }
+        break;
+      }
+      case 'READY_LEGEND': {
+        const legend = state.players[playerIndex(controller)].legend;
+        const lo = legend ? state.objects[legend] : undefined;
+        if (lo && !lo.ready) {
+          lo.ready = true;
+          out.push({ type: 'EFFECT_READIED', unitId: lo.id });
+        }
+        break;
+      }
       case 'WIN_GAME':
         state.gameStatus = 'FINISHED';
         state.winner = controller;

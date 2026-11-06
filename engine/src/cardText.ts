@@ -24,6 +24,8 @@
  * "another ... unit", the optional "You may <chooser>." (declined with an empty choice), "Kill a gear
  * with Energy cost N or less", "This enters exhausted." (Gear) and the keywords [Disarm N] (an attack
  * trigger: "give an enemy unit here -N [M] this turn") and [Weaponmaster] (a play trigger).
+ * R45: optional trigger bodies "you may pay [1][C][A] to ...", "you may [Burn N] to ..." and a free "you may ..."
+ * become `CardTrigger.optional` (accept / decline when the ability resolves); "a unit you control" = a friendly unit.
  */
 import { targetRequirements } from './effects.js';
 import { GOLD_TOKEN_ID, tokenIdFor } from './tokens.js';
@@ -35,6 +37,7 @@ import type {
   Condition,
   CountCmp,
   KeywordInstance,
+  OptionalCost,
   TargetCount,
   TargetSide,
   TriggerKind,
@@ -122,6 +125,9 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (m) return [{ op: 'DRAW', amount: Number(m[1]), perOtherBattlefield: true }];
   m = /^Channel (\d+) runes?( exhausted)?$/i.exec(sen);
   if (m) return [{ op: 'CHANNEL', amount: Number(m[1]), ...(m[2] ? { exhausted: true } : {}) }];
+  m = /^Give me \+(\d+) \[M\] this turn$/i.exec(sen);
+  if (m) return [{ op: 'BUFF_SELF', amount: Number(m[1]) }];
+  if (/^Ready your legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
     const keywords = parseKwList(m[1]);
@@ -132,7 +138,7 @@ export function parseClause(sen: string): CardEffect[] | null {
     const keywords = parseKwList(m[1]);
     return keywords ? [{ op: 'GRANT_KEYWORDS', keywords, to: 'OTHERS_HERE' }] : null;
   }
-  m = /^You score (\d+) points?$/i.exec(sen);
+  m = /^(?:You )?score (\d+) points?$/i.exec(sen);
   if (m) return [{ op: 'GAIN_POINT', amount: Number(m[1]) }];
   m = new RegExp(`^Give (friendly|enemy) units \\+(\\d+) \\[M\\] this turn$`, 'i').exec(sen);
   if (m) {
@@ -264,6 +270,8 @@ function parseChooser(sen: string): Chooser | null {
     optional = true;
     text = may[1] ?? '';
   }
+  // R45: "a unit you control (here)" is "a friendly unit (here)".
+  text = text.replace(/\b(an? |another )(units?) you control\b/i, '$1friendly $2');
   const here = /\b(units?) here\b/i.test(text);
   if (here) text = text.replace(/\b(units?) here\b/i, '$1');
   const anotherRe = /\banother (?=(?:friendly |enemy )?unit\b)/i;
@@ -452,9 +460,10 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
-  m = new RegExp(`^Move an? ${SIDE}unit( from a battlefield)? to (?:its |their )?base$`, 'i').exec(
-    sen,
-  );
+  m = new RegExp(
+    `^Move an? ${SIDE}unit( (?:from|at) a battlefield)? to (?:its |their |your )?base$`,
+    'i',
+  ).exec(sen);
   if (m) {
     const s = side(m[1]);
     return {
@@ -901,8 +910,38 @@ function splitCondition(sen: string): { when?: Condition; rest: string } | null 
   return { rest: sen };
 }
 
+/**
+ * R45: the body of an optional triggered ability: "You may pay [1][C] to <effects>", "You may [Burn 1]
+ * to <effects>", or a free "You may <effects>". Returns the cost and the remaining sentences (the
+ * first one without the "you may ... to" prefix), or null when the first sentence is not that shape.
+ */
+function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest: string[] } | null {
+  const first = sens[0];
+  const may = first === undefined ? null : /^you may (.+)$/i.exec(first);
+  if (!may) return null;
+  const body = may[1] as string;
+  const rest = (s: string): string[] => [s, ...sens.slice(1)];
+  let m = /^pay ((?:\[(?:\d+|C|A)\]\s*)+) to (.+)$/i.exec(body);
+  if (m) {
+    const optional: OptionalCost = {};
+    for (const t of (m[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
+      const tok = (t[1] ?? '').toUpperCase();
+      if (tok === 'C') optional.power = (optional.power ?? 0) + 1;
+      else if (tok === 'A') optional.anyPower = (optional.anyPower ?? 0) + 1;
+      else optional.energy = (optional.energy ?? 0) + Number(tok);
+    }
+    return optional.energy || optional.power || optional.anyPower
+      ? { optional, rest: rest(m[2] as string) }
+      : null;
+  }
+  m = /^\[Burn (\d+)\] to (.+)$/i.exec(body);
+  if (m) return { optional: { burn: Number(m[1]) }, rest: rest(m[2] as string) };
+  if (/^pay\b/i.test(body)) return null;
+  return { optional: {}, rest: rest(body) };
+}
+
 const TRIGGER_HEAD =
-  /^(When you play me or when I (hold|conquer)|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you play me or when I (hold|conquer)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -977,6 +1016,11 @@ export function parseCardAbilities(
         when = split.when;
         body = split.rest;
       }
+      if (head.startsWith('when you play me to a battlefield')) {
+        // R45: played to a battlefield = the unit stands at a battlefield as the ability triggers.
+        if (when) return null;
+        when = { kind: 'AT_BATTLEFIELD' };
+      }
       cur = { kind: 'trigger', ons, legion, ...(when ? { when } : {}), sens: body ? [body] : [] };
       groups.push(cur);
       continue;
@@ -1019,7 +1063,14 @@ export function parseCardAbilities(
   }
   for (const g of groups) {
     // R41: bodies may choose targets ("give a unit +2 [M] this turn"), like a spell's sentences.
-    const effects = parseEffectSentences(g.sens);
+    let effects = parseEffectSentences(g.sens);
+    let optional: OptionalCost | undefined;
+    if (!effects && g.kind === 'trigger') {
+      // R45: "you may [pay COST to] ..." that is not an optional target choice (R42).
+      const opt = splitOptional(g.sens);
+      effects = opt ? parseEffectSentences(opt.rest) : null;
+      optional = opt?.optional;
+    }
     if (!effects || effects.length === 0) return null;
     if (g.kind === 'ability') {
       out.abilities.push({ cost: g.cost, ...(g.reaction ? { reaction: true } : {}), effects });
@@ -1028,6 +1079,7 @@ export function parseCardAbilities(
         out.triggers.push({
           on,
           effects,
+          ...(optional ? { optional } : {}),
           ...(g.legion ? { condition: 'LEGION' as const } : {}),
           ...(g.when ? { when: g.when } : {}),
         });

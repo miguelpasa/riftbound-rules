@@ -575,7 +575,7 @@ describe('parseBattlefieldAbilities (R44)', () => {
       parseBattlefieldAbilities('When you hold here, draw 1. Units here have [Ganking].'),
     ).toBeNull();
     expect(
-      parseBattlefieldAbilities('When you conquer here, you may pay [1] to draw 1.'),
+      parseBattlefieldAbilities('When you conquer here, you may pay [1] and discard 1 to draw 1.'),
     ).toBeNull();
     expect(
       parseBattlefieldAbilities('When you hold here, activate the conquer effects of units here.'),
@@ -605,5 +605,114 @@ describe('parseBattlefieldAbilities (R44)', () => {
       n: 4,
     });
     expect(parseCondition('you have 7+ cards here')).toBeNull();
+  });
+});
+
+describe('optional ("you may") triggered abilities (R45)', () => {
+  it('"you may pay COST to ..." becomes an optional trigger with a structured cost', () => {
+    // Tests Rule 357.1.a: an optional cost is paid from the Rune Pool / runes when it is accepted
+    expect(
+      parseCardAbilities(
+        'When I attack, you may pay [1] to give an enemy unit here -1 [M] this turn.',
+      )?.triggers,
+    ).toEqual([
+      {
+        on: 'ATTACK',
+        optional: { energy: 1 },
+        effects: [{ op: 'DEBUFF_TARGET', amount: 1, side: 'enemy', here: true }],
+      },
+    ]);
+    expect(
+      parseCardAbilities(
+        'When I attack or defend, you may pay [1][C][A] to give me +2 [M] this turn.',
+      )?.triggers.map((t) => [t.on, t.optional, t.effects]),
+    ).toEqual([
+      ['ATTACK', { energy: 1, power: 1, anyPower: 1 }, [{ op: 'BUFF_SELF', amount: 2 }]],
+      ['DEFEND', { energy: 1, power: 1, anyPower: 1 }, [{ op: 'BUFF_SELF', amount: 2 }]],
+    ]);
+    expect(
+      parseCardAbilities('When I move, you may [Burn 1] to give me +1 [M] this turn.')?.triggers,
+    ).toEqual([{ on: 'MOVE', optional: { burn: 1 }, effects: [{ op: 'BUFF_SELF', amount: 1 }] }]);
+  });
+
+  it('a free "you may <effect>" is an optional trigger with an empty cost', () => {
+    // Tests Rule 473.2: a hold trigger whose effect is optional
+    expect(
+      parseBattlefieldAbilities('When you hold here, you may channel 1 rune exhausted.'),
+    ).toEqual([
+      { on: 'HOLD', optional: {}, effects: [{ op: 'CHANNEL', amount: 1, exhausted: true }] },
+    ]);
+  });
+
+  it('keeps a condition in front of the optional part and parses ready-legend / score', () => {
+    // Tests Rule 473.2: "if" conditions are read before the may-clause
+    expect(
+      parseBattlefieldAbilities(
+        'When you conquer here, if you control 4 or fewer runes, you may pay [1] to draw 1.',
+      ),
+    ).toEqual([
+      {
+        on: 'CONQUER',
+        when: { kind: 'COUNT', what: 'rune', where: 'board', who: 'friendly', cmp: 'LTE', n: 4 },
+        optional: { energy: 1 },
+        effects: [{ op: 'DRAW', amount: 1 }],
+      },
+    ]);
+    expect(
+      parseBattlefieldAbilities('When you hold here, you may pay [A][A][A][A] to score 1 point.'),
+    ).toEqual([
+      {
+        on: 'HOLD',
+        optional: { anyPower: 4 },
+        effects: [{ op: 'GAIN_POINT', amount: 1 }],
+      },
+    ]);
+    expect(
+      parseBattlefieldAbilities('When you conquer here, you may pay [1] to ready your legend.'),
+    ).toEqual([{ on: 'CONQUER', optional: { energy: 1 }, effects: [{ op: 'READY_LEGEND' }] }]);
+  });
+
+  it('refuses costs and effects it does not model (discard, kill, extra costs)', () => {
+    // Tests Rule 473.2: partially understood text is never half-executed
+    expect(parseCardAbilities('When I conquer, you may discard 1 to draw 1.')).toBeNull();
+    expect(
+      parseCardAbilities('When I conquer, you may pay [1] and discard 1 to draw 1.'),
+    ).toBeNull();
+    expect(parseCardAbilities('When I conquer, you may pay to draw 1.')).toBeNull();
+    expect(parseCardAbilities('When I conquer, you may pay [E] to draw 1.')).toBeNull();
+    expect(parseCardAbilities('When I conquer, you may do something odd.')).toBeNull();
+  });
+
+  it('"a unit you control", "at a battlefield" and "when you play me to a battlefield"', () => {
+    // Tests Rule 355.10: unit choices of a triggered ability
+    expect(
+      parseCardAbilities(
+        'When you play me to a battlefield, you may move another unit you control here to your base.',
+      )?.triggers,
+    ).toEqual([
+      {
+        on: 'PLAY',
+        when: { kind: 'AT_BATTLEFIELD' },
+        effects: [
+          {
+            op: 'MOVE_BASE_TARGET',
+            side: 'friendly',
+            here: true,
+            another: true,
+            count: { min: 0, max: 1 },
+          },
+        ],
+      },
+    ]);
+    expect(
+      parseBattlefieldAbilities(
+        'When you hold here, you may move a unit at a battlefield to its base.',
+      ),
+    ).toEqual([
+      {
+        on: 'HOLD',
+        effects: [{ op: 'MOVE_BASE_TARGET', atBattlefield: true, count: { min: 0, max: 1 } }],
+      },
+    ]);
   });
 });

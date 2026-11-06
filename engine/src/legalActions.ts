@@ -16,7 +16,7 @@
  *  - STANDARD_MOVE: each ready unit to each destination, plus, per origin, "all ready units there".
  *  - ASSIGN_COMBAT_DAMAGE: autoAssign result and a variant that puts the surplus on the first unit.
  *  - HIDE_CARD, EQUIP, PASS_PRIORITY, END_TURN.
- *  - CHOOSE_STAGED / CHOOSE_TRIGGER_TARGET: while flow.pendingChoice is set, ONLY that choice's options
+ *  - CHOOSE_STAGED / CHOOSE_TRIGGER_TARGET / DECIDE_OPTIONAL (R45): while flow.pendingChoice is set, ONLY that choice's options
  *    (to its player); trigger targets are enumerated like a spell's (capped by MAX_TARGET_COMBOS).
  *  - ACTIVATE_ABILITY: one variant per target choice for abilities that choose units (R41).
  * NOT enumerated: CONCEDE (always legal) and ACTIVATE_RUNE (see `getRuneActivations`).
@@ -31,7 +31,8 @@ import { autoAssign } from './combat.js';
 import { enumerateSpellTargets } from './effects.js';
 import { hasUnitAt } from './play.js';
 import { applyIntent, reduce } from './reducer.js';
-import { abilityItemEffects } from './triggers.js';
+import { abilityItemEffects, triggerSourceCardId } from './triggers.js';
+import { optionalPlan } from './optional.js';
 import { itemSourceId } from './sources.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
 import type { TotalCost } from './resources.js';
@@ -318,6 +319,30 @@ export function getLegalActions(
           targets,
         })),
       ).slice(0, max);
+    }
+    if (pc.kind === 'OPTIONAL_EFFECT') {
+      // R45: decline is always offered and listed FIRST, so every "take legal[0]" fallback (host bot
+      // fallback, tutorial autopilot, timeouts) declines instead of paying; accept only when the cost
+      // can be paid, with the automatic payment plan spelled out.
+      const item = flow.chain.find((i) => i.id === pc.chainItemId);
+      const cardId = item ? (triggerSourceCardId(state, item) ?? '') : '';
+      const plan = optionalPlan(state, cards, pc.player, cardId, pc.cost);
+      const accept: Intent[] =
+        plan === null
+          ? []
+          : [
+              {
+                type: 'DECIDE_OPTIONAL',
+                playerId,
+                chainItemId: pc.chainItemId,
+                accept: true,
+                ...(plan.length > 0 ? { payment: plan } : {}),
+              },
+            ];
+      return keep([
+        { type: 'DECIDE_OPTIONAL', playerId, chainItemId: pc.chainItemId, accept: false },
+        ...accept,
+      ]).slice(0, max);
     }
     return keep(
       pc.options.map((battlefieldId): Intent => ({

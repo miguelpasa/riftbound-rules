@@ -65,7 +65,7 @@ export interface ComputeCostOptions {
   discounts?: CostMod[];
 }
 
-function genericPower(card: CardDef, amount: number): PowerRequirement {
+export function genericPower(card: CardDef, amount: number): PowerRequirement {
   const d = card.domains;
   if (d.length === 1) return { domain: d[0] as Domain, amount };
   if (d.length === 0) return { domain: 'ANY', amount };

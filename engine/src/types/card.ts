@@ -133,6 +133,10 @@ export type CardEffect =
   | { op: 'BURN'; amount: number }
   /** R44: the controller wins the game. */
   | { op: 'WIN_GAME' }
+  /** R45: "give me +N [M] this turn" (the source unit; nothing if it left the board). */
+  | { op: 'BUFF_SELF'; amount: number }
+  /** R45: "ready your legend". */
+  | { op: 'READY_LEGEND' }
   | { op: 'GAIN_POINT'; amount: number }
   /** Deal damage to the target unit(s); Cleanup kills a unit if lethal. */
   | ({
@@ -336,6 +340,19 @@ export type Condition =
   | { kind: 'CONTROL_SUBTYPE'; subtype: string; other?: boolean }
   | { kind: 'AT_BATTLEFIELD' };
 
+/**
+ * The price of an optional effect (R45, "you may pay [1] to ..."). `energy` = [N], `power` = [C]
+ * (Power of the source card's Domain, any Power when it has none), `anyPower` = [A] (any Power),
+ * `burn` = [Burn N] (put the top N cards of the Main Deck into the Trash; payable with N cards).
+ * Everything is paid through the Rune Pool / rune machinery (`payCost`) when the controller accepts.
+ */
+export interface OptionalCost {
+  energy?: number;
+  power?: number;
+  anyPower?: number;
+  burn?: number;
+}
+
 /** When a triggered ability fires (R5). */
 export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH' | 'ATTACK' | 'DEFEND' | 'MOVE';
 
@@ -347,6 +364,13 @@ export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH' | 'ATTACK' | 'DE
 export interface CardTrigger {
   on: TriggerKind;
   effects: CardEffect[];
+  /**
+   * R45: "you may [pay COST to] <effects>". When the ability resolves its controller is asked to
+   * accept or decline (flow.pendingChoice OPTIONAL_EFFECT, DECIDE_OPTIONAL); the cost is paid only on
+   * accept and the effects run only on accept. `{}` = a free "you may". Targets are still chosen when
+   * the ability is put on the Chain (R41).
+   */
+  optional?: OptionalCost;
   /**
    * Dependent keyword condition (812): "LEGION" = the controller has played another card this
    * turn when the ability triggers. Absent = unconditional.

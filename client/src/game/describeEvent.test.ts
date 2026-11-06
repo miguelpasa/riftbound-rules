@@ -103,6 +103,13 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
     targets: [{ kind: 'object', id: myCard.id }],
   },
   TRIGGER_NO_TARGET: { seq: 49, type: 'TRIGGER_NO_TARGET', player: 'p0', sourceId: myCard.id },
+  OPTIONAL_EFFECT_DECIDED: {
+    seq: 50,
+    type: 'OPTIONAL_EFFECT_DECIDED',
+    player: 'p0',
+    sourceId: myCard.id,
+    accepted: true,
+  },
 };
 
 describe('describeEvent', () => {
@@ -179,6 +186,17 @@ describe('describeEvent', () => {
     expect(describeEvent(SAMPLES.TRIGGER_NO_TARGET, view, SCENARIO_CARDS)).toContain(
       'no legal target',
     );
+  });
+
+  it('words the optional-effect answer (R45)', () => {
+    expect(describeEvent(SAMPLES.OPTIONAL_EFFECT_DECIDED, view, SCENARIO_CARDS)).toContain(
+      'was used',
+    );
+    const declined: GameEvent = {
+      ...SAMPLES.OPTIONAL_EFFECT_DECIDED,
+      accepted: false,
+    } as GameEvent;
+    expect(describeEvent(declined, view, SCENARIO_CARDS)).toContain('declined');
   });
 
   it('names the Battlefield card behind a battlefield-sourced ability (R44)', () => {

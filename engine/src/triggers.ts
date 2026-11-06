@@ -24,6 +24,8 @@
  * re-checks the targets and fizzles when they are illegal (runEffects).
  * "You may" (R42): an effect whose targets are optional ("up to one") also accepts an empty choice,
  * which is how its controller declines; with no legal target at all the ability is skipped.
+ * "You may pay ..." (R45): a trigger with `optional` asks again when it RESOLVES (play.ts `runTrigger`,
+ * optional.ts `decideOptional`); this module only keeps that pending choice from being overwritten.
  */
 import { fork } from './workingCopy.js';
 import { deriveTurnState } from './chain.js';
@@ -230,6 +232,7 @@ export function abilityItemEffects(
 
 /** Set flow.pendingChoice for the oldest PENDING triggered item on the Chain (mutates `s`). */
 function askNextTrigger(s: GameState): void {
+  if (s.flow.pendingChoice?.kind === 'OPTIONAL_EFFECT') return; // R45: the resolving optional ability asks first
   const next = s.flow.chain.find(
     (i) => i.kind === 'ABILITY' && i.triggered && i.status === 'PENDING',
   );
