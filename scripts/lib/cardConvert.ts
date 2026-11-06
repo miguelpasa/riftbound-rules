@@ -112,7 +112,7 @@ const KEYWORD_LOOKUP: Record<string, KeywordName> = {
 
 const MVP_SET = new Set<string>(MVP_KEYWORDS);
 /** Keywords whose behaviour the ability parser turns into triggers (R5, R42): not MVP, but not blockers. */
-const PARSED_KEYWORDS = new Set<string>(['Deathknell', 'Disarm', 'Weaponmaster']);
+const PARSED_KEYWORDS = new Set<string>(['Deathknell', 'Disarm', 'Weaponmaster', 'Empower']);
 
 /** Errata marker; in the real data it may be split across lines ("▲\n[OLD TEXT]"). */
 const OLD_TEXT_RE = /▲?\s*\[OLD TEXT\][\s\S]*$/;

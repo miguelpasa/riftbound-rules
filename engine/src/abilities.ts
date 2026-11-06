@@ -83,6 +83,10 @@ export function activateAbility(
   if (state.turn.phase === 'MULLIGAN') {
     return ruleError('WRONG_PHASE', 'no abilities during the mulligan');
   }
+  // R52: "Use only if not Empowered": an Empower ability cannot be used again while Empowered.
+  if (src.empowered && ability.effects.some((e) => e.op === 'EMPOWER_SELF')) {
+    return ruleError('ABILITY_NOT_AVAILABLE', 'already Empowered');
+  }
   if (ability.cost.killSelf && !isGearDef(def)) {
     return ruleError('ABILITY_NOT_AVAILABLE', 'only gear can be killed as a cost');
   }

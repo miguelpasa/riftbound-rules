@@ -39,6 +39,7 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
     battlefieldId: 'bf1',
     method: 'HOLD',
   },
+  EFFECT_EMPOWERED: { seq: 35, type: 'EFFECT_EMPOWERED', unitId: 'o1' },
   EFFECT_READIED: { seq: 34, type: 'EFFECT_READIED', unitId: 'o1' },
   EFFECT_FIZZLED: { seq: 33, type: 'EFFECT_FIZZLED', cardId: 'fx-flare' },
   EFFECT_STUNNED: { seq: 35, type: 'EFFECT_STUNNED', unitId: 'o1' },

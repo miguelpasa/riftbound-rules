@@ -38,6 +38,8 @@ export function evalCondition(
   switch (cond.kind) {
     case 'AT_BATTLEFIELD':
       return hereOfSource(state, sourceId) !== null;
+    case 'EMPOWERED':
+      return state.objects[sourceId]?.empowered === true;
     case 'CONTROL_SUBTYPE':
       return Object.values(state.objects).some((o) => {
         const def = cards[o.cardId];

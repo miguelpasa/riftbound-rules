@@ -52,6 +52,8 @@ export interface CardInstance {
   tempKeywords?: KeywordInstance[];
   /** Stunned this turn: deals no combat damage. Expires in the Ending step. */
   stunned?: boolean;
+  /** R52: Empowered (the Empower keyword). Lost when the permanent leaves the board. */
+  empowered?: boolean;
   /** Equipment -> id of the unit it is attached to. */
   attachedTo?: string;
   facedown?: boolean;

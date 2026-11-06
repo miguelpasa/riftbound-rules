@@ -135,6 +135,8 @@ export type CardEffect =
   | { op: 'WIN_GAME' }
   /** R45: "give me +N [M] this turn" (the source unit; nothing if it left the board). */
   | { op: 'BUFF_SELF'; amount: number }
+  /** R52: "Empower me": the source becomes Empowered (nothing if it is not on the board or already is). */
+  | { op: 'EMPOWER_SELF' }
   /** R49: "ready me": the source permanent becomes ready (nothing when it left the board). */
   | { op: 'READY_SELF' }
   /** R45: "ready your legend". */
@@ -382,7 +384,9 @@ export type Condition =
       n: number;
     }
   | { kind: 'CONTROL_SUBTYPE'; subtype: string; other?: boolean }
-  | { kind: 'AT_BATTLEFIELD' };
+  | { kind: 'AT_BATTLEFIELD' }
+  /** R52: the source is Empowered. */
+  | { kind: 'EMPOWERED' };
 
 /**
  * The price of an optional effect (R45, "you may pay [1] to ..."). `energy` = [N], `power` = [C]

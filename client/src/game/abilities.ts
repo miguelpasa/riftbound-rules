@@ -45,6 +45,8 @@ function describeEffect(e: CardEffect, def: CardDef): string | null {
     }
     case 'DRAW':
       return `Draw ${e.amount}`;
+    case 'EMPOWER_SELF':
+      return 'Empower this';
     case 'GAIN_POINT':
       return `Gain ${plural(e.amount, 'point', 'points')}`;
     default:

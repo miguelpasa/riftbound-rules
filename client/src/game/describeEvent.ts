@@ -125,6 +125,8 @@ export function describeEvent(
       return `${objectName(event.gearId, view, cards, 'A gear')} was killed.`;
     case 'BATTLEFIELD_SCORED':
       return `${who(event.player, view)} ${event.method === 'HOLD' ? 'held' : 'conquered'} ${battlefieldName(event.battlefieldId, view, cards)}.`;
+    case 'EFFECT_EMPOWERED':
+      return `A unit became Empowered.`;
     case 'EFFECT_READIED':
       return `A unit was readied.`;
     case 'EFFECT_FIZZLED':

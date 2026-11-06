@@ -136,6 +136,7 @@ export function parseClause(sen: string): CardEffect[] | null {
   m = /^Give me \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) return [{ op: 'BUFF_SELF', amount: Number(m[1]) }];
   if (/^Ready me$/i.test(sen)) return [{ op: 'READY_SELF' }];
+  if (/^Empower me$/i.test(sen)) return [{ op: 'EMPOWER_SELF' }];
   if (/^Ready your legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
@@ -708,6 +709,7 @@ export function parseAdditionalCost(text: string): { cost: CostCardChoice; rest:
   };
 }
 
+const EMPOWERED_PREFIX = /^\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
 const STATIC_KW = 'Deflect|Ganking|Assault|Shield|Tank';
 const STATIC_GRANT = String.raw`((?:\[(?:${STATIC_KW})(?: \d+)?\](?:,? and |, )?)+|\+\d+ \[M\])`;
 const STATIC_AFF =
@@ -757,11 +759,14 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       .replace(/\s+/g, ' ')
       .trim()
       .replace(/\.$/, '');
-    const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(plain);
+    // R52: "[Empowered][>] ..." is a static that applies only while the source is Empowered.
+    const em = EMPOWERED_PREFIX.exec(plain);
+    const body = em ? (em[1] ?? '') : plain;
+    const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(body);
     const f2 = new RegExp(`^While (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(
-      plain,
+      body,
     );
-    const f3 = new RegExp(`^I have ${STATIC_GRANT} while (.+)$`, 'i').exec(plain);
+    const f3 = new RegExp(`^I have ${STATIC_GRANT} while (.+)$`, 'i').exec(body);
     let aff: string | undefined;
     let grant: string | undefined;
     let cond: string | undefined;
@@ -778,11 +783,15 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
     const a = staticAffects(aff);
     const g = staticGrant(grant);
     const when = cond === undefined ? undefined : parseCondition(cond);
-    if (!a || !g || (cond !== undefined && !when)) {
+    if (!a || !g || (cond !== undefined && !when) || (em && cond !== undefined)) {
       keep.push(line);
       continue;
     }
-    statics.push({ ...a, ...g, ...(when ? { when } : {}) });
+    statics.push({
+      ...a,
+      ...g,
+      ...(em ? { when: { kind: 'EMPOWERED' as const } } : when ? { when } : {}),
+    });
   }
   return statics.length > 0 ? { statics, rest: keep.join('\n').trim() } : null;
 }
@@ -1289,6 +1298,13 @@ export function parseCardAbilities(
       /\[(Reaction|Action)\]\s*(?:\[>\]|[—–-])\s*/gi,
       (_m, k: string) => `${k.toUpperCase()} `,
     )
+    // R52: "[Empower] <cost>" is the activated ability "<cost>: Empower me"; "[Empowered][>] ..." prefixes an
+    // ability that only exists while Empowered.
+    .replace(
+      /\[Empower\]\s*(?:\[>\]|[^\w[\s])?\s*((?:\[[0-9CA]+\])+|Discard \d+)(?=[ \t]*[.\n(]|[ \t]*$)/gi,
+      '$1: Empower me. ',
+    )
+    .replace(/\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*/gi, 'EMPOWERED ')
     .replace(/\[Legion\]\s*(?:\[>\]|[—–-])\s*/gi, 'LEGION ')
     .replace(KEYWORD_TOKENS, ' ')
     .replace(/\[Deathknell\]\s*(?:\[>\]|[—–-])/gi, ' Deathknell: ')
@@ -1314,6 +1330,11 @@ export function parseCardAbilities(
     .filter(Boolean)) {
     let sen = raw;
     let legion = false;
+    let empowered = false;
+    if (/^EMPOWERED /.test(sen)) {
+      empowered = true;
+      sen = sen.slice(10).trim();
+    }
     if (/^LEGION /.test(sen)) {
       legion = true;
       sen = sen.slice(7).trim();
@@ -1322,11 +1343,16 @@ export function parseCardAbilities(
     if (ph) {
       const split = splitCondition(ph.body);
       if (!split) return null;
+      if (empowered && split.when) return null;
       cur = {
         kind: 'trigger',
         ons: ['YOU_PLAY'],
         legion,
-        ...(split.when ? { when: split.when } : {}),
+        ...(empowered
+          ? { when: { kind: 'EMPOWERED' as const } }
+          : split.when
+            ? { when: split.when }
+            : {}),
         playFilter: ph.filter,
         sens: [split.rest],
       };
@@ -1361,6 +1387,10 @@ export function parseCardAbilities(
         when = split.when;
         body = split.rest;
       }
+      if (empowered) {
+        if (when) return null;
+        when = { kind: 'EMPOWERED' };
+      }
       if (head.startsWith('when you play me to a battlefield')) {
         // R45: played to a battlefield = the unit stands at a battlefield as the ability triggers.
         if (when) return null;
@@ -1370,6 +1400,8 @@ export function parseCardAbilities(
       groups.push(cur);
       continue;
     }
+    // R52: only triggers can be Empowered-only (statics are read by parseStaticLines).
+    if (empowered) return null;
     if (/^This enters exhausted$/i.test(sen) && !legion && opts.gearLike === true) {
       out.entersExhausted = true;
       cur = null;

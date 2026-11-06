@@ -159,3 +159,11 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Not done:** "equal to the number of ..." values (Repair Specialist, Ancient Warmonger), "while I'm buffed / [Mighty]", "attacking or defending alone", spell keyword grants (Kai'Sa), "can't" restrictions, static cost changes of other cards.
 - **Rule numbers:** tests cite 143.2, 809, 144.4.c.1 only; not checked against the rule text.
 - **R50 correction:** `resources/card-schema.json` lacked `costReduction`, so the card build silently dropped those cards; fixed here (the R50 count of 282 only became true in `client/public/cards.json` with this change).
+
+## R52: Empower (A-R52)
+
+- **Model (UNCLEAR, reminder text only, no rule text read):** "[Empower] <cost>" is an activated ability "<cost>: Empower me. Use only if not Empowered." It goes on the Chain like any non-[Add] ability (so it needs a Neutral Open state on your turn, or a Reaction) and sets `CardInstance.empowered` when it resolves. Empowered is lost when the permanent leaves the board (returned to hand) and a permanent always enters un-Empowered. Disempowering ("Disempower me, [T]:", Legend Boy Who Shattered Time) is not modelled.
+- **"[Empowered][>] ..."** is a static (or a trigger) that applies only while the source is Empowered: new condition `EMPOWERED`. Static / trigger lines other than "I have <keyword | +N [M]>" or "When I hold / conquer / ..." stay partial.
+- **Costs:** Energy, [C] / [A] Power and "Discard N" costs parse (the existing ability cost parser). "This ability costs [N] less if / for each ..." modifiers are not parsed: those cards (Baccai Sandspinner, Frostcoat Mother, Grumpy Rockbear, ...) stay partial.
+- **Keyword:** `Empower` is now a parsed keyword (no longer a blocker by itself); `Empowered` is not extracted as a keyword.
+- **Rule numbers:** tests cite 145.1 only.

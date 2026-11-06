@@ -418,6 +418,7 @@ export function returnToHand(state: GameState, o: CardInstance, out: GameEventIn
   delete o.tempMight;
   delete o.tempKeywords;
   delete o.stunned;
+  delete o.empowered;
   delete o.attachedTo;
   state.players[playerIndex(player)].hand.push(o.id);
 }
@@ -566,6 +567,14 @@ export function runEffects(
         const src = state.objects[sourceObjectId];
         if (src && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
           addTemp(src, e.amount, true);
+        }
+        break;
+      }
+      case 'EMPOWER_SELF': {
+        const src = state.objects[sourceObjectId];
+        if (src && !src.empowered && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
+          src.empowered = true;
+          out.push({ type: 'EFFECT_EMPOWERED', unitId: src.id });
         }
         break;
       }
