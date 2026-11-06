@@ -1152,7 +1152,9 @@ function parseAbilityCost(text: string, gearLike: boolean): AbilityCost | null {
   const cost: AbilityCost = {};
   for (const part of text.split(/\s*,\s*/)) {
     const res = /^((?:\[(?:\d+|C|A)\])+)$/i.exec(part);
-    if (/^\[E\]$/i.test(part)) cost.exhaust = true;
+    const xp = /^Spend (\d+) XP$/i.exec(part);
+    if (xp) cost.xp = (cost.xp ?? 0) + Number(xp[1]);
+    else if (/^\[E\]$/i.test(part)) cost.exhaust = true;
     else if (res) {
       for (const t of (res[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
         const tok = (t[1] ?? '').toUpperCase();
@@ -1167,7 +1169,13 @@ function parseAbilityCost(text: string, gearLike: boolean): AbilityCost | null {
       cost.card = cc;
     }
   }
-  return cost.exhaust || cost.energy || cost.power || cost.anyPower || cost.killSelf || cost.card
+  return cost.exhaust ||
+    cost.energy ||
+    cost.power ||
+    cost.anyPower ||
+    cost.killSelf ||
+    cost.card ||
+    cost.xp
     ? cost
     : null;
 }

@@ -67,6 +67,7 @@ export interface AbilityDescription {
 export function describeAbility(def: CardDef, ability: ActivatedAbility): AbilityDescription {
   const parts: string[] = [];
   if (ability.cost.exhaust) parts.push('Exhaust');
+  if (ability.cost.xp) parts.push(`${ability.cost.xp} XP`);
   if (ability.cost.energy) parts.push(`${ability.cost.energy} Energy`);
   if (ability.cost.power)
     parts.push(`${ability.cost.power} Power (${def.domains.join(' or ') || 'any'})`);

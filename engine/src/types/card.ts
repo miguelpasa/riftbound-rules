@@ -531,6 +531,8 @@ export interface AbilityCost {
   anyPower?: number;
   /** R46: a card-choice cost ("Discard a gear", "Recycle 1 from your trash"). */
   card?: CostCardChoice;
+  /** R60: "Spend N XP": the controller's XP drops by N. */
+  xp?: number;
 }
 
 /**

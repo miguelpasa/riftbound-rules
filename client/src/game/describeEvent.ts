@@ -125,6 +125,8 @@ export function describeEvent(
       return `${objectName(event.gearId, view, cards, 'A gear')} was killed.`;
     case 'BATTLEFIELD_SCORED':
       return `${who(event.player, view)} ${event.method === 'HOLD' ? 'held' : 'conquered'} ${battlefieldName(event.battlefieldId, view, cards)}.`;
+    case 'XP_SPENT':
+      return `${who(event.player, view)} spent ${event.amount} XP.`;
     case 'XP_GAINED':
       return `${who(event.player, view)} gained ${event.amount} XP.`;
     case 'EFFECT_EMPOWERED':

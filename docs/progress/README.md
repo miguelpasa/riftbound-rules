@@ -96,3 +96,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R57](R57-move-restrictions.md)      | Movement restrictions: can't move to base statics, "It can't move this turn" (332 -> 336 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R58](R58-optional-additional-cost.md) | Optional additional cost to play + "if you paid the additional cost" play triggers (336 -> 341 cards full) | High | Sonnet | Done | uncommitted |
 | [R59](R59-modal-spells.md)           | Modal "Choose one" spells: modes in the card data, PLAY_CARD.mode, per-mode targets and legal actions (341 -> 344 cards full) | High | Sonnet | Done | uncommitted |
+| [R60](R60-spend-xp.md)               | Spend XP ability costs (344 -> 347 cards full) | Medium | Sonnet | Done | uncommitted |

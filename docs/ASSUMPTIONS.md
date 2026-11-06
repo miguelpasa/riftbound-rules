@@ -218,3 +218,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Scope:** spells whose text is "Choose one —" followed by lines "- <effects>" (each mode parses as a spell). Modal abilities and triggers ("When I become exhausted, choose one ..."), "choose one that hasn't been chosen this turn", "Choose one you haven't already chosen" and modes with unparsed effects keep the card partial.
 - **Client:** each mode is another entry in the play chooser, labelled "Mode N" (the card text shows what each mode does); there is no dedicated mode picker yet.
 - **Rule numbers:** tests cite 356 and 359 only.
+
+## R60: Spend XP ability costs (A-R60)
+
+- **Model (UNCLEAR, patch-note wording only):** "Spend N XP" is a cost part of an activated ability (`AbilityCost.xp`): the ability needs at least N XP, pays it on activation (`XP_SPENT`) and the effect resolves from the Chain. Level statics read the XP live, so spending XP can switch a Level effect off (matches the glossary: Level is a threshold, not a cost).
+- **Verified against search-result summaries only (no rule text):** Empower stays until the permanent leaves play (R52), a Buff is +1 Might with at most one per unit (R54), Predict looks at the top cards, recycles any and returns the rest in any order (R55), Level is a threshold that turns off when XP drops below N (R53). The Core Rules PDF could not be read here (no page fetch tool), so rule numbers are still unchecked.
+- **Not done:** optional "you may spend N XP to ..." triggers (Kha'Zix), "spend N XP as an additional cost to play me" (Poppy), Legend abilities (Voidreaver, Keeper of the Hammer), "spend a buff".
+- **Rule numbers:** tests cite 145.1 only.

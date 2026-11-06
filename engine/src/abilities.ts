@@ -29,7 +29,7 @@ import { autoPlan, genericPower, payCost } from './resources.js';
 import type { TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { isGearDef } from './tokens.js';
-import { ruleError } from './types/index.js';
+import { playerIndex, ruleError } from './types/index.js';
 import type {
   ActivatedAbility,
   ActivateAbilityIntent,
@@ -87,6 +87,10 @@ export function activateAbility(
   if (src.empowered && ability.effects.some((e) => e.op === 'EMPOWER_SELF')) {
     return ruleError('ABILITY_NOT_AVAILABLE', 'already Empowered');
   }
+  // R60: "Spend N XP" needs the XP.
+  if (ability.cost.xp && (state.players[playerIndex(pid)]?.xp ?? 0) < ability.cost.xp) {
+    return ruleError('INSUFFICIENT_RESOURCES', `not enough XP (need ${ability.cost.xp})`);
+  }
   if (ability.cost.killSelf && !isGearDef(def)) {
     return ruleError('ABILITY_NOT_AVAILABLE', 'only gear can be killed as a cost');
   }
@@ -125,6 +129,11 @@ export function activateAbility(
     { type: 'ABILITY_ACTIVATED', player: pid, sourceId: src.id, abilityIndex: intent.abilityIndex },
   ];
   if (ability.cost.exhaust) obj.ready = false;
+  if (ability.cost.xp) {
+    const ps = work.players[playerIndex(pid)] as GameState['players'][number];
+    ps.xp = (ps.xp ?? 0) - ability.cost.xp;
+    events.push({ type: 'XP_SPENT', player: pid, amount: ability.cost.xp });
+  }
   if (ability.cost.card && intent.costCards) {
     events.push(...payCostCards(work, cards, pid, src.id, ability.cost.card, intent.costCards));
   }
@@ -178,6 +187,7 @@ export function abilityCandidates(
       if (payment === null) return;
       // R46: one candidate per choice of cost cards; none = not activatable.
       if (a.cost.card && !costCardsPayable(state, cards, pid, o.id, a.cost.card)) return;
+      if (a.cost.xp && (state.players[playerIndex(pid)]?.xp ?? 0) < a.cost.xp) return;
       const picks: (string[] | undefined)[] = a.cost.card
         ? costCardCombos(state, cards, pid, o.id, a.cost.card)
         : [undefined];
