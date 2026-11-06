@@ -19,6 +19,7 @@ import { isGearDef, isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
+  CardDef,
   CardInstance,
   CostCardChoice,
   GameEventInput,
@@ -53,15 +54,16 @@ export function costCardText(cc: CostCardChoice): string {
         ? `unit${plural} or gear`
         : `${w}${plural}`;
   const where = cc.here ? ' here' : '';
+  const mighty = cc.mighty ? 'Mighty ' : '';
   switch (cc.kind) {
     case 'DISCARD':
       return `Discard ${n} ${noun(what)}`;
     case 'KILL':
-      return `Kill ${lead} friendly ${noun(what)}${where}`;
+      return `Kill ${lead} friendly ${mighty}${noun(what)}${where}`;
     case 'EXHAUST':
-      return `Exhaust ${lead} friendly ${noun(what)}${where}`;
+      return `Exhaust ${lead} friendly ${mighty}${noun(what)}${where}`;
     case 'RETURN':
-      return `Return ${lead} friendly ${noun(what)}${where} to hand`;
+      return `Return ${lead} friendly ${mighty}${noun(what)}${where} to hand`;
     case 'RECYCLE':
       return `Recycle ${n} ${noun(what)} from your Trash`;
   }
@@ -69,6 +71,13 @@ export function costCardText(cc: CostCardChoice): string {
 
 const typeOfWhat = (what: CostCardChoice['what']): 'UNIT' | 'GEAR' | 'SPELL' | undefined =>
   what === 'unit' ? 'UNIT' : what === 'gear' ? 'GEAR' : what === 'spell' ? 'SPELL' : undefined;
+
+/** R47: a unit is [Mighty] with 5 or more Might (the printed reminder text of Sacrifice). */
+export const MIGHTY_MIGHT = 5;
+
+/** Current Might of a unit on the board (outside combat); `state` only needs its objects. */
+const mightOf = (state: CostCardView, cards: CardDatabase, id: string): number =>
+  effectiveMight(state as GameState, cards, id, { role: null });
 
 /** Does `o` qualify for the cost, for `player`, with `sourceId` the ability's source? */
 function qualifies(
@@ -85,6 +94,8 @@ function qualifies(
     const want = typeOfWhat(cc.what);
     const zone = cc.kind === 'DISCARD' ? 'hand' : 'trash';
     if (o.zone.kind !== zone || o.owner !== player) return false;
+    // R47: the card being played (still in hand) cannot pay its own additional cost.
+    if (o.id === sourceId) return false;
     return want === undefined || def.type === want;
   }
   if ((o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') || o.controller !== player) {
@@ -98,6 +109,7 @@ function qualifies(
   } else if (what === 'unit' ? !unit : what === 'gear' ? !gear : !(unit || gear)) {
     return false;
   }
+  if (cc.mighty && !(unit && mightOf(state, cards, o.id) >= MIGHTY_MIGHT)) return false;
   if (cc.another && o.id === sourceId) return false;
   if (cc.here) {
     const here = hereOfSource(state, sourceId);
@@ -232,4 +244,12 @@ export function payCostCards(
     }
   }
   return out;
+}
+
+/**
+ * R47: the card-choice additional cost of playing `def`: its required `additionalCost`, else the card
+ * part of the Repeat cost when Repeat is paid. Undefined = nothing to choose.
+ */
+export function playCostCard(def: CardDef, repeat: boolean): CostCardChoice | undefined {
+  return def.additionalCost?.card ?? (repeat ? def.repeatCost?.card : undefined);
 }

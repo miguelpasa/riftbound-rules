@@ -32,6 +32,7 @@ import {
   cardNameOf,
   type DestKey,
   type MoveOption,
+  type PlayIntent,
   type TargetedIntent,
 } from './interaction';
 
@@ -50,7 +51,7 @@ export interface PopoverState {
 
 /** What a click-to-target flow chooses targets for (R41 adds abilities and triggers). */
 export type TargetSource =
-  | { kind: 'play'; cardId: string }
+  | { kind: 'play'; cardId: string; costCards?: string[] }
   | { kind: 'ability'; sourceId: string; abilityIndex: number; costCards?: string[] }
   | { kind: 'trigger'; chainItemId: string; sourceId: string };
 
@@ -77,6 +78,23 @@ export interface CostPickState {
   sourceId: string;
   abilityIndex: number;
   cost: CostCardChoice;
+  /**
+   * R47: the cost is an additional cost of PLAYING the card `sourceId` (`abilityIndex` is -1). The picker
+   * opens before the targets; `variant` is a play already chosen (Repeat's "Discard 1"), else the rest of
+   * the play flow (targets, location) follows with the chosen cards.
+   */
+  play?: boolean;
+  variant?: PlayIntent;
+  at?: { x: number; y: number };
+}
+
+/** R47: the legal plays of `cardId` with the chosen cost cards swapped in (the engine lists a capped set). */
+function withCostCards(legal: readonly Intent[], cardId: string, chosen: string[]): Intent[] {
+  return legal.map((i) =>
+    i.type === 'PLAY_CARD' && i.cardInstanceId === cardId && i.costCards !== undefined
+      ? { ...i, costCards: chosen }
+      : i,
+  );
 }
 
 const sameCards = (a: readonly string[] | undefined, b: readonly string[]): boolean =>
@@ -213,6 +231,82 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
     [view, cards, legal, submit],
   );
 
+  /** A chosen play variant: one that still needs cost cards (Repeat's "Discard 1") opens the picker first. */
+  const choosePlay = useCallback(
+    (v: PlayIntent, at: { x: number; y: number }, paid = false): void => {
+      setPopover(null);
+      const obj = view.objects[v.cardInstanceId];
+      const def = obj && !isHiddenCard(obj) ? cards[obj.cardId] : undefined;
+      const cost =
+        def?.additionalCost?.card ??
+        (v.additionalCosts?.repeat ? def?.repeatCost?.card : undefined);
+      if (!paid && v.costCards !== undefined && cost) {
+        setCostPick({
+          sourceId: v.cardInstanceId,
+          abilityIndex: -1,
+          cost,
+          play: true,
+          variant: v,
+          at,
+        });
+        return;
+      }
+      void submit(v);
+    },
+    [view, cards, submit],
+  );
+
+  /** The play flow of a hand card on `list` (the legal intents, with cost cards already chosen if any). */
+  const startPlay = useCallback(
+    (
+      id: string,
+      list: readonly Intent[],
+      at: { x: number; y: number },
+      costCards?: string[],
+    ): void => {
+      const obj = view.objects[id];
+      if (!obj || isHiddenCard(obj)) return;
+      if (targetedVariants(list, id, view).length > 0) {
+        setPopover(null);
+        setTargetingRaw({
+          source: { kind: 'play', cardId: id, ...(costCards ? { costCards } : {}) },
+          chosen: [],
+        });
+        return;
+      }
+      const variants = playVariants(list, id);
+      if (variants.length === 0) {
+        // Illegal: attempt anyway so the player sees the engine's exact [Rule Error].
+        const def = cards[obj.cardId];
+        void submit({
+          type: 'PLAY_CARD',
+          playerId: seat,
+          cardInstanceId: id,
+          ...(def?.type === 'UNIT' && obj.zone.kind !== 'facedown'
+            ? { location: { kind: 'base' as const } }
+            : {}),
+          payment: [],
+        });
+        return;
+      }
+      const [only] = variants;
+      if (variants.length === 1 && only) {
+        choosePlay(only, at, costCards !== undefined);
+        return;
+      }
+      setPopover({
+        title: `Play ${cardNameOf(id, view, cards)}`,
+        x: at.x,
+        y: at.y,
+        items: variants.map((v) => ({
+          label: variantLabel(v, view, cards),
+          onSelect: () => choosePlay(v, at, costCards !== undefined),
+        })),
+      });
+    },
+    [view, cards, seat, submit, choosePlay],
+  );
+
   const cancelCostPick = useCallback(() => setCostPick(null), []);
 
   const confirmCostPick = useCallback(
@@ -220,6 +314,19 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       const pick = costPick;
       if (!pick) return;
       setCostPick(null);
+      if (pick.play) {
+        // R47: a play whose variant is already chosen is sent with the cards; otherwise the rest of the
+        // play flow (targets, location) follows on the legal plays with these cards swapped in.
+        if (pick.variant) void submit({ ...pick.variant, costCards: chosen });
+        else
+          startPlay(
+            pick.sourceId,
+            withCostCards(legal, pick.sourceId, chosen),
+            pick.at ?? { x: 200, y: 200 },
+            chosen,
+          );
+        return;
+      }
       const mine = legal.filter(
         (i): i is ActivateAbilityIntent =>
           i.type === 'ACTIVATE_ABILITY' &&
@@ -248,7 +355,7 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       const template = matching[0] ?? mine[0];
       if (template) void submit({ ...template, costCards: chosen });
     },
-    [costPick, legal, view, submit],
+    [costPick, legal, view, submit, startPlay],
   );
 
   const submitTargeted = useCallback(
@@ -283,7 +390,11 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
     (source: TargetSource): TargetedIntent[] => {
       switch (source.kind) {
         case 'play':
-          return targetedVariants(legal, source.cardId, view);
+          return targetedVariants(
+            source.costCards ? withCostCards(legal, source.cardId, source.costCards) : legal,
+            source.cardId,
+            view,
+          );
         case 'ability': {
           // R46: only the variants that pay with the cards already chosen.
           const cc = source.costCards;
@@ -411,46 +522,18 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       const obj = view.objects[id];
       if (!obj || isHiddenCard(obj)) return;
       setTargetingRaw(null);
-      if (targetedVariants(legal, id, view).length > 0) {
-        setPopover(null);
-        setTargetingRaw({ source: { kind: 'play', cardId: id }, chosen: [] });
-        return;
-      }
-      const variants = playVariants(legal, id);
-      if (variants.length === 0) {
-        // Illegal: attempt anyway so the player sees the engine's exact [Rule Error].
-        const def = cards[obj.cardId];
-        void submit({
-          type: 'PLAY_CARD',
-          playerId: seat,
-          cardInstanceId: id,
-          ...(def?.type === 'UNIT' && obj.zone.kind !== 'facedown'
-            ? { location: { kind: 'base' as const } }
-            : {}),
-          payment: [],
-        });
-        return;
-      }
-      const [only] = variants;
-      if (variants.length === 1 && only) {
-        void submit(only);
-        return;
-      }
       const rect = anchor?.getBoundingClientRect();
-      setPopover({
-        title: `Play ${cardNameOf(id, view, cards)}`,
-        x: rect ? rect.left : 200,
-        y: rect ? rect.top : 200,
-        items: variants.map((v) => ({
-          label: variantLabel(v, view, cards),
-          onSelect: () => {
-            setPopover(null);
-            void submit(v);
-          },
-        })),
-      });
+      const at = { x: rect ? rect.left : 200, y: rect ? rect.top : 200 };
+      // R47: a required card-choice additional cost is paid first, before targets and location.
+      const cost = cards[obj.cardId]?.additionalCost?.card;
+      if (cost && playVariants(legal, id).length > 0) {
+        setPopover(null);
+        setCostPick({ sourceId: id, abilityIndex: -1, cost, play: true, at });
+        return;
+      }
+      startPlay(id, legal, at);
     },
-    [view, legal, cards, seat, submit],
+    [view, legal, cards, startPlay],
   );
 
   const moveTo = useCallback(
@@ -467,10 +550,7 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       for (const v of playVariants(legal, id)) {
         items.push({
           label: variantLabel(v, view, cards),
-          onSelect: () => {
-            setPopover(null);
-            void submit(v);
-          },
+          onSelect: () => choosePlay(v, { x: e.clientX, y: e.clientY }),
         });
       }
       for (const h of hideVariants(legal, id)) {

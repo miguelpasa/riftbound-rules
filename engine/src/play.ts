@@ -30,6 +30,7 @@ import { allocObjectId, stampEvents } from './setup.js';
 import { legionActive } from './keywords.js';
 import { evalCondition } from './conditions.js';
 import { optionalPlan } from './optional.js';
+import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -404,6 +405,22 @@ export function playCard(
   if (repeat && !(def.type === 'SPELL' && def.repeatCost)) {
     return ruleError('KEYWORD_RESTRICTION', 'Repeat was requested but the card has none');
   }
+  // R47: a card-choice additional cost ("As an additional cost to play this, kill a friendly unit";
+  // Repeat's "Discard 1"): the cards are checked before anything is paid, so a bad choice changes nothing.
+  if (repeat && def.additionalCost && def.repeatCost?.card) {
+    return ruleError('KEYWORD_RESTRICTION', 'two card costs cannot be combined');
+  }
+  const costCard = playCostCard(def, repeat);
+  if (costCard) {
+    if (intent.costCards === undefined) {
+      return ruleError('MISSING_TARGET', 'choose the cards that pay the additional cost');
+    }
+    if (!costCardsLegal(state, cards, pid, src.id, costCard, intent.costCards)) {
+      return ruleError('ILLEGAL_TARGET', 'those cards cannot pay the additional cost');
+    }
+  } else if (intent.costCards !== undefined && intent.costCards.length > 0) {
+    return ruleError('ILLEGAL_TARGET', 'this play has no card cost');
+  }
   const extra = hooks?.extraCosts?.(state, cards, pid, def, intent) ?? null;
   // Legion (812): "I cost [N] less" while another card was played this turn (checked before this
   // play is recorded; the source itself never counts).
@@ -413,7 +430,9 @@ export function playCard(
       : [];
   const increases: CostMod[] = [
     ...(extra ? [extra] : []),
-    ...(repeat && def.repeatCost ? [def.repeatCost] : []),
+    ...(repeat && def.repeatCost
+      ? [{ energy: def.repeatCost.energy, power: def.repeatCost.power }]
+      : []),
   ];
   const cost = computeTotalCost(def, { accelerate, increases, discounts });
 
@@ -425,6 +444,10 @@ export function playCard(
   const work = paid.state;
   const events: GameEventInput[] = [];
   const obj = work.objects[src.id] as CardInstance;
+  // The additional cost is paid with the rest of the cost (357), before the card moves to the Chain.
+  if (costCard && intent.costCards) {
+    events.push(...payCostCards(work, cards, pid, src.id, costCard, intent.costCards));
+  }
   leaveSource(work, obj);
   obj.zone = { kind: 'chain', player: pid };
   // Legion (812): the play counts for "another card this turn" from the moment it is on the Chain.

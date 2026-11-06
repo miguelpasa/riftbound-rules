@@ -151,3 +151,37 @@ test('activate an ability with a discard cost: pick the card', async ({ page, lo
   await expect.poll(() => hand.count()).toBe(before - 1);
   expect(log.errors).toEqual([]);
 });
+
+// R47: an additional card-choice cost of playing a card. `?mock&extracost=1` gives the human a Cinder Grunt in
+// hand ("As an additional cost to play me, kill a friendly unit"), a ready Cinder Grunt in the base (the unit to
+// kill) and two extra ready runes. Playing the hand card opens the picker before anything is paid.
+test('play a unit with an additional cost: pick the unit to kill', async ({ page, log }) => {
+  log.watch(page);
+  await page.goto('/?mock&extracost=1');
+  await keepHand(page);
+  await expect(endTurnButton(page)).toBeVisible({ timeout: 60_000 });
+  const hand = page.getByRole('region', { name: 'Your hand' }).locator('[data-card-id]');
+  const before = await hand.count();
+  await page
+    .getByRole('region', { name: 'Your hand' })
+    .locator('[data-card-id][aria-label^="Cinder Grunt"]')
+    .first()
+    .click();
+  const prompt = page.getByTestId('ability-cost-prompt');
+  await expect(prompt).toBeVisible();
+  await expect(page.getByTestId('ability-cost-text')).toContainText('Kill a friendly unit');
+  await expect(page.getByTestId('cost-confirm')).toBeDisabled();
+  await page.getByTestId('cost-picker').getByRole('button', { pressed: false }).first().click();
+  await page.getByTestId('cost-confirm').click();
+  const pop = page.getByRole('menu').first();
+  if (await pop.isVisible().catch(() => false)) {
+    await pop.getByRole('menuitem').first().click();
+  }
+  await expect(prompt).toBeHidden();
+  await expect.poll(() => hand.count()).toBe(before - 1);
+  // the killed unit left the base: exactly one Cinder Grunt (the new one) is there
+  await expect(
+    page.getByLabel('Your base').getByLabel('Units in base').getByText('Cinder Grunt'),
+  ).toHaveCount(1);
+  expect(log.errors).toEqual([]);
+});

@@ -9,6 +9,9 @@ import { CostCardPicker, costCandidates } from './CostCardPicker';
  * ...", "Recycle 3 from your trash: ..."). Opened by `ui.activateAbility`; confirming sends the
  * activation (after the targets, if the ability has any, are clicked on the board). Escape or Cancel
  * closes it without doing anything.
+ *
+ * R47: also the picker for the ADDITIONAL cost of playing a card ("As an additional cost to play this, kill a
+ * friendly unit"; `pick.play`): it opens before the targets and the confirm button says "Play".
  */
 export function AbilityCostPrompt({ ui }: { ui: BoardUi }) {
   const pick = ui.costPick;
@@ -17,7 +20,7 @@ export function AbilityCostPrompt({ ui }: { ui: BoardUi }) {
   const name = cardNameOf(pick.sourceId, api.view, api.cards);
   const obj = api.view.objects[pick.sourceId];
   const def = obj && 'cardId' in obj ? api.cards[obj.cardId] : undefined;
-  const desc = describeAbilityAt(def, pick.abilityIndex);
+  const desc = pick.play ? undefined : describeAbilityAt(def, pick.abilityIndex);
   const candidates = costCandidates(api.view, api.cards, api.seat, pick.sourceId, pick.cost);
   return (
     <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -29,11 +32,11 @@ export function AbilityCostPrompt({ ui }: { ui: BoardUi }) {
         className="w-full max-w-md rounded-xl border border-amber-400/60 bg-slate-900 p-5 text-slate-100 shadow-2xl"
       >
         <h2 id="ability-cost-title" className="text-lg font-semibold text-amber-200">
-          {`${name}: pay the cost`}
+          {pick.play ? `Play ${name}: pay the additional cost` : `${name}: pay the cost`}
         </h2>
         {desc ? <p className="mt-1 text-sm text-slate-300">{desc.summary}</p> : null}
         <p className="mt-2 text-sm" data-testid="ability-cost-text">
-          {`Cost: ${costCardText(pick.cost)}.`}
+          {`${pick.play ? 'Additional cost' : 'Cost'}: ${costCardText(pick.cost)}.`}
         </p>
         {candidates.length === 0 ? (
           <p role="status" className="mt-3 text-sm text-slate-300">
@@ -45,7 +48,7 @@ export function AbilityCostPrompt({ ui }: { ui: BoardUi }) {
             cards={api.cards}
             cost={pick.cost}
             candidates={candidates}
-            confirmLabel="Activate"
+            confirmLabel={pick.play ? 'Play' : 'Activate'}
             onConfirm={ui.confirmCostPick}
           />
         )}

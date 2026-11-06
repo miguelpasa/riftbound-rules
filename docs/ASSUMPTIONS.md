@@ -119,3 +119,16 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Enumeration cap:** `getLegalActions` lists at most `MAX_TARGET_COMBOS` (48) choices of cost cards per ability / optional effect, in object order. The engine accepts any legal choice, so the client builds the intent from its own candidate list when a combination is not listed (matters for "Recycle 3" from a big Trash).
 - **Rule numbers:** tests cite 357.1.a (paying a cost), 145.1 (activated abilities), 355.10, 186.1, 323, 140, 340.1, 106, 473.2; the rule that lets a cost be chosen from hand / board was not located, so everything above is unverified.
 - **Not done:** additional costs to play a card ("As an additional cost to play this, exhaust a friendly unit": Ki Burst, Life from Stone, Parallel Convergence, Ekko, Legion Quartermaster, Cruel Patron, Sacrifice) need `PLAY_CARD.costCards`; "spend a buff" (needs the Buff state); self-sacrifice ("kill me"); "kill N of ... and/or ..." beyond one component; a second card component in one cost.
+
+## R47: additional costs to play a card (A-R47)
+
+- **Order of choices (UNCLEAR, no rule text read):** the cost cards (`PLAY_CARD.costCards`) are validated together with the targets, before anything is paid; the engine does not care in which order the player decides them. The client asks for the cost cards first, then the targets and location. If the rules say targets come first only the prompt order changes.
+- **Paid with the rest of the cost (357.1.a assumed):** the card-choice part is paid when the Energy / Power part is paid, atomically; a rejected play changes nothing (358.5). `COST_CARDS_PAID` precedes `CARD_PLAYED`.
+- **A discard cost never takes the card being played** (it is still in the hand while its cost is paid). UNCLEAR whether the rules would let a card pay for itself.
+- **The cost cards may be the spell's own target** (kill / return it): the play is legal and the spell fizzles. The legal-action list hides those pairs; a hand-built intent works.
+- **[Mighty] = 5 or more Might** (Sacrifice's reminder text); current Might outside combat, with buffs and attached equipment. No rule number located.
+- **Hidden cards** keep their additional cost when played from the facedown zone (the existing comment in `playHiddenCard` says additional costs still apply).
+- **Repeat's card cost** (`[Repeat] - Discard 1`, Square Up) is the optional additional cost of Repeat; paying it needs a card other than the spell; with no other card in hand only the plain play is offered. A card with both a required card cost and a Repeat card cost is rejected (none exists).
+- **Legend cost modifiers** ("As an additional cost to play a spell, you may exhaust me ... to reduce the cost", Starry-Eyed Songstress) are a cost modifier of other cards, not an own additional cost; the card stays partial.
+- **Rule numbers:** tests cite 357.1.a, 358.5, 359.2, 323, 820; none of the sentences above was checked against the rule text.
+- **Not done:** required additional costs with an Energy / Power part, "if you paid the additional cost" effect text, Repeat with several costs or granted Repeat, board-click cost picking.

@@ -235,6 +235,12 @@ export interface MockGameOptions {
    * human's base.
    */
   costcard?: boolean;
+  /**
+   * Dev/e2e (`?mock&extracost=1`, R47): Cinder Grunts have "As an additional cost to play me, kill a friendly
+   * unit"; one starts in the human's hand and one, ready, in the human's base (the unit to kill), plus two
+   * extra ready runes to pay for the play.
+   */
+  extracost?: boolean;
 }
 
 /** A local game on the synthetic fixture decks; the human plays deck A, the AI plays deck B. */
@@ -289,6 +295,37 @@ export function createMockGame(opts: MockGameOptions = {}): LocalGame {
           },
         ],
       },
+    };
+    const ps = state.players[playerIndex(seat)] as GameState['players'][number];
+    const grunts = Object.values(state.objects).filter(
+      (o) => o.cardId === 'fx-grunt' && o.owner === seat && o.zone.kind === 'mainDeck',
+    );
+    const [toHand, toBase] = grunts;
+    if (toHand) {
+      ps.mainDeck = ps.mainDeck.filter((x) => x !== toHand.id);
+      toHand.zone = { kind: 'hand', player: seat };
+      ps.hand.push(toHand.id);
+    }
+    if (toBase) {
+      ps.mainDeck = ps.mainDeck.filter((x) => x !== toBase.id);
+      toBase.zone = { kind: 'base', player: seat };
+      toBase.ready = true;
+      ps.base.push(toBase.id);
+    }
+    for (let i = 0; i < 2; i++) {
+      const id = ps.runeDeck.shift();
+      const rune = id ? state.objects[id] : undefined;
+      if (!id || !rune) break;
+      rune.zone = { kind: 'base', player: seat };
+      rune.ready = true;
+      ps.base.push(id);
+    }
+  }
+  if (opts.extracost) {
+    const grunt = cards['fx-grunt'] as CardDef;
+    cards = {
+      ...cards,
+      'fx-grunt': { ...grunt, additionalCost: { card: { kind: 'KILL', what: 'unit' } } },
     };
     const ps = state.players[playerIndex(seat)] as GameState['players'][number];
     const grunts = Object.values(state.objects).filter(
@@ -389,12 +426,14 @@ export function MockGameScreen() {
   const buffer = params.get('buffer') === '1';
   const optional = params.get('optional') === '1';
   const costcard = params.get('costcard') === '1';
+  const extracost = params.get('extracost') === '1';
   const api = useMockGameApi({
     ...(seed ? { seed } : {}),
     ...(gold ? { gold } : {}),
     ...(buffer ? { buffer } : {}),
     ...(optional ? { optional } : {}),
     ...(costcard ? { costcard } : {}),
+    ...(extracost ? { extracost } : {}),
   });
   return (
     <GameProvider value={api}>

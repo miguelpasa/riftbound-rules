@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import Ajv from 'ajv';
 import {
+  parseAdditionalCost,
   parseBattlefieldAbilities,
   parseCardAbilities,
   parseRepeatCost,
@@ -239,7 +240,14 @@ export function convertRow(row: RawRow): ConvertResult {
     }
   }
 
-  const text = normalizeText(row.abilityEffective ?? row.abilityCorrected ?? row.abilityOriginal);
+  const fullText = normalizeText(
+    row.abilityEffective ?? row.abilityCorrected ?? row.abilityOriginal,
+  );
+  // R47: "As an additional cost to play this, <card-choice cost>." is taken out of the text and stored
+  // on the card (only when the rest of the card turns out fully supported, see below).
+  const additional =
+    type === 'UNIT' || type === 'SPELL' || type === 'GEAR' ? parseAdditionalCost(fullText) : null;
+  const text = additional ? additional.rest : fullText;
   // A keyword in "unit token with [Keyword]" belongs to the token, not to the card.
   let keywords = extractKeywords(text.replace(/(tokens?) with \[[^\]]+\]/gi, '$1'));
   // Rule 816: Temporary is a keyword of Permanents. On spells, legends and battlefields the bracket
@@ -267,7 +275,7 @@ export function convertRow(row: RawRow): ConvertResult {
     domains,
     stats,
     keywords,
-    text,
+    text: fullText,
     supportLevel: computeSupportLevel(text, keywords),
   };
   // R3: spells whose every sentence the text parser understands become executable.
@@ -316,6 +324,8 @@ export function convertRow(row: RawRow): ConvertResult {
       card.supportLevel = 'full';
     }
   }
+  // R47: the additional cost is stored only on a card that is fully supported without it.
+  if (additional && card.supportLevel === 'full') card.additionalCost = { card: additional.cost };
   // Rule 818: structured Equip cost for Equipment.
   if (type === 'GEAR' && keywords.some((k) => k.name === 'Equip')) {
     const equipCost = parseEquipCost(text);

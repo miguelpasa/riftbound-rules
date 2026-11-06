@@ -28,12 +28,12 @@
 import { abilityCandidates } from './abilities.js';
 import { legionActive } from './keywords.js';
 import { autoAssign } from './combat.js';
-import { enumerateSpellTargets } from './effects.js';
+import { MAX_TARGET_COMBOS, enumerateSpellTargets } from './effects.js';
 import { hasUnitAt } from './play.js';
 import { applyIntent, reduce } from './reducer.js';
 import { abilityItemEffects, triggerSourceCardId } from './triggers.js';
 import { optionalPlan } from './optional.js';
-import { costCardCombos } from './costCards.js';
+import { costCardCombos, playCostCard } from './costCards.js';
 import { itemSourceId } from './sources.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
 import type { TotalCost } from './resources.js';
@@ -146,6 +146,17 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
           : [undefined];
     for (const accelerate of accelOptions) {
       for (const repeat of repeatOptions) {
+        // R47: a card-choice additional cost (required, or Repeat's "Discard 1"): one variant per choice of
+        // cards (capped); none payable = the play is not offered.
+        const costCard = playCostCard(def, repeat);
+        if (repeat && def.additionalCost && def.repeatCost?.card) continue;
+        const picks: (string[] | undefined)[] = costCard
+          ? costCardCombos(state, cards, pid, obj.id, costCard)
+          : [undefined];
+        if (picks.length === 0) continue;
+        // Keep the whole list near MAX_TARGET_COMBOS: with many target choices, fewer card choices each.
+        if (picks.length > 1)
+          picks.splice(Math.max(1, Math.floor(MAX_TARGET_COMBOS / targetOptions.length)));
         const increases = repeat && def.repeatCost ? [def.repeatCost] : [];
         const plan = plannedPayment(
           computeTotalCost(costDef, { accelerate, discounts, increases }),
@@ -153,23 +164,34 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
         if (plan === null) continue;
         for (const location of locations) {
           for (const targets of targetOptions) {
-            const intent: PlayCardIntent = {
-              type: 'PLAY_CARD',
-              playerId: pid,
-              cardInstanceId: obj.id,
-              ...(location ? { location } : {}),
-              ...(targets ? { targets } : {}),
-              ...(accelerate || repeat
-                ? {
-                    additionalCosts: {
-                      ...(accelerate ? { accelerate: true } : {}),
-                      ...(repeat ? { repeat: true } : {}),
-                    },
-                  }
-                : {}),
-              payment: plan,
-            };
-            out.push(intent);
+            for (const costCards of picks) {
+              // Killing / returning the spell's own target makes it fizzle: not offered.
+              if (
+                costCards &&
+                (costCard?.kind === 'KILL' || costCard?.kind === 'RETURN') &&
+                targets?.some((t) => t.kind === 'object' && costCards.includes(t.id))
+              ) {
+                continue;
+              }
+              const intent: PlayCardIntent = {
+                type: 'PLAY_CARD',
+                playerId: pid,
+                cardInstanceId: obj.id,
+                ...(location ? { location } : {}),
+                ...(targets ? { targets } : {}),
+                ...(accelerate || repeat
+                  ? {
+                      additionalCosts: {
+                        ...(accelerate ? { accelerate: true } : {}),
+                        ...(repeat ? { repeat: true } : {}),
+                      },
+                    }
+                  : {}),
+                ...(costCards ? { costCards } : {}),
+                payment: plan,
+              };
+              out.push(intent);
+            }
           }
         }
       }

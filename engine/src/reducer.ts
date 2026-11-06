@@ -164,6 +164,8 @@ function shapeProblem(i: Obj): string | null {
       if (i.choices !== undefined && !isObj(i.choices)) return 'bad choices';
       if (i.additionalCosts !== undefined && !isObj(i.additionalCosts))
         return 'bad additionalCosts';
+      if (!(i.costCards === undefined || isIdList(i.costCards)))
+        return 'costCards must be a list of ids';
       return null;
     case 'ACTIVATE_RUNE':
       return isStr(i.runeId) && isMode(i.mode) ? null : 'runeId/mode required';

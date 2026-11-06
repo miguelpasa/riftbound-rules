@@ -254,9 +254,13 @@ describe('R42 converter wiring', () => {
     expect(ok?.repeatCost).toEqual({ energy: 2, power: 0 });
     const c = conv('Spell', '[Repeat] [1][C] (Reminder.)\nDraw 1.');
     expect(c?.repeatCost).toEqual({ energy: 1, power: 1 });
-    expect(conv('Spell', '[Repeat] — Discard 1 (Reminder.)\nReady a unit.')?.supportLevel).toBe(
-      'partial',
-    );
+    // R47: "Discard 1" is a card-choice Repeat cost; several costs stay partial
+    const sq = conv('Spell', '[Repeat] — Discard 1 (Reminder.)\nReady a unit.');
+    expect(sq?.supportLevel).toBe('full');
+    expect(sq?.repeatCost).toEqual({ energy: 0, power: 0, card: { kind: 'DISCARD' } });
+    expect(
+      conv('Spell', '[Repeat] — Discard 1, [1] (Reminder.)\nReady a unit.')?.supportLevel,
+    ).toBe('partial');
   });
 
   it('marks Gear that enters exhausted, and the result validates against the schema', () => {
@@ -405,5 +409,59 @@ describe('R44 converter wiring (Battlefield cards)', () => {
   it('does not give Units a battlefield-only head', () => {
     const unit = convertRow(row({ abilityEffective: 'When you hold here, draw 1.' })).card;
     expect(unit?.supportLevel).toBe('partial');
+  });
+});
+
+describe('R47 converter wiring: additional costs to play', () => {
+  const conv = (cardType: string, text: string) =>
+    convertRow(row({ cardType, cardTypeLabels: [cardType], abilityEffective: text })).card;
+  const validate = createCardValidator();
+
+  it('stores "As an additional cost to play this/me, <card cost>" and makes the card full', () => {
+    const ki = conv(
+      'Spell',
+      "[Action] (Play on your turn or in showdowns.)\nAs an additional cost to play this, exhaust a friendly unit.\n[Stun] a unit. (It doesn't deal combat damage this turn.)",
+    );
+    expect(ki?.supportLevel).toBe('full');
+    expect(ki?.additionalCost).toEqual({ card: { kind: 'EXHAUST' } });
+    expect(ki?.effects?.length).toBeGreaterThan(0);
+    expect(ki?.text).toContain('additional cost');
+    const sac = conv(
+      'Spell',
+      '[Reaction]\nAs an additional cost to play this, kill a friendly [Mighty] unit. (A unit is Mighty while it has 5+ [S].)\nDraw 2 and channel 1 rune exhausted.',
+    );
+    expect(sac?.additionalCost).toEqual({ card: { kind: 'KILL', what: 'unit', mighty: true } });
+    const ekko = conv(
+      'Unit',
+      "As an additional cost to play me, return a friendly unit to its owner's hand.\n[Ganking] (I can move from battlefield to battlefield.)",
+    );
+    expect(ekko?.supportLevel).toBe('full');
+    expect(ekko?.additionalCost).toEqual({ card: { kind: 'RETURN', what: 'unit' } });
+    const patron = conv('Unit', 'As an additional cost to play me, kill a friendly unit.');
+    expect(patron?.supportLevel).toBe('full');
+    expect(patron?.additionalCost?.card).toEqual({ kind: 'KILL', what: 'unit' });
+    const gearReturn = conv(
+      'Unit',
+      "As an additional cost to play me, return a friendly gear to its owner's hand.",
+    );
+    expect(gearReturn?.additionalCost?.card).toEqual({ kind: 'RETURN', what: 'gear' });
+    for (const c of [ki, sac, ekko, patron, gearReturn]) expect(validate(c)).toEqual([]);
+  });
+
+  it('keeps cards partial when the rest or the cost is not understood', () => {
+    // an unparsed effect sentence: partial, and no additionalCost is stored
+    const odd = conv(
+      'Spell',
+      'As an additional cost to play this, exhaust a friendly unit.\nSwap two things.',
+    );
+    expect(odd?.supportLevel).toBe('partial');
+    expect(odd?.additionalCost).toBeUndefined();
+    // a cost that is not a card choice (an Energy part, a Legend's reduction) is not parsed
+    expect(
+      conv('Unit', 'As an additional cost to play me, pay [2] and exhaust me.')?.supportLevel,
+    ).toBe('partial');
+    expect(
+      conv('Legend', 'As an additional cost to play a spell, you may exhaust me.')?.supportLevel,
+    ).toBe('partial');
   });
 });

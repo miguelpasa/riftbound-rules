@@ -16,7 +16,8 @@
         "count": { "type": "integer", "minimum": 2 },
         "what": { "enum": ["unit", "gear", "unitOrGear", "spell"] },
         "here": { "type": "boolean" },
-        "another": { "type": "boolean" }
+        "another": { "type": "boolean" },
+        "mighty": { "type": "boolean" }
       }
     }
   },
@@ -141,7 +142,17 @@
     "entersExhausted": { "type": "boolean" },
     "legionCostReduction": { "type": "integer", "minimum": 0 },
     "equipCost": { "type": "object" },
-    "repeatCost": { "type": "object" },
+    "repeatCost": {
+      "type": "object",
+      "properties": { "card": { "$ref": "#/definitions/costCardChoice" } }
+    },
+    "additionalCost": {
+      "description": "A required additional cost to play the card (R47).",
+      "type": "object",
+      "required": ["card"],
+      "additionalProperties": false,
+      "properties": { "card": { "$ref": "#/definitions/costCardChoice" } }
+    },
     "imageUrl": { "type": "string" }
   }
 }

@@ -682,10 +682,40 @@ function sentences(text: string): string[] {
 }
 
 /**
+ * R47: "As an additional cost to play this/me, <card-choice cost>." as a line of its own (a reminder in
+ * parentheses may follow, e.g. Sacrifice's "[Mighty]" explanation). The cost is any R46 card-choice phrase;
+ * "[Mighty]" before the noun restricts it to units with Might 5+. Returns the cost and the text without
+ * that line, or null when the text has no such line or the phrase is not a card-choice cost.
+ */
+export function parseAdditionalCost(text: string): { cost: CostCardChoice; rest: string } | null {
+  const re =
+    /(?:^|\n)[ \t]*As an additional cost to play (?:this|me),\s*([^.\n]+)\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
+  const m = re.exec(text);
+  if (!m) return null;
+  const phrase = (m[1] ?? '').trim();
+  const mighty = /\[Mighty\]\s*/i.test(phrase);
+  const cc = parseCostCard(phrase.replace(/\[Mighty\]\s*/i, ''));
+  if (!cc) return null;
+  if (mighty) cc.mighty = true;
+  return {
+    cost: cc,
+    rest: (text.slice(0, m.index) + '\n' + text.slice(m.index + m[0].length)).trim(),
+  };
+}
+
+/**
  * "[Repeat] [2]" / "[Repeat] [1][C]" / "[Repeat] [C]" (820, R42): the printed Repeat cost of a spell.
  * Null for other cost shapes ("Discard 1", several costs, [A]) so the card stays partial.
  */
-export function parseRepeatCost(text: string): { energy: number; power: number } | null {
+export function parseRepeatCost(
+  text: string,
+): { energy: number; power: number; card?: CostCardChoice } | null {
+  // R47: "[Repeat] — Discard 1" (a card-choice Repeat cost, nothing else).
+  const cm = /(?:^|\n)\s*\[Repeat\]\s*[—–-]\s*([^(\n]+?)\s*(?=\(|\n|$)/i.exec(text);
+  if (cm) {
+    const cc = parseCostCard((cm[1] ?? '').replace(/\.$/, ''));
+    return cc ? { energy: 0, power: 0, card: cc } : null;
+  }
   const m = /(?:^|\n)\s*\[Repeat\]\s*((?:\[[0-9C]+\]\s*)+)(?=\(|\n|$)/i.exec(text);
   if (!m) return null;
   let energy = 0;
@@ -702,6 +732,7 @@ export function parseRepeatCost(text: string): { energy: number; power: number }
 export function parseSpellText(text: string): CardEffect[] | null {
   const cleaned = protectGrants(text)
     .replace(/(?:^|\n)\s*\[Repeat\]\s*(?:\[[0-9C]+\]\s*)+/gi, '\n')
+    .replace(/(?:^|\n)\s*\[Repeat\]\s*[—–-][^(\n]*/gi, '\n')
     .replace(/\[(Action|Reaction|Hidden)\]/gi, ' ')
     .replace(/\[Stun\]/gi, 'Stun')
     .replace(TOKEN_WITH, '$1 with $2')

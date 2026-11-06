@@ -1,3 +1,4 @@
+import { costCardText } from '@riftbound/engine';
 import type { CardDef } from '@riftbound/engine';
 import { Card, PARTIAL_TOOLTIP, RulesText, type CardInstanceView } from './Card';
 import { keywordLabel, typeLine } from './cardStyles';
@@ -24,6 +25,11 @@ export function CardDetail({ def, instance }: { def: CardDef; instance?: CardIns
         <p className="mt-2 leading-relaxed">
           <RulesText text={def.text} />
         </p>
+        {def.additionalCost ? (
+          <p className="mt-2 text-amber-200" data-testid="additional-cost">
+            {`Additional cost to play: ${costCardText(def.additionalCost.card)}.`}
+          </p>
+        ) : null}
         {def.supportLevel === 'partial' ? (
           <p className="mt-2 text-amber-300">{PARTIAL_TOOLTIP}.</p>
         ) : null}

@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   parseBattlefieldAbilities,
   parseCardAbilities,
+  parseAdditionalCost,
   parseCondition,
+  parseRepeatCost,
   parseSpellText,
   parseTriggerText,
 } from './cardText.js';
@@ -823,5 +825,42 @@ describe('card-choice costs (R46)', () => {
     ).toEqual({ card: { kind: 'KILL', what: 'gear' }, exhaust: true });
     expect(parseCardAbilities('Discard 1, Kill a friendly unit: Draw 1.')).toBeNull(); // one choice only
     expect(parseCardAbilities('Banish a card, [E]: Draw 1.')).toBeNull();
+  });
+});
+
+describe('additional costs to play (R47)', () => {
+  it('parses the line and returns the text without it', () => {
+    // Tests Rule 357.1.a: additional costs are paid as part of playing the card
+    const r = parseAdditionalCost(
+      "[Action]\nAs an additional cost to play this, return a friendly unit to its owner's hand.\nDeal 5 to a unit at a battlefield.",
+    );
+    expect(r?.cost).toEqual({ kind: 'RETURN', what: 'unit' });
+    expect(r?.rest).toBe('[Action]\n\nDeal 5 to a unit at a battlefield.');
+    expect(parseAdditionalCost('Draw 1.')).toBeNull();
+  });
+
+  it('reads [Mighty], discards and counts; refuses other costs', () => {
+    // Tests Rule 357.1.a: additional costs are paid as part of playing the card
+    expect(
+      parseAdditionalCost('As an additional cost to play me, kill a friendly [Mighty] unit.')?.cost,
+    ).toEqual({ kind: 'KILL', what: 'unit', mighty: true });
+    expect(parseAdditionalCost('As an additional cost to play this, discard 2.')?.cost).toEqual({
+      kind: 'DISCARD',
+      count: 2,
+    });
+    expect(parseAdditionalCost('As an additional cost to play this, pay [2].')).toBeNull();
+    // an enemy choice is an effect, not a cost
+    expect(parseAdditionalCost('As an additional cost to play this, kill a unit.')).toBeNull();
+  });
+
+  it('parses a card-choice Repeat cost', () => {
+    // Tests Rule 357.1.a: additional costs are paid as part of playing the card
+    expect(
+      parseRepeatCost('[Repeat] — Discard 1 (You may pay the additional cost.)\nDraw 1.'),
+    ).toEqual({ energy: 0, power: 0, card: { kind: 'DISCARD' } });
+    expect(parseRepeatCost('[Repeat] [2]')).toEqual({ energy: 2, power: 0 });
+    expect(parseSpellText('[Repeat] — Discard 1 (x)\nDraw 1.')).toEqual([
+      { op: 'DRAW', amount: 1 },
+    ]);
   });
 });

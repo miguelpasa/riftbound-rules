@@ -382,6 +382,8 @@ export interface CostCardChoice {
   here?: boolean;
   /** Board kinds: not the ability's own source ("another friendly unit"). */
   another?: boolean;
+  /** R47: only [Mighty] units qualify ("kill a friendly [Mighty] unit": Might 5 or more). */
+  mighty?: boolean;
 }
 
 /** When a triggered ability fires (R5). */
@@ -490,7 +492,12 @@ export interface CardDef {
    * Repeat cost of a spell (820, R42): an optional additional cost; paying it runs the spell's
    * effects one more time on resolution. `energy` is [N]; `power` counts [C] (Power of the spell's Domain).
    */
-  repeatCost?: { energy: number; power: number };
+  repeatCost?: { energy: number; power: number; card?: CostCardChoice };
+  /**
+   * R47: "As an additional cost to play this/me, <card-choice cost>." A REQUIRED additional cost: the
+   * player picks the cards in `PLAY_CARD.costCards`; a card whose cost cannot be met is not playable.
+   */
+  additionalCost?: { card: CostCardChoice };
   /** Equip cost of Equipment (rule 818); absent = free (no parsable cost). */
   equipCost?: EquipCost;
   imageUrl?: string;
