@@ -162,6 +162,8 @@ function shapeProblem(i: Obj): string | null {
         return 'bad targets';
       }
       if (i.choices !== undefined && !isObj(i.choices)) return 'bad choices';
+      if (i.mode !== undefined && !(Number.isInteger(i.mode) && (i.mode as number) >= 0))
+        return 'bad mode';
       if (i.additionalCosts !== undefined && !isObj(i.additionalCosts))
         return 'bad additionalCosts';
       if (!(i.costCards === undefined || isIdList(i.costCards)))

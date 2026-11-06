@@ -512,6 +512,12 @@ function playTokens(
   }
 }
 
+/** The effects a spell runs: the chosen mode of a modal spell (R59), else its plain effects. */
+export function spellEffects(def: CardDef, mode?: number): CardEffect[] | undefined {
+  if (def.modes) return mode === undefined ? undefined : def.modes[mode];
+  return def.effects;
+}
+
 export function runEffects(
   state: GameState,
   controller: PlayerId,

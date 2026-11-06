@@ -153,6 +153,12 @@
       "additionalProperties": false,
       "properties": { "card": { "$ref": "#/definitions/costCardChoice" } }
     },
+    "modes": {
+      "description": "Modal spell: the effects of each mode (Choose one), R59.",
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "array", "items": { "type": "object" } }
+    },
     "optionalAdditionalCost": {
       "description": "You may pay this as an additional cost to play the card (R58).",
       "type": "object",

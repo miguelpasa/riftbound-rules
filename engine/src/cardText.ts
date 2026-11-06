@@ -864,6 +864,32 @@ export function parseOptionalAdditionalCost(text: string): {
   };
 }
 
+/**
+ * R59: a modal spell: a line "Choose one —" followed by lines "- <effects>". Each mode is parsed like a
+ * spell; null unless there are at least two modes, every mode parses, and nothing else but keyword
+ * lines (Action / Reaction) is left. The mode is chosen when the card is played.
+ */
+export function parseModalSpell(text: string): CardEffect[][] | null {
+  const lines = text
+    .replace(/\([^)]*\)/g, ' ')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const head = lines.findIndex((l) => /^Choose one\s*[—–-]\s*$/i.test(l));
+  if (head < 0) return null;
+  const modes: CardEffect[][] = [];
+  for (const l of lines.slice(head + 1)) {
+    const m = /^[-•–—]\s*(.+)$/.exec(l);
+    if (!m) return null;
+    const eff = parseSpellText(m[1] as string);
+    if (!eff || eff.length === 0) return null;
+    modes.push(eff);
+  }
+  const before = lines.slice(0, head).join('\n');
+  if (before && !/^(?:\[(?:Action|Reaction|Hidden)\]\s*)+$/i.test(before)) return null;
+  return modes.length >= 2 ? modes : null;
+}
+
 const COST_PER: [RegExp, CostCount][] = [
   [/^exhausted units? you control$/i, 'EXHAUSTED_UNIT'],
   [/^gear you control$/i, 'GEAR'],

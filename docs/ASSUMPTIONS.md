@@ -211,3 +211,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Only kept when used:** a card gets the optional cost only when its text also has an "if you paid the additional cost" clause; otherwise the line keeps the card partial (nothing to gain from paying).
 - **Not done:** "if you paid the additional cost, deal 5 to it instead" (replacement effects of spells), "If you paid ... , they cost [1][A] more instead", conditional costs ("If you've played a spell this turn, you may pay ..." Crescent Guardian), required Energy/Power additional costs.
 - **Rule numbers:** tests cite 356.2 only.
+
+## R59: modal spells ("Choose one —") (A-R59)
+
+- **Model:** `CardDef.modes` holds the effects of each mode; `PLAY_CARD.mode` picks one when the card is played (like a target), the chain item keeps it, and only that mode's effects run. Targets are enumerated and validated per mode. Legal actions list one play variant per mode (and per target / payment variant of that mode).
+- **Scope:** spells whose text is "Choose one —" followed by lines "- <effects>" (each mode parses as a spell). Modal abilities and triggers ("When I become exhausted, choose one ..."), "choose one that hasn't been chosen this turn", "Choose one you haven't already chosen" and modes with unparsed effects keep the card partial.
+- **Client:** each mode is another entry in the play chooser, labelled "Mode N" (the card text shows what each mode does); there is no dedicated mode picker yet.
+- **Rule numbers:** tests cite 356 and 359 only.

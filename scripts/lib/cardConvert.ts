@@ -11,6 +11,7 @@ import {
   parseCardAbilities,
   parseRepeatCost,
   parseSelfCostReduction,
+  parseModalSpell,
   parseOptionalAdditionalCost,
   parseStaticLines,
   parseSpellText,
@@ -319,7 +320,12 @@ export function convertRow(row: RawRow): ConvertResult {
         MVP_SET.has(k.name) || (k.name === 'Repeat' && repeatCost !== null) || k.name === 'Predict',
     )
   ) {
-    const effects = parseSpellText(text);
+    const modes = parseModalSpell(text);
+    if (modes) {
+      card.modes = modes;
+      card.supportLevel = 'full';
+    }
+    const effects = modes ? null : parseSpellText(text);
     if (effects) {
       card.effects = effects;
       if (repeatCost) card.repeatCost = repeatCost;

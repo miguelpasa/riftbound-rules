@@ -42,7 +42,7 @@ export function playVariants(legal: readonly Intent[], cardInstanceId: string): 
   for (const i of legal) {
     if (i.type !== 'PLAY_CARD' || i.cardInstanceId !== cardInstanceId) continue;
     const tgt = (i.targets ?? []).map((t) => (t.kind === 'object' ? t.id : '')).join(',');
-    const key = `${i.location ? destKey(i.location) : '-'}|${i.additionalCosts?.accelerate ? 'acc' : ''}${i.additionalCosts?.repeat ? 'rep' : ''}${i.additionalCosts?.extra ? 'ext' : ''}|${tgt}`;
+    const key = `${i.location ? destKey(i.location) : '-'}|${i.additionalCosts?.accelerate ? 'acc' : ''}${i.additionalCosts?.repeat ? 'rep' : ''}${i.additionalCosts?.extra ? 'ext' : ''}${i.mode !== undefined ? `m${i.mode}` : ''}|${tgt}`;
     if (seen.has(key)) continue; // first matching payment wins
     seen.add(key);
     out.push(i);
@@ -96,6 +96,7 @@ export function variantLabel(
   if (intent.additionalCosts?.repeat)
     parts.push('Repeat (pay the Repeat cost, effect happens twice)');
   if (intent.additionalCosts?.extra) parts.push('Pay the additional cost');
+  if (intent.mode !== undefined) parts.push(`Mode ${intent.mode + 1}`);
   for (const t of intent.targets ?? []) {
     if (t.kind !== 'object') continue;
     const o = view.objects[t.id];
@@ -205,7 +206,7 @@ export interface TargetStep {
 
 function exactKey(v: TargetedIntent): string {
   return v.type === 'PLAY_CARD'
-    ? `${v.location ? destKey(v.location) : '-'}|${v.additionalCosts?.accelerate ? 'acc' : ''}${v.additionalCosts?.repeat ? 'rep' : ''}${v.additionalCosts?.extra ? 'ext' : ''}`
+    ? `${v.location ? destKey(v.location) : '-'}|${v.additionalCosts?.accelerate ? 'acc' : ''}${v.additionalCosts?.repeat ? 'rep' : ''}${v.additionalCosts?.extra ? 'ext' : ''}${v.mode !== undefined ? `m${v.mode}` : ''}`
     : '';
 }
 

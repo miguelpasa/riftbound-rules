@@ -48,6 +48,8 @@ export interface ChainItem {
   optionalDecision?: 'ACCEPT' | 'DECLINE';
   /** Additional costs chosen (Accelerate). */
   additionalCosts?: { accelerate?: boolean; repeat?: boolean; extra?: boolean };
+  /** R59: the chosen mode of a modal spell. */
+  mode?: number;
 }
 
 export interface ShowdownState {

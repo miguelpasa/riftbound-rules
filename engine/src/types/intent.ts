@@ -34,6 +34,8 @@ export interface PlayCardIntent extends IntentBase {
   location?: PlayLocation;
   targets?: Target[];
   choices?: Record<string, ChoiceValue>;
+  /** R59: which mode of a modal spell (index into CardDef.modes). */
+  mode?: number;
   /** Accelerate (units) and Repeat (spells with a Repeat cost, 820) are optional additional costs. */
   additionalCosts?: { accelerate?: boolean; repeat?: boolean; extra?: boolean };
   /**

@@ -21,7 +21,7 @@
  * cardId, see docs/ASSUMPTIONS.md); Hidden uses HIDE_CARD, not this pipeline.
  */
 import { cloneState, fork } from './workingCopy.js';
-import { runEffects, spellTargetsLegal } from './effects.js';
+import { runEffects, spellEffects, spellTargetsLegal } from './effects.js';
 import { canPlayNow, finalizeAndSettle, pushPendingItem } from './chain.js';
 import type { ChainResolver } from './chain.js';
 import { computeTotalCost, payCost } from './resources.js';
@@ -296,7 +296,14 @@ export const playResolver: ChainResolver = (state, item, cards) => {
     const times = item.additionalCosts?.repeat === true ? 2 : 1;
     for (let i = 0; i < times; i++) {
       events.push(
-        ...runEffects(s, item.controller, def.effects ?? [], cards, item.targets, obj.cardId),
+        ...runEffects(
+          s,
+          item.controller,
+          spellEffects(def, item.mode) ?? [],
+          cards,
+          item.targets,
+          obj.cardId,
+        ),
       );
     }
   }
@@ -373,7 +380,18 @@ export function playCard(
   }
 
   // Spells with targeted effects need a legal unit target (R2).
-  if (def.type === 'SPELL' && !spellTargetsLegal(state, cards, pid, def.effects, targets)) {
+  // R59: a modal spell needs a valid mode; other cards take none.
+  if (def.modes) {
+    if (intent.mode === undefined || !def.modes[intent.mode]) {
+      return ruleError('MISSING_TARGET', 'choose a mode');
+    }
+  } else if (intent.mode !== undefined) {
+    return ruleError('KEYWORD_RESTRICTION', 'this card has no modes');
+  }
+  if (
+    def.type === 'SPELL' &&
+    !spellTargetsLegal(state, cards, pid, spellEffects(def, intent.mode), targets)
+  ) {
     return ruleError('ILLEGAL_TARGET', 'this spell needs legal targets (355.10)');
   }
 
@@ -472,6 +490,7 @@ export function playCard(
     status: 'PENDING',
     targets: cloneState(targets),
     choices: cloneState(intent.choices ?? {}),
+    ...(intent.mode !== undefined ? { mode: intent.mode } : {}),
     ...(def.type === 'SPELL' && def.supportLevel === 'partial' && !def.effects?.length
       ? { unimplementedEffect: true }
       : {}),
