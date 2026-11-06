@@ -38,6 +38,7 @@ import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import type { CostMod, TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { defWithGrants } from './statics.js';
+import { recordDeath } from './conditions.js';
 import { DEFERRED_KEYWORDS, MVP_KEYWORDS, playerIndex, ruleError } from './types/index.js';
 import type {
   ChainItem,
@@ -140,6 +141,7 @@ export function temporaryOnBeginning(
   for (const o of doomed) {
     const from = s.players[playerIndex(o.zone.player)];
     from.base = from.base.filter((id) => id !== o.id);
+    recordDeath(s, cards, o.controller); // R56
     if (cards[o.cardId]?.type === 'TOKEN') {
       removeTokenFromGame(s, o.id); // 186.1: tokens cease to exist outside the Board
       events.push({ type: 'UNIT_KILLED', unitId: o.id });

@@ -106,6 +106,11 @@ export interface PlayerState {
   /** R53: XP (Hunt, Level); absent until first gained (= 0). Public. */
   xp?: number;
   /**
+   * R56: units of this player that died during turn `turn` ("a unit died this turn"). Only recorded when a
+   * card in the database asks (see conditions.ts `recordDeath`), so games without such cards are unchanged.
+   */
+  diedThisTurn?: { turn: number; count: number };
+  /**
    * Cards this player played (PLAY_CARD, Hidden plays included) during turn `turn` (Legion, 812).
    * A record from an earlier turn counts as nothing, so the counter resets at the start of each turn
    * without a reset step. Object ids of public plays only (CARD_PLAYED is public too).

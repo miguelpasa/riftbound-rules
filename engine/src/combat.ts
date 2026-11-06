@@ -51,6 +51,7 @@
  */
 import { fork } from './workingCopy.js';
 import { defWithGrants, staticBonus } from './statics.js';
+import { recordDeath } from './conditions.js';
 import { attachedMightBonus, removeTokenFromGame } from './keywords.js';
 import { syncTurnState } from './chain.js';
 import { onConquer as scoringOnConquer } from './scoring.js';
@@ -482,6 +483,7 @@ export function killLethalUnits(state: GameState, cards: CardDatabase): GameEven
     if (o.damage <= 0 || o.damage < Math.max(1, effectiveMight(state, cards, id))) continue;
     const ps = state.players[playerIndex(o.controller)];
     ps.base = ps.base.filter((x) => x !== id);
+    recordDeath(state, cards, o.controller); // R56
     if (def.type === 'TOKEN') {
       // 186.1: a token outside the Board ceases to exist; it does not go to the trash.
       removeTokenFromGame(state, id);

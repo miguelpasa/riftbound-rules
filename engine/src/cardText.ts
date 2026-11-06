@@ -843,6 +843,19 @@ const COST_PER: [RegExp, CostCount][] = [
 export function parseSelfCostReduction(
   text: string,
 ): { reduction: CostReduction; rest: string } | null {
+  // R56: the reversed form "If <condition>, this costs [N] less."
+  const rev =
+    /(?:^|\n)[ \t]*If ([^.\n]+?), (?:this costs|I cost) \[(\d+)\] less\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i.exec(
+      text,
+    );
+  if (rev) {
+    const when = parseCondition(rev[1] ?? '');
+    if (!when) return null;
+    return {
+      reduction: { energy: Number(rev[2]), when },
+      rest: (text.slice(0, rev.index) + '\n' + text.slice(rev.index + rev[0].length)).trim(),
+    };
+  }
   const re =
     /(?:^|\n)[ \t]*(?:I cost|This costs) \[(\d+)\] less (?:for each ([^.\n,]+?)(?:, to a minimum of \[(\d+)\])?|if ([^.\n]+?))\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
   const m = re.exec(text);
@@ -1125,12 +1138,21 @@ const numberOf = (w: string | undefined): number | null => {
  * Anything else is null, which keeps the card partial.
  */
 export function parseCondition(raw: string): Condition | null {
+  let m0: RegExpExecArray | null;
   const text = raw
     .trim()
     .replace(/[.\s]+$/, '')
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
+  m0 = /^(?:an? )?(friendly|enemy)? ?unit (?:has )?died this turn$/i.exec(text);
+  if (m0) {
+    const who = (m0[1] ?? '').toLowerCase();
+    return {
+      kind: 'DIED_THIS_TURN',
+      who: who === 'friendly' ? 'friendly' : who === 'enemy' ? 'enemy' : 'any',
+    };
+  }
   if (/^there['’]?s? (?:is )?an enemy unit alone (?:here|at that battlefield)$/i.test(text)) {
     return { kind: 'COUNT', what: 'unit', where: 'here', who: 'enemy', cmp: 'EQ', n: 1 };
   }
@@ -1455,7 +1477,7 @@ export function parseCardAbilities(
       cur = null;
       continue;
     }
-    const erc = /^I enter ready if (.+)$/i.exec(sen);
+    const erc = /^I enter ready if (.+)$/i.exec(sen) ?? /^If (.+?), I enter ready$/i.exec(sen);
     if (erc && !legion) {
       const when = parseCondition(erc[1] as string);
       if (!when) return null;

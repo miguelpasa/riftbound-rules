@@ -190,3 +190,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Deterministic policy (no choice UI yet, like LOOK_TOP):** a looked-at card stays on top, in its original order, when its printed Energy cost is at most (your channeled runes + 2); the others are recycled to the bottom. Players cannot choose; a Predict-heavy deck is slightly weaker or stronger than the real game depending on the heuristic. Hidden information is preserved: the opponent only sees CARDS_LOOKED_AT / CARDS_RECYCLED counts.
 - **Not done:** the interactive choice (pick what to recycle and the order), "Predict equal to its Power cost" (The Empyrean, needs Show Off), "they [Predict]" for each player (Rakelstake), "When I become exhausted, [Predict]" (no exhausted trigger).
 - **Rule numbers:** tests cite 359 only.
+
+## R56: "a unit died this turn" and reversed "If <cond>, ..." forms (A-R56)
+
+- **Tracking:** `PlayerState.diedThisTurn {turn, count}` counts units (tokens included) that died under that player's control during the given turn: lethal damage in Cleanup and Temporary expiry. Gear deaths are not tracked, so "unit or gear died" (Lingering Animus) stays partial. It is recorded only when some card in the database uses the condition, so ordinary games (and the pinned replay hashes) are unchanged.
+- **Conditions:** "a unit died this turn" (either side), "a friendly unit died this turn", "an enemy unit has died this turn". "During your Beginning Phase" qualifiers (Shadow Watcher) are not parsed.
+- **Reversed forms:** "If <condition>, I enter ready." and "If <condition>, this costs [N] less." are read like their "... if ..." forms.
+- **Rule numbers:** tests cite 323 only; none checked against rule text.

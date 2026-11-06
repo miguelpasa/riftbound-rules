@@ -28,6 +28,33 @@ const compare = (value: number, cmp: CountCmp, n: number): boolean =>
 const onBoard = (o: CardInstance): boolean =>
   o.zone.kind === 'base' || o.zone.kind === 'battlefield';
 
+const trackedDb = new WeakMap<CardDatabase, boolean>();
+
+/** True when some card in the database has a "died this turn" condition (deaths are recorded only then). */
+function tracksDeaths(cards: CardDatabase): boolean {
+  let v = trackedDb.get(cards);
+  if (v === undefined) {
+    v = Object.values(cards).some((d) =>
+      JSON.stringify([d.entersReadyWhen, d.triggers, d.statics, d.costReduction]).includes(
+        'DIED_THIS_TURN',
+      ),
+    );
+    trackedDb.set(cards, v);
+  }
+  return v;
+}
+
+/** R56: note that a unit controlled by `controller` died (mutates; no-op unless a card needs it). */
+export function recordDeath(state: GameState, cards: CardDatabase, controller: PlayerId): void {
+  if (!tracksDeaths(cards)) return;
+  const ps = state.players[playerIndex(controller)] as GameState['players'][number];
+  const rec = ps.diedThisTurn;
+  ps.diedThisTurn =
+    rec && rec.turn === state.turn.number
+      ? { turn: rec.turn, count: rec.count + 1 }
+      : { turn: state.turn.number, count: 1 };
+}
+
 export function evalCondition(
   state: GameState,
   cards: CardDatabase,
@@ -40,6 +67,20 @@ export function evalCondition(
       return hereOfSource(state, sourceId) !== null;
     case 'XP':
       return (state.players[playerIndex(controller)]?.xp ?? 0) >= cond.n;
+    case 'DIED_THIS_TURN': {
+      const died = (p: PlayerId): number => {
+        const rec = state.players[playerIndex(p)]?.diedThisTurn;
+        return rec && rec.turn === state.turn.number ? rec.count : 0;
+      };
+      const other: PlayerId = controller === 'p0' ? 'p1' : 'p0';
+      const n =
+        cond.who === 'friendly'
+          ? died(controller)
+          : cond.who === 'enemy'
+            ? died(other)
+            : died(controller) + died(other);
+      return n > 0;
+    }
     case 'BUFFED':
       return state.objects[sourceId]?.buffed === true;
     case 'EMPOWERED':
