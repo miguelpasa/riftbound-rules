@@ -178,7 +178,42 @@ describe('parseTriggerText: widened coverage (R3)', () => {
     expect(parseTriggerText('When I hold, you score 1 point.')).toEqual([
       { on: 'HOLD', effects: [{ op: 'GAIN_POINT', amount: 1 }] },
     ]);
-    expect(parseTriggerText('When you play me, stun a unit.')).toBeNull();
+    expect(parseTriggerText('When you play me, stun a unit.')).toEqual([
+      { on: 'PLAY', effects: [{ op: 'STUN_TARGET' }] },
+    ]);
+  });
+});
+
+describe('targeted triggers and abilities (R41)', () => {
+  it('parses "When you play me, give a unit +N" and the other chooser sentences', () => {
+    // Tests Rule 355.10: targets are chosen when the ability is put on the Chain
+    expect(parseTriggerText('When you play me, give a unit +2 [M] this turn.')).toEqual([
+      { on: 'PLAY', effects: [{ op: 'BUFF_TARGET', amount: 2, duration: 'TURN' }] },
+    ]);
+    expect(parseTriggerText('When you play me, give an enemy unit -3 [M] this turn.')).toEqual([
+      { on: 'PLAY', effects: [{ op: 'DEBUFF_TARGET', amount: 3, side: 'enemy' }] },
+    ]);
+    expect(parseTriggerText('[Deathknell][>] Deal 4 to an enemy unit.')).toEqual([
+      { on: 'DEATH', effects: [{ op: 'DAMAGE_TARGET', amount: 4, side: 'enemy' }] },
+    ]);
+    expect(parseTriggerText('When you play me, deal 1 to each of up to 2 units.')?.[0]).toEqual({
+      on: 'PLAY',
+      effects: [{ op: 'DAMAGE_TARGET', amount: 1, count: { min: 0, max: 2 } }],
+    });
+  });
+
+  it('parses Legion-conditioned and activated targeted abilities', () => {
+    // Tests Rule 145.1: an activated ability may choose targets
+    const r = parseCardAbilities('[Legion] — When you play me, give a unit +2 [M] this turn.');
+    expect(r?.triggers[0]).toMatchObject({ on: 'PLAY', condition: 'LEGION' });
+    const a = parseCardAbilities('I enter ready.\n[E]: Give a unit +3 [M] this turn.');
+    expect(a?.entersReady).toBe(true);
+    expect(a?.abilities).toEqual([
+      { cost: { exhaust: true }, effects: [{ op: 'BUFF_TARGET', amount: 3, duration: 'TURN' }] },
+    ]);
+    expect(parseCardAbilities('[E]: [Stun] an enemy unit.')?.abilities[0]?.effects).toEqual([
+      { op: 'STUN_TARGET', side: 'enemy' },
+    ]);
   });
 });
 
@@ -202,9 +237,10 @@ describe('parseTriggerText', () => {
     ]);
   });
 
-  it('refuses targeted or unknown trigger effects', () => {
+  it('refuses unknown trigger effects', () => {
     // Tests Rule 359.3: never half-execute an ability
-    expect(parseTriggerText('When you play me, give a unit +1 [M] this turn.')).toBeNull();
+    expect(parseTriggerText('When you play me, give a unit +1 [M] this turn. Fly away.')).toBeNull();
+    expect(parseTriggerText('When you play me, choose a unit.')).toBeNull(); // chosen, never used
     expect(parseTriggerText('When you play me, draw 1. I enter ready.')).toBeNull();
     expect(parseTriggerText('I enter ready.')).toBeNull();
   });
@@ -430,7 +466,7 @@ describe('parseCardAbilities (R38)', () => {
     expect(parseCardAbilities('[E]: [Action] — [Add] [A][A].')).toBeNull();
     expect(parseCardAbilities('[E]: [Reaction] — [Add] [2]. Use only to play spells.')).toBeNull();
     expect(parseCardAbilities('Kill a friendly unit or gear, [E]: [Add] [A].')).toBeNull();
-    expect(parseCardAbilities('[E]: Give a unit +3 [M] this turn.')).toBeNull(); // needs a target
+    expect(parseCardAbilities('[E]: Give a unit +3 [M] this turn. Then fly.')).toBeNull();
   });
 
   it('parses Legion forms', () => {

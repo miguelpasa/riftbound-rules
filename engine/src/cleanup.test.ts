@@ -138,7 +138,7 @@ describe('runCleanup', () => {
     }
     const r = run(s);
     expect(r.state.flow.showdown).toBeUndefined();
-    expect(r.state.flow.pendingChoice?.options).toEqual([bfId(s, 0), bfId(s, 1)]);
+    expect((r.state.flow.pendingChoice as { options: string[] } | undefined)?.options).toEqual([bfId(s, 0), bfId(s, 1)]);
     expect(r.state.flow.stagedShowdowns).toEqual([bfId(s, 0), bfId(s, 1)]);
   });
 

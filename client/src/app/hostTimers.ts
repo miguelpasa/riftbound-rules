@@ -129,7 +129,7 @@ export class HostTimers {
     if (!res || !res.ok) {
       const legal = session.getLegal(info.player);
       const fb =
-        legal.find((i) => i.type === 'CHOOSE_STAGED') ?? // lowest index (R11 timeout default)
+        legal.find((i) => i.type === 'CHOOSE_STAGED' || i.type === 'CHOOSE_TRIGGER_TARGET') ?? // lowest index (R11 / R41 timeout default)
         legal.find((i) => i.type === 'PASS_PRIORITY' || i.type === 'END_TURN') ??
         legal.find((i) => i.type === 'MULLIGAN' && i.cardIds.length === 0);
       res = fb ? session.forceIntent(info.player, fb) : res;

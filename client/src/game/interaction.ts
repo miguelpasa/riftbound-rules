@@ -5,7 +5,9 @@
  */
 import { isHiddenCard } from '@riftbound/engine';
 import type {
+  ActivateAbilityIntent,
   CardDatabase,
+  ChooseTriggerTargetIntent,
   ClientGameState,
   Intent,
   PlayLocation,
@@ -17,6 +19,8 @@ export type PlayIntent = Extract<Intent, { type: 'PLAY_CARD' }>;
 export type MoveIntent = Extract<Intent, { type: 'STANDARD_MOVE' }>;
 export type HideIntent = Extract<Intent, { type: 'HIDE_CARD' }>;
 export type EquipIntent = Extract<Intent, { type: 'EQUIP' }>;
+/** Intents that carry chosen object targets: a played spell, an activated ability, a trigger's targets (R41). */
+export type TargetedIntent = PlayIntent | ActivateAbilityIntent | ChooseTriggerTargetIntent;
 
 /** 'base' or a battlefield id. */
 export type DestKey = string;
@@ -104,7 +108,7 @@ export function variantLabel(
 
 // ------------------------------------------------------------------ click-to-target
 
-const objectTargetIds = (i: PlayIntent): string[] =>
+const objectTargetIds = (i: TargetedIntent): string[] =>
   (i.targets ?? []).flatMap((t) => (t.kind === 'object' ? [t.id] : []));
 
 /**
@@ -118,9 +122,16 @@ export function targetedVariants(
   cardInstanceId: string,
   view: ClientGameState,
 ): PlayIntent[] {
-  const all = legal.filter(
-    (i): i is PlayIntent => i.type === 'PLAY_CARD' && i.cardInstanceId === cardInstanceId,
+  return drivable(
+    legal.filter(
+      (i): i is PlayIntent => i.type === 'PLAY_CARD' && i.cardInstanceId === cardInstanceId,
+    ),
+    view,
   );
+}
+
+/** Do all variants carry at least one target and only public objects in play? Otherwise [] (popover flow). */
+function drivable<T extends TargetedIntent>(all: T[], view: ClientGameState): T[] {
   if (all.length === 0) return [];
   for (const v of all) {
     const targets = v.targets ?? [];
@@ -134,26 +145,66 @@ export function targetedVariants(
   return all;
 }
 
+/** Legal variants of one targeted activated ability (R41); [] when the board cannot drive it. */
+export function abilityTargetedVariants(
+  legal: readonly Intent[],
+  sourceId: string,
+  abilityIndex: number,
+  view: ClientGameState,
+): ActivateAbilityIntent[] {
+  return drivable(
+    legal.filter(
+      (i): i is ActivateAbilityIntent =>
+        i.type === 'ACTIVATE_ABILITY' && i.sourceId === sourceId && i.abilityIndex === abilityIndex,
+    ),
+    view,
+  );
+}
+
+/** Legal answers to a pending trigger-target choice (R41); [] when the board cannot drive it. */
+export function triggerTargetVariants(
+  legal: readonly Intent[],
+  chainItemId: string,
+  view: ClientGameState,
+): ChooseTriggerTargetIntent[] {
+  return drivable(
+    legal.filter(
+      (i): i is ChooseTriggerTargetIntent =>
+        i.type === 'CHOOSE_TRIGGER_TARGET' && i.chainItemId === chainItemId,
+    ),
+    view,
+  );
+}
+
 export interface TargetStep {
   /** Largest number of targets any variant takes. */
   total: number;
   /** Units that can be picked next: they follow `chosen` as a prefix in some variant. */
   candidates: Set<string>;
   /** Distinct (location x accelerate) variants whose targets are exactly `chosen`. */
-  exact: PlayIntent[];
+  exact: TargetedIntent[];
 }
 
-export function targetStep(variants: readonly PlayIntent[], chosen: readonly string[]): TargetStep {
+function exactKey(v: TargetedIntent): string {
+  return v.type === 'PLAY_CARD'
+    ? `${v.location ? destKey(v.location) : '-'}|${v.additionalCosts?.accelerate ? 'acc' : ''}`
+    : '';
+}
+
+export function targetStep(
+  variants: readonly TargetedIntent[],
+  chosen: readonly string[],
+): TargetStep {
   let total = 0;
   const candidates = new Set<string>();
-  const exact: PlayIntent[] = [];
+  const exact: TargetedIntent[] = [];
   const seen = new Set<string>();
   for (const v of variants) {
     const ids = objectTargetIds(v);
     total = Math.max(total, ids.length);
     if (ids.length < chosen.length || !chosen.every((c, k) => ids[k] === c)) continue;
     if (ids.length === chosen.length) {
-      const key = `${v.location ? destKey(v.location) : '-'}|${v.additionalCosts?.accelerate ? 'acc' : ''}`;
+      const key = exactKey(v);
       if (chosen.length > 0 && !seen.has(key)) {
         seen.add(key);
         exact.push(v);

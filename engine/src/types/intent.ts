@@ -74,6 +74,15 @@ export interface ChooseStagedIntent extends IntentBase {
   type: 'CHOOSE_STAGED';
   battlefieldId: string;
 }
+/**
+ * Answer to a flow.pendingChoice of kind TRIGGER_TARGET (R41): the controller of a triggered ability
+ * picks its targets (object targets only, validated like a spell's).
+ */
+export interface ChooseTriggerTargetIntent extends IntentBase {
+  type: 'CHOOSE_TRIGGER_TARGET';
+  chainItemId: string;
+  targets: Target[];
+}
 export interface ConcedeIntent extends IntentBase {
   type: 'CONCEDE';
 }
@@ -90,6 +99,7 @@ export type Intent =
   | ActivateAbilityIntent
   | EquipIntent
   | ChooseStagedIntent
+  | ChooseTriggerTargetIntent
   | ConcedeIntent;
 
 export type IntentType = Intent['type'];

@@ -8,11 +8,20 @@
  *  - DEATH (Deathknell): fires for a unit that died (UNIT_KILLED) and sits in its owner's Trash.
  * The turn player's triggers are added first, the other player's after, so the other player's
  * resolve first (last in, first out). The player who does not control the top item gets Priority.
+ *
+ * Targets (R41): a trigger whose effects choose targets has them chosen as it is put on the Chain
+ * (the controller picks, as for a spell). With no legal target the ability is not put on the Chain
+ * (TRIGGER_NO_TARGET); with exactly one legal choice it is taken automatically (TRIGGER_TARGETED);
+ * otherwise the item waits as PENDING and flow.pendingChoice {kind:'TRIGGER_TARGET'} asks its
+ * controller (CHOOSE_TRIGGER_TARGET, `chooseTriggerTarget`) before anyone else may act. Resolution
+ * re-checks the targets and fizzles when they are illegal (runEffects).
  */
 import { fork } from './workingCopy.js';
 import { deriveTurnState } from './chain.js';
 import { allocObjectId, stampEvents } from './setup.js';
+import { abilityTargetsLegal, enumerateSpellTargets } from './effects.js';
 import { legionActive } from './keywords.js';
+import { ruleError } from './types/index.js';
 import type {
   CardDatabase,
   CardInstance,
@@ -20,7 +29,11 @@ import type {
   GameEvent,
   GameEventInput,
   GameState,
+  CardEffect,
+  ChooseTriggerTargetIntent,
   PlayerId,
+  ReduceResult,
+  Target,
   TriggerKind,
 } from './types/index.js';
 
@@ -84,26 +97,116 @@ export function fireTriggers(
     ...pending.filter((p) => p.controller !== active),
   ];
   const raw: GameEventInput[] = [];
+  let added = 0;
   for (const p of ordered) {
+    const effects = cards[p.source.cardId]?.triggers?.[p.index]?.effects;
+    const choices = enumerateSpellTargets(s, cards, p.controller, effects);
+    if (choices !== null && choices.length === 0) {
+      raw.push({ type: 'TRIGGER_NO_TARGET', player: p.controller, sourceId: p.source.id });
+      continue;
+    }
+    const auto = choices !== null && choices.length === 1 ? (choices[0] as Target[]) : undefined;
     const item: ChainItem = {
       id: allocObjectId(s),
       kind: 'ABILITY',
       sourceObjectId: p.source.id,
       controller: p.controller,
-      status: 'FINALIZED',
-      targets: [],
+      status: choices !== null && auto === undefined ? 'PENDING' : 'FINALIZED',
+      targets: auto ?? [],
       choices: {},
       triggered: true,
       triggerIndex: p.index,
     };
     s.flow.chain.push(item);
+    added++;
     raw.push({ type: 'CHAIN_ITEM_ADDED', chainItemId: item.id, controller: p.controller });
+    if (auto) {
+      raw.push({
+        type: 'TRIGGER_TARGETED',
+        player: p.controller,
+        sourceId: p.source.id,
+        targets: auto,
+      });
+    }
   }
+  if (added === 0) return { state: s, events: stampEvents(s, raw) };
   // Same convention as played cards: the controller of the top item has implicitly passed, so
   // the other player receives Priority (they may respond with a Reaction or pass to resolve it).
   const top = s.flow.chain[s.flow.chain.length - 1];
   s.flow.priority = top ? (top.controller === 'p0' ? 'p1' : 'p0') : active;
   if (s.flow.showdown) s.flow.showdown.passesInRow = 0;
   s.turnState = deriveTurnState(s);
+  askNextTrigger(s);
   return { state: s, events: stampEvents(s, raw) };
+}
+
+/** The effects of the triggered or activated ability behind a Chain item (undefined for others). */
+export function abilityItemEffects(
+  state: GameState,
+  cards: CardDatabase,
+  item: ChainItem,
+): readonly CardEffect[] | undefined {
+  if (item.kind !== 'ABILITY') return undefined;
+  const obj = state.objects[item.sourceObjectId];
+  if (item.triggerIndex !== undefined)
+    return obj ? cards[obj.cardId]?.triggers?.[item.triggerIndex]?.effects : undefined;
+  if (item.activatedIndex !== undefined) {
+    const cardId = item.sourceCardId ?? obj?.cardId ?? '';
+    return cards[cardId]?.abilities?.[item.activatedIndex]?.effects;
+  }
+  return undefined;
+}
+
+/** Set flow.pendingChoice for the oldest PENDING triggered item on the Chain (mutates `s`). */
+function askNextTrigger(s: GameState): void {
+  const next = s.flow.chain.find(
+    (i) => i.kind === 'ABILITY' && i.triggered && i.status === 'PENDING',
+  );
+  if (next)
+    s.flow.pendingChoice = {
+      kind: 'TRIGGER_TARGET',
+      player: next.controller,
+      chainItemId: next.id,
+    };
+  else if (s.flow.pendingChoice?.kind === 'TRIGGER_TARGET') delete s.flow.pendingChoice;
+}
+
+/**
+ * CHOOSE_TRIGGER_TARGET (R41): the controller of the PENDING triggered ability picks its targets.
+ * They must be a legal choice for the ability's effects (same check as a spell's, 355.10); the item
+ * becomes FINALIZED and the next waiting trigger (if any) is asked.
+ */
+export function chooseTriggerTarget(
+  state: GameState,
+  cards: CardDatabase,
+  intent: ChooseTriggerTargetIntent,
+): ReduceResult {
+  const pc = state.flow.pendingChoice;
+  if (!pc || pc.kind !== 'TRIGGER_TARGET') {
+    return ruleError('WRONG_PHASE', 'no triggered ability is waiting for targets');
+  }
+  if (intent.playerId !== pc.player) return ruleError('NOT_YOUR_PRIORITY', 'not your choice');
+  if (intent.chainItemId !== pc.chainItemId) {
+    return ruleError('NOT_FOUND', `chain item ${intent.chainItemId} is not the one waiting`);
+  }
+  const item = state.flow.chain.find((i) => i.id === pc.chainItemId);
+  if (!item || item.status !== 'PENDING') return ruleError('NOT_FOUND', 'the trigger is gone');
+  const effects = abilityItemEffects(state, cards, item);
+  if (
+    !Array.isArray(intent.targets) ||
+    !abilityTargetsLegal(state, cards, item.controller, effects, intent.targets)
+  ) {
+    return ruleError('ILLEGAL_TARGET', 'those are not legal targets for this ability (355.10)');
+  }
+  const targets: Target[] = intent.targets.map((t) => ({ ...t }));
+  const s = fork(state);
+  const live = s.flow.chain.find((i) => i.id === pc.chainItemId) as ChainItem;
+  live.targets = targets;
+  live.status = 'FINALIZED';
+  delete s.flow.pendingChoice;
+  askNextTrigger(s);
+  const events = stampEvents(s, [
+    { type: 'TRIGGER_TARGETED', player: live.controller, sourceId: live.sourceObjectId, targets },
+  ]);
+  return { ok: true, state: s, events };
 }

@@ -12,7 +12,7 @@ export function ChoicePrompt() {
   const api = useGame();
   const { send, pending, error } = useIntentSender();
   const choice = api.view.flow.pendingChoice;
-  if (!choice || api.gameOver) return null;
+  if (!choice || choice.kind !== 'STAGED_ORDER' || api.gameOver) return null;
 
   const seat: PlayerId = api.seat;
   const noun = choice.stage === 'SHOWDOWN' ? 'Showdown' : 'Combat';

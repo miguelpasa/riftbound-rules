@@ -93,6 +93,14 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
     abilityIndex: 0,
   },
   RESOURCES_ADDED: { seq: 47, type: 'RESOURCES_ADDED', player: 'p0', energy: 0, power: 1 },
+  TRIGGER_TARGETED: {
+    seq: 48,
+    type: 'TRIGGER_TARGETED',
+    player: 'p0',
+    sourceId: myCard.id,
+    targets: [{ kind: 'object', id: myCard.id }],
+  },
+  TRIGGER_NO_TARGET: { seq: 49, type: 'TRIGGER_NO_TARGET', player: 'p0', sourceId: myCard.id },
 };
 
 describe('describeEvent', () => {
@@ -159,6 +167,13 @@ describe('describeEvent', () => {
     // even with the REAL id, a hidden placeholder/missing object yields no name
     const leak = describeEvent({ ...ev, cardInstanceId: oppHandCard.id }, view, SCENARIO_CARDS);
     expect(leak).not.toContain(name);
+  });
+
+  it('words the trigger-target events', () => {
+    expect(describeEvent(SAMPLES.TRIGGER_TARGETED, view, SCENARIO_CARDS)).toContain('targeted');
+    expect(describeEvent(SAMPLES.TRIGGER_NO_TARGET, view, SCENARIO_CARDS)).toContain(
+      'no legal target',
+    );
   });
 
   it('classifies announcement and log events', () => {

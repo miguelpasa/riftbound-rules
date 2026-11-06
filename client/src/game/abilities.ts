@@ -19,6 +19,20 @@ export function abilityVariants(legal: Intent[], sourceId: string): ActivateAbil
   return out.sort((a, b) => a.abilityIndex - b.abilityIndex);
 }
 
+/** Legal ACTIVATE_ABILITY variants of one permanent grouped by ability: targeted abilities have one variant per target choice (R41). */
+export function abilityGroups(
+  legal: Intent[],
+  sourceId: string,
+): { abilityIndex: number; variants: ActivateAbilityIntent[] }[] {
+  const groups = new Map<number, ActivateAbilityIntent[]>();
+  for (const v of abilityVariants(legal, sourceId)) {
+    const list = groups.get(v.abilityIndex) ?? [];
+    list.push(v);
+    groups.set(v.abilityIndex, list);
+  }
+  return [...groups].map(([abilityIndex, variants]) => ({ abilityIndex, variants }));
+}
+
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
 function describeEffect(e: CardEffect, def: CardDef): string | null {

@@ -35,3 +35,25 @@ for (const [name, viewport] of [
     expect(log.errors).toEqual([]);
   });
 }
+
+// R41: a targeted activated ability. `?mock&buffer=1` starts the human with a ready Cinder Grunt that has
+// "[E]: Give a unit +2 [M] this turn": Activate starts click-to-target, the unit is the only legal target.
+test('activate a targeted ability: click-to-target', async ({ page, log }) => {
+  log.watch(page);
+  await page.goto('/?mock&buffer=1');
+  await keepHand(page);
+  const activate = page.getByRole('button', { name: /^Activate Cinder Grunt/ });
+  await expect(activate).toHaveCount(1, { timeout: 60_000 }); // on the human's own Main Phase
+  await activate.click();
+  await expect(page.getByRole('status').filter({ hasText: /Choose target 1 of 1/ })).toContainText(
+    '(ability)',
+  );
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
+  await page
+    .getByRole('button', { name: /^Target: Cinder Grunt/ })
+    .first()
+    .click();
+  await expect(page.getByLabel('Targeting')).toHaveCount(0);
+  await expect(activate).toHaveCount(0); // exhausted
+  expect(log.errors).toEqual([]);
+});

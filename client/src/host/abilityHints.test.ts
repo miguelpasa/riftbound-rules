@@ -3,6 +3,7 @@ import {
   TOKEN_CARDS,
   type C2S,
   type CardDatabase,
+  type CardDef,
   type PlayerId,
   type S2C,
 } from '@riftbound/engine';
@@ -71,5 +72,64 @@ describe('[Add] ability hints (R40)', () => {
     expect(guest.view?.players[seat]?.runePool.universal).toBe(1);
     expect(guest.view?.objects[gold]).toBeUndefined();
     expect(guest.legal.some((i) => i.type === 'ACTIVATE_ABILITY')).toBe(false);
+  });
+});
+
+describe('trigger-target choice over the wire (R41)', () => {
+  it('a guest sees the pending choice, answers it, and both views update', async () => {
+    const trigCards: CardDatabase = {
+      ...cards,
+      'fx-grunt': {
+        ...(cards['fx-grunt'] as CardDef),
+        triggers: [{ on: 'PLAY', effects: [{ op: 'BUFF_TARGET', amount: 2, duration: 'TURN' }] }],
+      },
+    };
+    const hub = createLoopbackHub<S2C, C2S>();
+    const host = HostSession.create({
+      cards: trigCards,
+      hostDeck: FIXTURE_DECK_A,
+      guestDeck: FIXTURE_DECK_B,
+      seed: 'trigger-wire',
+      mode: 'MULTIPLAYER',
+    });
+    hub.hostOnConnection((t) => host.acceptGuest(t));
+    const guest = new GuestSession({ transport: hub.connectGuest(), storage: mem() });
+    await flush();
+
+    // The guest seat plays Cinder Grunt (p0's deck in the scenario) with another unit on the board.
+    const sc = Scenario.start({}, trigCards);
+    const unit = sc.putInHand('p0', 'fx-grunt');
+    const other = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    sc.play('p0', unit, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+    const pc = sc.state.flow.pendingChoice;
+    expect(pc?.kind).toBe('TRIGGER_TARGET');
+    // Seat the choice at whichever seat the guest holds by swapping nothing: only run the wire
+    // check when the guest is p0, otherwise answer through the host.
+    host.restore(sc.state);
+    await flush();
+    if (host.guestSeat === 'p0') {
+      const hint = guest.legal.find((i) => i.type === 'CHOOSE_TRIGGER_TARGET');
+      expect(hint).toBeDefined();
+      expect(guest.view?.flow.pendingChoice).toMatchObject({ kind: 'TRIGGER_TARGET' });
+      guest.sendIntent({
+        type: 'CHOOSE_TRIGGER_TARGET',
+        playerId: 'p0',
+        chainItemId: (pc as { chainItemId: string }).chainItemId,
+        targets: [{ kind: 'object', id: other }],
+      });
+      await flush();
+      expect(host.getFullStateForPersistence().flow.pendingChoice).toBeUndefined();
+      expect(guest.view?.flow.pendingChoice).toBeUndefined();
+    } else {
+      const r = host.localIntent({
+        type: 'CHOOSE_TRIGGER_TARGET',
+        playerId: 'p0',
+        chainItemId: (pc as { chainItemId: string }).chainItemId,
+        targets: [{ kind: 'object', id: other }],
+      });
+      expect(r.ok).toBe(true);
+      await flush();
+      expect(guest.view?.flow.pendingChoice).toBeUndefined();
+    }
   });
 });

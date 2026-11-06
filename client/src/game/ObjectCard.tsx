@@ -1,7 +1,8 @@
 import { isGearDef, isHiddenCard } from '@riftbound/engine';
 import { Card, CardBack } from '../components/Card';
 import type { CardSize } from '../components/cardStyles';
-import { abilityVariants, describeAbility, legionDiscount } from './abilities';
+import { abilityGroups, abilityVariants, describeAbility, legionDiscount } from './abilities';
+import { abilityTargetedVariants } from './interaction';
 import { deflectPower, equipVariants } from './interaction';
 import type { BoardUi } from './useBoardUi';
 
@@ -169,11 +170,14 @@ function AbilityButtons({ id, ui }: { id: string; ui: BoardUi }) {
   const obj = api.view.objects[id];
   if (!obj || isHiddenCard(obj)) return null;
   const def = api.cards[obj.cardId];
-  const variants = abilityVariants(api.legal, id);
+  const variants = abilityGroups(api.legal, id);
   if (!def || variants.length === 0) return null;
   return (
     <ul aria-label={`${def.name} abilities`} className="flex w-full max-w-[8rem] flex-col gap-0.5">
-      {variants.map((v) => {
+      {variants.map((g) => {
+        const v = g.variants[0] as (typeof g.variants)[number];
+        const targeted =
+          abilityTargetedVariants(api.legal, id, g.abilityIndex, api.view).length > 0;
         const ability = def.abilities?.[v.abilityIndex];
         const d = ability ? describeAbility(def, ability) : null;
         const label = variants.length > 1 ? `Activate ${v.abilityIndex + 1}` : 'Activate';
@@ -186,7 +190,8 @@ function AbilityButtons({ id, ui }: { id: string; ui: BoardUi }) {
               title={`${d ? `${d.summary}. ` : ''}${def.text}`}
               onClick={(e) => {
                 e.stopPropagation();
-                void ui.submit(v);
+                if (targeted) ui.startAbilityTargeting(id, g.abilityIndex);
+                else void ui.submit(v);
               }}
               className="w-full rounded-md bg-amber-300 px-1.5 py-0.5 text-xs font-semibold text-slate-950 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >

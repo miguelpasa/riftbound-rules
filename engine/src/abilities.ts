@@ -10,10 +10,17 @@
  *    Closed state or Showdown, the others only in a Neutral Open state on your turn).
  *  - Costs: exhaust the source ([E]), Energy (paid from the Rune Pool, so `payment` may exhaust
  *    runes first) and "Kill this" (Gear or gear-like token; a token ceases to exist, 186.1).
- *  - Target-free effects only; the parser refuses everything else.
+ *  - Targets (R41): an ability that chooses units takes `ACTIVATE_ABILITY.targets`, validated like a
+ *    spell's (355.10) before any cost is paid and re-checked when it resolves (fizzles if illegal).
  */
 import { finalizeAndSettle, canPlayNow, pushPendingItem } from './chain.js';
-import { killGear, runEffects } from './effects.js';
+import {
+  enumerateSpellTargets,
+  killGear,
+  runEffects,
+  abilityTargetsLegal,
+  targetRequirements,
+} from './effects.js';
 import { autoPlan, payCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { isGearDef } from './tokens.js';
@@ -41,6 +48,9 @@ export function isAddAbility(a: ActivatedAbility): boolean {
     a.effects.length > 0 && a.effects.every((e) => e.op === 'ADD_ENERGY' || e.op === 'ADD_POWER')
   );
 }
+
+const targetRequirementsOf = (a: ActivatedAbility): boolean =>
+  targetRequirements(a.effects).length > 0;
 
 /** ACTIVATE_ABILITY. */
 export function activateAbility(
@@ -70,6 +80,10 @@ export function activateAbility(
       isReactionAbility: ability.reaction === true,
     });
     if (!timing.ok) return timing;
+  }
+  const targets = intent.targets ?? [];
+  if (!abilityTargetsLegal(state, cards, pid, ability.effects, targets)) {
+    return ruleError('ILLEGAL_TARGET', 'this ability needs legal targets (355.10)');
   }
   if (ability.cost.exhaust && !src.ready) {
     return ruleError('UNIT_EXHAUSTED', `${src.id} is exhausted`);
@@ -104,7 +118,7 @@ export function activateAbility(
     sourceCardId: def.cardId,
     controller: pid,
     status: 'PENDING',
-    targets: [],
+    targets: targetRequirementsOf(ability) ? targets.map((t) => ({ ...t })) : [],
     choices: {},
     activatedIndex: intent.abilityIndex,
   };
@@ -136,7 +150,18 @@ export function abilityCandidates(
       const need = a.cost.energy ?? 0;
       const payment = autoPlan(state, cards, pid, { energy: need, power: [] });
       if (payment === null) return;
-      out.push({ type: 'ACTIVATE_ABILITY', playerId: pid, sourceId: o.id, abilityIndex, payment });
+      // R41: one candidate per target choice (capped by MAX_TARGET_COMBOS); none = not activatable.
+      const choices = enumerateSpellTargets(state, cards, pid, a.effects) ?? [undefined];
+      for (const targets of choices) {
+        out.push({
+          type: 'ACTIVATE_ABILITY',
+          playerId: pid,
+          sourceId: o.id,
+          abilityIndex,
+          ...(targets ? { targets } : {}),
+          payment,
+        });
+      }
     });
   }
   return out;

@@ -5,12 +5,14 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import type { CardInstance, Intent } from '@riftbound/engine';
+import type { ActivateAbilityIntent, CardInstance, Intent } from '@riftbound/engine';
 import { isHiddenCard } from '@riftbound/engine';
 import type { GameApi } from '../app/gameApi';
 import { toastFromRuleError } from '../components/Toasts';
-import { abilityVariants, describeAbilityAt } from './abilities';
+import { abilityGroups, describeAbilityAt } from './abilities';
 import {
+  abilityTargetedVariants,
+  triggerTargetVariants,
   attemptMove,
   equipVariants,
   hideVariants,
@@ -25,7 +27,7 @@ import {
   cardNameOf,
   type DestKey,
   type MoveOption,
-  type PlayIntent,
+  type TargetedIntent,
 } from './interaction';
 
 export interface PopoverItem {
@@ -41,8 +43,18 @@ export interface PopoverState {
   y: number;
 }
 
-/** Active click-to-target flow for a targeted spell (derived from `legal`; never invented). */
+/** What a click-to-target flow chooses targets for (R41 adds abilities and triggers). */
+export type TargetSource =
+  | { kind: 'play'; cardId: string }
+  | { kind: 'ability'; sourceId: string; abilityIndex: number }
+  | { kind: 'trigger'; chainItemId: string; sourceId: string };
+
+/** Active click-to-target flow for a spell, ability or trigger (derived from `legal`; never invented). */
 export interface TargetingState {
+  source: TargetSource;
+  /** A pending trigger choice is mandatory: no Cancel. */
+  cancelable: boolean;
+  /** Object id of the card, ability source or trigger source being targeted for. */
   cardId: string;
   cardName: string;
   /** 1-based slot being chosen now. */
@@ -71,6 +83,8 @@ export interface BoardUi {
   targeting: TargetingState | null;
   pickTarget: (id: string) => void;
   cancelTargeting: () => void;
+  /** Start choosing the targets of a targeted activated ability (R41). */
+  startAbilityTargeting: (sourceId: string, abilityIndex: number) => void;
   closePopover: () => void;
   /** Sends an intent; shows the engine's rule error as a toast when rejected. Resolves true when accepted. */
   submit: (intent: Intent) => Promise<boolean>;
@@ -98,9 +112,18 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
   const [dragIds, setDragIds] = useState<string[] | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
-  const [targetingRaw, setTargetingRaw] = useState<{ cardId: string; chosen: string[] } | null>(
+  const [targetingRaw, setTargetingRaw] = useState<{
+    source: Exclude<TargetSource, { kind: 'trigger' }>;
+    chosen: string[];
+  } | null>(null);
+  // R41: a trigger-target choice is dictated by the engine (flow.pendingChoice), not by a click.
+  const [triggerChosen, setTriggerChosen] = useState<{ itemId: string; chosen: string[] } | null>(
     null,
   );
+  const pendingTrigger =
+    view.flow.pendingChoice?.kind === 'TRIGGER_TARGET' && view.flow.pendingChoice.player === seat
+      ? view.flow.pendingChoice
+      : null;
 
   // Drop selections that are no longer movable (a unit died or the state moved on).
   const liveSelected = useMemo(
@@ -135,52 +158,106 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
 
   const cancelTargeting = useCallback(() => setTargetingRaw(null), []);
 
+  const startAbilityTargeting = useCallback((sourceId: string, abilityIndex: number) => {
+    setPopover(null);
+    setTargetingRaw({ source: { kind: 'ability', sourceId, abilityIndex }, chosen: [] });
+  }, []);
+
   const submitTargeted = useCallback(
-    async (intent: PlayIntent): Promise<void> => {
-      if (await submit(intent)) setTargetingRaw(null);
+    async (intent: TargetedIntent): Promise<void> => {
+      if (await submit(intent)) {
+        setTargetingRaw(null);
+        setTriggerChosen(null);
+      }
     },
     [submit],
   );
 
+  /** The source being targeted for and the targets picked so far. */
+  const activeSource = useMemo((): { source: TargetSource; chosen: string[] } | null => {
+    if (pendingTrigger) {
+      const item = view.flow.chain.find((i) => i.id === pendingTrigger.chainItemId);
+      const chosen =
+        triggerChosen?.itemId === pendingTrigger.chainItemId ? triggerChosen.chosen : [];
+      return {
+        source: {
+          kind: 'trigger',
+          chainItemId: pendingTrigger.chainItemId,
+          sourceId: item?.sourceObjectId ?? '',
+        },
+        chosen,
+      };
+    }
+    return targetingRaw;
+  }, [pendingTrigger, view.flow.chain, triggerChosen, targetingRaw]);
+
+  const variantsOf = useCallback(
+    (source: TargetSource): TargetedIntent[] => {
+      switch (source.kind) {
+        case 'play':
+          return targetedVariants(legal, source.cardId, view);
+        case 'ability':
+          return abilityTargetedVariants(legal, source.sourceId, source.abilityIndex, view);
+        case 'trigger':
+          return triggerTargetVariants(legal, source.chainItemId, view);
+      }
+    },
+    [legal, view],
+  );
+
+  const setChosen = useCallback((source: TargetSource, chosen: string[]) => {
+    if (source.kind === 'trigger') setTriggerChosen({ itemId: source.chainItemId, chosen });
+    else setTargetingRaw({ source, chosen });
+  }, []);
+
   const targeting = useMemo<TargetingState | null>(() => {
-    if (!targetingRaw) return null;
-    const variants = targetedVariants(legal, targetingRaw.cardId, view);
+    if (!activeSource) return null;
+    const { source, chosen } = activeSource;
+    const variants = variantsOf(source);
     if (variants.length === 0) return null;
-    const step = targetStep(variants, targetingRaw.chosen);
+    const step = targetStep(variants, chosen);
     if (step.candidates.size === 0 && step.exact.length === 0) return null;
-    const chosen = targetingRaw.chosen;
+    const sourceId = source.kind === 'play' ? source.cardId : source.sourceId;
+    const name = cardNameOf(sourceId, view, cards);
     return {
-      cardId: targetingRaw.cardId,
-      cardName: cardNameOf(targetingRaw.cardId, view, cards),
+      source,
+      cancelable: source.kind !== 'trigger',
+      cardId: sourceId,
+      cardName:
+        source.kind === 'play'
+          ? name
+          : source.kind === 'ability'
+            ? `${name} (ability)`
+            : `${name} (triggered ability)`,
       slot: Math.min(chosen.length + 1, step.total),
       total: step.total,
       chosen,
       candidates: step.candidates,
       confirmOptions: step.exact.map((v) => ({
         label:
-          step.exact.length > 1 ? `Confirm: ${variantLabel(v, view, cards)}` : 'Confirm targets',
+          step.exact.length > 1 && v.type === 'PLAY_CARD'
+            ? `Confirm: ${variantLabel(v, view, cards)}`
+            : 'Confirm targets',
         onSelect: () => void submitTargeted(v),
       })),
     };
-  }, [targetingRaw, legal, view, cards, submitTargeted]);
+  }, [activeSource, variantsOf, view, cards, submitTargeted]);
 
   const pickTarget = useCallback(
     (id: string) => {
       if (!targeting || !targeting.candidates.has(id)) return;
       const chosen = [...targeting.chosen, id];
-      const step = targetStep(targetedVariants(legal, targeting.cardId, view), chosen);
+      const step = targetStep(variantsOf(targeting.source), chosen);
       const [only] = step.exact;
+      setChosen(targeting.source, chosen);
       if (step.candidates.size === 0 && step.exact.length === 1 && only) {
-        setTargetingRaw({ cardId: targeting.cardId, chosen });
         void submitTargeted(only);
-        return;
       }
-      setTargetingRaw({ cardId: targeting.cardId, chosen });
     },
-    [targeting, legal, view, submitTargeted],
+    [targeting, variantsOf, setChosen, submitTargeted],
   );
 
-  const targetingActive = targeting !== null;
+  const targetingActive = targeting !== null && targeting.cancelable;
   useEffect(() => {
     if (!targetingActive) return;
     const onKey = (e: KeyboardEvent) => {
@@ -225,7 +302,7 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       setTargetingRaw(null);
       if (targetedVariants(legal, id, view).length > 0) {
         setPopover(null);
-        setTargetingRaw({ cardId: id, chosen: [] });
+        setTargetingRaw({ source: { kind: 'play', cardId: id }, chosen: [] });
         return;
       }
       const variants = playVariants(legal, id);
@@ -312,13 +389,19 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
           },
         });
       }
-      for (const a of abilityVariants(legal, id)) {
-        const d = describeAbilityAt(cards[obj.cardId], a.abilityIndex);
+      for (const g of abilityGroups(legal, id)) {
+        const d = describeAbilityAt(cards[obj.cardId], g.abilityIndex);
+        const first = g.variants[0] as ActivateAbilityIntent;
+        const targeted = abilityTargetedVariants(legal, id, g.abilityIndex, view).length > 0;
         items.push({
-          label: `Activate: ${d?.summary ?? `ability ${a.abilityIndex + 1}`}`,
+          label: `Activate: ${d?.summary ?? `ability ${g.abilityIndex + 1}`}${targeted ? ' (choose target)' : ''}`,
           onSelect: () => {
-            setPopover(null);
-            void submit(a);
+            if (targeted) {
+              startAbilityTargeting(id, g.abilityIndex);
+            } else {
+              setPopover(null);
+              void submit(first);
+            }
           },
         });
       }
@@ -331,7 +414,7 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       }
       setPopover({ title: cardNameOf(id, view, cards), items, x: e.clientX, y: e.clientY });
     },
-    [view, legal, cards, submit],
+    [view, legal, cards, submit, startAbilityTargeting],
   );
 
   const startDrag = useCallback(
@@ -365,6 +448,7 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
     targeting,
     pickTarget,
     cancelTargeting,
+    startAbilityTargeting,
     closePopover,
     submit,
     clickUnit,

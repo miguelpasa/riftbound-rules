@@ -125,7 +125,7 @@ describe('staged Showdown/Combat order choice', () => {
   it('asks again for the remaining staged Showdowns (three battlefields)', () => {
     // Tests Rule 323.11: each start is a fresh choice while several remain
     const paused = cleaned(stagedShowdowns(3));
-    expect(paused.flow.pendingChoice?.options).toHaveLength(3);
+    expect((paused.flow.pendingChoice as { options: string[] } | undefined)?.options).toHaveLength(3);
     const r = ok(reduce(paused, FIXTURE_CARDS, choose('p0', bf(paused, 2))));
     expect(r.state.flow.showdown?.battlefieldId).toBe(bf(paused, 2));
     const a = ok(reduce(r.state, FIXTURE_CARDS, { type: 'PASS_PRIORITY', playerId: 'p0' }));

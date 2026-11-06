@@ -182,6 +182,22 @@ export function spellTargetsLegal(
   return true;
 }
 
+/**
+ * Are these the targets of a triggered or activated ability (R41)? Like `spellTargetsLegal`, and no
+ * more targets than the effects take, all of them objects.
+ */
+export function abilityTargetsLegal(
+  state: GameState,
+  cards: CardDatabase,
+  controller: PlayerId,
+  effects: readonly CardEffect[] | undefined,
+  targets: readonly Target[],
+): boolean {
+  const max = targetRequirements(effects).reduce((n, r) => n + (r.count ? r.count.max : 1), 0);
+  if (targets.length > max || targets.some((t) => t.kind !== 'object')) return false;
+  return spellTargetsLegal(state, cards, controller, effects, targets);
+}
+
 function combinations<T>(items: readonly T[], k: number): T[][] {
   if (k === 0) return [[]];
   const out: T[][] = [];

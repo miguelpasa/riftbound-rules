@@ -5,6 +5,8 @@ import {
   FIXTURE_DECK_A,
   FIXTURE_DECK_B,
 } from '../../../engine/src/testing/fixtures.js';
+import { Scenario, SCENARIO_CARDS } from '../../../engine/src/testing/scenario.js';
+import type { CardDef } from '@riftbound/engine';
 import { HostSession } from '../host/hostSession';
 import { createHostBridge } from './adapters';
 import { HostTimers, timedSeat, timeoutIntent, timerSituation } from './hostTimers';
@@ -137,6 +139,47 @@ describe('HostTimers', () => {
           after.turn.activePlayer !== before.turn.activePlayer ||
           after.turn.phase !== before.turn.phase,
       ).toBe(true);
+      timers.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('HostTimers: pending trigger-target choice (R41)', () => {
+  it('the timeout answers CHOOSE_TRIGGER_TARGET instead of passing', () => {
+    vi.useFakeTimers();
+    try {
+      const cards = {
+        ...SCENARIO_CARDS,
+        'fx-grunt': {
+          ...(SCENARIO_CARDS['fx-grunt'] as CardDef),
+          triggers: [{ on: 'PLAY' as const, effects: [{ op: 'BUFF_TARGET' as const, amount: 2 }] }],
+        },
+      };
+      const sc = Scenario.start({}, cards);
+      sc.putUnit('p1', 'fx-tide-grunt', 'base');
+      const unit = sc.putInHand('p0', 'fx-grunt');
+      sc.play('p0', unit, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+      expect(sc.state.flow.pendingChoice?.kind).toBe('TRIGGER_TARGET');
+      const bridge = createHostBridge();
+      const session = new HostSession({
+        cards,
+        state: sc.state,
+        hostSeat: 'p0',
+        ...bridge.callbacks,
+      });
+      const timers = new HostTimers({
+        session,
+        cards,
+        bridge,
+        humanSeats: ['p0', 'p1'],
+        reactionWindowMs: 1000,
+      });
+      vi.advanceTimersByTime(1001);
+      const after = session.getFullStateForPersistence();
+      expect(after.flow.pendingChoice).toBeUndefined();
+      expect(after.flow.chain[0]?.status).toBe('FINALIZED');
       timers.dispose();
     } finally {
       vi.useRealTimers();

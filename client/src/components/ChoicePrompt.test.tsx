@@ -38,7 +38,7 @@ describe('ChoicePrompt', () => {
     mount(fakeApi(sc, 'p0'));
     const dialog = screen.getByRole('dialog', { name: 'Choose which battlefield resolves first' });
     expect(dialog).toBeInTheDocument();
-    const ids = sc.state.flow.pendingChoice?.options ?? [];
+    const ids = (sc.state.flow.pendingChoice as { options: string[] } | undefined)?.options ?? [];
     expect(ids).toHaveLength(2);
     expect(screen.getAllByRole('button')).toHaveLength(2);
     expect(
@@ -50,7 +50,7 @@ describe('ChoicePrompt', () => {
     const sc = paused();
     const api = fakeApi(sc, 'p0');
     mount(api);
-    const [, second] = sc.state.flow.pendingChoice?.options as [string, string];
+    const [, second] = (sc.state.flow.pendingChoice as { options: string[] }).options as [string, string];
     const btn = document.querySelector(`[data-battlefield-id="${second}"]`) as HTMLElement;
     fireEvent.click(btn);
     await waitFor(() => expect(api.send).toHaveBeenCalledTimes(1));

@@ -165,12 +165,20 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   const obj = s.objects[item.sourceObjectId];
   if (item.kind === 'ABILITY' && item.activatedIndex !== undefined) {
     // Activated ability (145.1): the source may be gone (killed as a cost), so its card id rides
-    // on the item. A Closed-state resolution of a target-free effect list.
+    // on the item. Targets (R41) were chosen when it was activated; runEffects re-checks them.
     const cardId = item.sourceCardId ?? obj?.cardId ?? '';
     const ability = cards[cardId]?.abilities?.[item.activatedIndex];
     if (ability) {
       events.push(
-        ...runEffects(s, item.controller, ability.effects, cards, [], cardId, item.sourceObjectId),
+        ...runEffects(
+          s,
+          item.controller,
+          ability.effects,
+          cards,
+          item.targets,
+          cardId,
+          item.sourceObjectId,
+        ),
       );
     }
     return { state: s, events };
@@ -178,7 +186,9 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
     const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
     if (trig) {
-      events.push(...runEffects(s, item.controller, trig.effects, cards, [], obj.cardId, obj.id));
+      events.push(
+        ...runEffects(s, item.controller, trig.effects, cards, item.targets, obj.cardId, obj.id),
+      );
     }
     return { state: s, events };
   }

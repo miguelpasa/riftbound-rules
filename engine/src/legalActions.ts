@@ -16,7 +16,9 @@
  *  - STANDARD_MOVE: each ready unit to each destination, plus, per origin, "all ready units there".
  *  - ASSIGN_COMBAT_DAMAGE: autoAssign result and a variant that puts the surplus on the first unit.
  *  - HIDE_CARD, EQUIP, PASS_PRIORITY, END_TURN.
- *  - CHOOSE_STAGED: while flow.pendingChoice is set, ONLY that choice's options (to its player).
+ *  - CHOOSE_STAGED / CHOOSE_TRIGGER_TARGET: while flow.pendingChoice is set, ONLY that choice's options
+ *    (to its player); trigger targets are enumerated like a spell's (capped by MAX_TARGET_COMBOS).
+ *  - ACTIVATE_ABILITY: one variant per target choice for abilities that choose units (R41).
  * NOT enumerated: CONCEDE (always legal) and ACTIVATE_RUNE (see `getRuneActivations`).
  *
  * The cheap structural pre-filters (whose turn / priority, chain empty, showdown) only skip candidates
@@ -28,6 +30,7 @@ import { legionActive } from './keywords.js';
 import { autoAssign } from './combat.js';
 import { enumerateSpellTargets } from './effects.js';
 import { applyIntent, reduce } from './reducer.js';
+import { abilityItemEffects } from './triggers.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
 import type { TotalCost } from './resources.js';
 import { isUnitDef } from './tokens.js';
@@ -273,6 +276,25 @@ export function getLegalActions(
   if (flow.pendingChoice) {
     const pc = flow.pendingChoice;
     if (pc.player !== playerId) return [];
+    if (pc.kind === 'TRIGGER_TARGET') {
+      const item = flow.chain.find((i) => i.id === pc.chainItemId);
+      const choices = item
+        ? (enumerateSpellTargets(
+            state,
+            cards,
+            item.controller,
+            abilityItemEffects(state, cards, item),
+          ) ?? [])
+        : [];
+      return keep(
+        choices.map((targets): Intent => ({
+          type: 'CHOOSE_TRIGGER_TARGET',
+          playerId,
+          chainItemId: pc.chainItemId,
+          targets,
+        })),
+      ).slice(0, max);
+    }
     return keep(
       pc.options.map((battlefieldId): Intent => ({
         type: 'CHOOSE_STAGED',

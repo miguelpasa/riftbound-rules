@@ -1,3 +1,4 @@
+import type { Target } from './chain.js';
 import type { Phase, PlayerId } from './state.js';
 
 export type PointSource = 'HOLD' | 'CONQUER' | 'BURN_OUT' | 'EFFECT';
@@ -58,6 +59,10 @@ export type GameEvent = EventBase &
     | { type: 'CARD_REVEALED'; player: PlayerId; cardInstanceId: string; cardId: string }
     | { type: 'ABILITY_ACTIVATED'; player: PlayerId; sourceId: string; abilityIndex: number }
     | { type: 'RESOURCES_ADDED'; player: PlayerId; energy: number; power: number }
+    /** R41: targets of a triggered ability were chosen (by the controller or automatically). */
+    | { type: 'TRIGGER_TARGETED'; player: PlayerId; sourceId: string; targets: Target[] }
+    /** R41: a triggered ability had no legal target and was not put on the Chain. */
+    | { type: 'TRIGGER_NO_TARGET'; player: PlayerId; sourceId: string }
   );
 
 export type GameEventType = GameEvent['type'];

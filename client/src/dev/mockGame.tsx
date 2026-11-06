@@ -20,12 +20,14 @@ import {
   createGameWithSeating,
   getLegalActions,
   opponentOf,
+  playerIndex,
   reduce,
   sanitizeEvents,
   sanitizeFor,
 } from '@riftbound/engine';
 import type {
   CardDatabase,
+  CardDef,
   DeckList,
   GameEvent,
   GameState,
@@ -217,6 +219,11 @@ export interface MockGameOptions {
   botDelayMs?: number;
   /** Dev/e2e: give the human this many ready Gold tokens (`?mock&gold=2`) so abilities can be tried. */
   gold?: number;
+  /**
+   * Dev/e2e (`?mock&buffer=1`): a ready Cinder Grunt with "[E]: Give a unit +2 [M] this turn" starts
+   * in the human's base, and Cinder Grunts have "When you play me, give a unit +2 [M] this turn" (R41).
+   */
+  buffer?: boolean;
 }
 
 /** A local game on the synthetic fixture decks; the human plays deck A, the AI plays deck B. */
@@ -228,7 +235,29 @@ export function createMockGame(opts: MockGameOptions = {}): LocalGame {
     seed,
   );
   const seat = seatOfDeck[0];
-  const cards: CardDatabase = opts.gold ? { ...FIXTURE_CARDS, ...TOKEN_CARDS } : FIXTURE_CARDS;
+  let cards: CardDatabase = opts.gold ? { ...FIXTURE_CARDS, ...TOKEN_CARDS } : FIXTURE_CARDS;
+  if (opts.buffer) {
+    const buff = { op: 'BUFF_TARGET', amount: 2, duration: 'TURN' } as const;
+    const grunt = FIXTURE_CARDS['fx-grunt'] as CardDef;
+    cards = {
+      ...cards,
+      'fx-grunt': {
+        ...grunt,
+        triggers: [{ on: 'PLAY', effects: [buff] }],
+        abilities: [{ cost: { exhaust: true }, effects: [buff] }],
+      },
+    };
+    const ps = state.players[playerIndex(seat)] as GameState['players'][number];
+    const src = Object.values(state.objects).find(
+      (o) => o.cardId === 'fx-grunt' && o.owner === seat && o.zone.kind === 'mainDeck',
+    );
+    if (src) {
+      ps.mainDeck = ps.mainDeck.filter((x) => x !== src.id);
+      src.zone = { kind: 'base', player: seat };
+      src.ready = true;
+      ps.base.push(src.id);
+    }
+  }
   if (opts.gold) {
     runEffects(
       state,
@@ -267,7 +296,12 @@ export function MockGameScreen() {
   const params = new URLSearchParams(location.search);
   const seed = params.get('seed') ?? undefined;
   const gold = Math.min(8, Math.max(0, Number(params.get('gold')) || 0));
-  const api = useMockGameApi({ ...(seed ? { seed } : {}), ...(gold ? { gold } : {}) });
+  const buffer = params.get('buffer') === '1';
+  const api = useMockGameApi({
+    ...(seed ? { seed } : {}),
+    ...(gold ? { gold } : {}),
+    ...(buffer ? { buffer } : {}),
+  });
   return (
     <GameProvider value={api}>
       <GameScreen onBackToMenu={() => location.assign(location.pathname)} />

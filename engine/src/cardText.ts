@@ -18,7 +18,8 @@
  *    "They deal damage equal to their Mights to each other.", and "Give an enemy unit -N [M] this
  *    turn and a friendly unit +N [M] this turn."
  * Units and gear (`parseTriggerText`): "When you play me, <effect>.", "When I hold, <effect>.",
- * "When I conquer, <effect>.", "[Deathknell][>] <effect>." with target-free effects only.
+ * "When I conquer, <effect>.", "[Deathknell][>] <effect>." and activated abilities "[E]: <effect>."; since R41
+ * their effects may choose units like a spell's (the controller picks when the ability is put on the Chain).
  */
 import { targetRequirements } from './effects.js';
 import { GOLD_TOKEN_ID, tokenIdFor } from './tokens.js';
@@ -544,9 +545,17 @@ export function parseSpellText(text: string): CardEffect[] | null {
     .replace(/^\s*(?:(?:Action|Reaction|Hidden)\s+)+/i, '');
   const sens = sentences(cleaned);
   if (sens.length === 0) return null;
+  return parseEffectSentences(sens);
+}
+
+/**
+ * The effect list of sentences that may choose targets (spells; since R41 also the body of
+ * triggered and activated abilities). "A, then B" is two sentences in order. Null unless every
+ * sentence is understood and every chosen unit is used by an effect.
+ */
+function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
-  // "A, then B" is two sentences in order.
   const list = sens.flatMap((x) => x.split(/, then /i)).map((x) => x.replace(/^Then /i, '').trim());
   for (let i = 0; i < list.length; i++) {
     const look = parseLookSequence(list, i);
@@ -618,6 +627,7 @@ export function parseCardAbilities(
     .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
     .replace(TOKEN_WITH, '$1 with $2')
+    .replace(/\[Stun\]/gi, 'Stun')
     .replace(
       /\[(Reaction|Action)\]\s*(?:\[>\]|[—–-])\s*/gi,
       (_m, k: string) => `${k.toUpperCase()} `,
@@ -684,23 +694,9 @@ export function parseCardAbilities(
     cur.sens.push(sen);
   }
   for (const g of groups) {
-    // Triggers and abilities cannot choose targets yet: only slot-free clauses.
-    const list = g.sens
-      .flatMap((x) => x.split(/, then /i))
-      .map((x) => x.replace(/^Then /i, '').trim());
-    const effects: CardEffect[] = [];
-    for (let i = 0; i < list.length; i++) {
-      const look = parseLookSequence(list, i);
-      if (look) {
-        effects.push(look.effect);
-        i += look.used - 1;
-        continue;
-      }
-      const c = parseClause(list[i] as string);
-      if (!c) return null;
-      effects.push(...c);
-    }
-    if (effects.length === 0) return null;
+    // R41: bodies may choose targets ("give a unit +2 [M] this turn"), like a spell's sentences.
+    const effects = parseEffectSentences(g.sens);
+    if (!effects || effects.length === 0) return null;
     if (g.kind === 'ability') {
       out.abilities.push({ cost: g.cost, ...(g.reaction ? { reaction: true } : {}), effects });
     } else {

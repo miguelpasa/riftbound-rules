@@ -208,7 +208,8 @@ export function runCleanup(
     // 9. Start a staged Showdown (323.11); 10. else a staged Combat (323.12). With several
     // candidates the turn player chooses (flow.pendingChoice): the Cleanup then idles (the next
     // pass changes nothing, so it stabilises) until CHOOSE_STAGED arrives.
-    delete s.flow.pendingChoice;
+    // (A TRIGGER_TARGET choice belongs to fireTriggers and survives: the Chain is not empty then.)
+    if (s.flow.pendingChoice?.kind !== 'TRIGGER_TARGET') delete s.flow.pendingChoice;
     if (isNeutralOpen(s)) {
       const order = (id: string): number => s.battlefields.findIndex((b) => b.id === id);
       const sds = s.flow.stagedShowdowns

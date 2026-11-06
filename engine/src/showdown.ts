@@ -219,7 +219,9 @@ export function chooseStaged(
 ): ReduceResult {
   if (state.gameStatus !== 'IN_PROGRESS') return ruleError('GAME_OVER');
   const pc = state.flow.pendingChoice;
-  if (!pc) return ruleError('WRONG_PHASE', 'no staged Showdown/Combat order to choose');
+  if (pc?.kind !== 'STAGED_ORDER') {
+    return ruleError('WRONG_PHASE', 'no staged Showdown/Combat order to choose');
+  }
   if (pc.player !== intent.playerId) {
     return ruleError('NOT_YOUR_TURN', `${pc.player} chooses which battlefield resolves first`);
   }

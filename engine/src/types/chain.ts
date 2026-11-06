@@ -70,7 +70,7 @@ export interface CombatState {
  * several Showdowns (or Combats) are staged in Neutral Open and the turn player picks which
  * battlefield begins first. Only CHOOSE_STAGED (and CONCEDE) are accepted while it is set.
  */
-export interface PendingChoice {
+export interface StagedOrderChoice {
   kind: 'STAGED_ORDER';
   /** The deciding player: the turn player. */
   player: PlayerId;
@@ -79,6 +79,21 @@ export interface PendingChoice {
   /** Battlefield ids (at least two), in battlefield index order. */
   options: string[];
 }
+
+/**
+ * R41: a triggered ability with several legal target choices sits on the Chain as a PENDING item
+ * and its controller picks the targets (CHOOSE_TRIGGER_TARGET) before anyone else may act. The
+ * legal choices are derived from the item's effects (`enumerateSpellTargets` / `spellTargetsLegal`).
+ */
+export interface TriggerTargetChoice {
+  kind: 'TRIGGER_TARGET';
+  /** The controller of the triggered ability. */
+  player: PlayerId;
+  /** The PENDING ABILITY item on `flow.chain` that still needs its targets. */
+  chainItemId: string;
+}
+
+export type PendingChoice = StagedOrderChoice | TriggerTargetChoice;
 
 /** Everything about who may act and what is on the chain. */
 export interface FlowState {

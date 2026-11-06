@@ -10,6 +10,8 @@
  *    Awaken..Main phases run immediately so the game lands in MAIN of turn 1 for p0.
  *  - CHOOSE_STAGED: showdown.chooseStaged answers flow.pendingChoice; while it is set every other
  *    intent (except CONCEDE) is rejected with WRONG_PHASE.
+ *  - CHOOSE_TRIGGER_TARGET (R41): triggers.chooseTriggerTarget answers a TRIGGER_TARGET pendingChoice
+ *    (the controller of a triggered ability picks its targets); same blocking rule as above.
  *  - PASS_PRIORITY: chain.passPriority, then, if a Showdown exists, showdown.showdownAfterPass.
  *  - END_TURN: phases.endTurn.  PLAY_CARD: play.playCard (or keywords.playHiddenCard for a facedown
  *    card).  STANDARD_MOVE, ASSIGN_COMBAT_DAMAGE, HIDE_CARD, EQUIP: their modules.
@@ -27,7 +29,7 @@
  */
 import { fork, runSession } from './workingCopy.js';
 import { passPriority } from './chain.js';
-import { fireTriggers } from './triggers.js';
+import { chooseTriggerTarget, fireTriggers } from './triggers.js';
 import { expireTurnEffects } from './effects.js';
 import { runCleanup, defaultShowdownDeps } from './cleanup.js';
 import { assignCombatDamage } from './combat.js';
@@ -130,8 +132,14 @@ function shapeProblem(i: Obj): string | null {
     case 'PASS_PRIORITY':
     case 'END_TURN':
     case 'CONCEDE':
-    case 'ACTIVATE_ABILITY':
       return null;
+    case 'ACTIVATE_ABILITY':
+      return i.targets === undefined || (Array.isArray(i.targets) && i.targets.every(isTarget))
+        ? null
+        : 'bad targets';
+    case 'CHOOSE_TRIGGER_TARGET':
+      if (!isStr(i.chainItemId)) return 'chainItemId must be a string';
+      return Array.isArray(i.targets) && i.targets.every(isTarget) ? null : 'bad targets';
     case 'PLAY_CARD':
       if (!isStr(i.cardInstanceId)) return 'cardInstanceId must be a string';
       if (!isPayment(i.payment)) return 'payment must be an array of rune actions';
@@ -213,6 +221,8 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
       return equip(state, cards, intent);
     case 'CHOOSE_STAGED':
       return chooseStaged(state, cards, intent, ENGINE_HOOKS.showdown);
+    case 'CHOOSE_TRIGGER_TARGET':
+      return chooseTriggerTarget(state, cards, intent);
     case 'ACTIVATE_ABILITY':
       return activateAbility(state, cards, intent);
     case 'CONCEDE': {
@@ -250,10 +260,13 @@ function applyIntentInSession(state: GameState, cards: CardDatabase, intent: Int
     if (problem !== null) return ruleError('UNKNOWN_INTENT', problem);
     // The Cleanup is paused on a decision (323.11/323.12): nothing else may happen until it is made.
     const pending = state.flow.pendingChoice;
-    if (pending && intent.type !== 'CHOOSE_STAGED' && intent.type !== 'CONCEDE') {
+    const answers = pending?.kind === 'TRIGGER_TARGET' ? 'CHOOSE_TRIGGER_TARGET' : 'CHOOSE_STAGED';
+    if (pending && intent.type !== answers && intent.type !== 'CONCEDE') {
       return ruleError(
         'WRONG_PHASE',
-        `waiting for ${pending.player} to choose which battlefield resolves first`,
+        pending.kind === 'TRIGGER_TARGET'
+          ? `waiting for ${pending.player} to choose the targets of a triggered ability`
+          : `waiting for ${pending.player} to choose which battlefield resolves first`,
       );
     }
     return dispatch(state, cards, intent);

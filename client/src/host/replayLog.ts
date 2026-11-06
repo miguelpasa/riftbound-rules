@@ -56,6 +56,7 @@ const INTENT_TYPES: ReadonlySet<string> = new Set([
   'ACTIVATE_ABILITY',
   'EQUIP',
   'CHOOSE_STAGED',
+  'CHOOSE_TRIGGER_TARGET',
   'CONCEDE',
 ]);
 

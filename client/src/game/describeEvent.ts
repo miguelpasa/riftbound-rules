@@ -169,6 +169,14 @@ export function describeEvent(
       ].filter(Boolean);
       return `${who(event.player, view)} added ${parts.join(' and ') || 'nothing'} to the Rune Pool.`;
     }
+    case 'TRIGGER_TARGETED':
+      return `${objectName(event.sourceId, view, cards, 'An ability')} targeted ${
+        event.targets
+          .map((t) => (t.kind === 'object' ? objectName(t.id, view, cards, 'a unit') : 'a target'))
+          .join(' and ') || 'nothing'
+      }.`;
+    case 'TRIGGER_NO_TARGET':
+      return `${objectName(event.sourceId, view, cards, 'An ability')} had no legal target and did nothing.`;
     case 'CLEANUP_ITERATION':
       return `Cleanup pass ${event.iteration}.`;
     default:
