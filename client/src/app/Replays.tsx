@@ -201,15 +201,46 @@ function ReplayBody({ player, cards, log, onClose }: ReplayViewerProps & { playe
 
 // ---------------------------------------------------------------- saved games
 
+/** Result from the host's side ("won" / "lost"), or a neutral line when the seat is unknown. */
+export function resultOf(g: GameSummary): 'won' | 'lost' | 'draw' | 'unknown' | 'playing' {
+  if (g.status === 'IN_PROGRESS') return 'playing';
+  if (g.winner === undefined || g.winner === null) return g.winner === null ? 'draw' : 'unknown';
+  if (g.hostSeat === undefined) return 'unknown';
+  return g.winner === g.hostSeat ? 'won' : 'lost';
+}
+
+/** Win/loss record over finished solo games (the human is always the host seat). */
+export function soloRecord(games: GameSummary[]): { won: number; lost: number; draw: number } {
+  const rec = { won: 0, lost: 0, draw: 0 };
+  for (const g of games) {
+    if (g.mode !== 'SOLO') continue;
+    const r = resultOf(g);
+    if (r === 'won') rec.won++;
+    else if (r === 'lost') rec.lost++;
+    else if (r === 'draw') rec.draw++;
+  }
+  return rec;
+}
+
 function describeGame(g: GameSummary): string {
   const when = new Date(g.createdAt).toLocaleString();
-  const mode = g.mode === 'SOLO' ? 'vs AI' : `Multiplayer${g.roomCode ? ` (${g.roomCode})` : ''}`;
+  const mode =
+    g.mode === 'SOLO'
+      ? `vs AI${g.difficulty ? ` (${g.difficulty})` : ''}`
+      : `Multiplayer${g.roomCode ? ` (${g.roomCode})` : ''}`;
+  const r = resultOf(g);
   const result =
-    g.status === 'IN_PROGRESS'
+    r === 'playing'
       ? 'in progress'
-      : g.winner === undefined || g.winner === null
-        ? 'finished'
-        : `finished, ${g.winner === 'p0' ? 'Player 1' : 'Player 2'} won`;
+      : r === 'won'
+        ? 'you won'
+        : r === 'lost'
+          ? 'you lost'
+          : r === 'draw'
+            ? 'draw'
+            : g.winner
+              ? `finished, ${g.winner === 'p0' ? 'Player 1' : 'Player 2'} won`
+              : 'finished';
   return `${when} - ${mode} - ${result} - ${g.intentCount} actions`;
 }
 
@@ -310,45 +341,56 @@ export function SavedGamesScreen({ onBack, onGame }: FlowProps) {
       ) : games.length === 0 ? (
         <p className="text-slate-400">No saved games yet.</p>
       ) : (
-        <ul className="flex flex-col gap-2" aria-label="Saved games">
-          {games.map((g) => (
-            <li
-              key={g.gameId}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-            >
-              <span className="text-sm text-slate-200">{describeGame(g)}</span>
-              <span className="flex gap-2">
-                {g.status === 'IN_PROGRESS' ? (
+        <>
+          {(() => {
+            const rec = soloRecord(games);
+            return rec.won + rec.lost + rec.draw > 0 ? (
+              <p className="text-sm text-slate-300" data-testid="solo-record">
+                Record vs AI: {rec.won} won, {rec.lost} lost
+                {rec.draw > 0 ? `, ${rec.draw} drawn` : ''}
+              </p>
+            ) : null;
+          })()}
+          <ul className="flex flex-col gap-2" aria-label="Saved games">
+            {games.map((g) => (
+              <li
+                key={g.gameId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
+              >
+                <span className="text-sm text-slate-200">{describeGame(g)}</span>
+                <span className="flex gap-2">
+                  {g.status === 'IN_PROGRESS' ? (
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => void resume(g)}
+                      className="rounded bg-amber-400 px-3 py-1 text-sm font-semibold text-slate-950 disabled:opacity-40"
+                    >
+                      Resume
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => void watch(g)}
+                      className="rounded bg-slate-700 px-3 py-1 text-sm text-slate-100 disabled:opacity-40"
+                    >
+                      Watch replay
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={busy !== null}
-                    onClick={() => void resume(g)}
-                    className="rounded bg-amber-400 px-3 py-1 text-sm font-semibold text-slate-950 disabled:opacity-40"
+                    onClick={() => void remove(g)}
+                    className="rounded border border-rose-700 px-3 py-1 text-sm text-rose-200 disabled:opacity-40"
                   >
-                    Resume
+                    Delete
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={busy !== null}
-                    onClick={() => void watch(g)}
-                    className="rounded bg-slate-700 px-3 py-1 text-sm text-slate-100 disabled:opacity-40"
-                  >
-                    Watch replay
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={busy !== null}
-                  onClick={() => void remove(g)}
-                  className="rounded border border-rose-700 px-3 py-1 text-sm text-rose-200 disabled:opacity-40"
-                >
-                  Delete
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
       <div className="flex flex-col gap-1">
         <label htmlFor="replay-file" className="text-sm text-slate-300">

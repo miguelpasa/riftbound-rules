@@ -17,6 +17,8 @@ export interface ActiveGame {
   statusText?: { get(): string; subscribe(l: () => void): () => void } | undefined;
   /** Shown instead of the game until the first view arrives (guest connecting / refused). */
   pending?: ((onLeave: () => void) => ReactNode) | undefined;
+  /** Solo: starts a fresh game with the same decks and difficulty (after this one ended). */
+  rematch?: (() => ActiveGame) | undefined;
 }
 
 /** Timer shown in the header; fed by HostEnv.onTimer. */
@@ -103,7 +105,15 @@ function StatusText({ active }: { active: ActiveGame }) {
   );
 }
 
-function GameBody({ active, onLeave }: { active: ActiveGame; onLeave: () => void }) {
+function GameBody({
+  active,
+  onLeave,
+  onRematch,
+}: {
+  active: ActiveGame;
+  onLeave: () => void;
+  onRematch?: ((next: ActiveGame) => void) | undefined;
+}) {
   const api = useGameApi(active.adapter);
   if (!api) {
     return <>{active.pending ? active.pending(onLeave) : <p className="p-6">Connecting...</p>}</>;
@@ -112,6 +122,9 @@ function GameBody({ active, onLeave }: { active: ActiveGame; onLeave: () => void
     <GameProvider value={api}>
       <GameScreen
         onBackToMenu={onLeave}
+        {...(active.rematch && onRematch
+          ? { onRematch: () => onRematch((active.rematch as () => ActiveGame)()) }
+          : {})}
         headerExtra={
           <span className="flex flex-wrap items-center gap-2">
             <StatusText active={active} />
@@ -125,10 +138,18 @@ function GameBody({ active, onLeave }: { active: ActiveGame; onLeave: () => void
 }
 
 /** The in-game screen with its crash guard. */
-export function GameView({ active, onLeave }: { active: ActiveGame; onLeave: () => void }) {
+export function GameView({
+  active,
+  onLeave,
+  onRematch,
+}: {
+  active: ActiveGame;
+  onLeave: () => void;
+  onRematch?: ((next: ActiveGame) => void) | undefined;
+}) {
   return (
     <ErrorBoundary onBack={onLeave}>
-      <GameBody active={active} onLeave={onLeave} />
+      <GameBody active={active} onLeave={onLeave} onRematch={onRematch} />
     </ErrorBoundary>
   );
 }

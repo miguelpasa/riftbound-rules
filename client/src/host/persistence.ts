@@ -88,6 +88,9 @@ export interface GameSummary {
   roomCode?: string;
   winner?: PlayerId | null;
   intentCount: number;
+  /** The host's seat (the human in a solo game). Optional: summaries built before R48 lack it. */
+  hostSeat?: PlayerId;
+  difficulty?: GameHeader['difficulty'];
 }
 
 export type HeaderPatch = Partial<Pick<GameHeader, 'roomCode' | 'guestSeatToken'>>;
@@ -119,7 +122,9 @@ function summarize(h: GameHeader, intentCount: number): GameSummary {
     createdAt: h.createdAt,
     engineVersion: h.engineVersion,
     intentCount,
+    hostSeat: h.hostSeat,
   };
+  if (h.difficulty !== undefined) s.difficulty = h.difficulty;
   if (h.roomCode !== undefined) s.roomCode = h.roomCode;
   if (h.winner !== undefined) s.winner = h.winner;
   return s;

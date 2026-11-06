@@ -26,6 +26,8 @@ import { useBoardUi } from './useBoardUi';
 export interface GameScreenProps {
   /** Called from the game-over banner and the connection overlay. */
   onBackToMenu?: () => void;
+  /** Solo: shown on the game-over banner as "Rematch". */
+  onRematch?: () => void;
   /** Extra header content (leave button, room code, timer badge...). */
   headerExtra?: ReactNode;
   /** Tutorial: every plain unit click adds to the selection (no Ctrl/Shift needed). */
@@ -212,10 +214,12 @@ function GameOverBanner({
   winner,
   seat,
   onBackToMenu,
+  onRematch,
 }: {
   winner: string | null;
   seat: string;
   onBackToMenu?: (() => void) | undefined;
+  onRematch?: (() => void) | undefined;
 }) {
   const text =
     winner === null ? 'The game ended in a draw.' : winner === seat ? 'You win!' : 'You lose.';
@@ -231,9 +235,19 @@ function GameOverBanner({
         <p role="status" className="text-lg text-slate-100">
           {text}
         </p>
+        {onRematch ? (
+          <button
+            type="button"
+            autoFocus
+            onClick={onRematch}
+            className="rounded-lg bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Rematch
+          </button>
+        ) : null}
         <button
           type="button"
-          autoFocus
+          autoFocus={!onRematch}
           onClick={() => onBackToMenu?.()}
           className="rounded-lg bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
@@ -245,7 +259,12 @@ function GameOverBanner({
 }
 
 /** The whole in-game screen. Reads everything from `useGame()`; render inside a GameProvider. */
-export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: GameScreenProps) {
+export function GameScreen({
+  onBackToMenu,
+  onRematch,
+  headerExtra,
+  additiveSelection,
+}: GameScreenProps) {
   const api = useGame();
   const { view, cards, legal, seat } = api;
   const ui = useBoardUi(api, { additiveSelection: additiveSelection === true });
@@ -454,7 +473,12 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
       ) : null}
 
       {api.gameOver ? (
-        <GameOverBanner winner={api.gameOver.winner} seat={seat} onBackToMenu={onBackToMenu} />
+        <GameOverBanner
+          winner={api.gameOver.winner}
+          seat={seat}
+          onBackToMenu={onBackToMenu}
+          onRematch={onRematch}
+        />
       ) : null}
 
       <HostAwayOverlay status={api.connection} onLeave={() => onBackToMenu?.()} />

@@ -59,13 +59,18 @@ export function Panel({
 const primaryBtn =
   'rounded-lg bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
-export function hostActive(game: HostGame, kind: 'solo' | 'host'): ActiveGame {
+export function hostActive(
+  game: HostGame,
+  kind: 'solo' | 'host',
+  rematch?: () => ActiveGame,
+): ActiveGame {
   const peer = game.peer;
   return {
     kind,
     adapter: game.adapter,
     dispose: () => game.dispose(),
     roomCode: game.roomCode,
+    ...(rematch ? { rematch } : {}),
     statusText: peer
       ? {
           get: () => (peer.get().detail === 'listening' ? '' : peer.get().message),
@@ -356,14 +361,20 @@ export function SoloFlow({ onBack, onGame }: FlowProps) {
       const storage = await app.getStorage();
       const seed = newSeed();
       const botDeck = pickBotDeck(app.data.presets, deck.id, deck.deck, seed);
-      const game = startSoloGame(app.makeEnv(storage), {
-        deck: deck.deck,
-        botDeck,
-        difficulty,
-        seed,
-        timersEnabled: app.settings.timerSolo,
-      });
-      onGame(hostActive(game, 'solo'));
+      // Each game offers a rematch: same decks and difficulty, a fresh seed.
+      const launch = (gameSeed: string): ActiveGame =>
+        hostActive(
+          startSoloGame(app.makeEnv(storage), {
+            deck: deck.deck,
+            botDeck,
+            difficulty,
+            seed: gameSeed,
+            timersEnabled: app.settings.timerSolo,
+          }),
+          'solo',
+          () => launch(newSeed()),
+        );
+      onGame(launch(seed));
     } catch (e) {
       pushToastOnce(`Could not start the game: ${errorText(e)}`);
       setStarting(false);

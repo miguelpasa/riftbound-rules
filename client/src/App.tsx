@@ -147,6 +147,14 @@ function MainApp({ deps: override }: AppProps) {
     saveSettings(next);
   }, []);
 
+  // Rematch: the finished game is disposed, then the next one takes its place.
+  const rematch = useCallback((next: ActiveGame) => {
+    const old = activeRef.current;
+    activeRef.current = next;
+    setActive(next);
+    if (old) void Promise.resolve(old.dispose()).catch(() => undefined);
+  }, []);
+
   const leave = useCallback(() => {
     const a = activeRef.current;
     activeRef.current = null;
@@ -184,7 +192,7 @@ function MainApp({ deps: override }: AppProps) {
 
   let body;
   if (screen === 'game' && active && ctx) {
-    body = <GameView active={active} onLeave={leave} />;
+    body = <GameView active={active} onLeave={leave} onRematch={rematch} />;
   } else if (screen === 'tutorial') {
     body = (
       <Suspense fallback={<p className="p-4 text-slate-400">Loading...</p>}>

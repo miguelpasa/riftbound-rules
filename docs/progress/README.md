@@ -84,3 +84,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R18](R18-mobile-layout.md)          | Mobile layout: compact sticky header, scrolling phase row, 44px action buttons, mobile e2e | Medium | Sonnet | Done | uncommitted |
 | [R28](R28-ai-strength.md)            | AI strength: match harness, real easy/normal/hard levels, rollout lookahead for hard (63% vs normal) | High | Sonnet | Done | uncommitted |
 | [R24](R24-polish.md)                 | Polish: synthesized sound cues + setting, pop animation, reduced-motion rule, focus ring, skip link | Medium | Sonnet | Done | uncommitted |
+| [R48](R48-rematch-history.md)        | Solo rematch button, result/difficulty in saved games, record vs AI | Medium | Sonnet | Done | uncommitted |

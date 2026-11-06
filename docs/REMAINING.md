@@ -109,7 +109,7 @@ The MVP is keyword-only. Of about 1,100 unique cards only 68 are fully playable;
 | R22 | **DONE** Replay viewer: full event log per step instead of only the last step's events                                                                                                          | Low        | Haiku  | none       |                                                                         |
 | R23 | **DONE** Emit a public `CARD_HIDDEN` event for Hidden cards (opponent log shows that a card was hidden, with no card id)                                                                        | Low        | Haiku  | none       | The event type exists but is never emitted.                             |
 | R24 | **DONE (see progress/R24)** Sound, animations and accessibility polish (reduced motion already respected)                                                                                                                   | Medium     | Sonnet | none       |                                                                         |
-| R25 | Optional rematch flow and basic match history                                                                                                                                                   | Medium     | Sonnet | none       |                                                                         |
+| R25 | **DONE as R48 (solo only)** Optional rematch flow and basic match history                                                                                                                                                   | Medium     | Sonnet | none       |                                                                         |
 
 ## 4. Networking and robustness
 
