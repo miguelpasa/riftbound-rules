@@ -15,6 +15,7 @@ import {
 import { HostFlow, JoinFlow, Panel, SoloFlow } from './app/Flows';
 import { GameView, timerStore, type ActiveGame } from './app/GameView';
 import type { HostEnv } from './app/hostGame';
+import { setSoundEnabled } from './app/sound';
 import { loadSettings, saveSettings, type AppSettings } from './app/settings';
 import { errorText, pushToastOnce } from './app/toastUtil';
 import { setState, useGameStore } from './store/gameStore';
@@ -136,6 +137,10 @@ function MainApp({ deps: override }: AppProps) {
     },
     [data, deps],
   );
+
+  useEffect(() => {
+    setSoundEnabled(settings.sound);
+  }, [settings.sound]);
 
   const setSettings = useCallback((next: AppSettings) => {
     setSettingsState(next);
@@ -340,6 +345,15 @@ function SettingsPanel({
             className="h-4 w-4 accent-indigo-500"
           />
           Reaction timer in games vs the AI
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={settings.sound}
+            onChange={(e) => onChange({ ...settings, sound: e.target.checked })}
+            className="h-4 w-4 accent-indigo-500"
+          />
+          Sound effects (turn chime, points, kills)
         </label>
       </div>
     </Panel>

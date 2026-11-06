@@ -14,3 +14,36 @@ body {
   background-color: #0b0f19;
   color: #e5e7eb;
 }
+
+@keyframes pop {
+  from {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pop {
+  animation: pop 0.22s ease-out;
+}
+
+/* Reduced motion: no animations or smooth scrolling, transitions become instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Keyboard users always get a visible focus ring, whatever a component sets. */
+:focus-visible {
+  outline: 2px solid #fcd34d;
+  outline-offset: 2px;
+}

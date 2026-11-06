@@ -14,6 +14,7 @@ import { PhaseTracker } from '../components/PhaseTracker';
 import { ResourcePanel } from '../components/ResourcePanel';
 import { Scoreboard } from '../components/Scoreboard';
 import { Toasts } from '../components/Toasts';
+import { cueForEvent, pickCue, playCue } from '../app/sound';
 import { describeEvent, isImportantEvent, isLoggedEvent } from './describeEvent';
 import { Hand } from './Hand';
 import { findMulligan, isTypingOrInteractive, primaryAction } from './interaction';
@@ -65,6 +66,21 @@ function useEventLog(api: GameApi): { lines: LogLine[]; announcement: string } {
     });
   }
   return { lines: log.lines, announcement: log.announcement };
+}
+
+/** Plays one sound cue per batch of fresh events (never for the first batch: that is history). */
+function useSoundCues(api: GameApi): void {
+  const lastSeq = useRef<number | null>(null);
+  useEffect(() => {
+    const events = api.recentEvents;
+    const max = events.reduce((m, e) => Math.max(m, e.seq), 0);
+    const prev = lastSeq.current;
+    lastSeq.current = Math.max(prev ?? 0, max);
+    if (prev === null) return;
+    const fresh = events.filter((e) => e.seq > prev);
+    const cue = pickCue(fresh.map((e) => cueForEvent(e, api.seat)));
+    if (cue) playCue(cue);
+  }, [api.recentEvents, api.seat]);
 }
 
 function ConnectionIndicators({ api }: { api: GameApi }) {
@@ -234,6 +250,7 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
   const { view, cards, legal, seat } = api;
   const ui = useBoardUi(api, { additiveSelection: additiveSelection === true });
   const { lines, announcement } = useEventLog(api);
+  useSoundCues(api);
   const [confirmConcede, setConfirmConcede] = useState(false);
   const concedeBtn = useRef<HTMLButtonElement>(null);
   const concedeWasOpen = useRef(false);
@@ -285,6 +302,12 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      <a
+        href="#board"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded focus:bg-amber-300 focus:px-3 focus:py-1 focus:text-slate-950"
+      >
+        Skip to the board
+      </a>
       <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-slate-800 bg-slate-900 px-3 py-2 md:gap-y-2">
         <div className="w-full md:w-60" data-tutorial-id="score">
           <Scoreboard
@@ -338,7 +361,7 @@ export function GameScreen({ onBackToMenu, headerExtra, additiveSelection }: Gam
       </header>
 
       <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <main className="flex min-w-0 flex-col gap-3">
+        <main id="board" tabIndex={-1} className="flex min-w-0 flex-col gap-3 outline-none">
           <TargetBanner ui={ui} />
           <Playmat ui={ui} />
           <Hand ui={ui} />

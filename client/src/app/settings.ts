@@ -4,12 +4,19 @@ export interface AppSettings {
   timerMultiplayer: boolean;
   /** Same timers in solo games vs the AI. Default off. */
   timerSolo: boolean;
+  /** Synthesized sound cues in games. Default on. */
+  sound: boolean;
 }
 
 const KEY_MP = 'riftbound.timerMultiplayer';
 const KEY_SOLO = 'riftbound.timerSolo';
+const KEY_SOUND = 'riftbound.sound';
 
-export const DEFAULT_SETTINGS: AppSettings = { timerMultiplayer: true, timerSolo: false };
+export const DEFAULT_SETTINGS: AppSettings = {
+  timerMultiplayer: true,
+  timerSolo: false,
+  sound: true,
+};
 
 function read(key: string, fallback: boolean): boolean {
   try {
@@ -24,6 +31,7 @@ export function loadSettings(): AppSettings {
   return {
     timerMultiplayer: read(KEY_MP, DEFAULT_SETTINGS.timerMultiplayer),
     timerSolo: read(KEY_SOLO, DEFAULT_SETTINGS.timerSolo),
+    sound: read(KEY_SOUND, DEFAULT_SETTINGS.sound),
   };
 }
 
@@ -31,6 +39,7 @@ export function saveSettings(s: AppSettings): void {
   try {
     globalThis.localStorage?.setItem(KEY_MP, String(s.timerMultiplayer));
     globalThis.localStorage?.setItem(KEY_SOLO, String(s.timerSolo));
+    globalThis.localStorage?.setItem(KEY_SOUND, String(s.sound));
   } catch {
     /* storage unavailable: setting applies for this session only */
   }

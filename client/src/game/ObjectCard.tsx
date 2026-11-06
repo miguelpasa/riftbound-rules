@@ -219,7 +219,7 @@ export function ObjectCard(props: ObjectCardProps) {
   const body = <ObjectCardBody {...props} hasAbility={usable} />;
   if (!usable) return body;
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="animate-pop flex flex-col items-center gap-1">
       {body}
       <AbilityButtons id={props.id} ui={props.ui} />
     </div>

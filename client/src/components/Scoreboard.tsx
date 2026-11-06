@@ -19,7 +19,7 @@ function Pips({ filled, total }: { filled: number; total: number }) {
           key={i}
           className={
             i < filled
-              ? 'h-3 w-3 rounded-full bg-amber-400'
+              ? 'animate-pop h-3 w-3 rounded-full bg-amber-400'
               : 'h-3 w-3 rounded-full border border-slate-600 bg-slate-800'
           }
         />
