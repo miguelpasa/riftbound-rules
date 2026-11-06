@@ -1,4 +1,4 @@
-import type { Domain } from './card.js';
+import type { Domain, KeywordInstance } from './card.js';
 import type { FlowState, MulliganState, TurnState } from './chain.js';
 
 /** Bump on any breaking change to GameState shape or rules behavior. */
@@ -48,6 +48,8 @@ export interface CardInstance {
   mightBonus: number;
   /** Part of mightBonus that expires at the end of the turn ("this turn" effects). */
   tempMight?: number;
+  /** Keywords granted until the end of the turn (R43); see tempKeywords.ts. */
+  tempKeywords?: KeywordInstance[];
   /** Stunned this turn: deals no combat damage. Expires in the Ending step. */
   stunned?: boolean;
   /** Equipment -> id of the unit it is attached to. */

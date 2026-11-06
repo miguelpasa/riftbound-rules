@@ -84,7 +84,8 @@ describe('cardConvert', () => {
     expect(lvl('[Tank] [Assault 2] (Reminder text.)')).toBe('full');
     expect(lvl('[Equip] [1][C]')).toBe('full');
     expect(lvl('When I attack, draw 1.')).toBe('full'); // R42: attack triggers are parsed
-    expect(lvl('When I move, draw 1.')).toBe('partial');
+    expect(lvl('When I move, draw 1.')).toBe('full'); // R43: move triggers are parsed
+    expect(lvl('When I move to a battlefield, draw 1.')).toBe('partial');
     expect(lvl('[Deathknell] (Reminder.)')).toBe('partial');
     expect(lvl('[Tank] [Buff]')).toBe('partial');
   });
@@ -265,5 +266,53 @@ describe('R42 converter wiring', () => {
     const validate = createCardValidator();
     expect(validate(g)).toEqual([]);
     expect(validate(conv('Spell', '[Repeat] [2]\nReady a unit.'))).toEqual([]);
+  });
+});
+
+describe('R43 converter wiring', () => {
+  const conv = (type: string, text: string) =>
+    convertRow(row({ cardType: type, cardTypeLabels: [type], abilityEffective: text })).card;
+  const validate = createCardValidator();
+
+  it('treats [Ambush] as an implemented keyword, alone or with a parsed trigger', () => {
+    const bare = conv(
+      'Unit',
+      '[Ambush] (You may play me as a [Reaction] to a battlefield where you have units.)',
+    );
+    expect(bare?.supportLevel).toBe('full');
+    expect(bare?.keywords).toEqual([{ name: 'Ambush' }]);
+    const vi = conv('Unit', '[Ambush]\nWhen I attack, [Stun] an enemy unit here.');
+    expect(vi?.supportLevel).toBe('full');
+    expect(vi?.triggers?.[0]?.on).toBe('ATTACK');
+    // Prose beyond the keyword (Rengar) still blocks full support.
+    expect(
+      conv('Unit', '[Ambush]\nI can be played to a battlefield where there are enemy units.')
+        ?.supportLevel,
+    ).toBe('partial');
+    expect(validate(bare)).toEqual([]);
+  });
+
+  it('stores conditions and enters-ready conditions, and validates', () => {
+    const shen = conv(
+      'Unit',
+      'When I hold, if there is exactly one other unit you control here, draw 1.',
+    );
+    expect(shen?.supportLevel).toBe('full');
+    expect(shen?.triggers?.[0]?.when).toMatchObject({ kind: 'COUNT', where: 'here', n: 1 });
+    const lone = conv('Unit', 'I enter ready if you control no other units.');
+    expect(lone?.supportLevel).toBe('full');
+    expect(lone?.entersReadyWhen).toMatchObject({ kind: 'COUNT', n: 0 });
+    expect(conv('Unit', 'When I hold, if the moon is full, draw 1.')?.supportLevel).toBe('partial');
+    expect(validate(shen)).toEqual([]);
+    expect(validate(lone)).toEqual([]);
+  });
+
+  it('parses the temporary keyword grants of spells and units', () => {
+    const block = conv('Spell', 'Give a unit [Shield 2] and [Tank] this turn.');
+    expect(block?.supportLevel).toBe('full');
+    expect(block?.effects?.[0]).toMatchObject({ op: 'GRANT_KEYWORD_TARGET' });
+    const dancer = conv('Unit', 'When you play me, give your other units here [Shield] this turn.');
+    expect(dancer?.supportLevel).toBe('full');
+    expect(conv('Spell', 'Give a unit [Deflect] this turn.')?.supportLevel).toBe('partial');
   });
 });

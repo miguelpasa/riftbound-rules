@@ -29,6 +29,7 @@ import { abilityCandidates } from './abilities.js';
 import { legionActive } from './keywords.js';
 import { autoAssign } from './combat.js';
 import { enumerateSpellTargets } from './effects.js';
+import { hasUnitAt } from './play.js';
 import { applyIntent, reduce } from './reducer.js';
 import { abilityItemEffects } from './triggers.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
@@ -116,6 +117,12 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
         : [
             { kind: 'base' },
             ...myBattlefields.map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id })),
+            // Ambush (822): also battlefields held by the opponent or nobody where I have units.
+            ...(hasKw(def, 'Ambush')
+              ? state.battlefields
+                  .filter((b) => b.controller !== pid && hasUnitAt(state, cards, pid, b.id))
+                  .map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
+              : []),
           ]
       : [undefined];
     const accelOptions = isUnit && hasKw(def, 'Accelerate') ? [false, true] : [false];

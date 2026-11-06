@@ -32,10 +32,36 @@ import type {
   ActivatedAbility,
   CardEffect,
   CardTrigger,
+  Condition,
+  CountCmp,
+  KeywordInstance,
   TargetCount,
   TargetSide,
   TriggerKind,
 } from './types/card.js';
+
+/**
+ * Temporary keyword grants (R43): "{Tank}", "{Assault 2} and {Ganking}" after "Give ... " in a
+ * sentence. The brackets of a grant become braces before the keyword tokens of a card are stripped.
+ */
+const GRANT_KW = '(?:Tank|Ganking|(?:Assault|Shield)(?: \\d+)?)';
+const KW_LIST = `((?:\\{${GRANT_KW}\\}(?: and )?)+)`;
+export function protectGrants(text: string): string {
+  return text.replace(
+    new RegExp(`(\\bGive [^.\\[\\]{}]*?)((?:\\[${GRANT_KW}\\](?: and )?)+)(?= this turn)`, 'gi'),
+    (_m, head: string, list: string) => head + list.replace(/\[/g, '{').replace(/\]/g, '}'),
+  );
+}
+function parseKwList(list: string | undefined): KeywordInstance[] | null {
+  if (!list) return null;
+  const out: KeywordInstance[] = [];
+  for (const m of list.matchAll(/\{(Tank|Ganking|Assault|Shield)(?: (\d+))?\}/gi)) {
+    const raw = (m[1] ?? '').toLowerCase();
+    const name = (raw.charAt(0).toUpperCase() + raw.slice(1)) as KeywordInstance['name'];
+    out.push(m[2] ? { name, value: Number(m[2]) } : { name });
+  }
+  return out.length > 0 ? out : null;
+}
 
 const side = (w: string | undefined): TargetSide | undefined =>
   w === 'friendly' ? 'friendly' : w === 'enemy' ? 'enemy' : undefined;
@@ -78,6 +104,16 @@ export function parseClause(sen: string): CardEffect[] | null {
   }
   m = /^Channel (\d+) runes?( exhausted)?$/i.exec(sen);
   if (m) return [{ op: 'CHANNEL', amount: Number(m[1]), ...(m[2] ? { exhausted: true } : {}) }];
+  m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
+  if (m) {
+    const keywords = parseKwList(m[1]);
+    return keywords ? [{ op: 'GRANT_KEYWORDS', keywords, to: 'SELF' }] : null;
+  }
+  m = new RegExp(`^Give your other units here ${KW_LIST} this turn$`, 'i').exec(sen);
+  if (m) {
+    const keywords = parseKwList(m[1]);
+    return keywords ? [{ op: 'GRANT_KEYWORDS', keywords, to: 'OTHERS_HERE' }] : null;
+  }
   m = /^You score (\d+) points?$/i.exec(sen);
   if (m) return [{ op: 'GAIN_POINT', amount: Number(m[1]) }];
   m = new RegExp(`^Give (friendly|enemy) units \\+(\\d+) \\[M\\] this turn$`, 'i').exec(sen);
@@ -274,6 +310,16 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  m = new RegExp(`^Give an? ${SIDE}unit ${KW_LIST} this turn$`, 'i').exec(sen);
+  if (m) {
+    const keywords = parseKwList(m[2]);
+    if (!keywords) return null;
+    const s = side(m[1]);
+    return {
+      effect: { op: 'GRANT_KEYWORD_TARGET', keywords, ...sideProp(s) },
+      decl: { side: s ?? 'any' },
+    };
+  }
   m = new RegExp(`^Give an? ${SIDE}unit \\+(\\d+) \\[M\\] this turn$`, 'i').exec(sen);
   if (m) {
     const s = side(m[1]);
@@ -418,7 +464,12 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
   const at = slot > 0 ? { slot } : {};
   const sd = d.side === 'any' ? {} : { side: d.side };
   const bf = d.atBattlefield ? { atBattlefield: true } : {};
-  let m = /^Give it \+(\d+) \[M\] this turn$/i.exec(sen);
+  let m = new RegExp(`^Give it ${KW_LIST} this turn$`, 'i').exec(sen);
+  if (m) {
+    const keywords = parseKwList(m[1]);
+    return keywords ? { op: 'GRANT_KEYWORD_TARGET', keywords, ...sd, ...bf, ...at } : null;
+  }
+  m = /^Give it \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) {
     return { op: 'BUFF_TARGET', amount: Number(m[1]), duration: 'TURN', ...sd, ...bf, ...at };
   }
@@ -613,7 +664,7 @@ export function parseRepeatCost(text: string): { energy: number; power: number }
 }
 
 export function parseSpellText(text: string): CardEffect[] | null {
-  const cleaned = text
+  const cleaned = protectGrants(text)
     .replace(/(?:^|\n)\s*\[Repeat\]\s*(?:\[[0-9C]+\]\s*)+/gi, '\n')
     .replace(/\[(Action|Reaction|Hidden)\]/gi, ' ')
     .replace(/\[Stun\]/gi, 'Stun')
@@ -651,13 +702,15 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
 const TOKEN_WITH = /(tokens?) with \[(\w+)\]/gi;
 
 const KEYWORD_TOKENS =
-  /\[(Tank|Backline|Assault(?: \d+)?|Shield(?: \d+)?|Ganking|Accelerate|Temporary|Hidden|Deflect(?: \d+)?|Action|Reaction)\]/gi;
+  /\[(Tank|Backline|Assault(?: \d+)?|Shield(?: \d+)?|Ganking|Accelerate|Temporary|Hidden|Deflect(?: \d+)?|Action|Reaction|Ambush)\]/gi;
 
 /** What a unit / gear / token text defines besides keywords (R5, R38). */
 export interface ParsedAbilities {
   triggers: CardTrigger[];
   abilities: ActivatedAbility[];
   entersReady?: boolean;
+  /** "I enter ready if <condition>." (R43). */
+  entersReadyWhen?: Condition;
   /** "This enters exhausted." (R42). */
   entersExhausted?: boolean;
   legionCostReduction?: number;
@@ -707,8 +760,124 @@ function parseAbilityCost(text: string, gearLike: boolean): AbilityCost | null {
   return cost.exhaust || cost.energy || cost.killSelf ? cost : null;
 }
 
+const NUMBER_WORDS: Record<string, number> = {
+  no: 0,
+  zero: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+};
+const NUM = '(\\d+|no|zero|one|two|three|four|five|six|seven|eight)';
+const numberOf = (w: string | undefined): number | null => {
+  if (w === undefined) return null;
+  if (/^\d+$/.test(w)) return Number(w);
+  return NUMBER_WORDS[w.toLowerCase()] ?? null;
+};
+
+/**
+ * R43: the condition clauses understood after "if" (case-insensitive, no final period):
+ *  - "there is exactly one other unit you control here", "you control two or more other gear",
+ *    "you control no other units", "you control three or fewer runes", "you have two or more other
+ *    units in your base", "you have one or fewer cards in your hand", "there is an enemy unit alone
+ *    here"  (COUNT)
+ *  - "you control a Poro", "you control another Dragon"  (CONTROL_SUBTYPE)
+ *  - "I'm at a battlefield"  (AT_BATTLEFIELD)
+ * Anything else is null, which keeps the card partial.
+ */
+export function parseCondition(raw: string): Condition | null {
+  const text = raw
+    .trim()
+    .replace(/[.\s]+$/, '')
+    .replace(/\s+/g, ' ');
+  if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
+  if (/^there['’]?s? (?:is )?an enemy unit alone (?:here|at that battlefield)$/i.test(text)) {
+    return { kind: 'COUNT', what: 'unit', where: 'here', who: 'enemy', cmp: 'EQ', n: 1 };
+  }
+  let m = new RegExp(
+    `^there is (exactly|at least) ${NUM} (other )?(units?|gear) you control here$`,
+    'i',
+  ).exec(text);
+  if (m) {
+    const n = numberOf(m[2]);
+    if (n === null) return null;
+    return {
+      kind: 'COUNT',
+      what: /gear/i.test(m[4] ?? '') ? 'gear' : 'unit',
+      where: 'here',
+      who: 'friendly',
+      ...(m[3] ? { other: true } : {}),
+      cmp: /least/i.test(m[1] ?? '') ? 'GTE' : 'EQ',
+      n,
+    };
+  }
+  m = new RegExp(
+    `^you (?:control|have) ${NUM}(?: or (more|fewer))? (other )?(units?|gear|runes?|cards?)(?: (in your base|in your hand))?$`,
+    'i',
+  ).exec(text);
+  if (m) {
+    const n = numberOf(m[1]);
+    if (n === null) return null;
+    const noun = (m[4] ?? '').toLowerCase();
+    const what = noun.startsWith('unit')
+      ? 'unit'
+      : noun === 'gear'
+        ? 'gear'
+        : noun.startsWith('rune')
+          ? 'rune'
+          : 'card';
+    const place = (m[5] ?? '').toLowerCase();
+    // "N cards" only makes sense in the hand; runes only on the board.
+    if ((what === 'card') !== (place === 'in your hand')) return null;
+    if (what === 'rune' && place !== '') return null;
+    const where = place === 'in your base' ? 'base' : place === 'in your hand' ? 'hand' : 'board';
+    const cmp: CountCmp = /^more$/i.test(m[2] ?? '')
+      ? 'GTE'
+      : /^fewer$/i.test(m[2] ?? '')
+        ? 'LTE'
+        : 'EQ';
+    return {
+      kind: 'COUNT',
+      what,
+      where,
+      who: 'friendly',
+      ...(m[3] ? { other: true } : {}),
+      cmp,
+      n,
+    };
+  }
+  m = /^you control (a|an|another) ([A-Z][A-Za-z]+)$/.exec(text);
+  if (m && !/^(Battlefield|Unit|Gear|Rune|Spell)$/.test(m[2] ?? '')) {
+    return {
+      kind: 'CONTROL_SUBTYPE',
+      subtype: m[2] as string,
+      ...(m[1]?.toLowerCase() === 'another' ? { other: true } : {}),
+    };
+  }
+  return null;
+}
+
+/** "if <cond>, <rest>" or "<rest> if <cond>": split a condition off the first sentence of a body. */
+function splitCondition(sen: string): { when?: Condition; rest: string } | null {
+  let m = /^if (.+?), (.+)$/i.exec(sen);
+  if (m) {
+    const when = parseCondition(m[1] as string);
+    return when ? { when, rest: m[2] as string } : null;
+  }
+  m = /^(.+?),? if (.+)$/i.exec(sen);
+  if (m) {
+    const when = parseCondition(m[2] as string);
+    if (when) return { when, rest: m[1] as string };
+  }
+  return { rest: sen };
+}
+
 const TRIGGER_HEAD =
-  /^(When you play me or when I (hold|conquer)|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you play me or when I (hold|conquer)|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -723,7 +892,7 @@ export function parseCardAbilities(
   opts: { gearLike?: boolean } = {},
 ): ParsedAbilities | null {
   const kwTriggers = keywordTriggers(text);
-  const cleaned = text
+  const cleaned = protectGrants(text)
     .replace(/(?:^|\n)\s*\[(?:Disarm(?: \d+)?|Weaponmaster)\]/gi, '\n')
     .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
@@ -741,7 +910,7 @@ export function parseCardAbilities(
   const out: ParsedAbilities = { triggers: [...kwTriggers], abilities: [] };
   // A trigger / ability sentence starts a group; the sentences after it belong to the same ability.
   type Group =
-    | { kind: 'trigger'; ons: TriggerKind[]; legion: boolean; sens: string[] }
+    | { kind: 'trigger'; ons: TriggerKind[]; legion: boolean; when?: Condition; sens: string[] }
     | { kind: 'ability'; cost: AbilityCost; reaction: boolean; sens: string[] };
   const groups: Group[] = [];
   let cur: Group | null = null;
@@ -772,8 +941,18 @@ export function parseCardAbilities(
                   ? ['ATTACK']
                   : head.startsWith('when i defend')
                     ? ['DEFEND']
-                    : ['DEATH'];
-      cur = { kind: 'trigger', ons, legion, sens: m[3] ? [m[3]] : [] };
+                    : head.startsWith('when i move')
+                      ? ['MOVE']
+                      : ['DEATH'];
+      let body = m[3] ?? '';
+      let when: Condition | undefined;
+      if (body) {
+        const split = splitCondition(body);
+        if (!split) return null; // an "if" clause we do not understand
+        when = split.when;
+        body = split.rest;
+      }
+      cur = { kind: 'trigger', ons, legion, ...(when ? { when } : {}), sens: body ? [body] : [] };
       groups.push(cur);
       continue;
     }
@@ -784,6 +963,14 @@ export function parseCardAbilities(
     }
     if (/^I enter ready$/i.test(sen) && !legion) {
       out.entersReady = true;
+      cur = null;
+      continue;
+    }
+    const erc = /^I enter ready if (.+)$/i.exec(sen);
+    if (erc && !legion) {
+      const when = parseCondition(erc[1] as string);
+      if (!when) return null;
+      out.entersReadyWhen = when;
       cur = null;
       continue;
     }
@@ -813,7 +1000,12 @@ export function parseCardAbilities(
       out.abilities.push({ cost: g.cost, ...(g.reaction ? { reaction: true } : {}), effects });
     } else {
       for (const on of g.ons) {
-        out.triggers.push({ on, effects, ...(g.legion ? { condition: 'LEGION' as const } : {}) });
+        out.triggers.push({
+          on,
+          effects,
+          ...(g.legion ? { condition: 'LEGION' as const } : {}),
+          ...(g.when ? { when: g.when } : {}),
+        });
       }
     }
   }
@@ -821,6 +1013,7 @@ export function parseCardAbilities(
     out.triggers.length > 0 ||
     out.abilities.length > 0 ||
     out.entersReady === true ||
+    out.entersReadyWhen !== undefined ||
     out.entersExhausted === true ||
     out.legionCostReduction !== undefined;
   return any ? out : null;
@@ -833,6 +1026,7 @@ export function parseTriggerText(text: string): CardTrigger[] | null {
   if (
     r.abilities.length > 0 ||
     r.entersReady ||
+    r.entersReadyWhen ||
     r.entersExhausted ||
     r.legionCostReduction !== undefined
   ) {

@@ -187,7 +187,7 @@ Counts are `cards.json` rows whose `keywords` array carries the name (all are `s
 
 **Buff** (427.1) - 20 cards (text). Not a keyword. Partially implemented: `BUFF_TARGET` / `BUFF_ALL` in `types/card.ts`. Complexity: Low for the existing buff types.
 
-**Ambush (822)** - not typed in `KeywordName`; 0 keyword rows. It is a Passive (Units) that adds Battlefield-play permissions. Complexity: Low to add the type; Medium to play correctly (Reaction while played to a battlefield you control has units).
+**Ambush (822)** - implemented in R43 (typed, play permission in `play.ts`; official text unverified). Originally: not typed in `KeywordName`; 0 keyword rows. It is a Passive (Units) that adds Battlefield-play permissions. Complexity: Low to add the type; Medium to play correctly (Reaction while played to a battlefield you control has units).
 
 ---
 

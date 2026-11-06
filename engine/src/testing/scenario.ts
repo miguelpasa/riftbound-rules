@@ -28,6 +28,7 @@ import type {
   GameEvent,
   GameState,
   Intent,
+  KeywordInstance,
   PaymentPlan,
   PlayerId,
   ReduceResult,
@@ -500,6 +501,22 @@ export class Scenario {
   setMightBonus(id: string, bonus: number): this {
     return this.edit((s) => {
       (s.objects[id] as CardInstance).mightBonus = bonus;
+    });
+  }
+
+  /** Give one object temporary keywords (R43). */
+  setTempKeywords(id: string, keywords: KeywordInstance[]): this {
+    return this.edit((s) => {
+      (s.objects[id] as CardInstance).tempKeywords = keywords;
+    });
+  }
+
+  /** Move a unit from where it stands to its controller's Base (surgical, no events). */
+  sendToBase(id: string): this {
+    return this.edit((s) => {
+      const o = s.objects[id] as CardInstance;
+      o.zone = { kind: 'base', player: o.controller };
+      (s.players[playerIndex(o.controller)] as GameState['players'][number]).base.push(id);
     });
   }
 

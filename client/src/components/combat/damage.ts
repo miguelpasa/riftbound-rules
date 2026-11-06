@@ -11,7 +11,7 @@ import type {
   ClientGameState,
   PlayerId,
 } from '@riftbound/engine';
-import { opponentOf } from '@riftbound/engine';
+import { defWithTemp, opponentOf } from '@riftbound/engine';
 import { visibleObject } from '../viewObjects';
 
 export type CombatRole = 'ATTACKER' | 'DEFENDER';
@@ -101,7 +101,7 @@ export function effectiveMightFromView(
 ): number {
   const o = visibleObject(view, unitId);
   if (!o) return 0;
-  const def = cards[o.cardId];
+  const def = defWithTemp(cards[o.cardId], o);
   const role = ctx && 'role' in ctx ? (ctx.role ?? null) : roleOf(view, o);
   return (
     (def?.stats.might ?? 0) +
@@ -153,10 +153,10 @@ export function assignmentConstraintsFromView(
         unitId: o.id,
         name: cards[o.cardId]?.name ?? 'Unknown unit',
         lethal: Math.max(0, Math.max(1, might) - o.damage), // 142.4
-        tier: tierOf(cards[o.cardId]),
+        tier: tierOf(defWithTemp(cards[o.cardId], o)),
         might,
         damage: o.damage,
-        ...(isDualTier(cards[o.cardId]) ? { dual: true } : {}),
+        ...(isDualTier(defWithTemp(cards[o.cardId], o)) ? { dual: true } : {}),
       };
     })
     .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || objNum(a.unitId) - objNum(b.unitId));

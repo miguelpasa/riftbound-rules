@@ -55,7 +55,7 @@
             "enum": [
               "Action", "Reaction", "Tank", "Backline", "Assault", "Shield", "Ganking",
               "Accelerate", "Temporary", "Hidden", "Deflect", "Unique", "Equip", "QuickDraw",
-              "Deathknell", "Legion", "Level", "Hunt", "Flow", "Repeat", "Predict", "ShowOff",
+              "Deathknell", "Legion", "Ambush", "Level", "Hunt", "Flow", "Repeat", "Predict", "ShowOff",
               "Weaponmaster", "Empower", "Deploy", "Vision", "Disarm"
             ]
           },
@@ -69,6 +69,7 @@
     "triggers": { "type": "array", "items": { "type": "object" } },
     "abilities": { "type": "array", "items": { "type": "object" } },
     "entersReady": { "type": "boolean" },
+    "entersReadyWhen": { "type": "object" },
     "entersExhausted": { "type": "boolean" },
     "legionCostReduction": { "type": "integer", "minimum": 0 },
     "equipCost": { "type": "object" },

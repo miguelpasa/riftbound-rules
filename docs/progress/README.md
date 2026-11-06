@@ -76,3 +76,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R40](R40-ability-ui.md)             | Activate abilities from the UI (Gold, Seals), Gold in gear row, Legion cost display | Medium | Sonnet | Done | uncommitted |
 | [R41](R41-targeted-triggers.md)        | Targeted triggered and activated abilities (CHOOSE_TRIGGER_TARGET, 18 cards full) | High | Sonnet | Done | uncommitted |
 | [R42](R42-parser-round3.md)            | Parser round 3: attack/defend triggers, here/another scopes, optional targets, Disarm, Weaponmaster, Repeat (183 -> 206 cards full) | Medium/High | Sonnet | Done | uncommitted |
+| [R43](R43-ambush-conditions.md)           | Ambush, condition language (COUNT/CONTROL_SUBTYPE/AT_BATTLEFIELD), When I move, temporary keyword grants (206 -> 226 cards full) | High | Sonnet | Done | uncommitted |

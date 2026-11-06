@@ -106,6 +106,8 @@ export function describeEvent(
         : `A unit got +${event.amount} Might.`;
     case 'EFFECT_STUNNED':
       return `${objectName(event.unitId, view, cards, 'A unit')} was stunned and deals no combat damage this turn.`;
+    case 'EFFECT_KEYWORD_GRANTED':
+      return `${objectName(event.unitId, view, cards, 'A unit')} gained a keyword until the end of the turn.`;
     case 'EFFECT_COUNTERED':
       return `${cards[event.cardId]?.name ?? 'A spell'} was countered.`;
     case 'GEAR_KILLED':

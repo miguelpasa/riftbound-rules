@@ -65,7 +65,8 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'RETURN_TARGET' ||
   e.op === 'MOVE_BASE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
-  e.op === 'WEAPONMASTER_EQUIP';
+  e.op === 'WEAPONMASTER_EQUIP' ||
+  e.op === 'GRANT_KEYWORD_TARGET';
 
 /** The first targeted effect of a spell, if any. */
 export function targetedEffect(
@@ -413,6 +414,7 @@ function returnToHand(state: GameState, o: CardInstance, out: GameEventInput[]):
   o.damage = 0;
   o.mightBonus = 0;
   delete o.tempMight;
+  delete o.tempKeywords;
   delete o.stunned;
   delete o.attachedTo;
   state.players[playerIndex(player)].hand.push(o.id);
@@ -547,7 +549,8 @@ export function runEffects(
       case 'KILL_GEAR':
       case 'RETURN_TARGET':
       case 'MOVE_BASE_TARGET':
-      case 'COUNTER_SPELL': {
+      case 'COUNTER_SPELL':
+      case 'GRANT_KEYWORD_TARGET': {
         const slot = e.slot ?? 0;
         const count = 'count' in e ? e.count : undefined;
         const picks = count ? ids.slice(slot) : ids.slice(slot, slot + 1);
@@ -589,12 +592,36 @@ export function runEffects(
             returnToHand(state, u, out);
           } else if (e.op === 'MOVE_BASE_TARGET') {
             moveToBase(state, u, out);
+          } else if (e.op === 'GRANT_KEYWORD_TARGET') {
+            u.tempKeywords = [...(u.tempKeywords ?? []), ...e.keywords.map((k) => ({ ...k }))];
+            out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
           } else if (e.op === 'COUNTER_SPELL') {
             counterSpell(state, u);
             out.push({ type: 'EFFECT_COUNTERED', cardId: u.cardId });
           } else {
             addTemp(u, e.amount, e.duration === 'TURN');
           }
+        }
+        break;
+      }
+      case 'GRANT_KEYWORDS': {
+        const src = state.objects[sourceObjectId];
+        if (!src || (src.zone.kind !== 'base' && src.zone.kind !== 'battlefield')) break;
+        const recipients =
+          e.to === 'SELF'
+            ? [src]
+            : Object.values(state.objects).filter(
+                (o) =>
+                  o.id !== src.id &&
+                  o.controller === src.controller &&
+                  o.zone.kind === 'battlefield' &&
+                  src.zone.kind === 'battlefield' &&
+                  o.zone.battlefieldId === src.zone.battlefieldId &&
+                  isUnitDef(cards[o.cardId]),
+              );
+        for (const u of recipients) {
+          u.tempKeywords = [...(u.tempKeywords ?? []), ...e.keywords.map((k) => ({ ...k }))];
+          out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
         }
         break;
       }
@@ -768,6 +795,7 @@ export function expireTurnEffects(
       delete o.tempMight;
     }
     if (o.stunned) delete o.stunned;
+    if (o.tempKeywords) delete o.tempKeywords;
   }
   return { state: s, events: [] };
 }

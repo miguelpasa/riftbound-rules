@@ -239,7 +239,9 @@ describe('parseTriggerText', () => {
 
   it('refuses unknown trigger effects', () => {
     // Tests Rule 359.3: never half-execute an ability
-    expect(parseTriggerText('When you play me, give a unit +1 [M] this turn. Fly away.')).toBeNull();
+    expect(
+      parseTriggerText('When you play me, give a unit +1 [M] this turn. Fly away.'),
+    ).toBeNull();
     expect(parseTriggerText('When you play me, choose a unit.')).toBeNull(); // chosen, never used
     expect(parseTriggerText('When you play me, draw 1. I enter ready.')).toBeNull();
     expect(parseTriggerText('I enter ready.')).toBeNull();
@@ -305,7 +307,7 @@ describe('parseSpellText: tokens, "it" sentences, return / move / look (R3 round
     expect(parseSpellText('Give it +2 [M] this turn.')).toBeNull();
     expect(parseSpellText('Choose a unit.')).toBeNull();
     expect(parseSpellText('Choose a friendly unit and an enemy unit. Ready it.')).toBeNull();
-    expect(parseSpellText('Choose a unit. Give it [Assault 3] this turn.')).toBeNull();
+    expect(parseSpellText('Choose a unit. Give it [Deflect] this turn.')).toBeNull();
   });
 
   it('parses return, move to base and kill-all sentences', () => {
@@ -496,6 +498,6 @@ describe('parseCardAbilities (R38)', () => {
         'I enter ready. When you play me, play a ready 3 [M] Mech unit token here.',
       )?.triggers,
     ).toHaveLength(1);
-    expect(parseCardAbilities('I enter ready if you control another Mech.')).toBeNull();
+    expect(parseCardAbilities('I enter ready if you control a battlefield.')).toBeNull();
   });
 });

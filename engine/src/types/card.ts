@@ -21,7 +21,8 @@ export type MvpKeywordName =
   | 'Unique'
   | 'Equip'
   | 'QuickDraw'
-  | 'Legion';
+  | 'Legion'
+  | 'Ambush';
 
 /** Keywords typed but deferred (not implemented; cards using them are 'partial'). */
 export type DeferredKeywordName =
@@ -57,6 +58,7 @@ export const MVP_KEYWORDS: readonly MvpKeywordName[] = [
   'Equip',
   'QuickDraw',
   'Legion',
+  'Ambush',
 ];
 
 /** Keywords that are typed but not yet implemented. */
@@ -269,7 +271,21 @@ export type CardEffect =
    * Equipment (an optional target: none = decline) is attached to the source unit and its Equip
    * cost, reduced by one Power ([A]), is paid at resolution from the Rune Pool and runes (auto plan).
    */
-  | { op: 'WEAPONMASTER_EQUIP'; slot?: number; count?: TargetCount };
+  | { op: 'WEAPONMASTER_EQUIP'; slot?: number; count?: TargetCount }
+  /**
+   * "Give a SIDE unit [Tank] this turn" (R43): the target unit(s) gain the keywords until the
+   * Ending step (CardInstance.tempKeywords). Only Assault, Shield, Tank and Ganking are read.
+   */
+  | ({
+      op: 'GRANT_KEYWORD_TARGET';
+      keywords: KeywordInstance[];
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+      count?: TargetCount;
+    } & TargetScope)
+  /** "Give me [Ganking] this turn" / "Give your other units here [Shield] this turn" (R43). */
+  | { op: 'GRANT_KEYWORDS'; keywords: KeywordInstance[]; to: 'SELF' | 'OTHERS_HERE' };
 
 /** Effects that choose one unit (or gear / spell) through `PLAY_CARD.targets`. */
 export type TargetedEffect = Extract<
@@ -286,12 +302,37 @@ export type TargetedEffect = Extract<
       | 'RETURN_TARGET'
       | 'MOVE_BASE_TARGET'
       | 'COUNTER_SPELL'
-      | 'WEAPONMASTER_EQUIP';
+      | 'WEAPONMASTER_EQUIP'
+      | 'GRANT_KEYWORD_TARGET';
   }
 >;
 
+/**
+ * Conditions (R43): "if you control a Poro", "if there is exactly one other unit you control here".
+ * Pure predicates over public state (plus the controller's own hand SIZE), evaluated by
+ * `evalCondition` (conditions.ts) for a source object and its controller.
+ *  - COUNT: number of `what` ("unit" | "gear" | "rune" | "card" in hand) that `who` controls in
+ *    `where` ('here' = at the source's battlefield, false when the source is not at one; 'base';
+ *    'board' = base + battlefields; 'hand'; 'runes' for runes), `other` excludes the source. Compared with `cmp` to `n`.
+ *  - CONTROL_SUBTYPE: the controller controls a Unit with the subtype/tag (`other`: not the source).
+ *  - AT_BATTLEFIELD: the source is at a battlefield ("while I'm at a battlefield").
+ */
+export type CountCmp = 'EQ' | 'GTE' | 'LTE';
+export type Condition =
+  | {
+      kind: 'COUNT';
+      what: 'unit' | 'gear' | 'rune' | 'card';
+      where: 'here' | 'base' | 'board' | 'hand';
+      who: 'friendly' | 'enemy';
+      other?: boolean;
+      cmp: CountCmp;
+      n: number;
+    }
+  | { kind: 'CONTROL_SUBTYPE'; subtype: string; other?: boolean }
+  | { kind: 'AT_BATTLEFIELD' };
+
 /** When a triggered ability fires (R5). */
-export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH' | 'ATTACK' | 'DEFEND';
+export type TriggerKind = 'PLAY' | 'HOLD' | 'CONQUER' | 'DEATH' | 'ATTACK' | 'DEFEND' | 'MOVE';
 
 /**
  * A triggered ability: "When you play me / When I hold / When I conquer / When I attack / When I
@@ -306,6 +347,11 @@ export interface CardTrigger {
    * turn when the ability triggers. Absent = unconditional.
    */
   condition?: 'LEGION';
+  /**
+   * General condition (R43), "When I hold, if <condition>, ...". Checked when the ability triggers
+   * (no Chain item otherwise) and again as it resolves (intervening-if; UNCLEAR, docs/ASSUMPTIONS.md R43).
+   */
+  when?: Condition;
 }
 
 /** Costs of an activated ability (145.1, 151.1): the part before the colon. */
@@ -369,6 +415,8 @@ export interface CardDef {
   abilities?: ActivatedAbility[];
   /** "I enter ready.": the permanent enters ready instead of exhausted (359.2.c). */
   entersReady?: boolean;
+  /** "I enter ready if <condition>." (R43): checked as the permanent enters. */
+  entersReadyWhen?: Condition;
   /** "This enters exhausted." (R42): Gear that would enter ready (359.2.d) enters exhausted. */
   entersExhausted?: boolean;
   /** "[Legion] - I cost [N] less.": Energy discount while Legion is active (812). */

@@ -65,6 +65,11 @@ export interface PlayTimingOpts {
    * skips Priority/phase/state checks entirely.
    */
   isRuneAbility?: boolean;
+  /**
+   * Ambush (822): the card is a Unit played to a battlefield where its controller has units, which
+   * gives it Reaction speed for this play.
+   */
+  ambush?: boolean;
 }
 
 /** Convenience opts for ACTIVATE_RUNE callers. */
@@ -138,7 +143,7 @@ export function canPlayNow(
   const isAbility = opts.isAbility === true;
   const reaction = isAbility
     ? opts.isReactionAbility === true
-    : hasKeyword(card, 'Reaction') || hasKeyword(card, 'QuickDraw'); // 819: Quick-Draw has Reaction inherently
+    : hasKeyword(card, 'Reaction') || hasKeyword(card, 'QuickDraw') || opts.ambush === true; // 819: Quick-Draw has Reaction inherently; 822 Ambush
   const action = !isAbility && hasKeyword(card, 'Action');
   const ts = deriveTurnState(state);
 

@@ -6,6 +6,7 @@
  *  - PLAY: "When you play me" fires for a Unit/Gear that entered the board (CARD_PLAYED).
  *  - HOLD / CONQUER: fires for the scoring player's units at the scored battlefield (BATTLEFIELD_SCORED).
  *  - DEATH (Deathknell): fires for a unit that died (UNIT_KILLED) and sits in its owner's Trash.
+ *  - MOVE (R43): fires for a unit that moved to a battlefield (UNIT_MOVED).
  *  - ATTACK / DEFEND (R42): fire for each unit of the attacker / defender at the battlefield when a
  *    combat Showdown starts (SHOWDOWN_STARTED with isCombat; a unit is an Attacker iff its controller
  *    is the attacker, 466.2.c).
@@ -26,6 +27,7 @@ import { deriveTurnState } from './chain.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { abilityTargetsLegal, enumerateSpellTargets } from './effects.js';
 import { legionActive } from './keywords.js';
+import { evalCondition } from './conditions.js';
 import { ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -59,6 +61,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       if (!obj || t.on !== kind) return;
       // 812: a Legion-dependent ability triggers only while another card was played this turn.
       if (t.condition === 'LEGION' && !legionActive(state, controller, obj.id)) return;
+      // R43: a general condition must hold as the ability triggers.
+      if (t.when && !evalCondition(state, cards, t.when, controller, obj.id)) return;
       out.push({ source: obj, index, controller });
     });
   };
@@ -78,6 +82,19 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         ) {
           add(o, e.method, e.player);
         }
+      }
+    } else if (e.type === 'UNIT_MOVED') {
+      // MOVE (R43): "When I move" fires for a unit that arrived at a battlefield. Moves to the Base
+      // are not reported as moves here because recall and combat retreats share the event (UNCLEAR).
+      const o = state.objects[e.unitId];
+      if (
+        o &&
+        e.to !== 'base' &&
+        o.zone.kind === 'battlefield' &&
+        o.zone.battlefieldId === e.to &&
+        cards[o.cardId]?.type === 'UNIT'
+      ) {
+        add(o, 'MOVE', o.controller);
       }
     } else if (e.type === 'UNIT_KILLED') {
       const o = state.objects[e.unitId];

@@ -42,6 +42,7 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   EFFECT_READIED: { seq: 34, type: 'EFFECT_READIED', unitId: 'o1' },
   EFFECT_FIZZLED: { seq: 33, type: 'EFFECT_FIZZLED', cardId: 'fx-flare' },
   EFFECT_STUNNED: { seq: 35, type: 'EFFECT_STUNNED', unitId: 'o1' },
+  EFFECT_KEYWORD_GRANTED: { seq: 70, type: 'EFFECT_KEYWORD_GRANTED', unitId: 'o1' },
   EFFECT_COUNTERED: { seq: 36, type: 'EFFECT_COUNTERED', cardId: 'fx-flare' },
   GEAR_KILLED: { seq: 37, type: 'GEAR_KILLED', gearId: 'o1' },
   EFFECT_UNIMPLEMENTED: { seq: 10, type: 'EFFECT_UNIMPLEMENTED', cardId: 'fx-odd-reaction' },
@@ -134,6 +135,9 @@ describe('describeEvent', () => {
       `${SCENARIO_CARDS['fx-flare']!.name} was countered.`,
     );
     expect(describeEvent(SAMPLES.EFFECT_STUNNED, view, SCENARIO_CARDS)).toContain('stunned');
+    expect(describeEvent(SAMPLES.EFFECT_KEYWORD_GRANTED, view, SCENARIO_CARDS)).toContain(
+      'gained a keyword',
+    );
   });
 
   it('words the ability and resource events', () => {

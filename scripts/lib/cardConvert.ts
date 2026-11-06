@@ -87,6 +87,7 @@ const KEYWORD_LOOKUP: Record<string, KeywordName> = {
   quickdraw: 'QuickDraw',
   deathknell: 'Deathknell',
   legion: 'Legion',
+  ambush: 'Ambush',
   level: 'Level',
   hunt: 'Hunt',
   flow: 'Flow',
@@ -290,6 +291,7 @@ export function convertRow(row: RawRow): ConvertResult {
       if (parsed.triggers.length > 0) card.triggers = parsed.triggers;
       if (parsed.abilities.length > 0) card.abilities = parsed.abilities;
       if (parsed.entersReady) card.entersReady = true;
+      if (parsed.entersReadyWhen) card.entersReadyWhen = parsed.entersReadyWhen;
       if (parsed.entersExhausted) card.entersExhausted = true;
       if (parsed.legionCostReduction !== undefined) {
         card.legionCostReduction = parsed.legionCostReduction;

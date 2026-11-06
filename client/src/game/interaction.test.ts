@@ -69,4 +69,28 @@ describe('Repeat variants (R42)', () => {
     expect(variantLabel(rep, view, SCENARIO_CARDS)).toContain('Repeat');
     expect(variantLabel(plain, view, SCENARIO_CARDS)).not.toContain('Repeat');
   });
+
+  it('offers an Ambush unit in a Showdown, only at a battlefield where I have units (R43, 822)', () => {
+    const cards = {
+      ...SCENARIO_CARDS,
+      'fx-raider': { ...SCENARIO_CARDS['fx-raider']!, keywords: [{ name: 'Ambush' as const }] },
+    };
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p1', 'fx-order-tank', 'bf1', { control: true });
+    const att = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.do({
+      type: 'STANDARD_MOVE',
+      playerId: 'p0',
+      unitIds: [att],
+      destination: { kind: 'battlefield', battlefieldId: 'bf1' },
+    });
+    const ambusher = sc.putInHand('p0', 'fx-raider');
+    sc.setPool('p0', 2);
+    const legal = getLegalActions(sc.state, cards, 'p0');
+    const view = sanitizeFor(sc.state, 'p0');
+    const variants = playVariants(legal, ambusher);
+    expect(variants).toHaveLength(1);
+    expect(variantLabel(variants[0]!, view, cards)).toMatch(/^Play to /);
+    expect(playableIds(legal).has(ambusher)).toBe(true);
+  });
 });

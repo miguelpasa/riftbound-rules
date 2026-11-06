@@ -28,6 +28,7 @@ import { computeTotalCost, payCost } from './resources.js';
 import type { CostMod } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { legionActive } from './keywords.js';
+import { evalCondition } from './conditions.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -89,6 +90,24 @@ function hasKeyword(def: CardDef, name: string): boolean {
   return def.keywords.some((k) => k.name === name);
 }
 
+/** True if `pid` controls a Unit (other than `exceptId`) at the battlefield. */
+export function hasUnitAt(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  battlefieldId: string,
+  exceptId?: string,
+): boolean {
+  return Object.values(state.objects).some(
+    (o) =>
+      o.id !== exceptId &&
+      o.controller === pid &&
+      o.zone.kind === 'battlefield' &&
+      o.zone.battlefieldId === battlefieldId &&
+      cards[o.cardId]?.type === 'UNIT',
+  );
+}
+
 function validateTarget(state: GameState, t: Target): RuleError | null {
   if (t.kind === 'object') {
     const o = state.objects[t.id];
@@ -145,7 +164,11 @@ function placingResolver(
       obj.ready =
         def.type === 'GEAR'
           ? def.entersExhausted !== true
-          : item.additionalCosts?.accelerate === true || def.entersReady === true;
+          : item.additionalCosts?.accelerate === true ||
+            def.entersReady === true ||
+            // R43: "I enter ready if <condition>" is checked as the unit enters (it is not yet counted).
+            (def.entersReadyWhen !== undefined &&
+              evalCondition(s, cards, def.entersReadyWhen, obj.controller, obj.id));
       obj.enteredTurn = turnNumber;
       if (hooks?.onEnter) events.push(...hooks.onEnter(s, cards, obj.id, item));
     }
@@ -185,7 +208,8 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   }
   if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
     const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
-    if (trig) {
+    // R43: the general condition is checked again as the ability resolves.
+    if (trig && (!trig.when || evalCondition(s, cards, trig.when, item.controller, obj.id))) {
       events.push(
         ...runEffects(s, item.controller, trig.effects, cards, item.targets, obj.cardId, obj.id),
       );
@@ -253,12 +277,22 @@ export function playCard(
     return ruleError('NOT_IN_HAND', `card ${src.id}`);
   }
 
+  // Ambush (822): a Unit with Ambush may be played to a battlefield where its controller has units
+  // (even one the opponent controls) and then has Reaction speed. The Rengar / Stalking Wolf
+  // extensions ("enemy units there", "even without other units") are not parsed and stay partial.
+  const isUnit = def.type === 'UNIT';
+  const wantedBf = intent.location?.kind === 'battlefield' ? intent.location.battlefieldId : null;
+  const ambush =
+    isUnit &&
+    hasKeyword(def, 'Ambush') &&
+    wantedBf !== null &&
+    hasUnitAt(state, cards, pid, wantedBf, src.id);
+
   // 2. Timing (propagated verbatim).
-  const timing = canPlayNow(state, cards, pid, def);
+  const timing = canPlayNow(state, cards, pid, def, ambush ? { ambush: true } : {});
   if (!timing.ok) return timing;
 
   // 4. Choices (355): location and targets.
-  const isUnit = def.type === 'UNIT';
   let location: NonNullable<ChainItem['location']> = { kind: 'base' };
   if (intent.location?.kind === 'battlefield') {
     const bfId = intent.location.battlefieldId;
@@ -268,7 +302,7 @@ export function playCard(
       return ruleError('ILLEGAL_LOCATION', `${def.type} can only enter the Base`);
     }
     if (!bf) return ruleError('ILLEGAL_LOCATION', `battlefield ${bfId} does not exist`);
-    if (bf.controller !== pid) {
+    if (bf.controller !== pid && !ambush) {
       return ruleError('ILLEGAL_LOCATION', `you do not control battlefield ${bfId}`);
     }
     location = { kind: 'battlefield', battlefieldId: bfId };

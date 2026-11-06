@@ -35,3 +35,5 @@ export {
 } from './effects.js';
 export { fireTriggers } from './triggers.js';
 export { TOKEN_CARDS, GOLD_TOKEN_ID, isGearDef, isUnitDef, tokenIdFor } from './tokens.js';
+export { defWithTemp, GRANTABLE_KEYWORDS } from './tempKeywords.js';
+export { evalCondition } from './conditions.js';
