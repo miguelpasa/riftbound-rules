@@ -110,3 +110,56 @@ describe('parser: mandatory discards (R77)', () => {
     );
   });
 });
+
+describe('scenario: mandatory discard on a Battlefield card (R77 audit)', () => {
+  it('"When you conquer here, discard 1, then draw 1" asks the conqueror and cannot be declined', () => {
+    // Tests Rule 473: conquering a battlefield triggers its abilities; the choice is the conqueror's
+    const sc0 = Scenario.start();
+    const bfCard = sc0.bf('bf1').cardId;
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      [bfCard]: {
+        ...(SCENARIO_CARDS[bfCard] as CardDef),
+        triggers: [
+          {
+            on: 'CONQUER',
+            optional: { card: { kind: 'DISCARD' }, mandatory: true },
+            effects: [{ op: 'DRAW', amount: 1 }],
+          },
+        ],
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const unit = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.do({
+      type: 'STANDARD_MOVE',
+      playerId: 'p0',
+      unitIds: [unit],
+      destination: { kind: 'battlefield', battlefieldId: 'bf1' },
+    });
+    sc.pass('p0');
+    sc.pass('p1');
+    for (let i = 0; i < 6 && sc.state.flow.pendingChoice?.kind !== 'OPTIONAL_EFFECT'; i++) {
+      if (sc.state.flow.chain.length === 0) break;
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    const pc = sc.state.flow.pendingChoice;
+    expect(pc).toMatchObject({ kind: 'OPTIONAL_EFFECT', player: 'p0', cost: { mandatory: true } });
+    if (pc?.kind !== 'OPTIONAL_EFFECT') return;
+    sc.reject({
+      type: 'DECIDE_OPTIONAL',
+      playerId: 'p0',
+      chainItemId: pc.chainItemId,
+      accept: false,
+    });
+    const hand = sc.player('p0').hand.length;
+    sc.do({
+      type: 'DECIDE_OPTIONAL',
+      playerId: 'p0',
+      chainItemId: pc.chainItemId,
+      accept: true,
+      costCards: [sc.player('p0').hand[0] as string],
+    } as Intent);
+    expect(sc.player('p0').hand.length).toBe(hand); // one discarded, one drawn
+  });
+});
