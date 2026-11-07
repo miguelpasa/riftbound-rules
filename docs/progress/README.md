@@ -144,3 +144,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R105](R105-turn-wide-buffs.md) | Turn-wide enter-ready and one-shot spell discount (532 -> 535 cards full) | Low | Sonnet | Done | uncommitted |
 | [R106](R106-subtype-targets.md) | Subtype-limited targets (a Mech, a non-Dragon unit) (535 -> 537 cards full) | Low | Sonnet | Done | uncommitted |
 | [R107](R107-might-limits.md) | Might-based limits: gear cost vs my Might, total Might of other units (537 -> 539 cards full) | Low | Sonnet | Done | uncommitted |
+| [R108](R108-move-from-gear-use.md) | Move-from and gear-ability triggers (539 -> 541 cards full) | Low | Sonnet | Done | uncommitted |

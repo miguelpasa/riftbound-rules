@@ -510,3 +510,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **No source:** a spell has no source unit, so the Might limit is 0 for it (nothing legal).
 - **Rule numbers:** tests cite 143.2 and 355.10.
+
+## R108: Move-from and gear-ability triggers (A-R108)
+
+- **Move from:** fires only for battlefield-to-battlefield moves; moves to the Base are not reported because recalls share the event (same UNCLEAR as R43).
+- **Rule numbers:** tests cite 145.1 and 303.

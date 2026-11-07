@@ -727,7 +727,11 @@ export type TriggerKind =
   /** R92: "When an opponent scores" (a point from any source). */
   | 'OPP_SCORES'
   /** R100: "When you hide a card". */
-  | 'YOU_HIDE';
+  | 'YOU_HIDE'
+  /** R108: "When I move from a battlefield". */
+  | 'MOVE_FROM'
+  /** R108: "When you use an activated ability of a gear". */
+  | 'USE_GEAR_ABILITY';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {

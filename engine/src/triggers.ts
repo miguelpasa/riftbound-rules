@@ -202,6 +202,16 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       ) {
         add(o, 'MOVE', o.controller);
       }
+      // R108: leaving a battlefield (to the Base or another battlefield).
+      if (
+        o &&
+        e.from !== 'base' &&
+        e.from !== e.to &&
+        onBoard(o) &&
+        cards[o.cardId]?.type === 'UNIT'
+      ) {
+        add(o, 'MOVE_FROM', o.controller);
+      }
     } else if (e.type === 'UNIT_KILLED') {
       const o = state.objects[e.unitId];
       if (o && o.zone.kind === 'trash') {
@@ -241,6 +251,16 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     } else if (e.type === 'EFFECT_EMPOWERED') {
       const o = state.objects[e.unitId];
       if (o && onBoard(o)) add(o, 'BECOME_EMPOWERED', o.controller);
+    } else if (e.type === 'ABILITY_ACTIVATED') {
+      // R108: "When you use an activated ability of a gear".
+      const used = state.objects[e.sourceId];
+      const def = used ? cards[used.cardId] : undefined;
+      if (def && (def.type === 'GEAR' || (def.type === 'TOKEN' && def.stats.might === undefined))) {
+        for (const src of Object.values(state.objects)) {
+          if (src.controller !== e.player || !onBoard(src)) continue;
+          add(src, 'USE_GEAR_ABILITY', src.controller);
+        }
+      }
     } else if (e.type === 'CARD_HIDDEN') {
       // R100: "When you hide a card".
       for (const src of Object.values(state.objects)) {
