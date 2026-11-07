@@ -347,6 +347,18 @@ function parseChooser(sen: string): Chooser | null {
 }
 
 function parseChooserBase(sen: string): Chooser | null {
+  // R74: "Deal damage equal to my Might / [Assault] / [Shield] to <unit>".
+  const dm = /^Deal damage equal to my (Might|[{\[]Assault[}\]]|[{\[]Shield[}\]]) to (.+)$/i.exec(
+    sen,
+  );
+  if (dm) {
+    const base = parseChooserBase(`Deal 1 to ${dm[2]}`);
+    if (!base || base.effect.op !== 'DAMAGE_TARGET') return null;
+    const w = (dm[1] ?? '').toLowerCase();
+    const amountFrom =
+      w === 'might' ? 'MY_MIGHT' : w.includes('assault') ? 'MY_ASSAULT' : 'MY_SHIELD';
+    return { ...base, effect: { ...base.effect, amount: 0, amountFrom } };
+  }
   let m = new RegExp(`^Deal (\\d+) to an? ${SIDE}unit( at a battlefield)?$`, 'i').exec(sen);
   if (m) {
     const s = side(m[2]);
@@ -782,6 +794,35 @@ function parseCountedStatic(body: string): StaticAbility | null {
   return null;
 }
 
+/** R74: "I don't deal combat damage [unless ...]", "Enemy units here with less Might than me don't deal combat damage", "I can't be chosen by enemy spells and abilities [unless ...]", "I must be assigned combat damage last". */
+function parseRestrictStatic(body: string): StaticAbility | null {
+  if (/^I must be assigned combat damage last$/i.test(body)) {
+    return { affects: 'SELF', keywords: [{ name: 'Backline' }] };
+  }
+  const re =
+    /^(.+?) (don['’]t deal combat damage|can['’]t be chosen by enemy spells and abilities)(?: unless (.+))?$/i;
+  const m = re.exec(body);
+  if (!m) return null;
+  const who = (m[1] ?? '').toLowerCase();
+  const restrict = /combat damage/i.test(m[2] ?? '') ? 'NO_COMBAT_DAMAGE' : 'NO_ENEMY_CHOOSE';
+  let aff: Pick<StaticAbility, 'affects' | 'lessMight'> | null = null;
+  if (who === 'i') aff = { affects: 'SELF' };
+  else if (who === 'enemy units here with less might than me') {
+    aff = { affects: 'ENEMY_UNITS_HERE', lessMight: true };
+  } else if (who === 'your units here with less might than me') {
+    aff = { affects: 'FRIENDLY_UNITS_HERE', lessMight: true };
+  }
+  if (!aff) return null;
+  if (restrict === 'NO_COMBAT_DAMAGE' && who.startsWith('your')) return null;
+  let unless: Condition | undefined;
+  if (m[3] !== undefined) {
+    const c = parseCondition(m[3]);
+    if (!c) return null;
+    unless = c;
+  }
+  return { ...aff, restrict, ...(unless ? { unless } : {}) };
+}
+
 const STATIC_RESTRICT = [
   [/^(I) can['’]t move to base$/i, 'SELF'],
   [/^(Units) can['’]t move to base$/i, 'ALL_UNITS'],
@@ -853,9 +894,24 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       statics.push(cnt);
       continue;
     }
+    const gateWhen: Condition | undefined = em
+      ? { kind: 'EMPOWERED' }
+      : lv
+        ? { kind: 'XP', n: Number(lv[1]) }
+        : undefined;
     const rs = STATIC_RESTRICT.find(([re]) => re.test(body));
     if (rs) {
-      statics.push({ affects: rs[1], restrict: 'NO_MOVE_TO_BASE' });
+      statics.push({
+        affects: rs[1],
+        restrict: 'NO_MOVE_TO_BASE',
+        ...(gateWhen ? { when: gateWhen } : {}),
+      });
+      continue;
+    }
+    // R74: combat-damage and targeting restrictions, "... unless <condition>", and "must be assigned last".
+    const rx = parseRestrictStatic(body);
+    if (rx) {
+      statics.push({ ...rx, ...(gateWhen ? { when: gateWhen } : {}) });
       continue;
     }
     const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(body);
@@ -1371,6 +1427,32 @@ export function parseCondition(raw: string): Condition | null {
     return { kind: 'CONTROLS_EMPOWERED' };
   }
   if (/^an opponent controls a stunned unit$/i.test(text)) return { kind: 'ENEMY_STUNNED' };
+  if (/^I['’]m in combat$/i.test(text)) return { kind: 'IN_COMBAT' };
+  {
+    const g = /^there['’]s an? (friendly )?(gear|unit) here$/i.exec(text);
+    if (g) {
+      return {
+        kind: 'COUNT',
+        what: (g[2] ?? '').toLowerCase() === 'gear' ? 'gear' : 'unit',
+        where: 'here',
+        who: 'friendly',
+        cmp: 'GTE',
+        n: 1,
+      };
+    }
+    const a = /^I['’]m at a battlefield with exactly one other unit you control$/i.test(text);
+    if (a) {
+      return {
+        kind: 'COUNT',
+        what: 'unit',
+        where: 'here',
+        who: 'friendly',
+        other: true,
+        cmp: 'EQ',
+        n: 1,
+      };
+    }
+  }
   if (/^you have a card with my name in your trash$/i.test(text)) return { kind: 'NAME_IN_TRASH' };
   {
     const rv = /^you control (fewer|more) runes than an opponent$/i.exec(text);
@@ -1601,6 +1683,8 @@ export function parseCardAbilities(
     .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
     .replace(TOKEN_WITH, '$1 with $2')
+    // R74: keep "my [Assault]" from being read as the keyword itself.
+    .replace(/\bmy \[(Assault|Shield)\]/gi, 'my {$1}')
     // R71: gear says "When you play this" where units say "When you play me".
     .replace(/\bWhen you play this\b/gi, 'When you play me')
     .replace(/\[Stun\]/gi, 'Stun')
@@ -1634,7 +1718,13 @@ export function parseCardAbilities(
         once?: boolean;
         sens: string[];
       }
-    | { kind: 'ability'; cost: AbilityCost; reaction: boolean; sens: string[] };
+    | {
+        kind: 'ability';
+        cost: AbilityCost;
+        reaction: boolean;
+        atBattlefield?: boolean;
+        sens: string[];
+      };
   const groups: Group[] = [];
   let cur: Group | null = null;
   for (const raw of cleaned
@@ -1813,6 +1903,13 @@ export function parseCardAbilities(
       groups.push(cur);
       continue;
     }
+    if (
+      cur?.kind === 'ability' &&
+      /^Use this ability only while I['’]m at a battlefield$/i.test(sen)
+    ) {
+      cur.atBattlefield = true;
+      continue;
+    }
     if (!cur) return null;
     cur.sens.push(sen);
   }
@@ -1845,7 +1942,12 @@ export function parseCardAbilities(
       return null;
     }
     if (g.kind === 'ability') {
-      out.abilities.push({ cost: g.cost, ...(g.reaction ? { reaction: true } : {}), effects });
+      out.abilities.push({
+        cost: g.cost,
+        ...(g.reaction ? { reaction: true } : {}),
+        ...(g.atBattlefield ? { atBattlefield: true } : {}),
+        effects,
+      });
     } else {
       for (const on of g.ons) {
         out.triggers.push({

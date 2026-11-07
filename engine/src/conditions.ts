@@ -95,6 +95,11 @@ export function evalCondition(
             : died(controller) + died(other);
       return n > 0;
     }
+    case 'IN_COMBAT': {
+      const c = state.flow.combat;
+      const here = hereOfSource(state, sourceId);
+      return c !== undefined && here !== null && c.battlefieldId === here;
+    }
     case 'PLAYED_TO_BATTLEFIELD': {
       const rec = state.players[playerIndex(controller)]?.playedThisTurn;
       if (!rec || rec.turn !== state.turn.number) return false;

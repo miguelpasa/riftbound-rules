@@ -169,6 +169,8 @@ export type CardEffect =
   | ({
       op: 'DAMAGE_TARGET';
       amount: number;
+      /** R74: "damage equal to my Might / [Assault] / [Shield]": read from the source when the effect runs (amount is 0). */
+      amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD';
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;
@@ -391,7 +393,10 @@ export interface StaticAbility {
     | 'FRIENDLY_SUBTYPE'
     | 'OTHER_FRIENDLY_HERE'
     | 'UNITS_HERE'
-    | 'ALL_UNITS';
+    | 'ALL_UNITS'
+    /** R74: enemy / friendly units at the source's battlefield. */
+    | 'ENEMY_UNITS_HERE'
+    | 'FRIENDLY_UNITS_HERE';
   subtype?: string;
   /**
    * R67: "for each ...": `might` is multiplied by this count; with `perKeyword` the keyword is granted with the
@@ -403,7 +408,11 @@ export interface StaticAbility {
   onlyKeyword?: string;
   onlySubtype?: string;
   /** R57: a movement restriction instead of / besides a grant: units it affects cannot move to the Base. */
-  restrict?: 'NO_MOVE_TO_BASE';
+  restrict?: 'NO_MOVE_TO_BASE' | 'NO_COMBAT_DAMAGE' | 'NO_ENEMY_CHOOSE';
+  /** R74: the restriction (or grant) does NOT apply while this condition holds ("... unless <condition>"). */
+  unless?: Condition;
+  /** R74: only units with LESS Might than the source (printed Might plus bonuses) are affected. */
+  lessMight?: boolean;
   when?: Condition;
   might?: number;
   keywords?: KeywordInstance[];
@@ -465,6 +474,8 @@ export type Condition =
   | { kind: 'ENEMY_STUNNED' }
   /** R73: the controller's Trash holds a card with the source's name ("a card with my name"). */
   | { kind: 'NAME_IN_TRASH' }
+  /** R74: the source is in the combat that is being fought. */
+  | { kind: 'IN_COMBAT' }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any' }
   /** R53: Level N: the controller has at least `n` XP. */
@@ -619,6 +630,8 @@ export interface AbilityCost {
  */
 export interface ActivatedAbility {
   cost: AbilityCost;
+  /** R74: "Use this ability only while I'm at a battlefield." */
+  atBattlefield?: boolean;
   /** Reaction speed (usable in a Closed state / Showdown). */
   reaction?: boolean;
   effects: CardEffect[];

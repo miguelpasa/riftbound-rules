@@ -110,3 +110,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R71](R71-combat-death-triggers.md) | Combat and death triggers: win a combat, combat ends, unit dies, died alone, once each turn, gear "play this" (383 -> 394 cards full) | High | Sonnet | Done | uncommitted |
 | [R72](R72-turn-triggers.md) | Turn triggers: start of Beginning Phase and end of turn, rune effects, rune and facedown conditions (394 -> 400 cards full) | High | Sonnet | Done | uncommitted |
 | [R73](R73-level-conditions.md) | Level-gated abilities, conditional discounts and enters-ready conditions (400 -> 406 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R74](R74-restrictions.md) | Restrictions: no combat damage, can't be chosen by enemies, only-at-battlefield abilities, damage equal to my Might (406 -> 420 cards full) | Medium | Sonnet | Done | uncommitted |

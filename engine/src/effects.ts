@@ -15,6 +15,7 @@ import { autoPlan, payCost } from './resources.js';
 import { allocObjectId } from './setup.js';
 import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
+import { defWithGrants, staticBonus } from './statics.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
@@ -175,6 +176,10 @@ function legalForSpec(
   }
   const onBoard = u.zone.kind === 'base' || u.zone.kind === 'battlefield';
   if (!onBoard) return false;
+  // R74: "can't be chosen by enemy spells and abilities".
+  if (u.controller !== controller && staticBonus(state, cards, u).noEnemyChoose === true) {
+    return false;
+  }
   if (spec.kind === 'gear') {
     if (!isGearDef(cards[u.cardId])) return false;
     if (spec.maxEnergy !== undefined && (cards[u.cardId]?.cost.energy ?? 0) > spec.maxEnergy) {
@@ -539,6 +544,19 @@ export function runEffects(
     out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount });
   };
   const mightOf = (u: CardInstance): number => effectiveMight(state, cards, u.id, { role: null });
+  /** R74: damage that depends on the source ("equal to my Might"). */
+  const damageAmount = (e: { amount: number; amountFrom?: string }): number => {
+    if (!e.amountFrom) return e.amount;
+    const src = state.objects[sourceObjectId];
+    if (!src) return 0;
+    if (e.amountFrom === 'MY_MIGHT') {
+      return Math.max(0, effectiveMight(state, cards, src.id, { role: null }));
+    }
+    const kw = defWithGrants(state, cards, src)?.keywords.filter(
+      (k) => k.name === (e.amountFrom === 'MY_ASSAULT' ? 'Assault' : 'Shield'),
+    );
+    return (kw ?? []).reduce((n, k) => n + (k.value ?? 1), 0);
+  };
   const addTemp = (u: CardInstance, amount: number, temp: boolean): void => {
     u.mightBonus += amount;
     if (temp) u.tempMight = (u.tempMight ?? 0) + amount;
@@ -701,7 +719,7 @@ export function runEffects(
         }
         for (const u of legal) {
           if (e.op === 'DAMAGE_TARGET') {
-            damage(u, e.amount);
+            damage(u, damageAmount(e));
           } else if (e.op === 'KILL_TARGET' && isGearDef(cards[u.cardId])) {
             // R46: "kill a unit or gear" chose a gear.
             doneSlots.set(slot, u.controller);
@@ -920,7 +938,8 @@ export function runEffects(
           ps.mainDeck.push(id);
           (state.objects[id] as CardInstance).zone = { kind: 'mainDeck', player: controller };
         }
-        if (take.length > 0) out.push({ type: 'CARDS_RECYCLED', player: controller, count: take.length });
+        if (take.length > 0)
+          out.push({ type: 'CARDS_RECYCLED', player: controller, count: take.length });
         break;
       }
       case 'RETURN_ALL_BOARD':

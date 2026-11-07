@@ -103,6 +103,7 @@ function applies(
   sourceHere: string | null,
   target: CardInstance,
   targetDef: CardDef,
+  mights?: { source: number; target: number },
 ): boolean {
   const friendly = target.controller === sourceController;
   const at = targetBattlefield(target);
@@ -113,7 +114,12 @@ function applies(
   ) {
     return false;
   }
+  if (s.lessMight && (!mights || mights.target >= mights.source)) return false;
   switch (s.affects) {
+    case 'ENEMY_UNITS_HERE':
+      return !friendly && isUnit(targetDef) && sourceHere !== null && at === sourceHere;
+    case 'FRIENDLY_UNITS_HERE':
+      return friendly && isUnit(targetDef) && sourceHere !== null && at === sourceHere;
     case 'SELF':
       return target.id === sourceId;
     case 'ALL_UNITS':
@@ -146,6 +152,10 @@ export interface StaticBonus {
   keywords: KeywordInstance[];
   /** R57: movement restrictions that apply to the target. */
   noMoveToBase?: boolean;
+  /** R74: the unit deals no combat damage. */
+  noCombatDamage?: boolean;
+  /** R74: enemy spells and abilities cannot choose the unit. */
+  noEnemyChoose?: boolean;
 }
 
 const NONE: StaticBonus = { might: 0, keywords: [] };
@@ -164,6 +174,10 @@ export function staticBonus(
   let might = 0;
   const keywords: KeywordInstance[] = [];
   let noMoveToBase = false;
+  let noCombatDamage = false;
+  let noEnemyChoose = false;
+  const mightOfObj = (o: CardInstance | undefined): number =>
+    (cards[o?.cardId ?? '']?.stats.might ?? 0) + (o?.mightBonus ?? 0);
   const apply = (
     def: CardDef | undefined,
     sourceId: string,
@@ -172,8 +186,12 @@ export function staticBonus(
     when: (cond: NonNullable<StaticAbility['when']>) => boolean,
   ): void => {
     for (const s of def?.statics ?? []) {
-      if (!applies(s, sourceId, controller, here, target, targetDef)) continue;
+      const mights = s.lessMight
+        ? { source: mightOfObj(state.objects[sourceId]), target: mightOfObj(target) }
+        : undefined;
+      if (!applies(s, sourceId, controller, here, target, targetDef, mights)) continue;
       if (s.when && !when(s.when)) continue;
+      if (s.unless && when(s.unless)) continue;
       if (s.per) {
         const src = state.objects[sourceId];
         const n = src ? countStatic(state, cards, src, s.per) : 0;
@@ -183,6 +201,8 @@ export function staticBonus(
         might += s.might ?? 0;
       }
       if (s.restrict === 'NO_MOVE_TO_BASE') noMoveToBase = true;
+      if (s.restrict === 'NO_COMBAT_DAMAGE') noCombatDamage = true;
+      if (s.restrict === 'NO_ENEMY_CHOOSE') noEnemyChoose = true;
       for (const k of s.keywords ?? []) keywords.push({ ...k });
     }
   };
@@ -200,9 +220,15 @@ export function staticBonus(
       evalCondition(state, cards, c, target.controller, bf.id),
     );
   }
-  return might === 0 && keywords.length === 0 && !noMoveToBase
+  return might === 0 && keywords.length === 0 && !noMoveToBase && !noCombatDamage && !noEnemyChoose
     ? NONE
-    : { might, keywords, ...(noMoveToBase ? { noMoveToBase } : {}) };
+    : {
+        might,
+        keywords,
+        ...(noMoveToBase ? { noMoveToBase } : {}),
+        ...(noCombatDamage ? { noCombatDamage } : {}),
+        ...(noEnemyChoose ? { noEnemyChoose } : {}),
+      };
 }
 
 /** The printed definition plus temporary and static keyword grants (the same object if none). */

@@ -145,7 +145,11 @@ export function effectiveMight(
 function sideTotal(state: GameState, cards: CardDatabase, bfId: string, player: PlayerId): number {
   return unitsAt(state, bfId, player).reduce(
     // 143.2.c negative Might counts as 0; a Stunned unit contributes no Might to combat damage.
-    (sum, u) => sum + (u.stunned ? 0 : Math.max(0, effectiveMight(state, cards, u.id))),
+    (sum, u) =>
+      sum +
+      (u.stunned || staticBonus(state, cards, u).noCombatDamage === true
+        ? 0
+        : Math.max(0, effectiveMight(state, cards, u.id))),
     0,
   );
 }

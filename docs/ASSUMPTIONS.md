@@ -310,3 +310,11 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Played to a battlefield:** a unit, gear or token the controller played this turn that now stands at a battlefield (a unit moved there after being played also counts).
 - **Level:** the gate is checked when the ability triggers (and the unit enters), using the controller's current XP.
 - **Rule numbers:** tests cite 359.2 only.
+
+## R74: Restrictions: no combat damage, can't be chosen by enemies, only-at-battlefield abilities, damage equal to my Might (A-R74)
+
+- **No combat damage:** the unit's Might is left out of the side's damage total (like a Stunned unit); it still takes damage and can still be assigned damage.
+- **Less Might than me:** compares printed Might plus Might bonuses of both units (no static or role bonuses, to avoid circular reads).
+- **Can't be chosen:** applies when the chooser (the player casting or activating) is not the unit's controller; abilities and spells of the controller can still choose it. Hidden-information plays are unaffected.
+- **Damage equal to my Might:** read when the effect resolves (0 if the source left the board); [Assault] / [Shield] sum the values of the source's current keywords including granted ones.
+- **Rule numbers:** tests cite 143.2, 145.1, 355.10, 462 and 467.2.

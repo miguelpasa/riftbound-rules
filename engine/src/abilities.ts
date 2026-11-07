@@ -84,6 +84,10 @@ export function activateAbility(
   if (state.turn.phase === 'MULLIGAN') {
     return ruleError('WRONG_PHASE', 'no abilities during the mulligan');
   }
+  // R74: "Use this ability only while I'm at a battlefield."
+  if (ability.atBattlefield && src.zone.kind !== 'battlefield') {
+    return ruleError('ABILITY_NOT_AVAILABLE', 'this ability works only at a battlefield');
+  }
   // R52: "Use only if not Empowered": an Empower ability cannot be used again while Empowered.
   if (src.empowered && ability.effects.some((e) => e.op === 'EMPOWER_SELF')) {
     return ruleError('ABILITY_NOT_AVAILABLE', 'already Empowered');
