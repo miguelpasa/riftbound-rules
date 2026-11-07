@@ -121,6 +121,7 @@ const PARSED_KEYWORDS = new Set<string>([
   'Weaponmaster',
   'Empower',
   'Hunt',
+  'Level',
   'Vision',
   'Predict',
 ]);

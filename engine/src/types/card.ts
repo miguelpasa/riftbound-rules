@@ -457,6 +457,14 @@ export type Condition =
   | { kind: 'RUNES_VS_OPPONENT'; cmp: 'FEWER' | 'MORE' }
   /** R72: the controller has a facedown card at a battlefield (`here` = the source's battlefield). */
   | { kind: 'FACEDOWN'; here?: boolean }
+  /** R73: a unit or gear the controller played this turn now stands at a battlefield. */
+  | { kind: 'PLAYED_TO_BATTLEFIELD' }
+  /** R73: the controller controls an Empowered permanent. */
+  | { kind: 'CONTROLS_EMPOWERED' }
+  /** R73: an opponent controls a stunned unit. */
+  | { kind: 'ENEMY_STUNNED' }
+  /** R73: the controller's Trash holds a card with the source's name ("a card with my name"). */
+  | { kind: 'NAME_IN_TRASH' }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any' }
   /** R53: Level N: the controller has at least `n` XP. */

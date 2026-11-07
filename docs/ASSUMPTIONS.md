@@ -304,3 +304,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Ready runes:** the lowest-numbered exhausted runes are readied.
 - **Rune comparison:** counts runes in play (not the Rune Deck).
 - **Rule numbers:** tests cite 315.2, 317.1, 317.2, 160, 323.4 and 431.
+
+## R73: Level-gated abilities, conditional discounts and enters-ready conditions (A-R73)
+
+- **Played to a battlefield:** a unit, gear or token the controller played this turn that now stands at a battlefield (a unit moved there after being played also counts).
+- **Level:** the gate is checked when the ability triggers (and the unit enters), using the controller's current XP.
+- **Rule numbers:** tests cite 359.2 only.

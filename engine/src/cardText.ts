@@ -1014,6 +1014,25 @@ const COST_PER: [RegExp, CostCount][] = [
 export function parseSelfCostReduction(
   text: string,
 ): { reduction: CostReduction; rest: string } | null {
+  // R73: "If <condition>, I cost [N] less and enter ready." = the discount plus "I enter ready if <condition>".
+  const both =
+    /(?:^|\n)[ \t]*If ([^.\n]+?), I cost \[(\d+)\] less and enter ready\.?[ \t]*(?=\n|$)/i.exec(
+      text,
+    );
+  if (both) {
+    const when = parseCondition(both[1] ?? '');
+    if (!when) return null;
+    return {
+      reduction: { energy: Number(both[2]), when },
+      rest: (
+        text.slice(0, both.index) +
+        '\nI enter ready if ' +
+        (both[1] ?? '') +
+        '\n' +
+        text.slice(both.index + both[0].length)
+      ).trim(),
+    };
+  }
   // R56: the reversed form "If <condition>, this costs [N] less."
   const rev =
     /(?:^|\n)[ \t]*If ([^.\n]+?), (?:this costs|I cost) \[(\d+)\] less\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i.exec(
@@ -1345,6 +1364,14 @@ export function parseCondition(raw: string): Condition | null {
   }
   if (/^you paid the additional cost$/i.test(text)) return { kind: 'PAID_ADDITIONAL' };
   if (/^I died alone$/i.test(text)) return { kind: 'DIED_ALONE' };
+  if (/^you['’]ve played a unit or gear to a battlefield this turn$/i.test(text)) {
+    return { kind: 'PLAYED_TO_BATTLEFIELD' };
+  }
+  if (/^you control something that['’]s \[?Empowered\]?$/i.test(text)) {
+    return { kind: 'CONTROLS_EMPOWERED' };
+  }
+  if (/^an opponent controls a stunned unit$/i.test(text)) return { kind: 'ENEMY_STUNNED' };
+  if (/^you have a card with my name in your trash$/i.test(text)) return { kind: 'NAME_IN_TRASH' };
   {
     const rv = /^you control (fewer|more) runes than an opponent$/i.exec(text);
     if (rv)
@@ -1589,6 +1616,7 @@ export function parseCardAbilities(
     )
     .replace(/\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(?:\[>>\]\s*)?/gi, 'EMPOWERED ')
     .replace(/\[Legion\]\s*(?:\[>\]|[—–-])\s*/gi, 'LEGION ')
+    .replace(/\[Level (\d+)\]\s*(?:\[>\]|[—–-])\s*/gi, 'LEVEL$1 ')
     .replace(KEYWORD_TOKENS, ' ')
     .replace(/\[Deathknell\]\s*(?:\[>\]|[—–-])/gi, ' Deathknell: ')
     .replace(/\s+/g, ' ')
@@ -1616,9 +1644,18 @@ export function parseCardAbilities(
     let sen = raw;
     let legion = false;
     let empowered = false;
+    /** R52 / R73: "[Empowered][>]" / "[Level N][>]" gate the ability on a condition. */
+    let gate: Condition | undefined;
     if (/^EMPOWERED /.test(sen)) {
       empowered = true;
+      gate = { kind: 'EMPOWERED' };
       sen = sen.slice(10).trim();
+    }
+    const lvl = /^LEVEL(\d+) /.exec(sen);
+    if (lvl) {
+      empowered = true;
+      gate = { kind: 'XP', n: Number(lvl[1]) };
+      sen = sen.slice(lvl[0].length).trim();
     }
     if (/^LEGION /.test(sen)) {
       legion = true;
@@ -1645,7 +1682,7 @@ export function parseCardAbilities(
       body = split.rest;
       if (empowered) {
         if (when) return null;
-        when = { kind: 'EMPOWERED' };
+        when = gate;
       }
       cur = {
         kind: 'trigger',
@@ -1669,11 +1706,7 @@ export function parseCardAbilities(
         kind: 'trigger',
         ons: ['YOU_PLAY'],
         legion,
-        ...(empowered
-          ? { when: { kind: 'EMPOWERED' as const } }
-          : split.when
-            ? { when: split.when }
-            : {}),
+        ...(empowered ? { when: gate as Condition } : split.when ? { when: split.when } : {}),
         playFilter: ph.filter,
         sens: [split.rest],
       };
@@ -1720,7 +1753,7 @@ export function parseCardAbilities(
       }
       if (empowered) {
         if (when) return null;
-        when = { kind: 'EMPOWERED' };
+        when = gate;
       }
       if (head.startsWith('when you play me to a battlefield')) {
         // R45: played to a battlefield = the unit stands at a battlefield as the ability triggers.
@@ -1736,6 +1769,12 @@ export function parseCardAbilities(
         sens: body ? [body] : [],
       };
       groups.push(cur);
+      continue;
+    }
+    // R73: "[Level N][>] I enter ready".
+    if (empowered && gate?.kind === 'XP' && /^I enter ready$/i.test(sen) && !legion) {
+      out.entersReadyWhen = gate;
+      cur = null;
       continue;
     }
     // R52: only triggers can be Empowered-only (statics are read by parseStaticLines).

@@ -95,6 +95,36 @@ export function evalCondition(
             : died(controller) + died(other);
       return n > 0;
     }
+    case 'PLAYED_TO_BATTLEFIELD': {
+      const rec = state.players[playerIndex(controller)]?.playedThisTurn;
+      if (!rec || rec.turn !== state.turn.number) return false;
+      return rec.objectIds.some((id) => {
+        const o = state.objects[id];
+        const t = o ? cards[o.cardId]?.type : undefined;
+        return o?.zone.kind === 'battlefield' && (t === 'UNIT' || t === 'GEAR' || t === 'TOKEN');
+      });
+    }
+    case 'CONTROLS_EMPOWERED':
+      return Object.values(state.objects).some(
+        (o) => o.controller === controller && onBoard(o) && o.empowered === true,
+      );
+    case 'ENEMY_STUNNED':
+      return Object.values(state.objects).some(
+        (o) => o.controller !== controller && onBoard(o) && o.stunned === true,
+      );
+    case 'NAME_IN_TRASH': {
+      const name = cards[state.objects[sourceId]?.cardId ?? '']?.name;
+      return (
+        name !== undefined &&
+        Object.values(state.objects).some(
+          (o) =>
+            o.zone.kind === 'trash' &&
+            o.owner === controller &&
+            o.id !== sourceId &&
+            cards[o.cardId]?.name === name,
+        )
+      );
+    }
     case 'RUNES_VS_OPPONENT': {
       const runes = (p: PlayerId): number =>
         Object.values(state.objects).filter(
