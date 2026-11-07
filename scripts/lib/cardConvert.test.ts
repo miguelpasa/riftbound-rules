@@ -476,3 +476,19 @@ describe('Equip written without keyword brackets (R69)', () => {
     });
   });
 });
+
+describe('Keywords written as plain words before their reminder (R103)', () => {
+  it('brackets Ganking / Hidden / Action at the start of a line when a reminder follows', () => {
+    // Tests Rule 799: keywords are bracketed tokens in the card data
+    expect(normalizeText('Ganking (I can move from battlefield to battlefield.)')).toBe(
+      '[Ganking] (I can move from battlefield to battlefield.)',
+    );
+    expect(normalizeText('Hidden (Hide now.)\nWhen you play me, draw 1.')).toBe(
+      '[Hidden] (Hide now.)\nWhen you play me, draw 1.',
+    );
+    // A sentence that merely starts with the word is left alone.
+    expect(normalizeText('Action figures are not keywords.')).toBe(
+      'Action figures are not keywords.',
+    );
+  });
+});

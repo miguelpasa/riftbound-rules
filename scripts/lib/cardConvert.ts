@@ -140,6 +140,8 @@ export function normalizeText(raw: string | null | undefined): string {
       .replace(/\[T\]/g, '[E]')
       // R69: some printings write "Equip [1]" without the keyword brackets.
       .replace(/(^|\n)Equip (?=\[)/g, '$1[Equip] ')
+      // R103: and a few write other keywords as plain words before their reminder ("Ganking (I can move ...)").
+      .replace(/(^|\n)(Ganking|Hidden|Action|Tank|Backline|Reaction)(?= \()/g, '$1[$2]')
       .trim()
   );
 }

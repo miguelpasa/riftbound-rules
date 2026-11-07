@@ -483,3 +483,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Order:** effects run left to right.
 - **Safety:** only used when no specific pattern matches, so existing parses are unchanged (regression diff: 0 changed).
 - **Rule numbers:** tests cite 359.3.
+
+## R103: Keywords printed as plain words (A-R103)
+
+- **Scope:** only at the start of a line and only before a parenthesised reminder.
+- **Rule numbers:** the script test cites 799.
