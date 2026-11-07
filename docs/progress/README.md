@@ -124,3 +124,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R85](R85-deploy-gear.md) | Deploy gear: played to a battlefield, stays there, "here" triggers and statics (463 -> 471 cards full) | High | Sonnet | Done | uncommitted |
 | [R86](R86-area-here.md) | Damage to all enemy units here, "... here" Might statics (471 -> 477 cards full) | Low | Sonnet | Done | uncommitted |
 | [R87](R87-excess-damage.md) | Excess combat damage conditions and "deal that much" (477 -> 481 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R88](R88-enters-ready.md) | "The first time ... each turn", token statics, units entering ready (481 -> 486 cards full) | Medium | Sonnet | Done | uncommitted |

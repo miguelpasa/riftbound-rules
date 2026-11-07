@@ -114,8 +114,11 @@ function applies(
   ) {
     return false;
   }
+  if (s.onlyToken && targetDef.type !== 'TOKEN') return false;
   if (s.lessMight && (!mights || mights.target >= mights.source)) return false;
   switch (s.affects) {
+    case 'OTHER_FRIENDLY_UNITS':
+      return friendly && isUnit(targetDef) && target.id !== sourceId;
     case 'ENEMY_UNITS_HERE':
       return !friendly && isUnit(targetDef) && sourceHere !== null && at === sourceHere;
     case 'FRIENDLY_UNITS_HERE':
@@ -156,6 +159,8 @@ export interface StaticBonus {
   noCombatDamage?: boolean;
   /** R74: enemy spells and abilities cannot choose the unit. */
   noEnemyChoose?: boolean;
+  /** R88: the unit enters ready. */
+  entersReady?: boolean;
 }
 
 const NONE: StaticBonus = { might: 0, keywords: [] };
@@ -176,6 +181,7 @@ export function staticBonus(
   let noMoveToBase = false;
   let noCombatDamage = false;
   let noEnemyChoose = false;
+  let entersReady = false;
   const mightOfObj = (o: CardInstance | undefined): number =>
     (cards[o?.cardId ?? '']?.stats.might ?? 0) + (o?.mightBonus ?? 0);
   const apply = (
@@ -203,6 +209,7 @@ export function staticBonus(
       if (s.restrict === 'NO_MOVE_TO_BASE') noMoveToBase = true;
       if (s.restrict === 'NO_COMBAT_DAMAGE') noCombatDamage = true;
       if (s.restrict === 'NO_ENEMY_CHOOSE') noEnemyChoose = true;
+      if (s.entersReady) entersReady = true;
       for (const k of s.keywords ?? []) keywords.push({ ...k });
     }
   };
@@ -220,7 +227,12 @@ export function staticBonus(
       evalCondition(state, cards, c, target.controller, bf.id),
     );
   }
-  return might === 0 && keywords.length === 0 && !noMoveToBase && !noCombatDamage && !noEnemyChoose
+  return might === 0 &&
+    keywords.length === 0 &&
+    !noMoveToBase &&
+    !noCombatDamage &&
+    !noEnemyChoose &&
+    !entersReady
     ? NONE
     : {
         might,
@@ -228,6 +240,7 @@ export function staticBonus(
         ...(noMoveToBase ? { noMoveToBase } : {}),
         ...(noCombatDamage ? { noCombatDamage } : {}),
         ...(noEnemyChoose ? { noEnemyChoose } : {}),
+        ...(entersReady ? { entersReady } : {}),
       };
 }
 

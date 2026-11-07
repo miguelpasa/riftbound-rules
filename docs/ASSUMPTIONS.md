@@ -398,3 +398,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Scope:** only the attacker's assignment counts; the record lasts for the rest of the turn.
 - **"After an attack":** a Conquer without combat has no excess, so the condition fails by itself.
 - **Rule numbers:** tests cite 467.2.
+
+## R88: "The first time ... each turn", token statics, units entering ready (A-R88)
+
+- **"First time":** the first occurrence per turn is the same as "once each turn" (counted when the ability goes on the Chain).
+- **Enter ready:** checked when the unit enters; a static source that is itself entering is not counted for itself ("Other").
+- **Rule numbers:** tests cite 186, 303 and 359.2.

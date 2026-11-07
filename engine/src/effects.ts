@@ -547,6 +547,7 @@ function lookAtTop(
 /** Play `count` tokens for `controller` (Base, or the source's battlefield with `here`). Mutates. */
 function playTokens(
   state: GameState,
+  cards: CardDatabase,
   controller: PlayerId,
   token: string,
   count: number,
@@ -573,6 +574,10 @@ function playTokens(
       enteredTurn: state.turn.number,
     };
     if (zone.kind === 'base') state.players[playerIndex(controller)].base.push(id);
+    // R88: "Your tokens enter ready".
+    if (staticBonus(state, cards, state.objects[id]).entersReady === true) {
+      (state.objects[id] as CardInstance).ready = true;
+    }
     out.push({ type: 'TOKEN_PLAYED', player: controller, unitId: id, cardId: token });
   }
 }
@@ -1098,13 +1103,13 @@ export function runEffects(
           fizzle();
           break;
         }
-        playTokens(state, controller, e.token, e.count, e, sourceObjectId, out);
+        playTokens(state, cards, controller, e.token, e.count, e, sourceObjectId, out);
         break;
       }
       case 'TARGET_CONTROLLER_PLAY_TOKEN': {
         const who = doneSlots.get(e.slot ?? 0);
         if (who === undefined || !cards[e.token]) break; // the earlier effect fizzled
-        playTokens(state, who, e.token, e.count, {}, sourceObjectId, out);
+        playTokens(state, cards, who, e.token, e.count, {}, sourceObjectId, out);
         break;
       }
       case 'ADD_ENERGY': {

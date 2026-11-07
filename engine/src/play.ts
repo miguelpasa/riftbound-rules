@@ -32,6 +32,7 @@ import { evalCondition } from './conditions.js';
 import { optionalPlan } from './optional.js';
 import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
 import { isDeployGear, isUnitDef } from './tokens.js';
+import { staticBonus } from './statics.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -217,7 +218,9 @@ function placingResolver(
             def.entersReady === true ||
             // R43: "I enter ready if <condition>" is checked as the unit enters (it is not yet counted).
             (def.entersReadyWhen !== undefined &&
-              evalCondition(s, cards, def.entersReadyWhen, obj.controller, obj.id));
+              evalCondition(s, cards, def.entersReadyWhen, obj.controller, obj.id)) ||
+            // R88: "Other friendly units enter ready" statics.
+            staticBonus(s, cards, obj).entersReady === true;
       obj.enteredTurn = turnNumber;
       delete obj.empowered; // R52: a permanent always enters un-Empowered
       delete obj.buffed; // R54: and without a Buff

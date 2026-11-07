@@ -965,11 +965,11 @@ const STATIC_RESTRICT = [
   [/^(Units) can['’]t move from here to base$/i, 'UNITS_HERE'],
 ] as const;
 const STATIC_AFF =
-  '(I|Your gear|Friendly units here|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
+  '(I|Your gear|Your token units|Friendly units here|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
 
 function staticAffects(
   raw: string,
-): Pick<StaticAbility, 'affects' | 'subtype' | 'onlyKeyword' | 'onlySubtype'> | null {
+): Pick<StaticAbility, 'affects' | 'subtype' | 'onlyKeyword' | 'onlySubtype' | 'onlyToken'> | null {
   const w = raw.toLowerCase();
   // R70: filtered "here" statics.
   if (w === 'champion units here') return { affects: 'UNITS_HERE', onlySubtype: 'Champion' };
@@ -980,6 +980,7 @@ function staticAffects(
   }
   if (w === 'i') return { affects: 'SELF' };
   if (w === 'your gear') return { affects: 'FRIENDLY_GEAR' };
+  if (w === 'your token units') return { affects: 'FRIENDLY_UNITS', onlyToken: true };
   if (w === 'friendly units here') return { affects: 'FRIENDLY_UNITS_HERE' };
   if (w === 'friendly units') return { affects: 'FRIENDLY_UNITS' };
   if (w === 'other friendly units here' || w === 'your other units here')
@@ -1047,6 +1048,25 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
         restrict: 'NO_MOVE_TO_BASE',
         ...(gateWhen ? { when: gateWhen } : {}),
       });
+      continue;
+    }
+    // R88: "Your tokens enter ready" / "Other friendly units enter ready".
+    const er = /^(Your tokens|Other friendly units) enter ready$/i.exec(body);
+    if (er) {
+      statics.push(
+        /^your/i.test(er[1] ?? '')
+          ? {
+              affects: 'FRIENDLY_UNITS',
+              onlyToken: true,
+              entersReady: true,
+              ...(gateWhen ? { when: gateWhen } : {}),
+            }
+          : {
+              affects: 'OTHER_FRIENDLY_UNITS',
+              entersReady: true,
+              ...(gateWhen ? { when: gateWhen } : {}),
+            },
+      );
       continue;
     }
     // R74: combat-damage and targeting restrictions, "... unless <condition>", and "must be assigned last".
@@ -2010,6 +2030,12 @@ export function parseCardAbilities(
     // R72: "If <condition> at the start of your Beginning Phase, <effects>" reads like the "At ..., if" form.
     const iat = /^If (.+?) at the start of your Beginning Phase,\s*(.+)$/i.exec(sen);
     if (iat) sen = `At the start of your Beginning Phase, if ${iat[1]}, ${iat[2]}`;
+    // R88: "The first time I conquer / a friendly unit dies each turn, ..." = "Once each turn, when ...".
+    const ft = /^The first time (I|a friendly unit) ([a-z ]+?) each turn,\s*(.*)$/i.exec(sen);
+    if (ft) {
+      once = true;
+      sen = 'When ' + ft[1] + ' ' + ft[2] + ', ' + ft[3];
+    }
     const dm = DEATH_HEAD.exec(sen);
     const db = DEATH_BATCH_HEAD.exec(sen);
     if (dm || db) {

@@ -462,7 +462,9 @@ export interface StaticAbility {
     | 'ALL_UNITS'
     /** R74: enemy / friendly units at the source's battlefield. */
     | 'ENEMY_UNITS_HERE'
-    | 'FRIENDLY_UNITS_HERE';
+    | 'FRIENDLY_UNITS_HERE'
+    /** R88: every friendly unit except the source ("Other friendly units enter ready"). */
+    | 'OTHER_FRIENDLY_UNITS';
   subtype?: string;
   /**
    * R67: "for each ...": `might` is multiplied by this count; with `perKeyword` the keyword is granted with the
@@ -475,6 +477,10 @@ export interface StaticAbility {
   onlySubtype?: string;
   /** R57: a movement restriction instead of / besides a grant: units it affects cannot move to the Base. */
   restrict?: 'NO_MOVE_TO_BASE' | 'NO_COMBAT_DAMAGE' | 'NO_ENEMY_CHOOSE';
+  /** R88: only token units are affected ("Your token units have +1 [M]"). */
+  onlyToken?: boolean;
+  /** R88: the affected units (or tokens) enter ready ("Your tokens enter ready"). */
+  entersReady?: boolean;
   /** R74: the restriction (or grant) does NOT apply while this condition holds ("... unless <condition>"). */
   unless?: Condition;
   /** R74: only units with LESS Might than the source (printed Might plus bonuses) are affected. */
