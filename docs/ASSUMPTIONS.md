@@ -437,3 +437,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Dealer:** the first chosen unit's current Might when the spell resolves (0 if it left the board).
 - **Rule numbers:** tests cite 143.2 and 355.10.
+
+## R95: Combat-role statics and "Stun an attacking unit" (A-R95)
+
+- **Alone:** no other friendly unit at the combat's battlefield.
+- **Scope:** only the source's own role (statics for "a friendly unit that defends alone" are not read).
+- **Rule numbers:** tests cite 355.10 and 466.2.c.

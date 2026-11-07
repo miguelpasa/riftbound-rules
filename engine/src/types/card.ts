@@ -249,6 +249,8 @@ export type CardEffect =
       op: 'STUN_TARGET';
       side?: TargetSide;
       atBattlefield?: boolean;
+      /** R95: only a unit that is attacking in the combat being fought. */
+      attacking?: boolean;
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
@@ -571,6 +573,16 @@ export type Condition =
   | { kind: 'IN_COMBAT' }
   /** R85: the controller controls the battlefield the source stands at ("if you control this battlefield"). */
   | { kind: 'CONTROLS_HERE' }
+  /**
+   * R95: the source is in the combat being fought as an attacker / defender (`role`), optionally `alone` (no other
+   * friendly unit at the battlefield) or `withOther` (at least one other friendly unit there).
+   */
+  | {
+      kind: 'COMBAT_ROLE';
+      role: 'ATTACKING' | 'DEFENDING' | 'EITHER';
+      alone?: boolean;
+      withOther?: boolean;
+    }
   /** R87: the controller assigned at least `n` excess combat damage to enemy units this turn. */
   | { kind: 'EXCESS_DAMAGE'; n: number }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */

@@ -631,11 +631,16 @@ function parseChooserBase(sen: string): Chooser | null {
     const s = side(m[1]);
     return { effect: { op: 'READY_TARGET', ...sideProp(s) }, decl: { side: s ?? 'any' } };
   }
-  m = new RegExp(`^Stun an? ${SIDE}unit( at a battlefield)?$`, 'i').exec(sen);
+  m = new RegExp(`^Stun an? (attacking )?${SIDE}unit( at a battlefield)?$`, 'i').exec(sen);
   if (m) {
-    const s = side(m[1]);
+    const s = side(m[2]);
     return {
-      effect: { op: 'STUN_TARGET', ...sideProp(s), ...(m[2] ? { atBattlefield: true } : {}) },
+      effect: {
+        op: 'STUN_TARGET',
+        ...sideProp(s),
+        ...(m[3] ? { atBattlefield: true } : {}),
+        ...(m[1] ? { attacking: true } : {}),
+      },
       decl: { side: s ?? 'any' },
     };
   }
@@ -1776,6 +1781,12 @@ export function parseCondition(raw: string): Condition | null {
   if (/^an opponent controls a stunned unit$/i.test(text)) return { kind: 'ENEMY_STUNNED' };
   if (/^I['’]m in combat$/i.test(text)) return { kind: 'IN_COMBAT' };
   if (/^you control this battlefield$/i.test(text)) return { kind: 'CONTROLS_HERE' };
+  if (/^I['’]m attacking or defending alone$/i.test(text)) {
+    return { kind: 'COMBAT_ROLE', role: 'EITHER', alone: true };
+  }
+  if (/^I['’]m attacking with another unit$/i.test(text)) {
+    return { kind: 'COMBAT_ROLE', role: 'ATTACKING', withOther: true };
+  }
   {
     const ex = /^you assigned (\d+) or more excess damage(?: to enemy units)?$/i.exec(text);
     if (ex) return { kind: 'EXCESS_DAMAGE', n: Number(ex[1]) };

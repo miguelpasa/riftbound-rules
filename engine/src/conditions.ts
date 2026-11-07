@@ -128,6 +128,32 @@ export function evalCondition(
       const rec = state.players[playerIndex(controller)]?.excessRecord;
       return rec !== undefined && rec.turn === state.turn.number && rec.amount >= cond.n;
     }
+    case 'COMBAT_ROLE': {
+      const c = state.flow.combat;
+      const src = state.objects[sourceId];
+      if (
+        !c ||
+        !src ||
+        src.zone.kind !== 'battlefield' ||
+        src.zone.battlefieldId !== c.battlefieldId
+      ) {
+        return false;
+      }
+      const attacking = src.controller === c.attacker;
+      if (cond.role === 'ATTACKING' && !attacking) return false;
+      if (cond.role === 'DEFENDING' && attacking) return false;
+      const others = Object.values(state.objects).filter(
+        (o) =>
+          o.id !== src.id &&
+          o.controller === src.controller &&
+          o.zone.kind === 'battlefield' &&
+          o.zone.battlefieldId === c.battlefieldId &&
+          cards[o.cardId]?.type === 'UNIT',
+      ).length;
+      if (cond.alone && others > 0) return false;
+      if (cond.withOther && others === 0) return false;
+      return true;
+    }
     case 'CONTROLS_HERE': {
       const here = hereOfSource(state, sourceId);
       return (
