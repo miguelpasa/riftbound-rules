@@ -2,6 +2,7 @@ import {
   endTurnButton,
   expect,
   keepHand,
+  passButton,
   phaseTracker,
   playRound,
   progressKey,
@@ -18,7 +19,20 @@ test('solo vs AI: two full turns, bot moves, no errors', async ({ page, log }) =
 
   const logSummary = page.getByText(/^Game log \(\d+\)$/);
   await expect(logSummary).toBeVisible();
-  await expect(endTurnButton(page)).toBeVisible({ timeout: 30_000 });
+  // The bot may move first and put an ability on the Chain: pass priority until it is our turn.
+  await expect
+    .poll(
+      async () => {
+        if (await endTurnButton(page).isVisible()) return true;
+        if (await passButton(page).isVisible())
+          await passButton(page)
+            .click({ timeout: 2_000 })
+            .catch(() => undefined);
+        return false;
+      },
+      { timeout: 60_000, intervals: [500] },
+    )
+    .toBe(true);
   const startKey = await progressKey(page);
 
   await playRound(page);
