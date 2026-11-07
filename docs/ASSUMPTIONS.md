@@ -231,3 +231,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Rules (reminder text):** "[Flow] <cost>: You may play this from your trash for its Flow cost. Then banish it." A spell with a Flow cost may be played from its owner's Trash with `additionalCosts.flow`; the Flow cost replaces its printed cost (no other additional costs or discounts are combined with it); after it resolves it goes to the Banishment zone instead of the Trash. Timing and targets are those of the spell. Only spells with a plain `[Flow] [N][C][A]` cost line are parsed.
 - **Not done:** Flow granted by other cards ("give a spell in your trash [Flow] equal to its cost", Kennen), Flow on units or gear, Flow with the Repeat or Accelerate extras, other play-from-Trash permissions ("you may play this from your trash for [1][C][C]").
 - **Rule numbers:** tests cite 356 and 359.3 only.
+
+## R62: return-self effect, battlefield-control and score conditions (A-R62)
+
+- **"Return me / this to its owner's hand"** (`RETURN_SELF`): the source leaves the board to its owner's hand (tokens cease to exist; damage, buffs and other state reset as for any return). Nothing happens when the source already left the board.
+- **Conditions:** "an opponent controls a battlefield" (enemy controls at least one) and "your / an opponent's score is [not] within 3 points of the Victory Score" (points >= victory score - 3). The 3 is the printed value; it is not derived from the Victory Score.
+- **Not done:** conditions on other combat facts ("if you assigned N or more excess damage"), Blitzcrank's "move an enemy unit to here", Deploy.
+- **Rule numbers:** tests cite 323 and 473 only.

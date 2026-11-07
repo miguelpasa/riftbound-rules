@@ -142,6 +142,8 @@ export type CardEffect =
   | { op: 'PREDICT'; count: number }
   /** R53: "gain N XP" (optionally per friendly unit on the board). */
   | { op: 'GAIN_XP'; amount: number; perFriendlyUnit?: boolean }
+  /** R62: "return me / this to its owner's hand": the source permanent returns to hand (tokens cease to exist). */
+  | { op: 'RETURN_SELF' }
   /** R52: "Empower me": the source becomes Empowered (nothing if it is not on the board or already is). */
   | { op: 'EMPOWER_SELF' }
   /** R49: "ready me": the source permanent becomes ready (nothing when it left the board). */
@@ -409,6 +411,10 @@ export type Condition =
   | { kind: 'EMPOWERED' }
   /** R54: the source carries a Buff ("While I'm buffed"). */
   | { kind: 'BUFFED' }
+  /** R62: `who` controls at least one battlefield. */
+  | { kind: 'CONTROLS_BATTLEFIELD'; who: 'friendly' | 'enemy' }
+  /** R62: `who`'s score is within 3 points of the Victory Score (`not` negates). */
+  | { kind: 'SCORE_NEAR'; who: 'friendly' | 'enemy'; not?: boolean }
   /** R58: "if you paid the additional cost" (play triggers; read from the CARD_PLAYED event). */
   | { kind: 'PAID_ADDITIONAL' }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */

@@ -621,6 +621,13 @@ export function runEffects(
         }
         break;
       }
+      case 'RETURN_SELF': {
+        const src = state.objects[sourceObjectId];
+        if (src && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
+          returnToHand(state, src, out);
+        }
+        break;
+      }
       case 'EMPOWER_SELF': {
         const src = state.objects[sourceObjectId];
         if (

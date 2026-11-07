@@ -98,3 +98,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R59](R59-modal-spells.md)           | Modal "Choose one" spells: modes in the card data, PLAY_CARD.mode, per-mode targets and legal actions (341 -> 344 cards full) | High | Sonnet | Done | uncommitted |
 | [R60](R60-spend-xp.md)               | Spend XP ability costs (344 -> 347 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R61](R61-flow.md)                   | Flow: play a spell from the Trash for its Flow cost, then banish it (347 -> 351 cards full) | High | Sonnet | Done | uncommitted |
+| [R62](R62-return-self-conditions.md) | RETURN_SELF effect, "opponent controls a battlefield" and score-near conditions (351 -> 353 cards full) | Low | Sonnet | Done | uncommitted |

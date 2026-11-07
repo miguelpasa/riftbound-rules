@@ -138,6 +138,8 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (/^(?:\[Buff\]|Buff) me$/i.test(sen)) return [{ op: 'BUFF_SELF', amount: 1, buff: true }];
   if (/^Ready me$/i.test(sen)) return [{ op: 'READY_SELF' }];
   if (/^Empower me$/i.test(sen)) return [{ op: 'EMPOWER_SELF' }];
+  if (/^Return (?:me|this) to (?:my|its) owner['’]s hand$/i.test(sen))
+    return [{ op: 'RETURN_SELF' }];
   m = /^\[Predict(?: (\d+))?\]$/i.exec(sen);
   if (m) return [{ op: 'PREDICT', count: Number(m[1] ?? 1) }];
   m = /^Gain (\d+) XP(?: for each friendly unit)?$/i.exec(sen);
@@ -1243,6 +1245,19 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
+  if (/^an opponent controls a battlefield$/i.test(text)) {
+    return { kind: 'CONTROLS_BATTLEFIELD', who: 'enemy' };
+  }
+  const sn = /^(your|an opponent['’]s) score is (not )?within 3 points of the Victory Score$/i.exec(
+    text,
+  );
+  if (sn) {
+    return {
+      kind: 'SCORE_NEAR',
+      who: /^your/i.test(sn[1] ?? '') ? 'friendly' : 'enemy',
+      ...(sn[2] ? { not: true } : {}),
+    };
+  }
   if (/^you paid the additional cost$/i.test(text)) return { kind: 'PAID_ADDITIONAL' };
   const m0 = /^(?:an? )?(friendly|enemy)? ?unit (?:has )?died this turn$/i.exec(text);
   if (m0) {

@@ -83,6 +83,17 @@ export function evalCondition(
     }
     case 'PAID_ADDITIONAL':
       return true; // decided by the triggering CARD_PLAYED event (triggers.ts); not re-checked later
+    case 'CONTROLS_BATTLEFIELD': {
+      const side: PlayerId =
+        cond.who === 'friendly' ? controller : controller === 'p0' ? 'p1' : 'p0';
+      return state.battlefields.some((b) => b.controller === side);
+    }
+    case 'SCORE_NEAR': {
+      const side: PlayerId =
+        cond.who === 'friendly' ? controller : controller === 'p0' ? 'p1' : 'p0';
+      const near = (state.players[playerIndex(side)]?.points ?? 0) >= state.victoryScore - 3;
+      return cond.not ? !near : near;
+    }
     case 'BUFFED':
       return state.objects[sourceId]?.buffed === true;
     case 'EMPOWERED':
