@@ -42,6 +42,7 @@ import type {
   CostReduction,
   StaticCount,
   AltAmount,
+  LookTake,
   DeathFilter,
   PlayFilter,
   StaticAbility,
@@ -337,16 +338,31 @@ export function parseLookSequence(
   if (/^Put (?:1|one) into your hand and recycle the rest$/i.test(next)) {
     return { effect: { op: 'LOOK_TOP', count, take: {} }, used: 2 };
   }
-  const r = /^You may reveal an? (unit|gear) from among them and draw it$/i.exec(next);
+  // R96: "Draw one and recycle the other" (Look at the top 2).
+  if (/^Draw one and recycle the other$/i.test(next)) {
+    return { effect: { op: 'LOOK_TOP', count, take: {} }, used: 2 };
+  }
+  // R96: "You may choose a card from among them and draw it. Put the rest into your trash."
+  if (
+    /^You may choose a card from among them and draw it$/i.test(next) &&
+    /^Put the rest into your trash$/i.test(sens[i + 2] ?? '')
+  ) {
+    return { effect: { op: 'LOOK_TOP', count, take: {}, rest: 'TRASH' }, used: 3 };
+  }
+  const r =
+    /^You may reveal (?:from among them )?an? (unit or gear|unit|gear|spell)(?: with Energy cost (?:no more than \[(\d+)\]|\[(\d+)\] or more))?(?: and with Power cost no more than \[A\])?(?: from among them)? and draw it$/i.exec(
+      next,
+    );
   if (r && /^(?:Then )?recycle the (?:rest|remaining cards)$/i.test(sens[i + 2] ?? '')) {
-    return {
-      effect: {
-        op: 'LOOK_TOP',
-        count,
-        take: { filter: (r[1] ?? '').toLowerCase() as 'unit' | 'gear', reveal: true },
-      },
-      used: 3,
+    const word = (r[1] ?? '').toLowerCase();
+    const take: LookTake = {
+      filter: word === 'unit or gear' ? 'unitOrGear' : (word as 'unit' | 'gear' | 'spell'),
+      reveal: true,
     };
+    if (r[2] !== undefined) take.maxEnergy = Number(r[2]);
+    if (r[3] !== undefined) take.minEnergy = Number(r[3]);
+    if (/and with Power cost no more than/i.test(next)) take.maxPower = 1;
+    return { effect: { op: 'LOOK_TOP', count, take }, used: 3 };
   }
   return null;
 }

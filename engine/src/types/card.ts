@@ -138,6 +138,15 @@ export interface TargetScope {
   another?: boolean;
 }
 
+/** R96: which card a Look-at-the-top effect may take (the first match from the top is taken). */
+export interface LookTake {
+  filter?: 'unit' | 'gear' | 'spell' | 'unitOrGear';
+  reveal?: boolean;
+  maxEnergy?: number;
+  minEnergy?: number;
+  maxPower?: number;
+}
+
 export type CardEffect =
   /** `perOtherBattlefield`: draw `amount` for each OTHER battlefield the controller controls (R44). */
   | {
@@ -382,7 +391,9 @@ export type CardEffect =
   | {
       op: 'LOOK_TOP';
       count: number;
-      take?: { filter?: 'unit' | 'gear'; reveal?: boolean };
+      take?: LookTake;
+      /** R96: what happens to the cards not taken: the bottom of the deck (default) or the Trash. */
+      rest?: 'RECYCLE' | 'TRASH';
     }
   /** [Add] [N]: put `amount` Energy in the controller's Rune Pool (168, 166.1). */
   | { op: 'ADD_ENERGY'; amount: number }

@@ -443,3 +443,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Alone:** no other friendly unit at the combat's battlefield.
 - **Scope:** only the source's own role (statics for "a friendly unit that defends alone" are not read).
 - **Rule numbers:** tests cite 355.10 and 466.2.c.
+
+## R96: Look at the top cards with type and cost limits, rest to the Trash (A-R96)
+
+- **Choice:** still deterministic: the first matching card from the top; an unrestricted take picks the most expensive card (UNCLEAR: the real text lets the player choose).
+- **Power limit:** "no more than [A]" is read as at most 1 generic Power on the printed cost.
+- **Rule numbers:** tests cite 159.

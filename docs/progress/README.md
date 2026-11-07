@@ -132,3 +132,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R93](R93-counted-gives.md) | Board-counted gives, buff all units here (495 -> 500 cards full) | Low | Sonnet | Done | uncommitted |
 | [R94](R94-slot-might.md) | One-way damage equal to the chosen unit's Might (500 -> 501 cards full) | Low | Sonnet | Done | uncommitted |
 | [R95](R95-combat-role.md) | Combat-role statics and "Stun an attacking unit" (501 -> 504 cards full) | Low | Sonnet | Done | uncommitted |
+| [R96](R96-look-top-filters.md) | Look at the top cards with type and cost limits, rest to the Trash (504 -> 508 cards full) | Medium | Sonnet | Done | uncommitted |

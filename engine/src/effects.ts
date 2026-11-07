@@ -19,6 +19,7 @@ import { defWithGrants, staticBonus } from './statics.js';
 import { evalCondition } from './conditions.js';
 import { playerIndex } from './types/constants.js';
 import type {
+  LookTake,
   AltAmount,
   CardDatabase,
   CardDef,
@@ -531,8 +532,9 @@ function lookAtTop(
   state: GameState,
   player: PlayerId,
   count: number,
-  take: { filter?: 'unit' | 'gear'; reveal?: boolean } | undefined,
+  take: LookTake | undefined,
   cards: CardDatabase,
+  rest: 'RECYCLE' | 'TRASH' = 'RECYCLE',
 ): GameEventInput[] {
   const out: GameEventInput[] = [];
   const ps = state.players[playerIndex(player)];
@@ -540,14 +542,34 @@ function lookAtTop(
   out.push({ type: 'CARDS_LOOKED_AT', player, count: ids.length });
   let pick: string | undefined;
   if (take) {
-    const want = take.filter === 'unit' ? 'UNIT' : take.filter === 'gear' ? 'GEAR' : undefined;
-    const cand = ids.filter(
-      (id) => !want || cards[(state.objects[id] as CardInstance).cardId]?.type === want,
-    );
+    const wants: string[] | undefined =
+      take.filter === 'unit'
+        ? ['UNIT']
+        : take.filter === 'gear'
+          ? ['GEAR']
+          : take.filter === 'spell'
+            ? ['SPELL']
+            : take.filter === 'unitOrGear'
+              ? ['UNIT', 'GEAR']
+              : undefined;
+    const restricted =
+      wants !== undefined ||
+      take.maxEnergy !== undefined ||
+      take.minEnergy !== undefined ||
+      take.maxPower !== undefined;
+    const cand = ids.filter((id) => {
+      const d = cards[(state.objects[id] as CardInstance).cardId];
+      if (!d) return false;
+      if (wants && !wants.includes(d.type)) return false;
+      if (take.maxEnergy !== undefined && d.cost.energy > take.maxEnergy) return false;
+      if (take.minEnergy !== undefined && d.cost.energy < take.minEnergy) return false;
+      if (take.maxPower !== undefined && (d.cost.power ?? 0) > take.maxPower) return false;
+      return true;
+    });
     // Unrestricted: the most expensive card (first on ties); restricted: the first match.
     const energy = (id: string): number =>
       cards[(state.objects[id] as CardInstance).cardId]?.cost.energy ?? 0;
-    pick = want
+    pick = restricted
       ? cand[0]
       : cand.reduce<string | undefined>(
           (b, id) => (b === undefined || energy(id) > energy(b) ? id : b),
@@ -562,9 +584,16 @@ function lookAtTop(
     ps.hand.push(pick);
     out.push({ type: 'CARD_DRAWN', player, cardInstanceId: pick, visibleTo: [player] });
   }
-  const rest = ids.filter((id) => id !== pick);
-  ps.mainDeck.push(...rest);
-  if (rest.length > 0) out.push({ type: 'CARDS_RECYCLED', player, count: rest.length });
+  const others = ids.filter((id) => id !== pick);
+  if (rest === 'TRASH') {
+    for (const id of others) {
+      ps.trash.push(id);
+      (state.objects[id] as CardInstance).zone = { kind: 'trash', player };
+    }
+  } else {
+    ps.mainDeck.push(...others);
+    if (others.length > 0) out.push({ type: 'CARDS_RECYCLED', player, count: others.length });
+  }
   return out;
 }
 
@@ -1210,7 +1239,7 @@ export function runEffects(
         break;
       }
       case 'LOOK_TOP':
-        out.push(...lookAtTop(state, controller, e.count, e.take, cards));
+        out.push(...lookAtTop(state, controller, e.count, e.take, cards, e.rest));
         break;
       case 'GAIN_POINT':
         state.players[playerIndex(controller)].points += e.amount;
