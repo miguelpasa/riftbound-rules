@@ -472,3 +472,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Hide vs play:** a hidden card is placed, not played; it triggers "When you hide" only.
 - **Rule numbers:** tests cite 811.
+
+## R101: Legend triggers: win a combat, hold, conquer (A-R101)
+
+- **Legend scope:** the Legend triggers for its controller's holds, conquers and combat wins (not an ally's).
+- **Rule numbers:** tests cite 303, 468.3 and 473.

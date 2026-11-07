@@ -380,12 +380,13 @@ export function convertRow(row: RawRow): ConvertResult {
     card.supportLevel === 'partial' &&
     keywords.every((k) => MVP_SET.has(k.name))
   ) {
-    const parsed = parseCardAbilities(text);
+    const parsed = parseCardAbilities(text, { legend: true });
     if (
       parsed &&
       // R68: Legends also have activated abilities (used from the Legend zone).
       (parsed.abilities.length > 0 || parsed.triggers.length > 0) &&
-      parsed.triggers.every((t) => t.on === 'YOU_PLAY') &&
+      // R101: and the player-scoped triggers of winning a combat, holding and conquering.
+      parsed.triggers.every((t) => ['YOU_PLAY', 'WIN_COMBAT', 'HOLD', 'CONQUER'].includes(t.on)) &&
       !parsed.entersReady &&
       !parsed.entersExhausted &&
       parsed.legionCostReduction === undefined

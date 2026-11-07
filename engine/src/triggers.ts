@@ -185,6 +185,10 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           add(o, e.method, e.player);
         }
       }
+      // R101: the scorer's Legend ("When you hold, ...").
+      for (const l of Object.values(state.objects)) {
+        if (l.controller === e.player && l.zone.kind === 'legend') add(l, e.method, e.player);
+      }
     } else if (e.type === 'UNIT_MOVED') {
       // MOVE (R43): "When I move" fires for a unit that arrived at a battlefield. Moves to the Base
       // are not reported as moves here because recall and combat retreats share the event (UNCLEAR).
@@ -275,6 +279,12 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         if (!o || !onBoard(o) || cards[o.cardId]?.type !== 'UNIT') continue;
         add(o, 'COMBAT_END', o.controller);
         if (e.winner !== null && o.controller === e.winner) add(o, 'WIN_COMBAT', o.controller);
+      }
+      // R101: the winner's Legend ("When you win a combat, ...").
+      if (e.winner !== null) {
+        for (const l of Object.values(state.objects)) {
+          if (l.controller === e.winner && l.zone.kind === 'legend') add(l, 'WIN_COMBAT', e.winner);
+        }
       }
       // R85: a Deploy gear at the battlefield wins the combat with its controller ("When you win a combat here").
       if (e.winner !== null) {

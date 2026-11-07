@@ -137,3 +137,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R98](R98-grant-temporary.md) | Give a permanent [Temporary], double a unit's Might (512 -> 516 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R99](R99-you-play-more.md) | Play triggers for token units, Power cost thresholds and the Nth card (516 -> 518 cards full) | Low | Sonnet | Done | uncommitted |
 | [R100](R100-facedown-triggers.md) | Hide / play-from-face-down triggers (and a fix: hiding is not playing) (518 -> 520 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R101](R101-legend-score.md) | Legend triggers: win a combat, hold, conquer (520 -> 522 cards full) | Low | Sonnet | Done | uncommitted |

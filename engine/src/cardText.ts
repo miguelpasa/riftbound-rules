@@ -2134,7 +2134,7 @@ const TRIGGER_HEAD =
  */
 export function parseCardAbilities(
   text: string,
-  opts: { gearLike?: boolean } = {},
+  opts: { gearLike?: boolean; legend?: boolean } = {},
 ): ParsedAbilities | null {
   const kwTriggers = keywordTriggers(text);
   const cleaned = protectGrants(text)
@@ -2148,6 +2148,10 @@ export function parseCardAbilities(
     // R74: keep "my [Assault]" from being read as the keyword itself.
     .replace(/\bmy \[(Assault|Shield)\]/gi, 'my {$1}')
     .replace(/\bWhen I conquer after an attack\b/gi, 'When I conquer')
+    // R101: a Legend's own player-scoped triggers: "When you win a combat / hold / conquer, ...".
+    .replace(/\bWhen you (win a combat|hold|conquer)\b/gi, (m: string, k: string) =>
+      opts.legend === true ? 'When I ' + k.toLowerCase() : m,
+    )
     // R85: Deploy gear at a battlefield: "When you hold / conquer / win a combat here".
     .replace(/\bwhen you (hold|conquer) here\b/gi, (m: string, k: string) =>
       opts.gearLike === true ? 'when I ' + k.toLowerCase() : m,
