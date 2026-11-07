@@ -701,6 +701,11 @@ export interface CardDef {
   /** R59: a modal spell ("Choose one — ..."): the effects of each mode; the player picks one (PLAY_CARD.mode). */
   modes?: CardEffect[][];
   /** R58: "You may pay [N] as an additional cost to play me": the optional extra (`additionalCosts.extra`). */
+  /**
+   * R76: extra places a Unit may be played to, besides a battlefield you control: "OPEN" = a battlefield with
+   * no units on it, "ENEMY" = a battlefield an opponent controls with their units on it.
+   */
+  playTo?: ('OPEN' | 'ENEMY')[];
   optionalAdditionalCost?: {
     energy: number;
     power?: number;

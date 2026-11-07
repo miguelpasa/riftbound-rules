@@ -998,6 +998,22 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
   return statics.length > 0 ? { statics, rest: keep.join('\n').trim() } : null;
 }
 
+/** R76: "You may play me to an open battlefield." / "... an occupied enemy battlefield." lines of a Unit. */
+export function parsePlayTo(text: string): { playTo: ('OPEN' | 'ENEMY')[]; rest: string } | null {
+  const re =
+    /(?:^|\n)[ \t]*You may play me to an? (open|occupied enemy) battlefield\.?(?:[ \t]*(?:\([^)\n]*\)))?[ \t]*(?=\n|$)/i;
+  const playTo: ('OPEN' | 'ENEMY')[] = [];
+  let rest = text;
+  for (;;) {
+    const m = re.exec(rest);
+    if (!m) break;
+    const kind = (m[1] ?? '').toLowerCase() === 'open' ? 'OPEN' : 'ENEMY';
+    if (!playTo.includes(kind)) playTo.push(kind);
+    rest = (rest.slice(0, m.index) + '\n' + rest.slice(m.index + m[0].length)).trim();
+  }
+  return playTo.length > 0 ? { playTo, rest } : null;
+}
+
 /**
  * R58 / R63: an optional additional cost to play a card, as a line of its own:
  *  - "You may pay [N][C] as an additional cost to play me."            (Energy / Power)

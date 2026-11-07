@@ -153,6 +153,11 @@
       "additionalProperties": false,
       "properties": { "card": { "$ref": "#/definitions/costCardChoice" } }
     },
+    "playTo": {
+      "description": "Extra battlefields a Unit may be played to (R76).",
+      "type": "array",
+      "items": { "enum": ["OPEN", "ENEMY"] }
+    },
     "flowCost": {
       "description": "Flow: the spell may be played from the Trash for this cost, then banished (R61).",
       "type": "object",

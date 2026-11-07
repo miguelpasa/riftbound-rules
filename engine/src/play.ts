@@ -31,6 +31,7 @@ import { selfEnergyDiscount } from './costReduction.js';
 import { evalCondition } from './conditions.js';
 import { optionalPlan } from './optional.js';
 import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
+import { isUnitDef } from './tokens.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -94,6 +95,33 @@ function hasKeyword(def: CardDef, name: string): boolean {
 }
 
 /** True if `pid` controls a Unit (other than `exceptId`) at the battlefield. */
+/**
+ * R76: may a Unit with `playTo` be played to this battlefield even though its player does not control
+ * it? "OPEN" = no units there at all; "ENEMY" = an opponent controls it and has units there.
+ */
+export function playToAllowed(
+  state: GameState,
+  cards: CardDatabase,
+  def: CardDef,
+  pid: PlayerId,
+  battlefieldId: string,
+): boolean {
+  if (!def.playTo || def.playTo.length === 0) return false;
+  const bf = state.battlefields.find((b) => b.id === battlefieldId);
+  if (!bf) return false;
+  const there = Object.values(state.objects).filter(
+    (o) =>
+      o.zone.kind === 'battlefield' &&
+      o.zone.battlefieldId === battlefieldId &&
+      isUnitDef(cards[o.cardId]),
+  );
+  if (def.playTo.includes('OPEN') && there.length === 0) return true;
+  const opp: PlayerId = pid === 'p0' ? 'p1' : 'p0';
+  return (
+    def.playTo.includes('ENEMY') && bf.controller === opp && there.some((o) => o.controller === opp)
+  );
+}
+
 export function hasUnitAt(
   state: GameState,
   cards: CardDatabase,
@@ -160,6 +188,23 @@ function placingResolver(
           player: obj.controller,
           battlefieldId: loc.battlefieldId,
         };
+        // R76: a Unit played to a battlefield nobody else occupies contests it (like a move there),
+        // so the Cleanup stages the Showdown that lets its player take control (190.3, 323.7).
+        const bfState = s.battlefields.find((b) => b.id === loc.battlefieldId);
+        if (
+          def.type === 'UNIT' &&
+          bfState &&
+          bfState.controller !== obj.controller &&
+          !Object.values(s.objects).some(
+            (o) =>
+              o.controller !== obj.controller &&
+              o.zone.kind === 'battlefield' &&
+              o.zone.battlefieldId === loc.battlefieldId &&
+              cards[o.cardId]?.type === 'UNIT',
+          )
+        ) {
+          bfState.contestedBy = obj.controller;
+        }
       } else {
         obj.zone = { kind: 'base', player: obj.controller };
         owner.base.push(obj.id);
@@ -383,7 +428,7 @@ export function playCard(
       return ruleError('ILLEGAL_LOCATION', `${def.type} can only enter the Base`);
     }
     if (!bf) return ruleError('ILLEGAL_LOCATION', `battlefield ${bfId} does not exist`);
-    if (bf.controller !== pid && !ambush) {
+    if (bf.controller !== pid && !ambush && !playToAllowed(state, cards, def, pid, bfId)) {
       return ruleError('ILLEGAL_LOCATION', `you do not control battlefield ${bfId}`);
     }
     location = { kind: 'battlefield', battlefieldId: bfId };

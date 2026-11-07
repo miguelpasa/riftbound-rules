@@ -326,3 +326,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Tokens** never reach the Trash, so they cannot be returned.
 - **"Up to N other":** the source itself is excluded; the choice may be empty.
 - **Rule numbers:** tests cite 160 and 303.
+
+## R76: "You may play me to an open / occupied enemy battlefield" (A-R76)
+
+- **Open battlefield:** a battlefield with no units of either player on it, whoever controls it.
+- **Occupied enemy battlefield:** an opponent controls it and has at least one unit there.
+- **Control after playing:** playing to a battlefield nobody else occupies contests it; the Showdown that follows lets the player establish control and Conquer (once per turn per battlefield). UNCLEAR: the real rules may establish control without a Showdown.
+- **Rule numbers:** tests cite 359.2.

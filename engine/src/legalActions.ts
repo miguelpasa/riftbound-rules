@@ -29,7 +29,7 @@ import { abilityCandidates } from './abilities.js';
 import { selfEnergyDiscount } from './costReduction.js';
 import { autoAssign } from './combat.js';
 import { MAX_TARGET_COMBOS, enumerateSpellTargets, spellEffects } from './effects.js';
-import { hasUnitAt } from './play.js';
+import { hasUnitAt, playToAllowed } from './play.js';
 import { applyIntent, reduce } from './reducer.js';
 import { abilityItemEffects, triggerSourceCardId } from './triggers.js';
 import { optionalPlan } from './optional.js';
@@ -124,6 +124,14 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
             ...(hasKw(def, 'Ambush')
               ? state.battlefields
                   .filter((b) => b.controller !== pid && hasUnitAt(state, cards, pid, b.id))
+                  .map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
+              : []),
+            // R76: "You may play me to an open battlefield / an occupied enemy battlefield".
+            ...(def.playTo
+              ? state.battlefields
+                  .filter(
+                    (b) => b.controller !== pid && playToAllowed(state, cards, def, pid, b.id),
+                  )
                   .map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
               : []),
           ]
