@@ -317,6 +317,8 @@ export type CardEffect =
       count?: TargetCount;
       /** Only gear whose Energy cost is at most this ("a gear with Energy cost 2 or less"). */
       maxEnergy?: number;
+      /** R107: "no more than my Might": the limit is the source unit's current Might. */
+      maxEnergyMyMight?: boolean;
     } & TargetScope)
   /** Kill every gear on the board. */
   | { op: 'KILL_ALL_GEAR' }
@@ -627,6 +629,8 @@ export type Condition =
   | { kind: 'IN_COMBAT' }
   /** R85: the controller controls the battlefield the source stands at ("if you control this battlefield"). */
   | { kind: 'CONTROLS_HERE' }
+  /** R107: your other units on the board have total Might of at least `n`. */
+  | { kind: 'OTHER_UNITS_MIGHT'; n: number }
   /** R100: this card was just played from face down (read from the triggering CARD_PLAYED event). */
   | { kind: 'FROM_FACEDOWN' }
   /**

@@ -13,6 +13,7 @@
 import { playerIndex } from './types/constants.js';
 import { isUnitDef } from './tokens.js';
 import { hereOfSource } from './sources.js';
+import { effectiveMight } from './combat.js';
 import type {
   CardDatabase,
   CardInstance,
@@ -156,6 +157,16 @@ export function evalCondition(
     }
     case 'FROM_FACEDOWN':
       return true; // decided by the triggering CARD_PLAYED event (triggers.ts)
+    case 'OTHER_UNITS_MIGHT': {
+      let sum = 0;
+      for (const o of Object.values(state.objects)) {
+        if (o.id === sourceId || o.controller !== controller) continue;
+        if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;
+        if (!isUnitDef(cards[o.cardId])) continue;
+        sum += Math.max(0, effectiveMight(state, cards, o.id, { role: null }));
+      }
+      return sum >= cond.n;
+    }
     case 'CONTROLS_HERE': {
       const here = hereOfSource(state, sourceId);
       return (

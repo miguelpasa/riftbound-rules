@@ -47,6 +47,8 @@ interface Spec {
   inBase?: boolean;
   /** R95: the unit is attacking in the current combat. */
   attacking?: boolean;
+  /** R107: Energy limit read from the source unit's Might. */
+  maxEnergyMyMight?: boolean;
   /** R106: required / forbidden subtype of the chosen unit. */
   subtype?: string;
   notSubtype?: string;
@@ -131,6 +133,7 @@ function specOf(e: TargetedEffect): Spec {
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
   if (e.op === 'DAMAGE_TARGET' && e.inBase) spec.inBase = true;
   if (e.op === 'STUN_TARGET' && e.attacking) spec.attacking = true;
+  if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
   if (e.op === 'READY_TARGET' && e.subtype) spec.subtype = e.subtype;
   if (e.op === 'RETURN_TARGET' && e.notSubtype) spec.notSubtype = e.notSubtype;
   if ('here' in e && e.here) spec.here = true;
@@ -254,6 +257,11 @@ function legalForSpec(
   }
   if (spec.kind === 'gear') {
     if (!isGearDef(cards[u.cardId])) return false;
+    if (spec.maxEnergyMyMight) {
+      const src = state.objects[sourceId];
+      const limit = src ? effectiveMight(state, cards, src.id, { role: null }) : 0;
+      if ((cards[u.cardId]?.cost.energy ?? 0) > limit) return false;
+    }
     if (spec.maxEnergy !== undefined && (cards[u.cardId]?.cost.energy ?? 0) > spec.maxEnergy) {
       return false;
     }

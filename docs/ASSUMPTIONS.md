@@ -505,3 +505,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Subtype match:** against the card's subtype / tag list, case-insensitive.
 - **Rule numbers:** tests cite 355.10.
+
+## R107: Might-based limits: gear cost vs my Might, total Might of other units (A-R107)
+
+- **No source:** a spell has no source unit, so the Might limit is 0 for it (nothing legal).
+- **Rule numbers:** tests cite 143.2 and 355.10.

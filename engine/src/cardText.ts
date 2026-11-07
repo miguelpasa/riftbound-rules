@@ -705,6 +705,12 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  if (/^[Kk]ill a gear with Energy cost no more than my Might$/.test(sen)) {
+    return {
+      effect: { op: 'KILL_GEAR', maxEnergyMyMight: true },
+      decl: { side: 'any' },
+    };
+  }
   if (/^(?:You may )?kill up to one gear$/i.test(sen)) {
     return {
       effect: { op: 'KILL_GEAR', count: { min: 0, max: 1 } },
@@ -1920,6 +1926,10 @@ export function parseCondition(raw: string): Condition | null {
   if (/^an opponent controls a stunned unit$/i.test(text)) return { kind: 'ENEMY_STUNNED' };
   if (/^I['’]m in combat$/i.test(text)) return { kind: 'IN_COMBAT' };
   if (/^you control this battlefield$/i.test(text)) return { kind: 'CONTROLS_HERE' };
+  {
+    const om = /^your other units have total Might (\d+) or more$/i.exec(text);
+    if (om) return { kind: 'OTHER_UNITS_MIGHT', n: Number(om[1]) };
+  }
   if (/^I['’]m attacking or defending alone$/i.test(text)) {
     return { kind: 'COMBAT_ROLE', role: 'EITHER', alone: true };
   }
