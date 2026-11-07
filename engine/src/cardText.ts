@@ -2088,20 +2088,31 @@ const OR_WHEN: Record<string, TriggerKind> = {
 
 /** R49: "When you play [another] a spell / unit / gear / card [that costs [N] or more] [on an opponent's turn]". */
 const PLAY_HEAD =
-  /^When you play (?:(another) )?(?:an? )?(card|spell|unit|gear)(?: (?:that costs|with Energy cost) \[(\d+)\] or more)?( on an opponent's turn| during a showdown)?\s*,\s*(.+)$/i;
+  /^When you play (?:(another) )?(?:an? )?(card|spell|unit|gear|token unit)(?: (?:that costs|with Energy cost) \[(\d+)\] or more| with Power cost ((?:\[A\])+) or more)?( on an opponent's turn| during a showdown)?\s*,\s*(.+)$/i;
+/** R99: "When you play your second card in a turn, ..." */
+const PLAY_NTH_HEAD = /^When you play your (second|third) card in a turn\s*,\s*(.+)$/i;
 
 function parsePlayHead(sen: string): { filter: PlayFilter; body: string } | null {
+  const nth = PLAY_NTH_HEAD.exec(sen);
+  if (nth) {
+    return {
+      filter: { nth: (nth[1] ?? '').toLowerCase() === 'second' ? 2 : 3 },
+      body: nth[2] ?? '',
+    };
+  }
   const m = PLAY_HEAD.exec(sen);
   if (!m) return null;
   const filter: PlayFilter = {};
   const kind = (m[2] ?? '').toLowerCase();
-  if (kind !== 'card') filter.type = kind.toUpperCase() as 'SPELL' | 'UNIT' | 'GEAR';
+  if (kind === 'token unit') filter.token = true;
+  else if (kind !== 'card') filter.type = kind.toUpperCase() as 'SPELL' | 'UNIT' | 'GEAR';
   if (m[1]) filter.other = true;
   if (m[3]) filter.minEnergy = Number(m[3]);
-  const when = (m[4] ?? '').trim();
+  if (m[4]) filter.minPower = (m[4].match(/A/g) ?? []).length;
+  const when = (m[5] ?? '').trim();
   if (when.startsWith('on an')) filter.onOpponentTurn = true;
   if (when.startsWith('during')) filter.inShowdown = true;
-  return { filter, body: m[5] ?? '' };
+  return { filter, body: m[6] ?? '' };
 }
 
 /** R71: "When [another] a friendly / an enemy unit [here] dies [while I'm at a battlefield]" and "When one or more friendly units die". */

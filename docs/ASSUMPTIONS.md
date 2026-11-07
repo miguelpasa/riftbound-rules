@@ -461,3 +461,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Temporary:** the keyword is stored on the instance, not the card; "without [Temporary]" restrictions are ignored (granting twice changes nothing).
 - **Double Might:** adds the unit's current Might as a this-turn bonus.
 - **Rule numbers:** tests cite 816.
+
+## R99: Play triggers for token units, Power cost thresholds and the Nth card (A-R99)
+
+- **Token units:** only effect-played tokens trigger "a token unit" heads; "a unit" heads still mean cards.
+- **Nth card:** counted from the cards the player played this turn (Hidden plays included).
+- **Rule numbers:** tests cite 303.

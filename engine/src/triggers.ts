@@ -78,6 +78,12 @@ function playMatches(
   if (!def) return false;
   if (f.type && def.type !== f.type) return false;
   if (f.minEnergy !== undefined && def.cost.energy < f.minEnergy) return false;
+  if (f.minPower !== undefined && (def.cost.power ?? 0) < f.minPower) return false;
+  if (f.nth !== undefined) {
+    const rec = state.players[player === 'p0' ? 0 : 1]?.playedThisTurn;
+    if (!rec || rec.turn !== state.turn.number || rec.objectIds.length !== f.nth) return false;
+  }
+  if (f.token) return false; // token plays are matched separately (TOKEN_PLAYED)
   if (f.onOpponentTurn && state.turn.activePlayer === player) return false;
   if (f.inShowdown && !state.flow.showdown) return false;
   return true;
@@ -219,6 +225,25 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     } else if (e.type === 'EFFECT_EMPOWERED') {
       const o = state.objects[e.unitId];
       if (o && onBoard(o)) add(o, 'BECOME_EMPOWERED', o.controller);
+    } else if (e.type === 'TOKEN_PLAYED') {
+      // R99: "When you play a token unit" fires for the player's permanents.
+      const tokenDef = cards[e.cardId];
+      if (tokenDef && tokenDef.stats.might !== undefined) {
+        for (const src of Object.values(state.objects)) {
+          if (src.controller !== e.player || src.id === e.unitId || !onBoard(src)) continue;
+          cards[src.cardId]?.triggers?.forEach((tr, index) => {
+            if (tr.on !== 'YOU_PLAY' || !tr.playFilter?.token) return;
+            if (tr.when && !evalCondition(state, cards, tr.when, e.player, src.id)) return;
+            out.push({
+              sourceId: src.id,
+              cardId: src.cardId,
+              battlefield: false,
+              index,
+              controller: e.player,
+            });
+          });
+        }
+      }
     } else if (e.type === 'POINT_GAINED') {
       // R92: "When an opponent scores" fires for the other player's permanents.
       for (const src of Object.values(state.objects)) {

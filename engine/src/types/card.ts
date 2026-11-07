@@ -723,6 +723,12 @@ export interface PlayFilter {
   other?: boolean;
   /** "that costs [N] or more" / "with Energy cost [N] or more": the printed Energy cost. */
   minEnergy?: number;
+  /** R99: "with Power cost [A][A] or more": the printed generic Power cost. */
+  minPower?: number;
+  /** R99: "a token unit": fires when a token unit is played by an effect (never for cards). */
+  token?: boolean;
+  /** R99: "your second card in a turn": this is the Nth card its player played this turn. */
+  nth?: number;
   /** "on an opponent's turn". */
   onOpponentTurn?: boolean;
   /** "during a showdown". */
