@@ -68,6 +68,7 @@ export const isDeployGear = (def: CardDef | undefined): boolean =>
 export const TOKEN_CARDS: CardDatabase = Object.fromEntries(
   [
     token('tok-recruit', 'Recruit', 1),
+    token('tok-tentacle', 'Tentacle', 1),
     token('tok-sprite', 'Sprite', 3, [{ name: 'Temporary' }]),
     token('tok-bird', 'Bird', 1, [{ name: 'Deflect' }]),
     token('tok-mech', 'Mech', 3),

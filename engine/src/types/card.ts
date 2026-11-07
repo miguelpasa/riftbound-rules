@@ -636,7 +636,9 @@ export type TriggerKind =
   /** R78: "When I become exhausted" / "When I become ready" / "When I become [Empowered]". */
   | 'BECOME_EXHAUSTED'
   | 'BECOME_READY'
-  | 'BECOME_EMPOWERED';
+  | 'BECOME_EMPOWERED'
+  /** R92: "When an opponent scores" (a point from any source). */
+  | 'OPP_SCORES';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {

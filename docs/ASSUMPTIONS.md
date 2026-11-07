@@ -420,3 +420,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Ability discount:** never below 0 Energy; Power parts are not reduced.
 - **Highest Might:** current Might (with bonuses) of the controller's units on the board, 1 Energy per point.
 - **Rule numbers:** tests cite 143.2, 145.1 and 156.
+
+## R92: Tentacle tokens, "when I score", "when an opponent scores" (A-R92)
+
+- **"When I score":** read as scoring by Hold or Conquer only (UNCLEAR for other point sources).
+- **"When an opponent scores":** any point the opponent gains, including Burn Out points.
+- **Rule numbers:** tests cite 186 and 473.

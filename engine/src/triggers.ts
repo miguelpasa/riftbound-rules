@@ -219,6 +219,12 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     } else if (e.type === 'EFFECT_EMPOWERED') {
       const o = state.objects[e.unitId];
       if (o && onBoard(o)) add(o, 'BECOME_EMPOWERED', o.controller);
+    } else if (e.type === 'POINT_GAINED') {
+      // R92: "When an opponent scores" fires for the other player's permanents.
+      for (const src of Object.values(state.objects)) {
+        if (src.controller === e.player || !onBoard(src)) continue;
+        add(src, 'OPP_SCORES', src.controller);
+      }
     } else if (e.type === 'COMBAT_ENDED') {
       // R71: the winner's units win the combat; every unit still standing was "in" it.
       for (const id of e.participants) {
