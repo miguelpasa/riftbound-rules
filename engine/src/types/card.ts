@@ -284,6 +284,8 @@ export type CardEffect =
   | { op: 'COUNTER_SPELL'; slot?: number; minPower?: number; maxEnergy?: number; maxPower?: number }
   /** The controller of the target unit/gear draws `amount` ("Its controller draws N"). */
   | { op: 'TARGET_CONTROLLER_DRAW'; amount: number; slot?: number }
+  /** R90: "Its owner channels N rune(s) exhausted" after a unit was returned (the owner of the returned unit). */
+  | { op: 'TARGET_OWNER_CHANNEL'; amount: number; slot?: number }
   /** Give every unit of `side` on the board +amount Might (no target). */
   | {
       op: 'BUFF_ALL';

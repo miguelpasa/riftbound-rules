@@ -126,3 +126,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R87](R87-excess-damage.md) | Excess combat damage conditions and "deal that much" (477 -> 481 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R88](R88-enters-ready.md) | "The first time ... each turn", token statics, units entering ready (481 -> 486 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R89](R89-card-smoke.md) | Smoke test for every supported card (no new card support) (486 -> 486 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R90](R90-owner-channel.md) | Return a unit, its owner channels a rune; final audit (486 -> 487 cards full) | Low | Sonnet | Done | uncommitted |

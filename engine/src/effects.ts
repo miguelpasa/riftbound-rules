@@ -845,6 +845,7 @@ export function runEffects(
             u.zone = { kind: 'hand', player: u.owner };
             ps.hand.push(u.id);
           } else if (e.op === 'RETURN_TARGET') {
+            doneSlots.set(slot, u.owner);
             returnToHand(state, u, out);
           } else if (e.op === 'MOVE_HERE_TARGET') {
             const dest = hereOfSource(state, sourceObjectId);
@@ -948,6 +949,12 @@ export function runEffects(
         const dealtByB = Math.max(0, mightOf(b));
         damage(b, dealtByA);
         damage(a, dealtByB);
+        break;
+      }
+      case 'TARGET_OWNER_CHANNEL': {
+        const who = doneSlots.get(e.slot ?? 0);
+        if (who === undefined) break; // the return fizzled
+        out.push(...channelRunes(state, who, e.amount, true).events);
         break;
       }
       case 'TARGET_CONTROLLER_DRAW': {

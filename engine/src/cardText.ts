@@ -789,6 +789,17 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     });
     return true;
   }
+  m = /^Its owner channels (\d+) runes? exhausted$/i.exec(sen);
+  if (m) {
+    const prev = out[out.length - 1];
+    if (!prev || prev.op !== 'RETURN_TARGET' || 'count' in prev) return false;
+    out.push({
+      op: 'TARGET_OWNER_CHANNEL',
+      amount: Number(m[1]),
+      ...(prev.slot ? { slot: prev.slot } : {}),
+    });
+    return true;
+  }
   m = /^Its controller draws (\d+)$/i.exec(sen);
   if (m) {
     const prev = out[out.length - 1];

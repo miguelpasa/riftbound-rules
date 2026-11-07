@@ -409,3 +409,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Coverage:** a game plays only the cards that are drawn and affordable, so each run covers a subset; vary `--seed`.
 - **Rule numbers:** none (tooling).
+
+## R90: Return a unit, its owner channels a rune; final audit (A-R90)
+
+- **Owner:** the player who owns the returned unit channels, even if the caster controlled it.
+- **Rule numbers:** tests cite 355.10 and 431.
