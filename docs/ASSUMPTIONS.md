@@ -515,3 +515,11 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Move from:** fires only for battlefield-to-battlefield moves; moves to the Base are not reported because recalls share the event (same UNCLEAR as R43).
 - **Rule numbers:** tests cite 145.1 and 303.
+
+## R109: Audit after R91 to R108 (no new cards) (A-R109)
+
+- **Not covered:** the two-browser multiplayer and reconnect specs were not run in this session.
+
+## R110: "A card from [Hidden]" means played from face down (A-R110)
+
+- **Rule numbers:** the script test cites 811.

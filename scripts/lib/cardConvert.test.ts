@@ -492,3 +492,12 @@ describe('Keywords written as plain words before their reminder (R103)', () => {
     );
   });
 });
+
+describe('"a card from [Hidden]" (R110)', () => {
+  it('reads it as a card played from face down, not as the Hidden keyword', () => {
+    // Tests Rule 811: Hidden cards are played from face down
+    expect(normalizeText('When you play a card from [Hidden], give me +2 [S] this turn.')).toBe(
+      'When you play a card from face down, give me +2 [M] this turn.',
+    );
+  });
+});

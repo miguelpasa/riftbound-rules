@@ -145,3 +145,5 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R106](R106-subtype-targets.md) | Subtype-limited targets (a Mech, a non-Dragon unit) (535 -> 537 cards full) | Low | Sonnet | Done | uncommitted |
 | [R107](R107-might-limits.md) | Might-based limits: gear cost vs my Might, total Might of other units (537 -> 539 cards full) | Low | Sonnet | Done | uncommitted |
 | [R108](R108-move-from-gear-use.md) | Move-from and gear-ability triggers (539 -> 541 cards full) | Low | Sonnet | Done | uncommitted |
+| [R109](R109-final-audit.md) | Audit after R91 to R108 (no new cards) (541 -> 541 cards full) | Low | Sonnet | Done | uncommitted |
+| [R110](R110-hidden-word.md) | "A card from [Hidden]" means played from face down (541 -> 542 cards full) | Low | Sonnet | Done | uncommitted |
