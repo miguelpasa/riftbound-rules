@@ -393,6 +393,13 @@ function parseChooser(sen: string): Chooser | null {
 }
 
 function parseChooserBase(sen: string): Chooser | null {
+  // R87: "Deal that much to <unit>" (the excess damage just assigned).
+  const that = /^Deal that much to (.+)$/i.exec(sen);
+  if (that) {
+    const base = parseChooserBase('Deal 1 to ' + (that[1] ?? ''));
+    if (!base || base.effect.op !== 'DAMAGE_TARGET') return null;
+    return { ...base, effect: { ...base.effect, amount: 0, amountFrom: 'EXCESS' } };
+  }
   // R74: "Deal damage equal to my Might / [Assault] / [Shield] to <unit>".
   const dm = /^Deal damage equal to my (Might|[{\[]Assault[}\]]|[{\[]Shield[}\]]) to (.+)$/i.exec(
     sen,
@@ -1631,6 +1638,10 @@ export function parseCondition(raw: string): Condition | null {
   if (/^I['’]m in combat$/i.test(text)) return { kind: 'IN_COMBAT' };
   if (/^you control this battlefield$/i.test(text)) return { kind: 'CONTROLS_HERE' };
   {
+    const ex = /^you assigned (\d+) or more excess damage(?: to enemy units)?$/i.exec(text);
+    if (ex) return { kind: 'EXCESS_DAMAGE', n: Number(ex[1]) };
+  }
+  {
     const g = /^there['’]s an? (friendly )?(gear|unit) here$/i.exec(text);
     if (g) {
       return {
@@ -1916,6 +1927,7 @@ export function parseCardAbilities(
     .replace(/\bbecome \[Empowered\]/gi, 'become empowered')
     // R74: keep "my [Assault]" from being read as the keyword itself.
     .replace(/\bmy \[(Assault|Shield)\]/gi, 'my {$1}')
+    .replace(/\bWhen I conquer after an attack\b/gi, 'When I conquer')
     // R85: Deploy gear at a battlefield: "When you hold / conquer / win a combat here".
     .replace(/\bwhen you (hold|conquer) here\b/gi, (m: string, k: string) =>
       opts.gearLike === true ? 'when I ' + k.toLowerCase() : m,

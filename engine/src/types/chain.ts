@@ -73,6 +73,8 @@ export interface CombatState {
   damageAssignment?: Partial<Record<PlayerId, { unitId: string; amount: number }[]>>;
   /** Player who still has to assign combat damage. */
   awaitingAssignmentFrom?: PlayerId | null;
+  /** R87: excess combat damage the attacker assigned (only tracked when a card needs it). */
+  excess?: number;
 }
 
 /**

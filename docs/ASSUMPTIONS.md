@@ -391,3 +391,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Here:** the battlefield the source stands at when the effect resolves; the effect fizzles if it is in a Base.
 - **Rule numbers:** tests cite 143.2 and 466.2.c.
+
+## R87: Excess combat damage conditions and "deal that much" (A-R87)
+
+- **Excess:** per enemy unit, assigned damage minus max(1, its current Might) plus the damage already on it (never below 0), summed.
+- **Scope:** only the attacker's assignment counts; the record lasts for the rest of the turn.
+- **"After an attack":** a Conquer without combat has no excess, so the condition fails by itself.
+- **Rule numbers:** tests cite 467.2.

@@ -51,7 +51,7 @@
  */
 import { fork } from './workingCopy.js';
 import { defWithGrants, staticBonus } from './statics.js';
-import { recordDeath, tracksCombatEnd } from './conditions.js';
+import { recordDeath, tracksCombatEnd, tracksExcess } from './conditions.js';
 import { attachedMightBonus, removeTokenFromGame } from './keywords.js';
 import { syncTurnState } from './chain.js';
 import { onConquer as scoringOnConquer } from './scoring.js';
@@ -464,6 +464,17 @@ export function assignCombatDamage(
   const s = fork(state);
   const cc = s.flow.combat as CombatState;
   cc.damageAssignment = { ...(cc.damageAssignment ?? {}), [intent.playerId]: checked.assignments };
+  // R87: excess = damage assigned beyond what is needed to kill each enemy unit.
+  if (intent.playerId === cc.attacker && tracksExcess(cards)) {
+    let excess = 0;
+    for (const a of checked.assignments) {
+      const u = s.objects[a.unitId];
+      if (!u || u.controller === intent.playerId) continue;
+      const need = Math.max(1, effectiveMight(s, cards, u.id)) - u.damage;
+      excess += Math.max(0, a.amount - Math.max(0, need));
+    }
+    cc.excess = excess;
+  }
   const events = advanceAssignment(s, cards);
   const synced = syncTurnState(s);
   return { ok: true, state: synced, events: stampEvents(synced, events) };
@@ -620,6 +631,9 @@ export function resolveCombatWithResult(
     inputs.push(...r.events);
   }
 
+  if (c.excess !== undefined) {
+    s.players[playerIndex(c.attacker)].excessRecord = { turn: s.turn.number, amount: c.excess };
+  }
   delete s.flow.combat; // 468.7
   delete s.flow.showdown;
   s.flow.focus = null;

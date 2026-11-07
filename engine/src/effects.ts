@@ -609,6 +609,10 @@ export function runEffects(
     if (!e.amountFrom) return e.amount;
     const src = state.objects[sourceObjectId];
     if (!src) return 0;
+    if (e.amountFrom === 'EXCESS') {
+      const rec = state.players[playerIndex(controller)].excessRecord;
+      return rec && rec.turn === state.turn.number ? rec.amount : 0;
+    }
     if (e.amountFrom === 'MY_MIGHT') {
       return Math.max(0, effectiveMight(state, cards, src.id, { role: null }));
     }

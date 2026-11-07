@@ -194,7 +194,7 @@ export type CardEffect =
       op: 'DAMAGE_TARGET';
       amount: number;
       /** R74: "damage equal to my Might / [Assault] / [Shield]": read from the source when the effect runs (amount is 0). */
-      amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD';
+      amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD' | 'EXCESS';
       /** R81: "... instead" when a condition holds. */
       alt?: AltAmount;
       side?: TargetSide;
@@ -544,6 +544,8 @@ export type Condition =
   | { kind: 'IN_COMBAT' }
   /** R85: the controller controls the battlefield the source stands at ("if you control this battlefield"). */
   | { kind: 'CONTROLS_HERE' }
+  /** R87: the controller assigned at least `n` excess combat damage to enemy units this turn. */
+  | { kind: 'EXCESS_DAMAGE'; n: number }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any' }
   /** R53: Level N: the controller has at least `n` XP. */

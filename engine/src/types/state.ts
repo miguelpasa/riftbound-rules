@@ -122,6 +122,8 @@ export interface PlayerState {
   playedThisTurn?: { turn: number; objectIds: string[] };
   /** R83: "can't play cards / spells this turn": in force during turn `turn`. */
   playLock?: { turn: number; what: 'CARDS' | 'SPELLS' };
+  /** R87: excess combat damage this player assigned as the attacker in the last combat of turn `turn`. */
+  excessRecord?: { turn: number; amount: number };
 }
 
 export interface SeedInfo {

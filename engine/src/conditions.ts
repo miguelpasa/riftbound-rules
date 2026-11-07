@@ -44,6 +44,21 @@ function tracksDeaths(cards: CardDatabase): boolean {
   return v;
 }
 
+const excessDb = new WeakMap<CardDatabase, boolean>();
+
+/** R87: true when some card reads excess combat damage (it is tracked only then, so other games are unchanged). */
+export function tracksExcess(cards: CardDatabase): boolean {
+  let v = excessDb.get(cards);
+  if (v === undefined) {
+    v = Object.values(cards).some((d) => {
+      const j = JSON.stringify(d.triggers ?? []);
+      return j.includes('EXCESS_DAMAGE') || j.includes('"EXCESS"');
+    });
+    excessDb.set(cards, v);
+  }
+  return v;
+}
+
 const combatEndDb = new WeakMap<CardDatabase, boolean>();
 
 /** R71: true when some card reacts to a combat ending (COMBAT_ENDED is emitted only then, so replays stay unchanged). */
@@ -108,6 +123,10 @@ export function evalCondition(
             ? died(other)
             : died(controller) + died(other);
       return n > 0;
+    }
+    case 'EXCESS_DAMAGE': {
+      const rec = state.players[playerIndex(controller)]?.excessRecord;
+      return rec !== undefined && rec.turn === state.turn.number && rec.amount >= cond.n;
     }
     case 'CONTROLS_HERE': {
       const here = hereOfSource(state, sourceId);
