@@ -71,6 +71,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'RETURN_TARGET' ||
   e.op === 'RETURN_FROM_TRASH' ||
   e.op === 'MOVE_BASE_TARGET' ||
+  e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
   e.op === 'WEAPONMASTER_EQUIP' ||
   e.op === 'GRANT_KEYWORD_TARGET';
@@ -471,6 +472,16 @@ function moveToBase(state: GameState, o: CardInstance, out: GameEventInput[]): v
   out.push({ type: 'UNIT_MOVED', unitId: o.id, from, to: 'base' });
 }
 
+/** R79: move a unit from wherever it stands to battlefield `dest` (an effect move, not a standard move). Mutates. */
+function moveHere(state: GameState, o: CardInstance, dest: string, out: GameEventInput[]): void {
+  if (o.zone.kind === 'battlefield' && o.zone.battlefieldId === dest) return;
+  const from = o.zone.kind === 'battlefield' ? o.zone.battlefieldId : 'base';
+  const ps = state.players[playerIndex(o.controller)];
+  ps.base = ps.base.filter((x) => x !== o.id);
+  o.zone = { kind: 'battlefield', player: o.controller, battlefieldId: dest };
+  out.push({ type: 'UNIT_MOVED', unitId: o.id, from, to: dest });
+}
+
 /** "Look at the top N cards ... take one ... recycle the rest" (deterministic choice). Mutates. */
 function lookAtTop(
   state: GameState,
@@ -731,6 +742,7 @@ export function runEffects(
       case 'RETURN_TARGET':
       case 'RETURN_FROM_TRASH':
       case 'MOVE_BASE_TARGET':
+      case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
       case 'GRANT_KEYWORD_TARGET': {
         const slot = e.slot ?? 0;
@@ -785,6 +797,13 @@ export function runEffects(
             ps.hand.push(u.id);
           } else if (e.op === 'RETURN_TARGET') {
             returnToHand(state, u, out);
+          } else if (e.op === 'MOVE_HERE_TARGET') {
+            const dest = hereOfSource(state, sourceObjectId);
+            if (dest === null) {
+              fizzle();
+              break;
+            }
+            moveHere(state, u, dest, out);
           } else if (e.op === 'MOVE_BASE_TARGET') {
             moveToBase(state, u, out);
           } else if (e.op === 'GRANT_KEYWORD_TARGET') {

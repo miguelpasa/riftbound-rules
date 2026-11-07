@@ -347,3 +347,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Awaken:** the Awaken step readies the turn player's permanents, so "When I become ready" triggers at the start of every turn for exhausted ones.
 - **Timing:** the triggers go on the Chain after the intent that caused the change finishes, like other triggers.
 - **Rule numbers:** tests cite 303 and 315.1.
+
+## R79: "Move an enemy unit to that battlefield / here" effect moves (A-R79)
+
+- **Effect move:** it ignores "can't move" locks and does not exhaust the unit; a moved enemy unit does not contest the battlefield, but the Cleanup stages a Combat when both players have units there.
+- **Who attacks:** the Combat is staged by the existing Cleanup rule (323.8), not by who moved the unit.
+- **Rule numbers:** tests cite 355.10 and 462.

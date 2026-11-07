@@ -570,6 +570,15 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  // R79: "Move an enemy unit to that battlefield / here / my battlefield".
+  m = new RegExp(
+    `^Move an? ${SIDE}unit to (?:here|that battlefield|my battlefield|this battlefield)$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return { effect: { op: 'MOVE_HERE_TARGET', ...sideProp(s) }, decl: { side: s ?? 'any' } };
+  }
   m = new RegExp(
     `^Move an? ${SIDE}unit( (?:from|at) a battlefield)? to (?:its |their |your )?base$`,
     'i',

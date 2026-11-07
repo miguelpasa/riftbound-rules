@@ -301,6 +301,16 @@ export type CardEffect =
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
+  /**
+   * R79: move the target unit to the source's battlefield ("move an enemy unit to that battlefield / to here /
+   * to my battlefield"): an effect move that raises UNIT_MOVED (so `When I move` abilities see it).
+   */
+  | ({
+      op: 'MOVE_HERE_TARGET';
+      side?: TargetSide;
+      slot?: number;
+      count?: TargetCount;
+    } & TargetScope)
   /** Kill every unit on the board. */
   | { op: 'KILL_ALL_UNITS' }
   /**
@@ -363,6 +373,7 @@ export type TargetedEffect = Extract<
       | 'RETURN_TARGET'
       | 'RETURN_FROM_TRASH'
       | 'MOVE_BASE_TARGET'
+      | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'
       | 'WEAPONMASTER_EQUIP'
       | 'GRANT_KEYWORD_TARGET';
