@@ -340,3 +340,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Short hands:** discarding more cards than you hold discards the whole hand.
 - **Timeout:** when the choice times out the lowest-numbered cards are discarded.
 - **Rule numbers:** tests cite 340.1.
+
+## R78: "When I become exhausted / ready / Empowered" triggers (A-R78)
+
+- **Net change only:** a permanent that is exhausted and readied again inside one intent shows no change.
+- **Awaken:** the Awaken step readies the turn player's permanents, so "When I become ready" triggers at the start of every turn for exhausted ones.
+- **Timing:** the triggers go on the Chain after the intent that caused the change finishes, like other triggers.
+- **Rule numbers:** tests cite 303 and 315.1.

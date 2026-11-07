@@ -58,6 +58,9 @@ export type GameEvent = EventBase &
         at?: string;
         alone?: boolean;
       }
+    /** R78: a permanent became exhausted / ready during this step (emitted only when a card reacts to it). */
+    | { type: 'BECAME_EXHAUSTED'; objectId: string }
+    | { type: 'BECAME_READY'; objectId: string }
     /** R71: a combat ended; `participants` are the units still standing at the battlefield (both sides). */
     | {
         type: 'COMBAT_ENDED';

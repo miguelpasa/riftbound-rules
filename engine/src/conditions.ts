@@ -58,6 +58,20 @@ export function tracksCombatEnd(cards: CardDatabase): boolean {
   return v ?? false;
 }
 
+const readinessDb = new WeakMap<CardDatabase, boolean>();
+
+/** R78: true when some card reacts to a permanent becoming exhausted or ready (the diff is computed only then). */
+export function tracksReadiness(cards: CardDatabase): boolean {
+  let v = readinessDb.get(cards);
+  if (v === undefined) {
+    v = Object.values(cards).some((d) =>
+      d.triggers?.some((t) => t.on === 'BECOME_EXHAUSTED' || t.on === 'BECOME_READY'),
+    );
+    readinessDb.set(cards, v ?? false);
+  }
+  return v ?? false;
+}
+
 /** R56: note that a unit controlled by `controller` died (mutates; no-op unless a card needs it). */
 export function recordDeath(state: GameState, cards: CardDatabase, controller: PlayerId): void {
   if (!tracksDeaths(cards)) return;

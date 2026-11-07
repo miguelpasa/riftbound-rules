@@ -562,7 +562,11 @@ export type TriggerKind =
   /** R72: "At the start of your Beginning Phase" (resolved inline, no Chain). */
   | 'TURN_START'
   /** R72: "At the end of your turn" (resolved inline in the Ending step, no Chain). */
-  | 'TURN_END';
+  | 'TURN_END'
+  /** R78: "When I become exhausted" / "When I become ready" / "When I become [Empowered]". */
+  | 'BECOME_EXHAUSTED'
+  | 'BECOME_READY'
+  | 'BECOME_EMPOWERED';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {

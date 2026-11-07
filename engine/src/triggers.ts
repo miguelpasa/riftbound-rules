@@ -210,6 +210,14 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           });
         }
       }
+    } else if (e.type === 'BECAME_EXHAUSTED' || e.type === 'BECAME_READY') {
+      const o = state.objects[e.objectId];
+      if (o && onBoard(o)) {
+        add(o, e.type === 'BECAME_EXHAUSTED' ? 'BECOME_EXHAUSTED' : 'BECOME_READY', o.controller);
+      }
+    } else if (e.type === 'EFFECT_EMPOWERED') {
+      const o = state.objects[e.unitId];
+      if (o && onBoard(o)) add(o, 'BECOME_EMPOWERED', o.controller);
     } else if (e.type === 'COMBAT_ENDED') {
       // R71: the winner's units win the combat; every unit still standing was "in" it.
       for (const id of e.participants) {

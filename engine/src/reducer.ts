@@ -51,6 +51,7 @@ import { activateAbility } from './abilities.js';
 import { activateRune } from './resources.js';
 import { holdScoringStep } from './scoring.js';
 import { stampEvents } from './setup.js';
+import { tracksReadiness } from './conditions.js';
 import { chooseStaged, showdownAfterPass } from './showdown.js';
 import type { ShowdownDeps } from './showdown.js';
 import { standardMove } from './movement.js';
@@ -347,6 +348,21 @@ function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent):
     const c = runCleanup(r.state, cards, ENGINE_HOOKS.showdown);
     if (!c.ok) return c;
     const all = [...r.events, ...c.events];
+    // R78: "When I become exhausted / ready": diff the readiness of the board before and after this step.
+    if (tracksReadiness(cards)) {
+      const extra: GameEventInput[] = [];
+      for (const o of Object.values(c.state.objects)) {
+        const before = state.objects[o.id];
+        if (!before || before.ready === o.ready) continue;
+        const z = o.zone.kind;
+        if (z !== 'base' && z !== 'battlefield') continue;
+        extra.push({ type: o.ready ? 'BECAME_READY' : 'BECAME_EXHAUSTED', objectId: o.id });
+      }
+      if (extra.length > 0) {
+        const stamped = stampEvents(c.state, extra);
+        all.push(...stamped);
+      }
+    }
     const t = fireTriggers(c.state, cards, all);
     return { ok: true, state: t.state, events: [...all, ...t.events] };
   } catch (e) {

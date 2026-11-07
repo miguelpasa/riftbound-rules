@@ -114,3 +114,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R75](R75-trash-returns.md) | Return from Trash to hand, buff up to N units, ready enemies, ready a legend (420 -> 427 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R76](R76-play-to.md) | "You may play me to an open / occupied enemy battlefield" (427 -> 431 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R77](R77-mandatory-discard.md) | Mandatory discards: "Discard N, then ..." triggers and Deathknells (431 -> 439 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R78](R78-become-triggers.md) | "When I become exhausted / ready / Empowered" triggers (439 -> 444 cards full) | Medium | Sonnet | Done | uncommitted |
