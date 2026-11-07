@@ -364,3 +364,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Attacking:** a unit at the combat battlefield whose controller is the combat's attacker.
 - **Level:** the XP check is made when the effect resolves.
 - **Rule numbers:** tests cite 359.3 and 466.2.c.
+
+## R82: Return several units: all small units, one friendly and one enemy (A-R82)
+
+- **Both choices required:** with no legal enemy unit the spell cannot be played and the trigger is skipped; the real text may return the friendly unit alone (UNCLEAR).
+- **Rule numbers:** tests cite 160.

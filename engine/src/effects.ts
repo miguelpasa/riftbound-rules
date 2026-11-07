@@ -1036,6 +1036,14 @@ export function runEffects(
           out.push({ type: 'CARDS_RECYCLED', player: controller, count: take.length });
         break;
       }
+      case 'RETURN_ALL_UNITS':
+        for (const o of Object.values(state.objects).sort((a, b) => num(a.id) - num(b.id))) {
+          if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;
+          if (!isUnitDef(cards[o.cardId])) continue;
+          if (mightOf(o) > e.maxMight) continue;
+          returnToHand(state, o, out);
+        }
+        break;
       case 'RETURN_ALL_BOARD':
         for (const o of Object.values(state.objects).sort((a, b) => num(a.id) - num(b.id))) {
           if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;

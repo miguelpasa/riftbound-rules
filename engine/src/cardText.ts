@@ -139,6 +139,8 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (m) return [{ op: 'DRAW', amount: Number(m[1]), per: 'BATTLEFIELD' }];
   m = /^Draw (\d+) for each of your \[Mighty\] units$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]), per: 'MIGHTY_UNIT' }];
+  m = /^Return all units with (\d+) \[M\] or less to their owners['’] hands$/i.exec(sen);
+  if (m) return [{ op: 'RETURN_ALL_UNITS', maxMight: Number(m[1]) }];
   if (/^Return all units and gear to their owners['’] hands$/i.test(sen)) {
     return [{ op: 'RETURN_ALL_BOARD' }];
   }
@@ -1299,7 +1301,17 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     .flatMap((x) => {
       // R65: "Ready a unit and give it [Assault 3] this turn" = two sentences about the same unit.
       const m = /^(Ready an? (?:friendly |enemy )?unit) and (give it .+)$/i.exec(x);
-      return m ? [m[1] as string, m[2] as string] : [x];
+      if (m) return [m[1] as string, m[2] as string];
+      // R82: "Return a friendly unit and an enemy unit to their owners' hands" = two separate choices.
+      const two =
+        /^Return (another |a )friendly unit and an enemy unit to their owners['’] hands$/i.exec(x);
+      if (two) {
+        return [
+          `Return ${(two[1] ?? 'a ').trim()} friendly unit to its owner's hand`,
+          "Return an enemy unit to its owner's hand",
+        ];
+      }
+      return [x];
     })
     .map((x) => x.replace(/^Then /i, '').trim());
   for (let i = 0; i < list.length; i++) {

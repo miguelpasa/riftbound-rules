@@ -147,6 +147,8 @@ export type CardEffect =
       /** R65: per battlefield the controller controls / per friendly [Mighty] unit (Might 5+). */
       per?: 'BATTLEFIELD' | 'MIGHTY_UNIT';
     }
+  /** R82: every unit with at most `maxMight` Might returns to its owner's hand (tokens cease to exist). */
+  | { op: 'RETURN_ALL_UNITS'; maxMight: number }
   /** R65: every unit and gear on the board returns to its owner's hand ("Downwell"). */
   | { op: 'RETURN_ALL_BOARD' }
   /** R44: put the top `amount` cards of the controller's Main Deck into their Trash ([Burn N]). */
