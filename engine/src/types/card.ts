@@ -298,7 +298,9 @@ export type CardEffect =
       op: 'DAMAGE_ALL';
       amount: number;
       side: TargetSide;
-      scope: 'battlefields' | 'bases' | 'combat';
+      /** R86: "here" = the source's battlefield; `amountFrom` reads the damage from the source (amount is 0). */
+      scope: 'battlefields' | 'bases' | 'combat' | 'here';
+      amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD';
     }
   /** Ready or exhaust every unit of `side` (no target). */
   | { op: 'READY_ALL'; side: TargetSide }

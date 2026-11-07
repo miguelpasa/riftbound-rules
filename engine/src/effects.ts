@@ -977,6 +977,12 @@ export function runEffects(
         break;
       case 'DAMAGE_ALL': {
         const bf = state.flow.combat?.battlefieldId;
+        const here = e.scope === 'here' ? hereOfSource(state, sourceObjectId) : null;
+        if (e.scope === 'here' && here === null) {
+          fizzle();
+          break;
+        }
+        const dmgAmount = damageAmount(e);
         for (const u of boardUnits(state, cards)) {
           if (!sideMatches(e.side, controller, u)) continue;
           const inScope =
@@ -984,8 +990,10 @@ export function runEffects(
               ? u.zone.kind === 'base'
               : e.scope === 'battlefields'
                 ? u.zone.kind === 'battlefield'
-                : u.zone.kind === 'battlefield' && u.zone.battlefieldId === bf;
-          if (inScope) damage(u, e.amount);
+                : e.scope === 'here'
+                  ? u.zone.kind === 'battlefield' && u.zone.battlefieldId === here
+                  : u.zone.kind === 'battlefield' && u.zone.battlefieldId === bf;
+          if (inScope) damage(u, dmgAmount);
         }
         break;
       }

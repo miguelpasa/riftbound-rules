@@ -210,6 +210,30 @@ export function parseClause(sen: string): CardEffect[] | null {
       },
     ];
   }
+  // R86: "Deal N to all enemy units here" / "Deal damage equal to my Might to all enemy units here".
+  m = /^Deal (\d+) to all (friendly |enemy )?units here$/i.exec(sen);
+  if (m) {
+    return [
+      {
+        op: 'DAMAGE_ALL',
+        amount: Number(m[1]),
+        side: side((m[2] ?? '').trim()) ?? 'any',
+        scope: 'here',
+      },
+    ];
+  }
+  m = /^Deal damage equal to my Might to all (friendly |enemy )?units here$/i.exec(sen);
+  if (m) {
+    return [
+      {
+        op: 'DAMAGE_ALL',
+        amount: 0,
+        amountFrom: 'MY_MIGHT',
+        side: side((m[1] ?? '').trim()) ?? 'any',
+        scope: 'here',
+      },
+    ];
+  }
   m = /^Deal (\d+) to all (?:(friendly|enemy) )?units (at battlefields|in bases|in combat)$/i.exec(
     sen,
   );
@@ -994,7 +1018,11 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
     const em = EMPOWERED_PREFIX.exec(plain);
     // R53: "[Level N][>] I have ..." applies while the controller has N or more XP.
     const lv = em ? null : LEVEL_PREFIX.exec(plain);
-    const body = em ? (em[1] ?? '') : lv ? (lv[2] ?? '') : plain;
+    const body0 = em ? (em[1] ?? '') : lv ? (lv[2] ?? '') : plain;
+    // R86: "Other friendly units have +1 [M] here" = "Other friendly units here have +1 [M]"; "an additional +1" = "+1".
+    const body = body0
+      .replace(/^(Other friendly units) (have .+?) here$/i, '$1 here $2')
+      .replace(/\ban additional (\+\d+ \[M\])/i, '$1');
     const cnt = parseCountedStatic(body);
     if (cnt) {
       statics.push(cnt);

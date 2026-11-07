@@ -386,3 +386,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Deploy gear exposure:** the client shows it among the units at the battlefield (all non-hidden objects there are listed); it has no combat Might.
 - **Opponent holds:** the gear dies when the opponent scores a Hold at its battlefield; a Conquer by the opponent does not kill it by itself.
 - **Rule numbers:** tests cite 303, 323.6, 359.2, 468.3 and 473.
+
+## R86: Damage to all enemy units here, "... here" Might statics (A-R86)
+
+- **Here:** the battlefield the source stands at when the effect resolves; the effect fizzles if it is in a Base.
+- **Rule numbers:** tests cite 143.2 and 466.2.c.

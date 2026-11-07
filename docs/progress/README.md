@@ -122,3 +122,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R83](R83-play-lock.md) | Play locks and capped group debuffs (459 -> 462 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R84](R84-modal-repeat.md) | Modal spells with Repeat, damage to a unit in a Base (462 -> 463 cards full) | Low | Sonnet | Done | uncommitted |
 | [R85](R85-deploy-gear.md) | Deploy gear: played to a battlefield, stays there, "here" triggers and statics (463 -> 471 cards full) | High | Sonnet | Done | uncommitted |
+| [R86](R86-area-here.md) | Damage to all enemy units here, "... here" Might statics (471 -> 477 cards full) | Low | Sonnet | Done | uncommitted |
