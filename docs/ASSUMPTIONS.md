@@ -245,3 +245,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Kept only when used:** the line is stored when the text has an "if you paid the additional cost" clause or an "If you do, I cost [N] less" on the same line; otherwise the card stays partial.
 - **Not done:** Zed-style tokens ("if you paid, play a 0 [M] Shadow Clone"), "I cost [1] less for each Energy it costs" (Atakhan), "exhaust your legend" (Bard), Chronobreak's "pay any amount of Power", conditional optional costs (Crescent Guardian), Dragon Roost.
 - **Rule numbers:** tests cite 356.2 only.
+
+## R64: Shadow Clone token (A-R64)
+
+- New token definition `tok-shadow-clone` (a 0 [M] Shadow Clone unit, no keywords), parsed by "play a 0 [M] Shadow Clone unit token". A Reflection token was NOT added: its printed text (a Temporary copy) is not understood.
+- **Rule numbers:** test cites 186.1 only.

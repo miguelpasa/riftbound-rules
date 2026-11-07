@@ -100,3 +100,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R61](R61-flow.md)                   | Flow: play a spell from the Trash for its Flow cost, then banish it (347 -> 351 cards full) | High | Sonnet | Done | uncommitted |
 | [R62](R62-return-self-conditions.md) | RETURN_SELF effect, "opponent controls a battlefield" and score-near conditions (351 -> 353 cards full) | Low | Sonnet | Done | uncommitted |
 | [R63](R63-optional-extra-cards.md)   | Optional additional costs with a card choice / XP and "If you do, I cost [N] less" (353 -> 358 cards full) | High | Sonnet | Done | uncommitted |
+| [R64](R64-shadow-clone.md)           | Shadow Clone token (358 -> 360 cards full) | Low | Sonnet | Done | uncommitted |

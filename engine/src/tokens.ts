@@ -68,6 +68,7 @@ export const TOKEN_CARDS: CardDatabase = Object.fromEntries(
     token('tok-bird', 'Bird', 1, [{ name: 'Deflect' }]),
     token('tok-mech', 'Mech', 3),
     token('tok-sand-soldier', 'Sand Soldier', 2),
+    token('tok-shadow-clone', 'Shadow Clone', 0),
     GOLD,
   ].map((c) => [c.cardId, c]),
 );
