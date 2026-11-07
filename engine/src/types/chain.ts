@@ -47,7 +47,7 @@ export interface ChainItem {
   /** R45: the controller's answer to an optional ("you may pay ...") triggered ability, set before it resolves. */
   optionalDecision?: 'ACCEPT' | 'DECLINE';
   /** Additional costs chosen (Accelerate). */
-  additionalCosts?: { accelerate?: boolean; repeat?: boolean; extra?: boolean };
+  additionalCosts?: { accelerate?: boolean; repeat?: boolean; extra?: boolean; flow?: boolean };
   /** R59: the chosen mode of a modal spell. */
   mode?: number;
 }

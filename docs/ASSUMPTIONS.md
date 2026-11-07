@@ -225,3 +225,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Verified against search-result summaries only (no rule text):** Empower stays until the permanent leaves play (R52), a Buff is +1 Might with at most one per unit (R54), Predict looks at the top cards, recycles any and returns the rest in any order (R55), Level is a threshold that turns off when XP drops below N (R53). The Core Rules PDF could not be read here (no page fetch tool), so rule numbers are still unchecked.
 - **Not done:** optional "you may spend N XP to ..." triggers (Kha'Zix), "spend N XP as an additional cost to play me" (Poppy), Legend abilities (Voidreaver, Keeper of the Hammer), "spend a buff".
 - **Rule numbers:** tests cite 145.1 only.
+
+## R61: Flow (A-R61)
+
+- **Rules (reminder text):** "[Flow] <cost>: You may play this from your trash for its Flow cost. Then banish it." A spell with a Flow cost may be played from its owner's Trash with `additionalCosts.flow`; the Flow cost replaces its printed cost (no other additional costs or discounts are combined with it); after it resolves it goes to the Banishment zone instead of the Trash. Timing and targets are those of the spell. Only spells with a plain `[Flow] [N][C][A]` cost line are parsed.
+- **Not done:** Flow granted by other cards ("give a spell in your trash [Flow] equal to its cost", Kennen), Flow on units or gear, Flow with the Repeat or Accelerate extras, other play-from-Trash permissions ("you may play this from your trash for [1][C][C]").
+- **Rule numbers:** tests cite 356 and 359.3 only.

@@ -11,6 +11,7 @@ import {
   parseCardAbilities,
   parseRepeatCost,
   parseSelfCostReduction,
+  parseFlowCost,
   parseModalSpell,
   parseOptionalAdditionalCost,
   parseStaticLines,
@@ -259,7 +260,10 @@ export function convertRow(row: RawRow): ConvertResult {
   // on the card (only when the rest of the card turns out fully supported, see below).
   const additional =
     type === 'UNIT' || type === 'SPELL' || type === 'GEAR' ? parseAdditionalCost(fullText) : null;
-  const afterAdditional = additional ? additional.rest : fullText;
+  const afterAdditionalCost = additional ? additional.rest : fullText;
+  // R61: a spell's Flow cost line is stored on the card (kept only when the rest is fully supported).
+  const flowLine = type === 'SPELL' ? parseFlowCost(afterAdditionalCost) : null;
+  const afterAdditional = flowLine ? flowLine.rest : afterAdditionalCost;
   // R50: "I cost [N] less for each ..." / "This costs [N] less if ..." is stored on the card too.
   const selfCost =
     type === 'UNIT' || type === 'SPELL' || type === 'GEAR'
@@ -383,6 +387,8 @@ export function convertRow(row: RawRow): ConvertResult {
       card.supportLevel = 'full';
     }
   }
+  // R61: likewise the Flow cost.
+  if (flowLine && card.supportLevel === 'full') card.flowCost = flowLine.cost;
   // R58: likewise the optional additional cost.
   if (optionalExtra && card.supportLevel === 'full')
     card.optionalAdditionalCost = optionalExtra.cost;

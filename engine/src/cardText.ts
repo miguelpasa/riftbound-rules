@@ -890,6 +890,33 @@ export function parseModalSpell(text: string): CardEffect[][] | null {
   return modes.length >= 2 ? modes : null;
 }
 
+/**
+ * R61: "[Flow] [4][C]" as a line of its own (the reminder text may follow): the Flow cost of a spell.
+ * Returns the cost ([N] Energy, [C] Power of the card's Domain, [A] any Power) and the text without it.
+ */
+export function parseFlowCost(text: string): {
+  cost: { energy: number; power?: number; anyPower?: number };
+  rest: string;
+} | null {
+  const re =
+    /(?:^|\n)[ \t]*\[Flow\][ \t]*((?:\[(?:\d+|C|A)\])+)[ \t]*(?:\([^)\n]*\))?[ \t]*(?=\n|$)/i;
+  const m = re.exec(text);
+  if (!m) return null;
+  let energy = 0;
+  let power = 0;
+  let anyPower = 0;
+  for (const t of (m[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
+    const tok = (t[1] ?? '').toUpperCase();
+    if (tok === 'C') power++;
+    else if (tok === 'A') anyPower++;
+    else energy += Number(tok);
+  }
+  return {
+    cost: { energy, ...(power ? { power } : {}), ...(anyPower ? { anyPower } : {}) },
+    rest: (text.slice(0, m.index) + '\n' + text.slice(m.index + m[0].length)).trim(),
+  };
+}
+
 const COST_PER: [RegExp, CostCount][] = [
   [/^exhausted units? you control$/i, 'EXHAUSTED_UNIT'],
   [/^gear you control$/i, 'GEAR'],

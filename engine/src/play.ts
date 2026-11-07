@@ -135,6 +135,7 @@ function leaveSource(state: GameState, obj: CardInstance): void {
   const p = state.players[playerIndex(obj.owner)];
   p.hand = p.hand.filter((id) => id !== obj.id);
   p.championZone = p.championZone.filter((id) => id !== obj.id);
+  p.trash = p.trash.filter((id) => id !== obj.id); // R61: Flow plays from the Trash
 }
 
 /** Resolver that first puts a Unit/Gear into its final zone (359.2), then defers to `inner`. */
@@ -309,8 +310,14 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   }
   if (def?.type === 'SPELL' && obj.zone.kind === 'chain') {
     const owner = s.players[playerIndex(obj.owner)];
-    if (!owner.trash.includes(obj.id)) owner.trash.push(obj.id);
-    obj.zone = { kind: 'trash', player: obj.owner };
+    if (item.additionalCosts?.flow === true) {
+      // R61: a spell played with Flow is banished instead of going to the Trash.
+      owner.banishment.push(obj.id);
+      obj.zone = { kind: 'banishment', player: obj.owner };
+    } else {
+      if (!owner.trash.includes(obj.id)) owner.trash.push(obj.id);
+      obj.zone = { kind: 'trash', player: obj.owner };
+    }
   }
   return { state: s, events };
 };
@@ -336,7 +343,18 @@ export function playCard(
   const inHand = src.zone.kind === 'hand' && src.zone.player === pid && ps.hand.includes(src.id);
   const inChampionZone =
     src.zone.kind === 'champion' && src.zone.player === pid && ps.championZone.includes(src.id);
-  if (!inHand && !(inChampionZone && def.type === 'UNIT')) {
+  // R61: Flow: a spell with a Flow cost may be played from its owner's Trash.
+  const flow = intent.additionalCosts?.flow === true;
+  const inTrash =
+    flow &&
+    def.type === 'SPELL' &&
+    def.flowCost !== undefined &&
+    src.zone.kind === 'trash' &&
+    src.zone.player === pid &&
+    ps.trash.includes(src.id);
+  if (flow && !inTrash)
+    return ruleError('NOT_IN_HAND', `card ${src.id} cannot be played with Flow`);
+  if (!inHand && !inTrash && !(inChampionZone && def.type === 'UNIT')) {
     return ruleError('NOT_IN_HAND', `card ${src.id}`);
   }
 
@@ -459,7 +477,13 @@ export function playCard(
       ? [{ energy: def.repeatCost.energy, power: def.repeatCost.power }]
       : []),
   ];
-  const cost = computeTotalCost(def, { accelerate, increases, discounts });
+  const cost =
+    flow && def.flowCost
+      ? computeTotalCost(
+          { ...def, cost: { energy: def.flowCost.energy, power: def.flowCost.power ?? 0 } },
+          { increases: def.flowCost.anyPower ? [{ anyPower: def.flowCost.anyPower }] : [] },
+        )
+      : computeTotalCost(def, { accelerate, increases, discounts });
 
   // 6. Pay (357). Failure = the whole play is undone (358.5): the caller's state is untouched.
   const paid = payCost(state, cards, pid, cost, intent.payment);
@@ -495,9 +519,10 @@ export function playCard(
       ? { unimplementedEffect: true }
       : {}),
     ...(isUnit || def.type === 'GEAR' ? { location } : {}),
-    ...(accelerate || repeat || paidExtra
+    ...(accelerate || repeat || paidExtra || flow
       ? {
           additionalCosts: {
+            ...(flow ? { flow: true } : {}),
             ...(accelerate ? { accelerate: true } : {}),
             ...(repeat ? { repeat: true } : {}),
             ...(paidExtra ? { extra: true } : {}),

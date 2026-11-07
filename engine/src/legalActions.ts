@@ -210,6 +210,38 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
       }
     }
   }
+  // R61: Flow: spells in the Trash with a Flow cost may be played from there (then banished).
+  for (const id of ps.trash) {
+    const obj = state.objects[id];
+    const def = obj ? cards[obj.cardId] : undefined;
+    if (!obj || !def || def.type !== 'SPELL' || !def.flowCost) continue;
+    const flowDef = {
+      ...def,
+      cost: { energy: def.flowCost.energy, power: def.flowCost.power ?? 0 },
+    };
+    const plan = plannedPayment(
+      computeTotalCost(flowDef, {
+        increases: def.flowCost.anyPower ? [{ anyPower: def.flowCost.anyPower }] : [],
+      }),
+    );
+    if (plan === null) continue;
+    const modes: (number | undefined)[] = def.modes ? def.modes.map((_, i) => i) : [undefined];
+    for (const mode of modes) {
+      for (const targets of enumerateSpellTargets(state, cards, pid, spellEffects(def, mode)) ?? [
+        undefined,
+      ]) {
+        out.push({
+          type: 'PLAY_CARD',
+          playerId: pid,
+          cardInstanceId: id,
+          ...(targets ? { targets } : {}),
+          ...(mode !== undefined ? { mode } : {}),
+          additionalCosts: { flow: true },
+          payment: plan,
+        });
+      }
+    }
+  }
   return out;
 }
 

@@ -153,6 +153,17 @@
       "additionalProperties": false,
       "properties": { "card": { "$ref": "#/definitions/costCardChoice" } }
     },
+    "flowCost": {
+      "description": "Flow: the spell may be played from the Trash for this cost, then banished (R61).",
+      "type": "object",
+      "required": ["energy"],
+      "additionalProperties": false,
+      "properties": {
+        "energy": { "type": "integer", "minimum": 0 },
+        "power": { "type": "integer", "minimum": 1 },
+        "anyPower": { "type": "integer", "minimum": 1 }
+      }
+    },
     "modes": {
       "description": "Modal spell: the effects of each mode (Choose one), R59.",
       "type": "array",

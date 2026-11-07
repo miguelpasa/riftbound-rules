@@ -594,6 +594,8 @@ export interface CardDef {
   legionCostReduction?: number;
   /** R51: static abilities ("Your gear have [Deflect]", "While ..., I have +1 [M]"); see statics.ts. */
   statics?: StaticAbility[];
+  /** R61: Flow cost: the spell may be played from its owner's Trash for this cost instead, then it is banished. */
+  flowCost?: { energy: number; power?: number; anyPower?: number };
   /** R59: a modal spell ("Choose one — ..."): the effects of each mode; the player picks one (PLAY_CARD.mode). */
   modes?: CardEffect[][];
   /** R58: "You may pay [N] as an additional cost to play me": the optional extra (`additionalCosts.extra`). */
