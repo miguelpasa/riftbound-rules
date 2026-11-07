@@ -36,6 +36,7 @@ import type {
   AbilityCost,
   ActivatedAbility,
   CardEffect,
+  CardDef,
   CardTrigger,
   CostCount,
   CostReduction,
@@ -840,28 +841,47 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
 }
 
 /**
- * R58: "You may pay [N][C] as an additional cost to play me." as a line of its own. Returns the optional
- * cost (Energy [N], [C] Power of the card's Domain, [A] any Power) and the text without that line.
+ * R58 / R63: an optional additional cost to play a card, as a line of its own:
+ *  - "You may pay [N][C] as an additional cost to play me."            (Energy / Power)
+ *  - "You may spend N XP as an additional cost to play me."            (XP)
+ *  - "You may discard 1 / kill a friendly unit ... as an additional cost to play me." (a card choice)
+ *  - "As an additional cost to play this, you may discard 1."
+ * each optionally followed by "If you do, I cost [N] less." on the same line. Returns the cost and the
+ * text without that line.
  */
 export function parseOptionalAdditionalCost(text: string): {
-  cost: { energy: number; power?: number; anyPower?: number };
+  cost: NonNullable<CardDef['optionalAdditionalCost']>;
   rest: string;
 } | null {
   const re =
-    /(?:^|\n)[ \t]*You may pay ((?:\[(?:\d+|C|A)\])+) as an additional cost to play (?:me|this)\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
+    /(?:^|\n)[ \t]*(?:You may ([^.\n]+?) as an additional cost to play (?:me|this)|As an additional cost to play (?:me|this), you may ([^.\n]+?))\.?(?:[ \t]*If you do, I cost \[(\d+)\] less\.?)?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
   const m = re.exec(text);
   if (!m) return null;
-  let energy = 0;
-  let power = 0;
-  let anyPower = 0;
-  for (const t of (m[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
-    const tok = (t[1] ?? '').toUpperCase();
-    if (tok === 'C') power++;
-    else if (tok === 'A') anyPower++;
-    else energy += Number(tok);
+  const phrase = (m[1] ?? m[2] ?? '').trim();
+  const cost: NonNullable<CardDef['optionalAdditionalCost']> = { energy: 0 };
+  const pay = /^pay ((?:\[(?:\d+|C|A)\])+)$/i.exec(phrase);
+  const xp = /^spend (\d+) XP$/i.exec(phrase);
+  if (pay) {
+    let power = 0;
+    let anyPower = 0;
+    for (const t of (pay[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
+      const tok = (t[1] ?? '').toUpperCase();
+      if (tok === 'C') power++;
+      else if (tok === 'A') anyPower++;
+      else cost.energy += Number(tok);
+    }
+    if (power) cost.power = power;
+    if (anyPower) cost.anyPower = anyPower;
+  } else if (xp) {
+    cost.xp = Number(xp[1]);
+  } else {
+    const cc = parseCostCard(phrase);
+    if (!cc) return null;
+    cost.card = cc;
   }
+  if (m[3] !== undefined) cost.reduceEnergy = Number(m[3]);
   return {
-    cost: { energy, ...(power ? { power } : {}), ...(anyPower ? { anyPower } : {}) },
+    cost,
     rest: (text.slice(0, m.index) + '\n' + text.slice(m.index + m[0].length)).trim(),
   };
 }

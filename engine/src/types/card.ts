@@ -605,7 +605,17 @@ export interface CardDef {
   /** R59: a modal spell ("Choose one — ..."): the effects of each mode; the player picks one (PLAY_CARD.mode). */
   modes?: CardEffect[][];
   /** R58: "You may pay [N] as an additional cost to play me": the optional extra (`additionalCosts.extra`). */
-  optionalAdditionalCost?: { energy: number; power?: number; anyPower?: number };
+  optionalAdditionalCost?: {
+    energy: number;
+    power?: number;
+    anyPower?: number;
+    /** R63: "You may discard 1 / kill a friendly unit ... as an additional cost": cards chosen with the play. */
+    card?: CostCardChoice;
+    /** R63: "You may spend N XP as an additional cost". */
+    xp?: number;
+    /** R63: "If you do, I cost [N] less": Energy knocked off when the extra is paid. */
+    reduceEnergy?: number;
+  };
   /** R50: "I cost [N] less for each ..." / "This costs [N] less if ...": a discount on this card's own Energy cost. */
   costReduction?: CostReduction;
   /**

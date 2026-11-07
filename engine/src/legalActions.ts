@@ -154,7 +154,8 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
           for (const repeat of repeatOptions) {
             // R47: a card-choice additional cost (required, or Repeat's "Discard 1"): one variant per choice of
             // cards (capped); none payable = the play is not offered.
-            const costCard = playCostCard(def, repeat);
+            const costCard = playCostCard(def, repeat, paysExtra);
+            if (paysExtra && (def.optionalAdditionalCost?.xp ?? 0) > (ps.xp ?? 0)) continue;
             if (repeat && def.additionalCost && def.repeatCost?.card) continue;
             const picks: (string[] | undefined)[] = costCard
               ? costCardCombos(state, cards, pid, obj.id, costCard)
@@ -163,12 +164,16 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
             // Keep the whole list near MAX_TARGET_COMBOS: with many target choices, fewer card choices each.
             if (picks.length > 1)
               picks.splice(Math.max(1, Math.floor(MAX_TARGET_COMBOS / targetOptions.length)));
+            const oac = paysExtra ? def.optionalAdditionalCost : undefined;
             const increases = [
               ...(repeat && def.repeatCost ? [def.repeatCost] : []),
-              ...(paysExtra && def.optionalAdditionalCost ? [def.optionalAdditionalCost] : []),
+              ...(oac ? [{ energy: oac.energy, power: oac.power, anyPower: oac.anyPower }] : []),
             ];
+            const allDiscounts = oac?.reduceEnergy
+              ? [...discounts, { energy: oac.reduceEnergy }]
+              : discounts;
             const plan = plannedPayment(
-              computeTotalCost(costDef, { accelerate, discounts, increases }),
+              computeTotalCost(costDef, { accelerate, discounts: allDiscounts, increases }),
             );
             if (plan === null) continue;
             for (const location of locations) {

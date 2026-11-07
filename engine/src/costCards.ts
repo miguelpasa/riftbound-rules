@@ -250,6 +250,14 @@ export function payCostCards(
  * R47: the card-choice additional cost of playing `def`: its required `additionalCost`, else the card
  * part of the Repeat cost when Repeat is paid. Undefined = nothing to choose.
  */
-export function playCostCard(def: CardDef, repeat: boolean): CostCardChoice | undefined {
-  return def.additionalCost?.card ?? (repeat ? def.repeatCost?.card : undefined);
+export function playCostCard(
+  def: CardDef,
+  repeat: boolean,
+  extra = false,
+): CostCardChoice | undefined {
+  return (
+    def.additionalCost?.card ??
+    (repeat ? def.repeatCost?.card : undefined) ??
+    (extra ? def.optionalAdditionalCost?.card : undefined)
+  );
 }

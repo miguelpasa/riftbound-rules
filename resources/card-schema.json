@@ -178,7 +178,10 @@
       "properties": {
         "energy": { "type": "integer", "minimum": 0 },
         "power": { "type": "integer", "minimum": 1 },
-        "anyPower": { "type": "integer", "minimum": 1 }
+        "anyPower": { "type": "integer", "minimum": 1 },
+        "card": { "$ref": "#/definitions/costCardChoice" },
+        "xp": { "type": "integer", "minimum": 1 },
+        "reduceEnergy": { "type": "integer", "minimum": 1 }
       }
     },
     "costReduction": {

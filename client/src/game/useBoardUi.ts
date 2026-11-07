@@ -239,7 +239,8 @@ export function useBoardUi(api: GameApi, opts: BoardUiOptions = {}): BoardUi {
       const def = obj && !isHiddenCard(obj) ? cards[obj.cardId] : undefined;
       const cost =
         def?.additionalCost?.card ??
-        (v.additionalCosts?.repeat ? def?.repeatCost?.card : undefined);
+        (v.additionalCosts?.repeat ? def?.repeatCost?.card : undefined) ??
+        (v.additionalCosts?.extra ? def?.optionalAdditionalCost?.card : undefined);
       if (!paid && v.costCards !== undefined && cost) {
         setCostPick({
           sourceId: v.cardInstanceId,

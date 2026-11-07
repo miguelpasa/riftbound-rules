@@ -272,7 +272,9 @@ export function convertRow(row: RawRow): ConvertResult {
   // R58: "You may pay [N] as an additional cost to play me" (only kept when the text uses it: "if you paid ...").
   const optionalExtra =
     (type === 'UNIT' || type === 'SPELL' || type === 'GEAR') &&
-    /if you paid the additional cost/i.test(afterAdditional)
+    /(if you paid the additional cost|as an additional cost[^\n]*If you do, I cost)/i.test(
+      afterAdditional,
+    )
       ? parseOptionalAdditionalCost(afterAdditional)
       : null;
   const afterExtra = optionalExtra ? optionalExtra.rest : afterAdditional;

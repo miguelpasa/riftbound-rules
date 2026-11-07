@@ -238,3 +238,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Conditions:** "an opponent controls a battlefield" (enemy controls at least one) and "your / an opponent's score is [not] within 3 points of the Victory Score" (points >= victory score - 3). The 3 is the printed value; it is not derived from the Victory Score.
 - **Not done:** conditions on other combat facts ("if you assigned N or more excess damage"), Blitzcrank's "move an enemy unit to here", Deploy.
 - **Rule numbers:** tests cite 323 and 473 only.
+
+## R63: optional additional costs with cards or XP (A-R63)
+
+- **Extends R58:** `optionalAdditionalCost` may also carry a card choice (`card`: "You may discard 1 / kill a friendly unit or gear / return a friendly gear as an additional cost to play me"), an XP part (`xp`: "You may spend N XP ...") and `reduceEnergy` ("If you do, I cost [N] less"). The cards are chosen with the play (`PLAY_CARD.costCards`, validated before anything is paid, R46 / R47 rules); XP is spent (event `XP_SPENT`) when the card moves to the Chain; the reduction applies with the other discounts. Variants are offered only when the cost is payable.
+- **Kept only when used:** the line is stored when the text has an "if you paid the additional cost" clause or an "If you do, I cost [N] less" on the same line; otherwise the card stays partial.
+- **Not done:** Zed-style tokens ("if you paid, play a 0 [M] Shadow Clone"), "I cost [1] less for each Energy it costs" (Atakhan), "exhaust your legend" (Bard), Chronobreak's "pay any amount of Power", conditional optional costs (Crescent Guardian), Dragon Roost.
+- **Rule numbers:** tests cite 356.2 only.

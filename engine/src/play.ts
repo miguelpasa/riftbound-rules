@@ -448,7 +448,8 @@ export function playCard(
   if (repeat && def.additionalCost && def.repeatCost?.card) {
     return ruleError('KEYWORD_RESTRICTION', 'two card costs cannot be combined');
   }
-  const costCard = playCostCard(def, repeat);
+  const wantsExtra = intent.additionalCosts?.extra === true;
+  const costCard = playCostCard(def, repeat, wantsExtra);
   if (costCard) {
     if (intent.costCards === undefined) {
       return ruleError('MISSING_TARGET', 'choose the cards that pay the additional cost');
@@ -470,9 +471,15 @@ export function playCard(
   if (paidExtra && !def.optionalAdditionalCost) {
     return ruleError('KEYWORD_RESTRICTION', 'this card has no optional additional cost');
   }
+  const oac = paidExtra ? def.optionalAdditionalCost : undefined;
+  // R63: "spend N XP" part of the optional cost, and "If you do, I cost [N] less".
+  if (oac?.xp && (state.players[playerIndex(pid)]?.xp ?? 0) < oac.xp) {
+    return ruleError('INSUFFICIENT_RESOURCES', `not enough XP (need ${oac.xp})`);
+  }
+  if (oac?.reduceEnergy) discounts.push({ energy: oac.reduceEnergy });
   const increases: CostMod[] = [
     ...(extra ? [extra] : []),
-    ...(paidExtra && def.optionalAdditionalCost ? [def.optionalAdditionalCost] : []),
+    ...(oac ? [{ energy: oac.energy, power: oac.power, anyPower: oac.anyPower }] : []),
     ...(repeat && def.repeatCost
       ? [{ energy: def.repeatCost.energy, power: def.repeatCost.power }]
       : []),
@@ -496,6 +503,11 @@ export function playCard(
   // The additional cost is paid with the rest of the cost (357), before the card moves to the Chain.
   if (costCard && intent.costCards) {
     events.push(...payCostCards(work, cards, pid, src.id, costCard, intent.costCards));
+  }
+  if (oac?.xp) {
+    const seatXp = work.players[playerIndex(pid)] as GameState['players'][number];
+    seatXp.xp = (seatXp.xp ?? 0) - oac.xp;
+    events.push({ type: 'XP_SPENT', player: pid, amount: oac.xp });
   }
   leaveSource(work, obj);
   obj.zone = { kind: 'chain', player: pid };
