@@ -366,14 +366,15 @@ export function convertRow(row: RawRow): ConvertResult {
     const parsed = parseCardAbilities(text);
     if (
       parsed &&
-      parsed.abilities.length === 0 &&
-      parsed.triggers.length > 0 &&
+      // R68: Legends also have activated abilities (used from the Legend zone).
+      (parsed.abilities.length > 0 || parsed.triggers.length > 0) &&
       parsed.triggers.every((t) => t.on === 'YOU_PLAY') &&
       !parsed.entersReady &&
       !parsed.entersExhausted &&
       parsed.legionCostReduction === undefined
     ) {
-      card.triggers = parsed.triggers;
+      if (parsed.triggers.length > 0) card.triggers = parsed.triggers;
+      if (parsed.abilities.length > 0) card.abilities = parsed.abilities;
       card.supportLevel = 'full';
     }
   }

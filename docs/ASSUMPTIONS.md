@@ -271,3 +271,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Gear count** includes gear-like tokens (Gold) and gear on the board only.
 - **Not done:** "for each time I'm Empowered" (Kayle), conditional counts of "units and/or gear", "[Assault] equal to my [Shield]".
 - **Rule numbers:** tests cite 143.2 only.
+
+## R68: Legend activated abilities (A-R68)
+
+- **Model:** a Legend sits in its zone and may use activated abilities from there (cost, timing, targets, Chain as for any permanent's ability); "[E]" exhausts the Legend object (it is ready at the start; "Ready your legend" and the Awaken step ready it). Legends may have YOU_PLAY triggers (R49) and abilities; other trigger kinds on Legends keep the card partial.
+- **Not done:** Legend text of other shapes (excess damage, "become Mighty", "when you or an ally hold", Starry-Eyed Songstress' cost modifier, Hexplosives Expert's Bomb token), Legion-conditioned abilities.
+- **Rule numbers:** tests cite 145.1 only.

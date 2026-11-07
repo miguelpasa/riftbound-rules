@@ -44,8 +44,9 @@ import type {
   ReduceResult,
 } from './types/index.js';
 
+/** Where an activated ability can be used from: the board, or (R68) the Legend zone. */
 const onBoard = (o: CardInstance): boolean =>
-  o.zone.kind === 'base' || o.zone.kind === 'battlefield';
+  o.zone.kind === 'base' || o.zone.kind === 'battlefield' || o.zone.kind === 'legend';
 
 /** True when every effect of the ability is an [Add] effect (no Chain, 168). */
 export function isAddAbility(a: ActivatedAbility): boolean {
