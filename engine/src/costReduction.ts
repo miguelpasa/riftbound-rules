@@ -9,7 +9,15 @@ import { effectiveMight } from './combat.js';
 import { legionActive } from './keywords.js';
 import { isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
-import type { CardDatabase, CardDef, CostCount, GameState, PlayerId } from './types/index.js';
+import type {
+  ActivatedAbility,
+  CardDatabase,
+  CardDef,
+  CostCount,
+  CostReduction,
+  GameState,
+  PlayerId,
+} from './types/index.js';
 
 export const MIGHTY_MIGHT_COST = 5;
 
@@ -23,6 +31,21 @@ function countFor(
 ): number {
   const ps = state.players[playerIndex(pid)];
   switch (what) {
+    case 'RUNE':
+      return Object.values(state.objects).filter(
+        (o) => o.controller === pid && o.zone.kind === 'base' && cards[o.cardId]?.type === 'RUNE',
+      ).length;
+    case 'HIGHEST_MIGHT': {
+      let best = 0;
+      for (const o of Object.values(state.objects)) {
+        if (o.controller !== pid || (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield'))
+          continue;
+        if (isUnitDef(cards[o.cardId])) {
+          best = Math.max(best, effectiveMight(state, cards, o.id, { role: null }));
+        }
+      }
+      return best;
+    }
     case 'TRASH':
       return Object.values(state.objects).filter(
         (o) => o.zone.kind === 'trash' && o.owner === pid && o.id !== sourceId,
@@ -74,13 +97,36 @@ export function selfEnergyDiscount(
   if (def.legionCostReduction && legionActive(state, pid, sourceId))
     total += def.legionCostReduction;
   const r = def.costReduction;
-  if (r) {
-    let amount = 0;
-    if (r.per) amount = r.energy * countFor(state, cards, pid, def, sourceId, r.per);
-    else if (!r.when || evalCondition(state, cards, r.when, pid, sourceId)) amount = r.energy;
-    if (r.min !== undefined)
-      amount = Math.min(amount, Math.max(0, def.cost.energy - total - r.min));
-    total += amount;
-  }
+  if (r) total += reductionAmount(state, cards, pid, def, r, sourceId, def.cost.energy - total);
   return total;
+}
+
+/** Energy knocked off by one `CostReduction` whose base Energy cost is `baseEnergy` right now. */
+function reductionAmount(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  def: CardDef,
+  r: CostReduction,
+  sourceId: string,
+  baseEnergy: number,
+): number {
+  let amount = 0;
+  if (r.per) amount = r.energy * countFor(state, cards, pid, def, sourceId, r.per);
+  else if (!r.when || evalCondition(state, cards, r.when, pid, sourceId)) amount = r.energy;
+  if (r.min !== undefined) amount = Math.min(amount, Math.max(0, baseEnergy - r.min));
+  return amount;
+}
+
+/** R91: the Energy discount of an activated ability's own `costReduction`. */
+export function abilityEnergyDiscount(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  def: CardDef,
+  ability: ActivatedAbility,
+  sourceId: string,
+): number {
+  const r = ability.costReduction;
+  return r ? reductionAmount(state, cards, pid, def, r, sourceId, ability.cost.energy ?? 0) : 0;
 }

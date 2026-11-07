@@ -414,3 +414,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Owner:** the player who owns the returned unit channels, even if the caster controlled it.
 - **Rule numbers:** tests cite 355.10 and 431.
+
+## R91: Ability cost reductions, highest-Might spell discount, Might per Trash card (A-R91)
+
+- **Ability discount:** never below 0 Energy; Power parts are not reduced.
+- **Highest Might:** current Might (with bonuses) of the controller's units on the board, 1 Energy per point.
+- **Rule numbers:** tests cite 143.2, 145.1 and 156.

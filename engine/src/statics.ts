@@ -53,6 +53,9 @@ function countStatic(
   what: NonNullable<StaticAbility['per']>,
 ): number {
   if (what === 'POINTS') return state.players[src.controller === 'p0' ? 0 : 1]?.points ?? 0;
+  if (what === 'TRASH_CARDS') {
+    return state.players[src.controller === 'p0' ? 0 : 1]?.trash.length ?? 0;
+  }
   const here = targetBattlefield(src);
   let n = 0;
   for (const o of Object.values(state.objects)) {

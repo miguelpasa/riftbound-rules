@@ -924,6 +924,9 @@ const COUNT_PHRASES: [RegExp, StaticCount][] = [
 
 /** R67: "I have +N [M] for each <thing>", "My Might is increased by your points", "I have [Assault] equal to the number of <thing>". */
 function parseCountedStatic(body: string): StaticAbility | null {
+  if (/^My Might is increased by the number of cards in your trash$/i.test(body)) {
+    return { affects: 'SELF', might: 1, per: 'TRASH_CARDS' };
+  }
   if (/^My Might is increased by your points$/i.test(body)) {
     return { affects: 'SELF', might: 1, per: 'POINTS' };
   }
@@ -1250,6 +1253,7 @@ const COST_PER: [RegExp, CostCount][] = [
   [/^cards? with my name in your trash$/i, 'TRASH_SAME_NAME'],
   [/^of your \[Mighty\] units$/i, 'MIGHTY_UNIT'],
   [/^cards? you['’]ve played this turn$/i, 'CARDS_PLAYED'],
+  [/^runes? you control$/i, 'RUNE'],
 ];
 
 /**
@@ -1260,6 +1264,17 @@ const COST_PER: [RegExp, CostCount][] = [
 export function parseSelfCostReduction(
   text: string,
 ): { reduction: CostReduction; rest: string } | null {
+  // R91: "This spell's Energy cost is reduced by the highest Might among units you control."
+  const hm =
+    /(?:^|\n)[ \t]*This spell['’]s Energy cost is reduced by the highest Might among units you control\.?[ \t]*(?=\n|$)/i.exec(
+      text,
+    );
+  if (hm) {
+    return {
+      reduction: { energy: 1, per: 'HIGHEST_MIGHT' },
+      rest: (text.slice(0, hm.index) + '\n' + text.slice(hm.index + hm[0].length)).trim(),
+    };
+  }
   // R73: "If <condition>, I cost [N] less and enter ready." = the discount plus "I enter ready if <condition>".
   const both =
     /(?:^|\n)[ \t]*If ([^.\n]+?), I cost \[(\d+)\] less and enter ready\.?[ \t]*(?=\n|$)/i.exec(
@@ -2005,6 +2020,7 @@ export function parseCardAbilities(
         cost: AbilityCost;
         reaction: boolean;
         atBattlefield?: boolean;
+        costReduction?: CostReduction;
         sens: string[];
       };
   const groups: Group[] = [];
@@ -2201,6 +2217,23 @@ export function parseCardAbilities(
       groups.push(cur);
       continue;
     }
+    // R91: "This ability costs [N] less for each <thing> / if <condition>".
+    const acr =
+      cur?.kind === 'ability'
+        ? /^This ability costs \[(\d+)\] less (?:for each (.+)|if (.+))$/i.exec(sen)
+        : null;
+    if (cur?.kind === 'ability' && acr) {
+      const per =
+        acr[2] === undefined ? undefined : COST_PER.find(([re]) => re.test(acr[2]?.trim() ?? ''));
+      const when = acr[3] === undefined ? undefined : parseCondition(acr[3]);
+      if ((acr[2] !== undefined && !per) || (acr[3] !== undefined && !when)) return null;
+      cur.costReduction = {
+        energy: Number(acr[1]),
+        ...(per ? { per: per[1] } : {}),
+        ...(when ? { when } : {}),
+      };
+      continue;
+    }
     if (
       cur?.kind === 'ability' &&
       /^Use this ability only while I['’]m at a battlefield$/i.test(sen)
@@ -2253,6 +2286,7 @@ export function parseCardAbilities(
         cost: g.cost,
         ...(g.reaction ? { reaction: true } : {}),
         ...(g.atBattlefield ? { atBattlefield: true } : {}),
+        ...(g.costReduction ? { costReduction: g.costReduction } : {}),
         effects,
       });
     } else {

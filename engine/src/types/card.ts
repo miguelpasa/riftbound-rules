@@ -451,7 +451,9 @@ export type StaticCount =
   | 'FRIENDLY_GEAR'
   | 'BUFFED_FRIENDLY_HERE'
   | 'ENEMY_UNITS_HERE'
-  | 'POINTS';
+  | 'POINTS'
+  /** R91: the number of cards in the controller's Trash ("My Might is increased by the number of cards in your trash"). */
+  | 'TRASH_CARDS';
 
 export interface StaticAbility {
   affects:
@@ -499,7 +501,9 @@ export type CostCount =
   | 'TRASH' // each card in your Trash
   | 'TRASH_SAME_NAME' // each card with my name in your Trash
   | 'MIGHTY_UNIT' // each of your [Mighty] units (Might 5+)
-  | 'CARDS_PLAYED'; // each card you have played this turn
+  | 'CARDS_PLAYED' // each card you have played this turn
+  | 'RUNE' // R91: each rune you control
+  | 'HIGHEST_MIGHT'; // R91: the highest Might among units you control (counted as that many)
 
 export interface CostReduction {
   /** Energy discount: per counted item (`per`) or once (`when`, or unconditional). */
@@ -717,6 +721,8 @@ export interface AbilityCost {
  */
 export interface ActivatedAbility {
   cost: AbilityCost;
+  /** R91: "This ability costs [N] less for each rune you control / if you control 4 or fewer runes." */
+  costReduction?: CostReduction;
   /** R74: "Use this ability only while I'm at a battlefield." */
   atBattlefield?: boolean;
   /** Reaction speed (usable in a Closed state / Showdown). */

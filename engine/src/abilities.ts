@@ -17,6 +17,7 @@
  *    spell's (355.10) before any cost is paid and re-checked when it resolves (fizzles if illegal).
  */
 import { finalizeAndSettle, canPlayNow, pushPendingItem } from './chain.js';
+import { abilityEnergyDiscount } from './costReduction.js';
 import {
   enumerateSpellTargets,
   killGear,
@@ -56,11 +57,19 @@ export function isAddAbility(a: ActivatedAbility): boolean {
 }
 
 /** The Energy / Power part of an ability cost ([C] = Power of the source card's Domain). */
-function abilityTotalCost(def: CardDef, a: ActivatedAbility): TotalCost {
+function abilityTotalCost(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  sourceId: string,
+  def: CardDef,
+  a: ActivatedAbility,
+): TotalCost {
   const power: TotalCost['power'] = [];
   if (a.cost.power) power.push(genericPower(def, a.cost.power));
   if (a.cost.anyPower) power.push({ domain: 'ANY', amount: a.cost.anyPower });
-  return { energy: a.cost.energy ?? 0, power };
+  const discount = abilityEnergyDiscount(state, cards, pid, def, a, sourceId);
+  return { energy: Math.max(0, (a.cost.energy ?? 0) - discount), power };
 }
 
 const targetRequirementsOf = (a: ActivatedAbility): boolean =>
@@ -125,7 +134,13 @@ export function activateAbility(
   } else if (intent.costCards !== undefined && intent.costCards.length > 0) {
     return ruleError('ILLEGAL_TARGET', 'this ability has no card cost');
   }
-  const paid = payCost(state, cards, pid, abilityTotalCost(def, ability), intent.payment ?? []);
+  const paid = payCost(
+    state,
+    cards,
+    pid,
+    abilityTotalCost(state, cards, pid, src.id, def, ability),
+    intent.payment ?? [],
+  );
   if (!paid.ok) return paid;
 
   const work = paid.state;
@@ -188,7 +203,12 @@ export function abilityCandidates(
       if (chainOnly && isAddAbility(a)) return;
       const def = cards[o.cardId];
       if (!def) return;
-      const payment = autoPlan(state, cards, pid, abilityTotalCost(def, a));
+      const payment = autoPlan(
+        state,
+        cards,
+        pid,
+        abilityTotalCost(state, cards, pid, o.id, def, a),
+      );
       if (payment === null) return;
       // R46: one candidate per choice of cost cards; none = not activatable.
       if (a.cost.card && !costCardsPayable(state, cards, pid, o.id, a.cost.card)) return;
