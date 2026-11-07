@@ -477,3 +477,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Legend scope:** the Legend triggers for its controller's holds, conquers and combat wins (not an ally's).
 - **Rule numbers:** tests cite 303, 468.3 and 473.
+
+## R102: Compound self clauses joined by "and" (A-R102)
+
+- **Order:** effects run left to right.
+- **Safety:** only used when no specific pattern matches, so existing parses are unchanged (regression diff: 0 changed).
+- **Rule numbers:** tests cite 359.3.

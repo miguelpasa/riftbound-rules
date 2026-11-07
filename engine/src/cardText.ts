@@ -109,6 +109,14 @@ interface ParseState {
 
 /** Slot-free sentences (also valid inside triggers). Returns the effects or null. */
 export function parseClause(sen: string): CardEffect[] | null {
+  return parseClauseWith(sen, true);
+}
+
+function parseClauseNoSplit(sen: string): CardEffect[] | null {
+  return parseClauseWith(sen, false);
+}
+
+function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null {
   let m = /^Draw (\d+)$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]) }];
   m = /^(?:You and that player each draw|Each player draws) (\d+)$/i.exec(sen);
@@ -281,7 +289,16 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (/^Kill all units$/i.test(sen)) return [{ op: 'KILL_ALL_UNITS' }];
   const tok = parseTokenClause(sen);
   if (tok) return [tok];
-  return parseAddClause(sen);
+  const add = parseAddClause(sen);
+  if (add) return add;
+  // R102: "Ready me and give me +2 [M] this turn", "Ready me and gain 3 XP": two target-free clauses joined by "and".
+  const both = /^(.+?) and (.+)$/.exec(sen);
+  if (allowSplit && both && !/ (?:and|or) /i.test(both[2] ?? '')) {
+    const first = parseClauseNoSplit(both[1] ?? '');
+    const second = parseClauseNoSplit(both[2] ?? '');
+    if (first && second) return [...first, ...second];
+  }
+  return null;
 }
 
 const COUNT_WORDS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4 };
