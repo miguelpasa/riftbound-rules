@@ -1633,6 +1633,32 @@ function splitCondition(sen: string): { when?: Condition; rest: string } | null 
 }
 
 /**
+ * R77: a mandatory discard at the start of a trigger body: "Discard 1", "Discard 2, then draw 2". Returns the
+ * cost (a hand-card choice that cannot be declined) and the remaining sentences.
+ */
+function splitMandatoryDiscard(
+  sens: readonly string[],
+): { optional: OptionalCost; rest: string[] } | null {
+  const first = sens[0];
+  const m =
+    first === undefined
+      ? null
+      : /^discard (\d+|one|two|three|a card)(?:, then (.+))?$/i.exec(first);
+  if (!m) return null;
+  const w = (m[1] ?? '').toLowerCase();
+  const n = w === 'a card' ? 1 : (NUMBER_WORDS[w] ?? Number(w));
+  if (!(n >= 1)) return null;
+  const rest = [m[2], ...sens.slice(1)].filter((x): x is string => !!x);
+  return {
+    optional: {
+      card: n > 1 ? { kind: 'DISCARD', count: n } : { kind: 'DISCARD' },
+      mandatory: true,
+    },
+    rest,
+  };
+}
+
+/**
  * R45: the body of an optional triggered ability: "You may pay [1][C] to <effects>", "You may [Burn 1]
  * to <effects>", or a free "You may <effects>". Returns the cost and the remaining sentences (the
  * first one without the "you may ... to" prefix), or null when the first sentence is not that shape.
@@ -1983,7 +2009,16 @@ export function parseCardAbilities(
       effects = opt ? parseEffectSentences(opt.rest) : null;
       optional = opt?.optional;
     }
-    if (!effects || effects.length === 0) return null;
+    if (!effects && g.kind === 'trigger') {
+      // R77: "Discard N[, then ...]" is a cost the controller must pay.
+      const md = splitMandatoryDiscard(g.sens);
+      const after = md ? (md.rest.length > 0 ? parseEffectSentences(md.rest) : []) : null;
+      if (md && after) {
+        effects = after;
+        optional = md.optional;
+      }
+    }
+    if (!effects || (effects.length === 0 && !optional?.mandatory)) return null;
     // R72: turn triggers resolve inline, so they cannot ask for a target or a payment.
     if (
       g.kind === 'trigger' &&

@@ -81,6 +81,8 @@ export function OptionalPrompt() {
   const decline = answers.find((i) => i.type === 'DECIDE_OPTIONAL' && !i.accept);
   const costText = describeOptionalCost(choice.cost, def?.domains ?? []);
   const free = costText === 'Free';
+  /** R77: a mandatory cost ("Discard 1, then draw 1") cannot be declined. */
+  const mandatory = choice.cost.mandatory === true;
   const cardCost = choice.cost.card;
   const candidates = cardCost
     ? costCandidates(api.view, api.cards as CardDatabase, api.seat, sourceId, cardCost)
@@ -106,7 +108,7 @@ export function OptionalPrompt() {
         className="w-full max-w-md rounded-xl border border-amber-400/60 bg-slate-900 p-5 text-slate-100 shadow-2xl"
       >
         <h2 id="optional-title" className="text-lg font-semibold text-amber-200">
-          {`${name}: use its optional effect?`}
+          {mandatory ? `${name}: you must pay this cost` : `${name}: use its optional effect?`}
         </h2>
         {def?.text ? (
           <p className="mt-1 text-sm whitespace-pre-line text-slate-300">{def.text}</p>
@@ -123,7 +125,7 @@ export function OptionalPrompt() {
             cards={api.cards as CardDatabase}
             cost={cardCost}
             candidates={candidates}
-            confirmLabel="Pay and do it"
+            confirmLabel={mandatory ? 'Confirm' : 'Pay and do it'}
             busy={pending}
             onConfirm={(ids) => {
               const intent = acceptFor(ids);
@@ -143,15 +145,17 @@ export function OptionalPrompt() {
               {free ? 'Yes, do it' : 'Pay and do it'}
             </button>
           )}
-          <button
-            type="button"
-            disabled={pending || !decline}
-            data-testid="optional-decline"
-            onClick={() => decline && void send(decline)}
-            className="rounded-md border border-slate-500 px-4 py-2 text-sm text-slate-100 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-50"
-          >
-            Decline (do nothing)
-          </button>
+          {mandatory && accept ? null : (
+            <button
+              type="button"
+              disabled={pending || !decline}
+              data-testid="optional-decline"
+              onClick={() => decline && void send(decline)}
+              className="rounded-md border border-slate-500 px-4 py-2 text-sm text-slate-100 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-50"
+            >
+              Decline (do nothing)
+            </button>
+          )}
         </div>
         {error && (
           <p role="alert" className="mt-2 rounded border border-rose-700 bg-rose-950 p-2 text-sm">

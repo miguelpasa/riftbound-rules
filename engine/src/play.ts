@@ -247,10 +247,27 @@ function runTrigger(
   sourceId: string,
   events: GameEventInput[],
 ): void {
-  if (trig.optional) {
+  let optional = trig.optional;
+  // R77: a mandatory discard asks for min(N, hand size) cards; with an empty hand there is nothing to ask.
+  if (
+    optional?.mandatory &&
+    optional.card?.kind === 'DISCARD' &&
+    item.optionalDecision === undefined
+  ) {
+    const hand = s.players[playerIndex(item.controller)].hand.length;
+    const n = Math.min(optional.card.count ?? 1, hand);
+    if (n === 0) {
+      events.push(
+        ...runEffects(s, item.controller, trig.effects, cards, item.targets, cardId, sourceId),
+      );
+      return;
+    }
+    optional = { ...optional, card: { ...optional.card, count: n } };
+  }
+  if (optional) {
     const player = item.controller;
     if (item.optionalDecision === undefined) {
-      if (optionalPlan(s, cards, player, cardId, trig.optional, sourceId) === null) {
+      if (optionalPlan(s, cards, player, cardId, optional, sourceId) === null) {
         events.push({ type: 'OPTIONAL_EFFECT_DECIDED', player, sourceId, accepted: false });
         return;
       }
@@ -259,7 +276,7 @@ function runTrigger(
         kind: 'OPTIONAL_EFFECT',
         player,
         chainItemId: item.id,
-        cost: { ...trig.optional },
+        cost: { ...optional },
       };
       return;
     }

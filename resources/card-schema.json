@@ -119,6 +119,7 @@
               "power": { "type": "integer", "minimum": 1 },
               "anyPower": { "type": "integer", "minimum": 1 },
               "burn": { "type": "integer", "minimum": 1 },
+              "mandatory": { "type": "boolean" },
               "card": { "$ref": "#/definitions/costCardChoice" }
             }
           }

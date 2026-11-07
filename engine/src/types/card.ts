@@ -506,6 +506,11 @@ export interface OptionalCost {
   burn?: number;
   /** R46: cards the controller picks and pays (discard / kill / exhaust / return / recycle). */
   card?: CostCardChoice;
+  /**
+   * R77: not a "you may": the controller MUST pay ("Discard 1, then draw 1"). The same prompt and intent
+   * as an optional cost, without the decline answer; a hand with fewer cards than asked discards them all.
+   */
+  mandatory?: boolean;
 }
 
 /**

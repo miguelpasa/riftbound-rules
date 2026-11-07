@@ -139,7 +139,9 @@ export class HostTimers {
         decline ??
         legal.find((i) => i.type === 'CHOOSE_STAGED' || i.type === 'CHOOSE_TRIGGER_TARGET') ?? // lowest index (R11 / R41 timeout default)
         legal.find((i) => i.type === 'PASS_PRIORITY' || i.type === 'END_TURN') ??
-        legal.find((i) => i.type === 'MULLIGAN' && i.cardIds.length === 0);
+        legal.find((i) => i.type === 'MULLIGAN' && i.cardIds.length === 0) ??
+        // R77: a mandatory cost has no decline: the first listed answer (the lowest cards) is used.
+        legal.find((i) => i.type === 'DECIDE_OPTIONAL');
       res = fb ? session.forceIntent(info.player, fb) : res;
     }
     if (!res || !res.ok) console.warn('[timers] could not apply timeout policy', info, res);

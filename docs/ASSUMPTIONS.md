@@ -333,3 +333,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Occupied enemy battlefield:** an opponent controls it and has at least one unit there.
 - **Control after playing:** playing to a battlefield nobody else occupies contests it; the Showdown that follows lets the player establish control and Conquer (once per turn per battlefield). UNCLEAR: the real rules may establish control without a Showdown.
 - **Rule numbers:** tests cite 359.2.
+
+## R77: Mandatory discards: "Discard N, then ..." triggers and Deathknells (A-R77)
+
+- **Discard choice:** the controller chooses which cards to discard from their hand (hidden until discarded; the Trash is public).
+- **Short hands:** discarding more cards than you hold discards the whole hand.
+- **Timeout:** when the choice times out the lowest-numbered cards are discarded.
+- **Rule numbers:** tests cite 340.1.

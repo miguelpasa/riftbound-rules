@@ -424,10 +424,17 @@ export function getLegalActions(
               ...(costCards ? { costCards } : {}),
               ...(plan.length > 0 ? { payment: plan } : {}),
             }));
-      return keep([
-        { type: 'DECIDE_OPTIONAL', playerId, chainItemId: pc.chainItemId, accept: false },
-        ...accept,
-      ]).slice(0, max);
+      // R77: a mandatory cost lists only the accepts (the decline is kept when nothing can be paid, so the game never stalls).
+      const decline: Intent = {
+        type: 'DECIDE_OPTIONAL',
+        playerId,
+        chainItemId: pc.chainItemId,
+        accept: false,
+      };
+      return keep(pc.cost.mandatory && accept.length > 0 ? accept : [decline, ...accept]).slice(
+        0,
+        max,
+      );
     }
     return keep(
       pc.options.map((battlefieldId): Intent => ({

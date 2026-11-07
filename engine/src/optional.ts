@@ -97,6 +97,10 @@ export function decideOptional(
   if (intent.playerId !== pc.player) return ruleError('NOT_YOUR_PRIORITY', 'not your choice');
   if (typeof intent.accept !== 'boolean')
     return ruleError('UNKNOWN_INTENT', 'accept must be a boolean');
+  // R77: a mandatory cost cannot be declined.
+  if (!intent.accept && pc.cost.mandatory) {
+    return ruleError('ILLEGAL_TARGET', 'this cost is not optional: choose the cards');
+  }
   const top = state.flow.chain[state.flow.chain.length - 1];
   if (intent.chainItemId !== pc.chainItemId || !top || top.id !== pc.chainItemId) {
     return ruleError('NOT_FOUND', `chain item ${intent.chainItemId} is not the one waiting`);
