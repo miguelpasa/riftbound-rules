@@ -131,7 +131,14 @@ const OLD_TEXT_RE = /▲?\s*\[OLD TEXT\][\s\S]*$/;
 /** Strip the errata marker (and everything after it) and normalise symbols. */
 export function normalizeText(raw: string | null | undefined): string {
   const text = (raw ?? '').replace(OLD_TEXT_RE, '');
-  return text.replace(/\[S\]/g, '[M]').replace(/\[T\]/g, '[E]').trim();
+  return (
+    text
+      .replace(/\[S\]/g, '[M]')
+      .replace(/\[T\]/g, '[E]')
+      // R69: some printings write "Equip [1]" without the keyword brackets.
+      .replace(/(^|\n)Equip (?=\[)/g, '$1[Equip] ')
+      .trim()
+  );
 }
 
 /** Remove parenthesised reminder text. */

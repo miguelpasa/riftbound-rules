@@ -465,3 +465,14 @@ describe('R47 converter wiring: additional costs to play', () => {
     ).toBe('partial');
   });
 });
+
+describe('Equip written without keyword brackets (R69)', () => {
+  it('treats a line starting "Equip [N]" as the Equip keyword', () => {
+    expect(normalizeText('Equip [1] ([1]: Attach this to a unit you control.)')).toBe(
+      '[Equip] [1] ([1]: Attach this to a unit you control.)',
+    );
+    expect(parseEquipCost(normalizeText('Equip [C] ([C]: Attach this.)'))).toMatchObject({
+      power: 1,
+    });
+  });
+});

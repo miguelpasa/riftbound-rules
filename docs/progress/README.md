@@ -105,3 +105,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R66](R66-empower-leftovers.md)      | Empower leftovers: kill-cost Empower, Empowered Deathknell (365 -> 368 cards full) | Low | Sonnet | Done | uncommitted |
 | [R67](R67-counted-statics.md)        | Counted statics: Might / Assault per count of units, gear, points (368 -> 374 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R68](R68-legend-abilities.md)       | Legend activated abilities from the Legend zone (374 -> 378 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R69](R69-equip-text.md)             | "Equip [N]" written without keyword brackets (378 -> 380 cards full) | Low | Sonnet | Done | uncommitted |
