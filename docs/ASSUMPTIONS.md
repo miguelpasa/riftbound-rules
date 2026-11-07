@@ -369,3 +369,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Both choices required:** with no legal enemy unit the spell cannot be played and the trigger is skipped; the real text may return the friendly unit alone (UNCLEAR).
 - **Rule numbers:** tests cite 160.
+
+## R83: Play locks and capped group debuffs (A-R83)
+
+- **Lock scope:** applies to the rest of the turn in which it was set; a Cards lock is never weakened by a later Spells lock. Hidden plays go through the same timing check.
+- **Minimum:** each unit loses min(N, Might - minimum), never below the minimum.
+- **Rule numbers:** tests cite 143.2, 354 and 359.3.

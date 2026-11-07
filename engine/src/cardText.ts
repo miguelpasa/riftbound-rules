@@ -184,6 +184,21 @@ export function parseClause(sen: string): CardEffect[] | null {
   }
   m = /^(?:You )?score (\d+) points?$/i.exec(sen);
   if (m) return [{ op: 'GAIN_POINT', amount: Number(m[1]) }];
+  m = new RegExp(
+    `^Give (friendly|enemy) units ${DASH}(\\d+) \\[M\\] this turn, to a minimum of (\\d+) \\[M\\]$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    return [
+      {
+        op: 'BUFF_ALL',
+        amount: -Number(m[2]),
+        side: (m[1] ?? 'enemy').toLowerCase() as TargetSide,
+        duration: 'TURN',
+        minMight: Number(m[3]),
+      },
+    ];
+  }
   m = new RegExp(`^Give (friendly|enemy) units \\+(\\d+) \\[M\\] this turn$`, 'i').exec(sen);
   if (m) {
     return [
@@ -723,6 +738,21 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     const [a, b] = st.slots as [SlotDecl, SlotDecl];
     out.push({ op: 'MUTUAL_DAMAGE', slots: [0, 1], sides: [a.side, b.side] });
     st.locked = true;
+    return true;
+  }
+  if (/^Opponents can['’]t play cards this turn$/i.test(sen)) {
+    out.push({ op: 'LOCK_PLAYS', who: 'OPPONENTS', what: 'CARDS' });
+    return true;
+  }
+  if (/^Its controller can['’]t play spells this turn$/i.test(sen)) {
+    const prev = out[out.length - 1];
+    if (!prev || prev.op !== 'COUNTER_SPELL') return false;
+    out.push({
+      op: 'LOCK_PLAYS',
+      who: 'TARGET_CONTROLLER',
+      what: 'SPELLS',
+      ...(prev.slot ? { slot: prev.slot } : {}),
+    });
     return true;
   }
   m = /^Its controller draws (\d+)$/i.exec(sen);

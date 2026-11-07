@@ -141,6 +141,13 @@ export function canPlayNow(
     return ruleError('NOT_YOUR_PRIORITY', `priority: ${state.flow.priority ?? 'none'}`);
   }
   const isAbility = opts.isAbility === true;
+  // R83: "can't play cards / spells this turn" (abilities are not cards).
+  const lock = state.players[playerId === 'p0' ? 0 : 1]?.playLock;
+  if (!isAbility && lock && lock.turn === state.turn.number) {
+    if (lock.what === 'CARDS' || card.type === 'SPELL') {
+      return ruleError('KEYWORD_RESTRICTION', 'you cannot play that this turn');
+    }
+  }
   const reaction = isAbility
     ? opts.isReactionAbility === true
     : hasKeyword(card, 'Reaction') || hasKeyword(card, 'QuickDraw') || opts.ambush === true; // 819: Quick-Draw has Reaction inherently; 822 Ambush

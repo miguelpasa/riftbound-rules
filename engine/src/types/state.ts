@@ -120,6 +120,8 @@ export interface PlayerState {
    * without a reset step. Object ids of public plays only (CARD_PLAYED is public too).
    */
   playedThisTurn?: { turn: number; objectIds: string[] };
+  /** R83: "can't play cards / spells this turn": in force during turn `turn`. */
+  playLock?: { turn: number; what: 'CARDS' | 'SPELLS' };
 }
 
 export interface SeedInfo {

@@ -846,6 +846,7 @@ export function runEffects(
             u.tempKeywords = [...(u.tempKeywords ?? []), ...e.keywords.map((k) => ({ ...k }))];
             out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
           } else if (e.op === 'COUNTER_SPELL') {
+            doneSlots.set(slot, u.controller);
             counterSpell(state, u);
             out.push({ type: 'EFFECT_COUNTERED', cardId: u.cardId });
           } else if (e.alt && altApplies(e.alt, u)) {
@@ -961,7 +962,13 @@ export function runEffects(
       }
       case 'BUFF_ALL':
         for (const u of boardUnits(state, cards)) {
-          if (sideMatches(e.side, controller, u)) addTemp(u, e.amount, e.duration === 'TURN');
+          if (!sideMatches(e.side, controller, u)) continue;
+          if (e.amount < 0 && e.minMight !== undefined) {
+            const cut = Math.max(0, Math.min(-e.amount, mightOf(u) - e.minMight));
+            if (cut > 0) addTemp(u, -cut, e.duration === 'TURN');
+          } else {
+            addTemp(u, e.amount, e.duration === 'TURN');
+          }
         }
         break;
       case 'DAMAGE_ALL': {
@@ -1034,6 +1041,18 @@ export function runEffects(
         }
         if (take.length > 0)
           out.push({ type: 'CARDS_RECYCLED', player: controller, count: take.length });
+        break;
+      }
+      case 'LOCK_PLAYS': {
+        const who: PlayerId | undefined =
+          e.who === 'OPPONENTS' ? (controller === 'p0' ? 'p1' : 'p0') : doneSlots.get(e.slot ?? 0);
+        if (who === undefined) break; // the earlier effect fizzled
+        const ps = state.players[playerIndex(who)];
+        const cur = ps.playLock;
+        // CARDS is the stronger lock; never weaken one already in force this turn.
+        if (!(cur && cur.turn === state.turn.number && cur.what === 'CARDS')) {
+          ps.playLock = { turn: state.turn.number, what: e.what };
+        }
         break;
       }
       case 'RETURN_ALL_UNITS':
