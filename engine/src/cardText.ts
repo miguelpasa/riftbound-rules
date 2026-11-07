@@ -132,6 +132,13 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (/^You win the game$/i.test(sen)) return [{ op: 'WIN_GAME' }];
   m = /^Draw (\d+) for each other battlefield you(?: or allies)? control$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]), perOtherBattlefield: true }];
+  m = /^Draw (\d+) for each battlefield you(?: or allies)? control$/i.exec(sen);
+  if (m) return [{ op: 'DRAW', amount: Number(m[1]), per: 'BATTLEFIELD' }];
+  m = /^Draw (\d+) for each of your \[Mighty\] units$/i.exec(sen);
+  if (m) return [{ op: 'DRAW', amount: Number(m[1]), per: 'MIGHTY_UNIT' }];
+  if (/^Return all units and gear to their owners['’] hands$/i.test(sen)) {
+    return [{ op: 'RETURN_ALL_BOARD' }];
+  }
   m = /^Channel (\d+) runes?( exhausted)?$/i.exec(sen);
   if (m) return [{ op: 'CHANNEL', amount: Number(m[1]), ...(m[2] ? { exhausted: true } : {}) }];
   m = /^Give me \+(\d+) \[M\] this turn$/i.exec(sen);
@@ -1037,7 +1044,14 @@ export function parseSpellText(text: string): CardEffect[] | null {
 function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
-  const list = sens.flatMap((x) => x.split(/, then /i)).map((x) => x.replace(/^Then /i, '').trim());
+  const list = sens
+    .flatMap((x) => x.split(/, then /i))
+    .flatMap((x) => {
+      // R65: "Ready a unit and give it [Assault 3] this turn" = two sentences about the same unit.
+      const m = /^(Ready an? (?:friendly |enemy )?unit) and (give it .+)$/i.exec(x);
+      return m ? [m[1] as string, m[2] as string] : [x];
+    })
+    .map((x) => x.replace(/^Then /i, '').trim());
   for (let i = 0; i < list.length; i++) {
     const look = parseLookSequence(list, i);
     if (look) {

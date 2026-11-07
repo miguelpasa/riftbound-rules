@@ -250,3 +250,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - New token definition `tok-shadow-clone` (a 0 [M] Shadow Clone unit, no keywords), parsed by "play a 0 [M] Shadow Clone unit token". A Reflection token was NOT added: its printed text (a Temporary copy) is not understood.
 - **Rule numbers:** test cites 186.1 only.
+
+## R65: counted draws, mass return, "Ready a unit and give it ..." (A-R65)
+
+- **Counted draws:** "draw N for each battlefield you [or allies] control" counts every battlefield the controller controls (the existing R44 form excludes the source's own); "draw N for each of your [Mighty] units" counts the controller's units with Might 5 or more (as in R47 / R50). "Or allies" has no effect in a 1v1 duel.
+- **Mass return:** "Return all units and gear to their owners' hands" (Downwell) returns every unit, gear and token on the board of both players (tokens cease to exist); object order, no targets.
+- **"Ready a unit and give it [Keyword] this turn"** is read as two sentences about the same chosen unit.
+- **Rule numbers:** tests cite 359 and 323 only.

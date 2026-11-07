@@ -128,7 +128,15 @@ export interface TargetScope {
 
 export type CardEffect =
   /** `perOtherBattlefield`: draw `amount` for each OTHER battlefield the controller controls (R44). */
-  | { op: 'DRAW'; amount: number; perOtherBattlefield?: boolean }
+  | {
+      op: 'DRAW';
+      amount: number;
+      perOtherBattlefield?: boolean;
+      /** R65: per battlefield the controller controls / per friendly [Mighty] unit (Might 5+). */
+      per?: 'BATTLEFIELD' | 'MIGHTY_UNIT';
+    }
+  /** R65: every unit and gear on the board returns to its owner's hand ("Downwell"). */
+  | { op: 'RETURN_ALL_BOARD' }
   /** R44: put the top `amount` cards of the controller's Main Deck into their Trash ([Burn N]). */
   | { op: 'BURN'; amount: number }
   /** R44: the controller wins the game. */

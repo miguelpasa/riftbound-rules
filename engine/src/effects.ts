@@ -551,10 +551,21 @@ export function runEffects(
       case 'DRAW': {
         // R44: "draw 1 for each other battlefield you control" (the source's own battlefield is excluded).
         const here = hereOfSource(state, sourceObjectId);
-        const n = e.perOtherBattlefield
+        const n = e.per
           ? e.amount *
-            state.battlefields.filter((b) => b.controller === controller && b.id !== here).length
-          : e.amount;
+            (e.per === 'BATTLEFIELD'
+              ? state.battlefields.filter((b) => b.controller === controller).length
+              : Object.values(state.objects).filter(
+                  (o) =>
+                    o.controller === controller &&
+                    (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+                    cards[o.cardId]?.type === 'UNIT' &&
+                    mightOf(o) >= 5,
+                ).length)
+          : e.perOtherBattlefield
+            ? e.amount *
+              state.battlefields.filter((b) => b.controller === controller && b.id !== here).length
+            : e.amount;
         if (n > 0) out.push(...drawWithBurnOut(state, controller, n, cards));
         break;
       }
@@ -877,6 +888,13 @@ export function runEffects(
         }
         break;
       }
+      case 'RETURN_ALL_BOARD':
+        for (const o of Object.values(state.objects).sort((a, b) => num(a.id) - num(b.id))) {
+          if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;
+          const t = cards[o.cardId]?.type;
+          if (t === 'UNIT' || t === 'GEAR' || t === 'TOKEN') returnToHand(state, o, out);
+        }
+        break;
       case 'KILL_ALL_UNITS':
         for (const u of boardUnits(state, cards)) {
           const lethal = Math.max(1, mightOf(u)) - u.damage;
