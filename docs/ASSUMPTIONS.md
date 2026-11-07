@@ -449,3 +449,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Choice:** still deterministic: the first matching card from the top; an unrestricted take picks the most expensive card (UNCLEAR: the real text lets the player choose).
 - **Power limit:** "no more than [A]" is read as at most 1 generic Power on the printed cost.
 - **Rule numbers:** tests cite 159.
+
+## R97: Opponent-directed effects and "base Might becomes N" (A-R97)
+
+- **Base Might:** applied as a this-turn modifier of (N - printed Might); permanent buffs and equipment still add.
+- **Choose an opponent:** always the other player.
+- **Rule numbers:** tests cite 143.2, 160 and 186.

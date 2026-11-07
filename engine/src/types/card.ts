@@ -153,6 +153,8 @@ export type CardEffect =
       op: 'DRAW';
       amount: number;
       perOtherBattlefield?: boolean;
+      /** R97: every player draws ("You and that player each draw 1", "Each player draws 1"). */
+      eachPlayer?: boolean;
       /** R65: per battlefield the controller controls / per friendly [Mighty] unit (Might 5+). */
       per?: 'BATTLEFIELD' | 'MIGHTY_UNIT';
     }
@@ -254,6 +256,8 @@ export type CardEffect =
       count?: TargetCount;
     } & TargetScope)
   /** Stun the target unit: it deals no combat damage this turn (expires in the Ending step). */
+  /** R97: the target unit's base Might becomes `amount` this turn (a temporary change, other bonuses stay). */
+  | ({ op: 'SET_BASE_MIGHT'; amount: number; side?: TargetSide; slot?: number } & TargetScope)
   | ({
       op: 'STUN_TARGET';
       side?: TargetSide;
@@ -340,7 +344,15 @@ export type CardEffect =
    * Play `count` tokens (R3 round 2): `token` is a TOKEN_CARDS id (tokens.ts). They enter exhausted
    * unless `ready`, in the controller's Base, or at the source's location with `here`.
    */
-  | { op: 'PLAY_TOKEN'; token: string; count: number; ready?: boolean; here?: boolean }
+  | {
+      op: 'PLAY_TOKEN';
+      token: string;
+      count: number;
+      ready?: boolean;
+      here?: boolean;
+      /** R97: the (only) opponent plays the token(s) ("choose an opponent. They play ..."). */
+      forOpponent?: boolean;
+    }
   /** Return the target unit (or gear with `gear`) to its owner's hand; a token ceases to exist. */
   | ({
       op: 'RETURN_TARGET';
@@ -441,6 +453,7 @@ export type TargetedEffect = Extract<
       | 'READY_TARGET'
       | 'LOCK_MOVE_TARGET'
       | 'STUN_TARGET'
+      | 'SET_BASE_MIGHT'
       | 'DEBUFF_TARGET'
       | 'KILL_GEAR'
       | 'RETURN_TARGET'

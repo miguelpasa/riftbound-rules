@@ -77,6 +77,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'READY_TARGET' ||
   e.op === 'LOCK_MOVE_TARGET' ||
   e.op === 'STUN_TARGET' ||
+  e.op === 'SET_BASE_MIGHT' ||
   e.op === 'DEBUFF_TARGET' ||
   e.op === 'KILL_GEAR' ||
   e.op === 'RETURN_TARGET' ||
@@ -736,7 +737,12 @@ export function runEffects(
             ? e.amount *
               state.battlefields.filter((b) => b.controller === controller && b.id !== here).length
             : e.amount;
-        if (n > 0) out.push(...drawWithBurnOut(state, controller, n, cards));
+        if (n > 0) {
+          const who: PlayerId[] = e.eachPlayer
+            ? [controller, controller === 'p0' ? 'p1' : 'p0']
+            : [controller];
+          for (const p of who) out.push(...drawWithBurnOut(state, p, n, cards));
+        }
         break;
       }
       case 'BURN': {
@@ -849,6 +855,7 @@ export function runEffects(
       case 'READY_TARGET':
       case 'LOCK_MOVE_TARGET':
       case 'STUN_TARGET':
+      case 'SET_BASE_MIGHT':
       case 'DEBUFF_TARGET':
       case 'KILL_GEAR':
       case 'RETURN_TARGET':
@@ -890,6 +897,9 @@ export function runEffects(
           } else if (e.op === 'READY_TARGET') {
             u.ready = true;
             out.push({ type: 'EFFECT_READIED', unitId: u.id });
+          } else if (e.op === 'SET_BASE_MIGHT') {
+            const printed = cards[u.cardId]?.stats.might ?? 0;
+            addTemp(u, e.amount - printed, true);
           } else if (e.op === 'STUN_TARGET') {
             u.stunned = true;
             out.push({ type: 'EFFECT_STUNNED', unitId: u.id });
@@ -1216,7 +1226,16 @@ export function runEffects(
           fizzle();
           break;
         }
-        playTokens(state, cards, controller, e.token, e.count, e, sourceObjectId, out);
+        playTokens(
+          state,
+          cards,
+          e.forOpponent ? (controller === 'p0' ? 'p1' : 'p0') : controller,
+          e.token,
+          e.count,
+          e,
+          sourceObjectId,
+          out,
+        );
         break;
       }
       case 'TARGET_CONTROLLER_PLAY_TOKEN': {

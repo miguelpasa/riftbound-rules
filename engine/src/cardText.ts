@@ -111,6 +111,8 @@ interface ParseState {
 export function parseClause(sen: string): CardEffect[] | null {
   let m = /^Draw (\d+)$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]) }];
+  m = /^(?:You and that player each draw|Each player draws) (\d+)$/i.exec(sen);
+  if (m) return [{ op: 'DRAW', amount: Number(m[1]), eachPlayer: true }];
   m = /^Draw (\d+) and channel (\d+) runes? exhausted$/i.exec(sen);
   if (m) {
     return [
@@ -289,7 +291,15 @@ const COUNT_WORDS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three
  * The token must exist in tokens.ts. Without a location the Base is used (the choice of a
  * battlefield you control is not modelled).
  */
-function parseTokenClause(sen0: string): CardEffect | null {
+function parseTokenClause(sen00: string): CardEffect | null {
+  // R97: "They play a 1 [M] Bird unit token ..." (the opponent chosen by the previous sentence plays it).
+  const theirs = /^They play /i.test(sen00);
+  const sen0 = theirs ? sen00.replace(/^They play /i, 'Play ') : sen00;
+  const r = parseTokenClauseBase(sen0);
+  return r && theirs && r.op === 'PLAY_TOKEN' ? { ...r, forOpponent: true } : theirs ? null : r;
+}
+
+function parseTokenClauseBase(sen0: string): CardEffect | null {
   // R92: "a [1] [M] Tentacle unit token from Bilgewater" = "a 1 [M] Tentacle unit token".
   const sen = sen0
     .replace(/^(Play (?:an?|one|two|three|four|\d+) (?:ready )?)\[(\d+)\] \[M\]/i, '$1$2 [M]')
@@ -790,6 +800,8 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
   }
   m = /^Deal (\d+) to it$/i.exec(sen);
   if (m) return { op: 'DAMAGE_TARGET', amount: Number(m[1]), ...sd, ...bf, ...at };
+  m = /^Its base Might becomes (\d+) this turn$/i.exec(sen);
+  if (m) return { op: 'SET_BASE_MIGHT', amount: Number(m[1]), ...sd, ...at };
   if (/^Ready it$/i.test(sen)) return { op: 'READY_TARGET', ...sd, ...at };
   if (/^It can['’]t move this turn$/i.test(sen)) return { op: 'LOCK_MOVE_TARGET', ...sd, ...at };
   if (/^Stun it$/i.test(sen)) return { op: 'STUN_TARGET', ...sd, ...bf, ...at };
@@ -1538,6 +1550,7 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       }
       return [x];
     })
+    .filter((x) => !/^Choose an opponent$/i.test(x)) // R97: the only opponent in a duel
     .map((x) =>
       x
         .replace(/^Then,? /i, '')
