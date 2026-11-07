@@ -210,6 +210,9 @@ export type CardEffect =
       amount: number;
       /** R54: [Buff] the target: a +1 Might buff if it has none (amount is 1). */
       buff?: boolean;
+      /** R93: the amount is multiplied by the number of enemy units at the target's battlefield. */
+      timesEnemiesThere?: boolean;
+      atBattlefield?: boolean;
       /** R81: "... instead" when a condition holds. */
       alt?: AltAmount;
       side?: TargetSide;
@@ -252,6 +255,8 @@ export type CardEffect =
   | ({
       op: 'DEBUFF_TARGET';
       amount: number;
+      /** R93: the amount is multiplied by the number of exhausted units the controller controls. */
+      timesExhausted?: boolean;
       minMight?: number;
       side?: TargetSide;
       atBattlefield?: boolean;
@@ -294,6 +299,11 @@ export type CardEffect =
       duration?: 'TURN';
       /** R83: a negative amount never takes a unit below this Might ("to a minimum of 1 [M]"). */
       minMight?: number;
+      /** R93: [Buff] each unit instead (a +1 buff if it has none). */
+      buff?: boolean;
+      /** R93: only the units at the source's battlefield ("all units here"), skipping the source with `others`. */
+      here?: boolean;
+      others?: boolean;
     }
   /** Deal damage to every unit of `side` in `scope` (no target). */
   | {
@@ -394,6 +404,8 @@ export type CardEffect =
   | ({
       op: 'GRANT_KEYWORD_TARGET';
       keywords: KeywordInstance[];
+      /** R93: "[Assault] equal to its Might": the keyword's value is the target's Might. */
+      valueFromMight?: boolean;
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;

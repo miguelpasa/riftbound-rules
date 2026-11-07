@@ -426,3 +426,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **"When I score":** read as scoring by Hold or Conquer only (UNCLEAR for other point sources).
 - **"When an opponent scores":** any point the opponent gains, including Burn Out points.
 - **Rule numbers:** tests cite 186 and 473.
+
+## R93: Board-counted gives, buff all units here (A-R93)
+
+- **Here-scope:** does nothing when the source is in a Base (equal to the printed "if I am at a battlefield").
+- **Exhausted count:** the controller's exhausted units on the board.
+- **Rule numbers:** tests cite 143.2.

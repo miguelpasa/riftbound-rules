@@ -252,6 +252,20 @@ export function parseClause(sen: string): CardEffect[] | null {
     return [{ op: 'READY_ALL', side: 'friendly' }];
   }
   if (/^Ready all enemy units$/i.test(sen)) return [{ op: 'READY_ALL', side: 'enemy' }];
+  // R93: "[Buff] all units here" / "buff all other friendly units there".
+  m = /^(?:\[Buff\]|Buff) all (other )?(friendly )?units (?:here|there)$/i.exec(sen);
+  if (m) {
+    return [
+      {
+        op: 'BUFF_ALL',
+        amount: 1,
+        buff: true,
+        side: m[2] ? 'friendly' : 'any',
+        here: true,
+        ...(m[1] ? { others: true } : {}),
+      },
+    ];
+  }
   m = /^Ready your units and give them \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) {
     return [
@@ -397,6 +411,54 @@ function parseChooser(sen: string): Chooser | null {
 }
 
 function parseChooserBase(sen: string): Chooser | null {
+  // R93: "Give a unit [Assault] this turn equal to its Might" / "Give a unit -[M] this turn equal to the number of exhausted units you control" / "+N [M] ... for each enemy unit there".
+  {
+    const bw = new RegExp(
+      `^Give an? ${SIDE}unit \\{Assault\\} this turn equal to its Might$`,
+      'i',
+    ).exec(sen);
+    if (bw) {
+      const s = side(bw[1]);
+      return {
+        effect: {
+          op: 'GRANT_KEYWORD_TARGET',
+          keywords: [{ name: 'Assault' }],
+          valueFromMight: true,
+          ...sideProp(s),
+        },
+        decl: { side: s ?? 'any' },
+      };
+    }
+    const hn = new RegExp(
+      `^Give an? ${SIDE}unit ${DASH}\\[M\\] this turn equal to the number of exhausted units you control$`,
+      'i',
+    ).exec(sen);
+    if (hn) {
+      const s = side(hn[1]);
+      return {
+        effect: { op: 'DEBUFF_TARGET', amount: 1, timesExhausted: true, ...sideProp(s) },
+        decl: { side: s ?? 'any' },
+      };
+    }
+    const ao = new RegExp(
+      `^Give an? ${SIDE}unit at a battlefield \\+(\\d+) \\[M\\] this turn for each enemy unit there$`,
+      'i',
+    ).exec(sen);
+    if (ao) {
+      const s = side(ao[1]);
+      return {
+        effect: {
+          op: 'BUFF_TARGET',
+          amount: Number(ao[2]),
+          duration: 'TURN',
+          timesEnemiesThere: true,
+          atBattlefield: true,
+          ...sideProp(s),
+        },
+        decl: { side: s ?? 'any', atBattlefield: true },
+      };
+    }
+  }
   // R87: "Deal that much to <unit>" (the excess damage just assigned).
   const that = /^Deal that much to (.+)$/i.exec(sen);
   if (that) {
@@ -1434,7 +1496,13 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       }
       return [x];
     })
-    .map((x) => x.replace(/^Then /i, '').trim());
+    .map((x) =>
+      x
+        .replace(/^Then,? /i, '')
+        // R93: "if I am at a battlefield" is implied by a "here / there" effect (it does nothing elsewhere).
+        .replace(/^if I am at a battlefield, /i, '')
+        .trim(),
+    );
   for (let i = 0; i < list.length; i++) {
     if (attachInstead(list[i] as string, out)) continue;
     const look = parseLookSequence(list, i);

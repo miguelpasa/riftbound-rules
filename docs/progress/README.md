@@ -129,3 +129,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R90](R90-owner-channel.md) | Return a unit, its owner channels a rune; final audit (486 -> 487 cards full) | Low | Sonnet | Done | uncommitted |
 | [R91](R91-ability-discount.md) | Ability cost reductions, highest-Might spell discount, Might per Trash card (487 -> 492 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R92](R92-tentacle-score.md) | Tentacle tokens, "when I score", "when an opponent scores" (492 -> 495 cards full) | Low | Sonnet | Done | uncommitted |
+| [R93](R93-counted-gives.md) | Board-counted gives, buff all units here (495 -> 500 cards full) | Low | Sonnet | Done | uncommitted |

@@ -831,8 +831,18 @@ export function runEffects(
             u.stunned = true;
             out.push({ type: 'EFFECT_STUNNED', unitId: u.id });
           } else if (e.op === 'DEBUFF_TARGET') {
-            const room = e.minMight === undefined ? e.amount : mightOf(u) - e.minMight;
-            const cut = Math.max(0, Math.min(e.amount, room));
+            const total = e.timesExhausted
+              ? e.amount *
+                Object.values(state.objects).filter(
+                  (o) =>
+                    o.controller === controller &&
+                    !o.ready &&
+                    (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+                    isUnitDef(cards[o.cardId]),
+                ).length
+              : e.amount;
+            const room = e.minMight === undefined ? total : mightOf(u) - e.minMight;
+            const cut = Math.max(0, Math.min(total, room));
             if (cut > 0) addTemp(u, -cut, true);
           } else if (e.op === 'KILL_GEAR') {
             doneSlots.set(slot, u.controller);
@@ -857,7 +867,10 @@ export function runEffects(
           } else if (e.op === 'MOVE_BASE_TARGET') {
             moveToBase(state, u, out);
           } else if (e.op === 'GRANT_KEYWORD_TARGET') {
-            u.tempKeywords = [...(u.tempKeywords ?? []), ...e.keywords.map((k) => ({ ...k }))];
+            const given = e.valueFromMight
+              ? e.keywords.map((k) => ({ ...k, value: Math.max(1, mightOf(u)) }))
+              : e.keywords.map((k) => ({ ...k }));
+            u.tempKeywords = [...(u.tempKeywords ?? []), ...given];
             out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
           } else if (e.op === 'COUNTER_SPELL') {
             doneSlots.set(slot, u.controller);
@@ -873,7 +886,20 @@ export function runEffects(
               out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount: 1 });
             }
           } else {
-            addTemp(u, e.amount, e.duration === 'TURN');
+            const times =
+              e.timesEnemiesThere && u.zone.kind === 'battlefield'
+                ? Object.values(state.objects).filter(
+                    (o) =>
+                      o.controller !== u.controller &&
+                      o.zone.kind === 'battlefield' &&
+                      u.zone.kind === 'battlefield' &&
+                      o.zone.battlefieldId === u.zone.battlefieldId &&
+                      isUnitDef(cards[o.cardId]),
+                  ).length
+                : e.timesEnemiesThere
+                  ? 0
+                  : 1;
+            if (times > 0) addTemp(u, e.amount * times, e.duration === 'TURN');
           }
         }
         break;
@@ -983,6 +1009,23 @@ export function runEffects(
       case 'BUFF_ALL':
         for (const u of boardUnits(state, cards)) {
           if (!sideMatches(e.side, controller, u)) continue;
+          if (e.here || e.others) {
+            const hb = hereOfSource(state, sourceObjectId);
+            if (
+              e.here &&
+              (hb === null || u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== hb)
+            ) {
+              continue;
+            }
+            if (e.others && u.id === sourceObjectId) continue;
+          }
+          if (e.buff) {
+            if (!u.buffed) {
+              u.buffed = true;
+              out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount: 1 });
+            }
+            continue;
+          }
           if (e.amount < 0 && e.minMight !== undefined) {
             const cut = Math.max(0, Math.min(-e.amount, mightOf(u) - e.minMight));
             if (cut > 0) addTemp(u, -cut, e.duration === 'TURN');
