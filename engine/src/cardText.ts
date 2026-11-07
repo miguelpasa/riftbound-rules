@@ -162,7 +162,7 @@ export function parseClause(sen: string): CardEffect[] | null {
       },
     ];
   }
-  if (/^Ready your legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
+  if (/^Ready (?:your|a friendly) legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
   // R72: runes.
   m = /^Ready up to (\d+) (?:friendly |your )?runes$/i.exec(sen);
   if (m) return [{ op: 'READY_RUNES', count: Number(m[1]) }];
@@ -209,6 +209,7 @@ export function parseClause(sen: string): CardEffect[] | null {
   if (/^Ready (?:your|all friendly) units$/i.test(sen)) {
     return [{ op: 'READY_ALL', side: 'friendly' }];
   }
+  if (/^Ready all enemy units$/i.test(sen)) return [{ op: 'READY_ALL', side: 'enemy' }];
   m = /^Ready your units and give them \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) {
     return [
@@ -317,7 +318,10 @@ function parseChooser(sen: string): Chooser | null {
   const here = hereRe.test(text);
   if (here) text = text.replace(hereRe, (_m, noun: string) => noun);
   const anotherRe = /\banother (?=(?:friendly |enemy )?unit\b)/i;
-  const another = anotherRe.test(text);
+  // R75: "buff up to two other friendly units" = up to two friendly units besides the source.
+  const otherMany = /\bup to (\w+) other (?=(?:friendly |enemy )?units\b)/i.test(text);
+  if (otherMany) text = text.replace(/\bup to (\w+) other /i, 'up to $1 ');
+  const another = anotherRe.test(text) || otherMany;
   if (another) text = text.replace(anotherRe, 'a ');
   const ch = parseChooserBase(text);
   if (!ch) return null;
@@ -387,6 +391,24 @@ function parseChooserBase(sen: string): Chooser | null {
         count: { min: 0, max: 2 },
       },
       decl: { side: s ?? 'any' },
+      multi: true,
+    };
+  }
+  m = new RegExp(`^(?:\\[Buff\\]|Buff) up to (\\d+|two|three|four|five) ${SIDE}units$`, 'i').exec(
+    sen,
+  );
+  if (m) {
+    const n = NUMBER_WORDS[(m[1] ?? '').toLowerCase()] ?? Number(m[1]);
+    const sd = side(m[2]);
+    return {
+      effect: {
+        op: 'BUFF_TARGET',
+        amount: 1,
+        buff: true,
+        ...sideProp(sd),
+        count: { min: 0, max: n },
+      },
+      decl: { side: sd ?? 'any' },
       multi: true,
     };
   }
@@ -516,6 +538,28 @@ function parseChooserBase(sen: string): Chooser | null {
         ...(m[3] ? { maxMight: Number(m[3]) } : {}),
       },
       decl: { side: s ?? 'any' },
+    };
+  }
+  // R75: "Return a unit / gear / spell (or a Bird, Cat, ...) from your trash to your hand".
+  m =
+    /^[Rr]eturn an? (unit or gear|unit|gear|spell|(?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) from your trash to your hand$/.exec(
+      sen,
+    );
+  if (m) {
+    const w = (m[1] ?? '').toLowerCase();
+    const named = !['unit or gear', 'unit', 'gear', 'spell'].includes(w);
+    const what =
+      w === 'unit or gear'
+        ? 'unitOrGear'
+        : w === 'gear'
+          ? 'gear'
+          : w === 'spell'
+            ? 'spell'
+            : 'unit';
+    const subtypes = named ? (m[1] ?? '').split(/,? or |, /).filter(Boolean) : undefined;
+    return {
+      effect: { op: 'RETURN_FROM_TRASH', what, ...(subtypes ? { subtypes } : {}) },
+      decl: { side: 'friendly' },
     };
   }
   m = new RegExp(`^Return an? ${SIDE}gear to its owner's hand$`, 'i').exec(sen);

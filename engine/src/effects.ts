@@ -33,7 +33,7 @@ import type {
 /** Maximum number of target combinations offered to the AI / UI per spell. */
 export const MAX_TARGET_COMBOS = 48;
 
-type TargetKind = 'unit' | 'gear' | 'unitOrGear' | 'spell' | 'equipment';
+type TargetKind = 'unit' | 'gear' | 'unitOrGear' | 'spell' | 'equipment' | 'trash';
 
 /** What a slot may hold. */
 interface Spec {
@@ -43,6 +43,9 @@ interface Spec {
   maxMight?: number;
   /** Gear only: Energy cost at most this. */
   maxEnergy?: number;
+  /** R75: a card in the controller's Trash: which kind(s) and subtype(s) qualify. */
+  trashWhat?: 'unit' | 'gear' | 'unitOrGear' | 'spell';
+  trashSubtypes?: string[];
   /** R42: at the source's battlefield / not the source itself (needs the source object). */
   here?: boolean;
   another?: boolean;
@@ -66,6 +69,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'DEBUFF_TARGET' ||
   e.op === 'KILL_GEAR' ||
   e.op === 'RETURN_TARGET' ||
+  e.op === 'RETURN_FROM_TRASH' ||
   e.op === 'MOVE_BASE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
   e.op === 'WEAPONMASTER_EQUIP' ||
@@ -82,17 +86,24 @@ function specOf(e: TargetedEffect): Spec {
   const kind: TargetKind =
     e.op === 'WEAPONMASTER_EQUIP'
       ? 'equipment'
-      : e.op === 'KILL_GEAR' || (e.op === 'RETURN_TARGET' && e.gear)
-        ? 'gear'
-        : e.op === 'KILL_TARGET' && e.orGear
-          ? 'unitOrGear'
-          : e.op === 'COUNTER_SPELL'
-            ? 'spell'
-            : 'unit';
+      : e.op === 'RETURN_FROM_TRASH'
+        ? 'trash'
+        : e.op === 'KILL_GEAR' || (e.op === 'RETURN_TARGET' && e.gear)
+          ? 'gear'
+          : e.op === 'KILL_TARGET' && e.orGear
+            ? 'unitOrGear'
+            : e.op === 'COUNTER_SPELL'
+              ? 'spell'
+              : 'unit';
   const spec: Spec = {
     kind,
     side: e.op === 'WEAPONMASTER_EQUIP' ? 'friendly' : 'side' in e && e.side ? e.side : 'any',
   };
+  if (e.op === 'RETURN_FROM_TRASH') {
+    spec.side = 'friendly';
+    spec.trashWhat = e.what;
+    if (e.subtypes) spec.trashSubtypes = e.subtypes;
+  }
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
   if ('here' in e && e.here) spec.here = true;
   if ('another' in e && e.another) spec.another = true;
@@ -166,6 +177,24 @@ function legalForSpec(
       return false;
     }
     return autoPlan(state, cards, controller, weaponmasterCost(state, cards, u, src)) !== null;
+  }
+  if (spec.kind === 'trash') {
+    // R75: a card of the right kind in the controller's own Trash (tokens never reach the Trash).
+    if (u.zone.kind !== 'trash' || u.owner !== controller) return false;
+    const d = cards[u.cardId];
+    if (!d) return false;
+    const what = spec.trashWhat;
+    const ok =
+      what === 'spell'
+        ? d.type === 'SPELL'
+        : what === 'gear'
+          ? d.type === 'GEAR'
+          : what === 'unit'
+            ? d.type === 'UNIT'
+            : d.type === 'UNIT' || d.type === 'GEAR';
+    if (!ok) return false;
+    const subs = spec.trashSubtypes;
+    return !subs || subs.some((s) => d.subtypes.some((x) => x.toLowerCase() === s.toLowerCase()));
   }
   if (spec.kind === 'spell') {
     return (
@@ -700,6 +729,7 @@ export function runEffects(
       case 'DEBUFF_TARGET':
       case 'KILL_GEAR':
       case 'RETURN_TARGET':
+      case 'RETURN_FROM_TRASH':
       case 'MOVE_BASE_TARGET':
       case 'COUNTER_SPELL':
       case 'GRANT_KEYWORD_TARGET': {
@@ -747,6 +777,12 @@ export function runEffects(
             doneSlots.set(slot, u.controller);
             killGear(state, u);
             out.push({ type: 'GEAR_KILLED', gearId: u.id });
+          } else if (e.op === 'RETURN_FROM_TRASH') {
+            // R75: the Trash card goes to its owner's hand.
+            const ps = state.players[playerIndex(u.owner)];
+            ps.trash = ps.trash.filter((x) => x !== u.id);
+            u.zone = { kind: 'hand', player: u.owner };
+            ps.hand.push(u.id);
           } else if (e.op === 'RETURN_TARGET') {
             returnToHand(state, u, out);
           } else if (e.op === 'MOVE_BASE_TARGET') {

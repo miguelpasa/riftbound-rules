@@ -282,6 +282,17 @@ export type CardEffect =
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
+  /**
+   * R75: return the chosen card from the controller's Trash to their hand ("Return a unit from your trash
+   * to your hand"). `what` limits the card type; `subtypes` ("a Bird, Cat, Dog, or Poro") need any one.
+   */
+  | {
+      op: 'RETURN_FROM_TRASH';
+      what: 'unit' | 'gear' | 'unitOrGear' | 'spell';
+      subtypes?: string[];
+      slot?: number;
+      count?: TargetCount;
+    }
   /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
   | ({
       op: 'MOVE_BASE_TARGET';
@@ -350,6 +361,7 @@ export type TargetedEffect = Extract<
       | 'DEBUFF_TARGET'
       | 'KILL_GEAR'
       | 'RETURN_TARGET'
+      | 'RETURN_FROM_TRASH'
       | 'MOVE_BASE_TARGET'
       | 'COUNTER_SPELL'
       | 'WEAPONMASTER_EQUIP'

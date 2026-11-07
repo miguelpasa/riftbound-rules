@@ -111,3 +111,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R72](R72-turn-triggers.md) | Turn triggers: start of Beginning Phase and end of turn, rune effects, rune and facedown conditions (394 -> 400 cards full) | High | Sonnet | Done | uncommitted |
 | [R73](R73-level-conditions.md) | Level-gated abilities, conditional discounts and enters-ready conditions (400 -> 406 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R74](R74-restrictions.md) | Restrictions: no combat damage, can't be chosen by enemies, only-at-battlefield abilities, damage equal to my Might (406 -> 420 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R75](R75-trash-returns.md) | Return from Trash to hand, buff up to N units, ready enemies, ready a legend (420 -> 427 cards full) | Medium | Sonnet | Done | uncommitted |

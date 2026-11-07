@@ -318,3 +318,11 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Can't be chosen:** applies when the chooser (the player casting or activating) is not the unit's controller; abilities and spells of the controller can still choose it. Hidden-information plays are unaffected.
 - **Damage equal to my Might:** read when the effect resolves (0 if the source left the board); [Assault] / [Shield] sum the values of the source's current keywords including granted ones.
 - **Rule numbers:** tests cite 143.2, 145.1, 355.10, 462 and 467.2.
+
+## R75: Return from Trash to hand, buff up to N units, ready enemies, ready a legend (A-R75)
+
+- **Trash choices:** the returned card is chosen when the ability goes on the Chain (like any target, R41); with exactly one legal card it is taken automatically.
+- **Only your own Trash:** "your trash" means the controller's.
+- **Tokens** never reach the Trash, so they cannot be returned.
+- **"Up to N other":** the source itself is excluded; the choice may be empty.
+- **Rule numbers:** tests cite 160 and 303.
