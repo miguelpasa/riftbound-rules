@@ -257,3 +257,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Mass return:** "Return all units and gear to their owners' hands" (Downwell) returns every unit, gear and token on the board of both players (tokens cease to exist); object order, no targets.
 - **"Ready a unit and give it [Keyword] this turn"** is read as two sentences about the same chosen unit.
 - **Rule numbers:** tests cite 359 and 323 only.
+
+## R66: Empower leftovers (A-R66)
+
+- **Kill-cost Empower:** "[Empower] — Kill a friendly unit" becomes the ability "Kill a friendly unit: Empower me" (any R46 card-choice cost after "[Empower]").
+- **Empowered Deathknell:** "[Empowered][>][>>][Deathknell][>] <effect>" is a Deathknell that fires only if the unit was Empowered when it died (the flag stays on the object in the Trash until it is played again); the "[>>]" icon is ignored.
+- **Not done:** Empower with alternatives ("[1] or [C]"), Empower cost modifiers, "Your units that are [Empowered] have ...", Empowered replacement effects (Gangplank).
+- **Rule numbers:** test cites 145.1 only.

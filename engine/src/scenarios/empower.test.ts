@@ -73,4 +73,12 @@ describe('parser: Empower', () => {
     const t = parseCardAbilities('[Empowered][>] When I conquer, you score 1 point.');
     expect(t?.triggers[0]).toMatchObject({ on: 'CONQUER', when: { kind: 'EMPOWERED' } });
   });
+
+  it('reads kill-cost Empower and an Empowered Deathknell with its icon', () => {
+    // Tests Rule 145.1: parsed ability text (R66)
+    const k = parseCardAbilities('[Empower] — Kill a friendly unit (Pay the cost: Empower me.)');
+    expect(k?.abilities[0]?.cost.card).toMatchObject({ kind: 'KILL' });
+    const d = parseCardAbilities('[Empowered][>][>>][Deathknell][>] Channel 2 runes exhausted.');
+    expect(d?.triggers[0]).toMatchObject({ on: 'DEATH', when: { kind: 'EMPOWERED' } });
+  });
 });

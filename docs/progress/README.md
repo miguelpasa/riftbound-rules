@@ -102,3 +102,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R63](R63-optional-extra-cards.md)   | Optional additional costs with a card choice / XP and "If you do, I cost [N] less" (353 -> 358 cards full) | High | Sonnet | Done | uncommitted |
 | [R64](R64-shadow-clone.md)           | Shadow Clone token (358 -> 360 cards full) | Low | Sonnet | Done | uncommitted |
 | [R65](R65-spell-families.md)         | Counted draws, mass return, ready-and-grant sentences (360 -> 365 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R66](R66-empower-leftovers.md)      | Empower leftovers: kill-cost Empower, Empowered Deathknell (365 -> 368 cards full) | Low | Sonnet | Done | uncommitted |

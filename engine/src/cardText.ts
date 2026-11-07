@@ -1514,10 +1514,10 @@ export function parseCardAbilities(
     // R52: "[Empower] <cost>" is the activated ability "<cost>: Empower me"; "[Empowered][>] ..." prefixes an
     // ability that only exists while Empowered.
     .replace(
-      /\[Empower\]\s*(?:\[>\]|[^\w[\s])?\s*((?:\[[0-9CA]+\])+|Discard \d+)(?=[ \t]*[.\n(]|[ \t]*$)/gi,
+      /\[Empower\]\s*(?:\[>\]|[^\w[\s])?\s*((?:\[[0-9CA]+\])+|Discard \d+|Kill an? [a-z ]+?)(?=[ \t]*[.\n(]|[ \t]*$)/gi,
       '$1: Empower me. ',
     )
-    .replace(/\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*/gi, 'EMPOWERED ')
+    .replace(/\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(?:\[>>\]\s*)?/gi, 'EMPOWERED ')
     .replace(/\[Legion\]\s*(?:\[>\]|[—–-])\s*/gi, 'LEGION ')
     .replace(KEYWORD_TOKENS, ' ')
     .replace(/\[Deathknell\]\s*(?:\[>\]|[—–-])/gi, ' Deathknell: ')
