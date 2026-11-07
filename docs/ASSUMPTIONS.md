@@ -404,3 +404,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **"First time":** the first occurrence per turn is the same as "once each turn" (counted when the ability goes on the Chain).
 - **Enter ready:** checked when the unit enters; a static source that is itself entering is not counted for itself ("Other").
 - **Rule numbers:** tests cite 186, 303 and 359.2.
+
+## R89: Smoke test for every supported card (no new card support) (A-R89)
+
+- **Coverage:** a game plays only the cards that are drawn and affordable, so each run covers a subset; vary `--seed`.
+- **Rule numbers:** none (tooling).

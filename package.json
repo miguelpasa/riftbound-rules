@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "check:rules": "node scripts/check-rule-citations.mjs",
     "cards": "tsx scripts/fetch-cards.ts && tsx scripts/build-cards.ts",
+    "smoke:cards": "tsx scripts/smoke-cards.ts",
     "dev": "npm run dev -w client",
     "test:e2e": "playwright test"
   },
