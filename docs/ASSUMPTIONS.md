@@ -287,3 +287,11 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - `StaticAbility.onlyKeyword` / `onlySubtype` restrict a static to units with that printed keyword or subtype: "Units here with [Tank] have +1 [M]", "Units here with [Temporary] have [Shield]", "Champion units here have +1 [M]". Only the printed keyword list is consulted (not temporary or granted keywords). "Champion" is the unit's subtype list entry.
 - **Not done:** "Units here with [Temporary]" using granted Temporary, defending-alone statics, "units here" conditions on battlefield control.
 - **Rule numbers:** test cites 143.2 only.
+
+## R71: Combat and death triggers: win a combat, combat ends, unit dies, died alone, once each turn, gear "play this" (A-R71)
+
+- **Died alone:** no other friendly unit stood at the dying unit's location (Base or battlefield) when the batch of deaths began; units dying at the same time count as company. UNCLEAR: the exact definition of "alone" for Deathknell.
+- **Win a combat:** the side that has units left when the combat resolves (468.3). A tie or a wipe-out has no winner. The units that count are the winner's survivors standing at the battlefield at that moment (attackers are recalled afterwards).
+- **Batch deaths:** "one or more units die" triggers once per Cleanup batch.
+- **Once each turn:** counted when the ability goes on the Chain.
+- **Rule numbers:** tests cite 303, 323.4 and 468.

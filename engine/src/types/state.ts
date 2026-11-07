@@ -64,6 +64,8 @@ export interface CardInstance {
   hidden?: boolean;
   /** Turn number it entered play. */
   enteredTurn?: number;
+  /** R71: turn number of the last time each "once each turn" trigger (by index) went on the Chain. */
+  onceTurn?: Record<number, number>;
 }
 
 export interface BattlefieldState {

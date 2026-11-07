@@ -445,6 +445,8 @@ export type Condition =
   | { kind: 'SCORE_NEAR'; who: 'friendly' | 'enemy'; not?: boolean }
   /** R58: "if you paid the additional cost" (play triggers; read from the CARD_PLAYED event). */
   | { kind: 'PAID_ADDITIONAL' }
+  /** R71: a Deathknell's "if I died alone" (no other friendly unit at its location); `not` = "didn't die alone". */
+  | { kind: 'DIED_ALONE'; not?: boolean }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any' }
   /** R53: Level N: the controller has at least `n` XP. */
@@ -504,7 +506,22 @@ export type TriggerKind =
   | 'DEFEND'
   | 'MOVE'
   /** R49: "When you play a <card>": fires for each of your permanents whose filter matches the played card. */
-  | 'YOU_PLAY';
+  | 'YOU_PLAY'
+  /** R71: "When I win a combat" (the winner's units standing at the battlefield when it ends). */
+  | 'WIN_COMBAT'
+  /** R71: "When a combat that I was in ends" (any unit still standing there). */
+  | 'COMBAT_END'
+  /** R71: "When a friendly / an enemy unit dies" (see `CardTrigger.dies`). */
+  | 'UNIT_DIES';
+
+/** R71: which deaths a UNIT_DIES trigger reacts to. */
+export interface DeathFilter {
+  side: 'friendly' | 'enemy';
+  /** "enemy unit here": it died at the source's battlefield. */
+  here?: boolean;
+  /** "When one or more ... die": once per batch of deaths, not once per unit. */
+  batch?: boolean;
+}
 
 /**
  * R49: which played card a YOU_PLAY trigger reacts to. Absent fields match anything. The source's own
@@ -533,6 +550,10 @@ export interface CardTrigger {
   effects: CardEffect[];
   /** R49: only for `on: 'YOU_PLAY'`. */
   playFilter?: PlayFilter;
+  /** R71: only for `on: 'UNIT_DIES'`. */
+  dies?: DeathFilter;
+  /** R71: "Once each turn, when ...": the ability triggers at most once per turn. */
+  oncePerTurn?: boolean;
   /**
    * R45: "you may [pay COST to] <effects>". When the ability resolves its controller is asked to
    * accept or decline (flow.pendingChoice OPTIONAL_EFFECT, DECIDE_OPTIONAL); the cost is paid only on

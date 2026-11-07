@@ -49,7 +49,22 @@ export type GameEvent = EventBase &
         stage: 'SHOWDOWN' | 'COMBAT';
       }
     | { type: 'COMBAT_DAMAGE_ASSIGNED'; player: PlayerId; unitId: string; amount: number }
-    | { type: 'UNIT_KILLED'; unitId: string }
+    | {
+        type: 'UNIT_KILLED';
+        unitId: string;
+        /** R71: who controlled it, where it stood ('base' or a battlefield id) and whether it was the only friendly unit there. */
+        controller?: PlayerId;
+        cardId?: string;
+        at?: string;
+        alone?: boolean;
+      }
+    /** R71: a combat ended; `participants` are the units still standing at the battlefield (both sides). */
+    | {
+        type: 'COMBAT_ENDED';
+        battlefieldId: string;
+        winner: PlayerId | null;
+        participants: string[];
+      }
     | { type: 'POINT_GAINED'; player: PlayerId; amount: number; source: PointSource }
     | {
         type: 'BATTLEFIELD_SCORED';

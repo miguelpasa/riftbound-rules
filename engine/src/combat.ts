@@ -51,7 +51,7 @@
  */
 import { fork } from './workingCopy.js';
 import { defWithGrants, staticBonus } from './statics.js';
-import { recordDeath } from './conditions.js';
+import { recordDeath, tracksCombatEnd } from './conditions.js';
 import { attachedMightBonus, removeTokenFromGame } from './keywords.js';
 import { syncTurnState } from './chain.js';
 import { onConquer as scoringOnConquer } from './scoring.js';
@@ -475,19 +475,42 @@ export function assignCombatDamage(
 export function killLethalUnits(state: GameState, cards: CardDatabase): GameEventInput[] {
   const events: GameEventInput[] = [];
   const ids = Object.keys(state.objects).sort((a, b) => objNum(a) - objNum(b));
+  // R71: "died alone" = no other friendly unit stood at its location when the batch of deaths began.
+  const locOf = (o: CardInstance): string =>
+    o.zone.kind === 'battlefield' ? o.zone.battlefieldId : 'base';
+  const crowd = new Map<string, number>();
+  for (const id of ids) {
+    const o = state.objects[id] as CardInstance;
+    const t = cards[o.cardId]?.type;
+    if (
+      (t !== 'UNIT' && t !== 'TOKEN') ||
+      (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield')
+    )
+      continue;
+    const key = o.controller + '|' + locOf(o);
+    crowd.set(key, (crowd.get(key) ?? 0) + 1);
+  }
   for (const id of ids) {
     const o = state.objects[id] as CardInstance;
     const def = cards[o.cardId];
     if (!def || (def.type !== 'UNIT' && def.type !== 'TOKEN')) continue;
     if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;
     if (o.damage <= 0 || o.damage < Math.max(1, effectiveMight(state, cards, id))) continue;
+    const death = {
+      type: 'UNIT_KILLED' as const,
+      unitId: id,
+      controller: o.controller,
+      cardId: o.cardId,
+      at: locOf(o),
+      alone: (crowd.get(o.controller + '|' + locOf(o)) ?? 1) <= 1,
+    };
     const ps = state.players[playerIndex(o.controller)];
     ps.base = ps.base.filter((x) => x !== id);
     recordDeath(state, cards, o.controller); // R56
     if (def.type === 'TOKEN') {
       // 186.1: a token outside the Board ceases to exist; it does not go to the trash.
       removeTokenFromGame(state, id);
-      events.push({ type: 'UNIT_KILLED', unitId: id });
+      events.push(death);
       continue;
     }
     const owner = state.players[playerIndex(o.owner)];
@@ -501,7 +524,7 @@ export function killLethalUnits(state: GameState, cards: CardDatabase): GameEven
     for (const g of Object.values(state.objects)) {
       if (g.attachedTo === id) delete g.attachedTo;
     }
-    events.push({ type: 'UNIT_KILLED', unitId: id });
+    events.push(death);
   }
   return events;
 }
@@ -549,6 +572,19 @@ export function resolveCombatWithResult(
   }
 
   const result = combatResult(s); // 468.3
+  // R71: the units standing at the battlefield when the combat ends (before the attackers are recalled).
+  const participants = [...unitsAt(s, bfId, c.attacker), ...unitsAt(s, bfId, c.defender)].map(
+    (u) => u.id,
+  );
+  if (tracksCombatEnd(cards)) {
+    inputs.push({
+      type: 'COMBAT_ENDED',
+      battlefieldId: bfId,
+      winner:
+        result === 'ATTACKER_WINS' ? c.attacker : result === 'DEFENDER_WINS' ? c.defender : null,
+      participants,
+    });
+  }
 
   if (unitsAt(s, bfId, c.defender).length > 0) {
     // 468.1.a.2: Recall the Attackers to their base (456); not a Move.

@@ -584,8 +584,8 @@ describe('damage dealing', () => {
     const work = structuredClone(s);
     const events = killLethalUnits(work, FIXTURE_CARDS);
     expect(events).toEqual([
-      { type: 'UNIT_KILLED', unitId: a1 },
-      { type: 'UNIT_KILLED', unitId: d1 },
+      expect.objectContaining({ type: 'UNIT_KILLED', unitId: a1 }),
+      expect.objectContaining({ type: 'UNIT_KILLED', unitId: d1 }),
     ]);
     expect(work.objects[a1]!.zone).toEqual({ kind: 'trash', player: 'p0' });
     expect(work.players[0].trash).toContain(a1);
@@ -608,7 +608,7 @@ describe('damage dealing', () => {
     const blade = spawn(s, 'fx-blade', 'p1', 'base');
     s.objects[blade]!.attachedTo = tok;
     const events = killLethalUnits(s, cards);
-    expect(events).toEqual([{ type: 'UNIT_KILLED', unitId: tok }]);
+    expect(events).toEqual([expect.objectContaining({ type: 'UNIT_KILLED', unitId: tok })]);
     expect(s.objects[tok]).toBeUndefined();
     expect(s.players[1].trash).not.toContain(tok);
     expect(s.players[1].base).not.toContain(tok);
@@ -621,7 +621,7 @@ describe('damage dealing', () => {
     const s = base();
     const w = spawn(s, 'fx-wisp', 'p1', BF, { damage: 1 });
     const events = killLethalUnits(s, FIXTURE_CARDS);
-    expect(events).toEqual([{ type: 'UNIT_KILLED', unitId: w }]);
+    expect(events).toEqual([expect.objectContaining({ type: 'UNIT_KILLED', unitId: w })]);
   });
 });
 

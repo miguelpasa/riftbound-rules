@@ -107,3 +107,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R68](R68-legend-abilities.md)       | Legend activated abilities from the Legend zone (374 -> 378 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R69](R69-equip-text.md)             | "Equip [N]" written without keyword brackets (378 -> 380 cards full) | Low | Sonnet | Done | uncommitted |
 | [R70](R70-filtered-statics.md)       | Filtered "here" statics: by keyword or subtype (380 -> 383 cards full) | Low | Sonnet | Done | uncommitted |
+| [R71](R71-combat-death-triggers.md) | Combat and death triggers: win a combat, combat ends, unit dies, died alone, once each turn, gear "play this" (383 -> 394 cards full) | High | Sonnet | Done | uncommitted |

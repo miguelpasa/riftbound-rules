@@ -44,6 +44,20 @@ function tracksDeaths(cards: CardDatabase): boolean {
   return v;
 }
 
+const combatEndDb = new WeakMap<CardDatabase, boolean>();
+
+/** R71: true when some card reacts to a combat ending (COMBAT_ENDED is emitted only then, so replays stay unchanged). */
+export function tracksCombatEnd(cards: CardDatabase): boolean {
+  let v = combatEndDb.get(cards);
+  if (v === undefined) {
+    v = Object.values(cards).some((d) =>
+      d.triggers?.some((t) => t.on === 'WIN_COMBAT' || t.on === 'COMBAT_END'),
+    );
+    combatEndDb.set(cards, v ?? false);
+  }
+  return v ?? false;
+}
+
 /** R56: note that a unit controlled by `controller` died (mutates; no-op unless a card needs it). */
 export function recordDeath(state: GameState, cards: CardDatabase, controller: PlayerId): void {
   if (!tracksDeaths(cards)) return;
@@ -81,6 +95,8 @@ export function evalCondition(
             : died(controller) + died(other);
       return n > 0;
     }
+    case 'DIED_ALONE':
+      return true; // decided by the triggering UNIT_KILLED event (triggers.ts)
     case 'PAID_ADDITIONAL':
       return true; // decided by the triggering CARD_PLAYED event (triggers.ts); not re-checked later
     case 'CONTROLS_BATTLEFIELD': {

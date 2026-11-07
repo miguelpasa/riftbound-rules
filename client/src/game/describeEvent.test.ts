@@ -40,6 +40,13 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
     method: 'HOLD',
   },
   XP_SPENT: { seq: 37, type: 'XP_SPENT', player: 'p0', amount: 1 },
+  COMBAT_ENDED: {
+    seq: 99,
+    type: 'COMBAT_ENDED',
+    battlefieldId: 'bf1',
+    winner: 'p0',
+    participants: [],
+  },
   XP_GAINED: { seq: 36, type: 'XP_GAINED', player: 'p0', amount: 2 },
   EFFECT_EMPOWERED: { seq: 35, type: 'EFFECT_EMPOWERED', unitId: 'o1' },
   EFFECT_READIED: { seq: 34, type: 'EFFECT_READIED', unitId: 'o1' },

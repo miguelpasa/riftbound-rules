@@ -255,7 +255,7 @@ describe('Temporary', () => {
     const sw = spawn(s, 'kx-sword', 'p1');
     (s.objects[sw] as CardInstance).attachedTo = t;
     const r = temporaryOnBeginning(s, CARDS);
-    expect(r.events).toEqual([{ type: 'UNIT_KILLED', unitId: t }]);
+    expect(r.events).toEqual([expect.objectContaining({ type: 'UNIT_KILLED', unitId: t })]);
     expect(r.state.objects[t]?.zone).toEqual({ kind: 'trash', player: 'p1' });
     expect(r.state.players[1].trash).toContain(t);
     expect(r.state.players[1].base).not.toContain(t);
@@ -279,7 +279,7 @@ describe('Temporary', () => {
     s.turn.activePlayer = 'p1';
     const tok = spawn(s, 'kx-temp-token', 'p1');
     const r = temporaryOnBeginning(s, cards);
-    expect(r.events).toEqual([{ type: 'UNIT_KILLED', unitId: tok }]);
+    expect(r.events).toEqual([expect.objectContaining({ type: 'UNIT_KILLED', unitId: tok })]);
     expect(r.state.objects[tok]).toBeUndefined();
     expect(r.state.players[1].trash).not.toContain(tok);
     expect(r.state.players[1].base).not.toContain(tok);

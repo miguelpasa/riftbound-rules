@@ -213,6 +213,10 @@ export function describeEvent(
     }
     case 'TRIGGER_NO_TARGET':
       return `${objectName(event.sourceId, view, cards, 'An ability')} had no legal target and did nothing.`;
+    case 'COMBAT_ENDED':
+      return event.winner === null
+        ? 'The combat ended with no winner.'
+        : `${who(event.winner, view)} won the combat.`;
     case 'CLEANUP_ITERATION':
       return `Cleanup pass ${event.iteration}.`;
     default:

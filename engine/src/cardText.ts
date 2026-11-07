@@ -41,6 +41,7 @@ import type {
   CostCount,
   CostReduction,
   StaticCount,
+  DeathFilter,
   PlayFilter,
   StaticAbility,
   Condition,
@@ -1337,6 +1338,8 @@ export function parseCondition(raw: string): Condition | null {
     };
   }
   if (/^you paid the additional cost$/i.test(text)) return { kind: 'PAID_ADDITIONAL' };
+  if (/^I died alone$/i.test(text)) return { kind: 'DIED_ALONE' };
+  if (/^I (?:didn['’]t|did not) die alone$/i.test(text)) return { kind: 'DIED_ALONE', not: true };
   const m0 = /^(?:an? )?(friendly|enemy)? ?unit (?:has )?died this turn$/i.exec(text);
   if (m0) {
     const who = (m0[1] ?? '').toLowerCase();
@@ -1529,8 +1532,13 @@ function parsePlayHead(sen: string): { filter: PlayFilter; body: string } | null
   return { filter, body: m[5] ?? '' };
 }
 
+/** R71: "When [another] a friendly / an enemy unit [here] dies [while I'm at a battlefield]" and "When one or more friendly units die". */
+const DEATH_HEAD =
+  /^When (?:(?:another|an?) )?(friendly|enemy) unit( here)? dies( while I['’]m at a battlefield)?\s*,\s*(.*)$/i;
+const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
+
 const TRIGGER_HEAD =
-  /^(When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -1550,6 +1558,8 @@ export function parseCardAbilities(
     .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
     .replace(TOKEN_WITH, '$1 with $2')
+    // R71: gear says "When you play this" where units say "When you play me".
+    .replace(/\bWhen you play this\b/gi, 'When you play me')
     .replace(/\[Stun\]/gi, 'Stun')
     .replace(
       /\[(Reaction|Action)\]\s*(?:\[>\]|[—–-])\s*/gi,
@@ -1576,6 +1586,8 @@ export function parseCardAbilities(
         legion: boolean;
         when?: Condition;
         playFilter?: PlayFilter;
+        dies?: DeathFilter;
+        once?: boolean;
         sens: string[];
       }
     | { kind: 'ability'; cost: AbilityCost; reaction: boolean; sens: string[] };
@@ -1596,8 +1608,41 @@ export function parseCardAbilities(
       legion = true;
       sen = sen.slice(7).trim();
     }
+    let once = false;
+    if (/^Once each turn,\s*/i.test(sen)) {
+      once = true;
+      sen = sen.replace(/^Once each turn,\s*/i, '');
+    }
+    const dm = DEATH_HEAD.exec(sen);
+    const db = DEATH_BATCH_HEAD.exec(sen);
+    if (dm || db) {
+      const side =
+        ((dm ? dm[1] : db?.[1]) ?? '').toLowerCase() === 'friendly' ? 'friendly' : 'enemy';
+      let body = (dm ? dm[4] : db?.[2]) ?? '';
+      let when: Condition | undefined = dm?.[3] ? { kind: 'AT_BATTLEFIELD' } : undefined;
+      const split = splitCondition(body);
+      if (!split || (split.when && when)) return null;
+      when = when ?? split.when;
+      body = split.rest;
+      if (empowered) {
+        if (when) return null;
+        when = { kind: 'EMPOWERED' };
+      }
+      cur = {
+        kind: 'trigger',
+        ons: ['UNIT_DIES'],
+        legion,
+        ...(when ? { when } : {}),
+        dies: { side, ...(dm?.[2] ? { here: true } : {}), ...(db ? { batch: true } : {}) },
+        ...(once ? { once: true } : {}),
+        sens: [body],
+      };
+      groups.push(cur);
+      continue;
+    }
     const ph = parsePlayHead(sen);
     if (ph) {
+      if (once) return null;
       const split = splitCondition(ph.body);
       if (!split) return null;
       if (empowered && split.when) return null;
@@ -1619,23 +1664,27 @@ export function parseCardAbilities(
     const m = TRIGGER_HEAD.exec(sen);
     if (m) {
       const head = (m[1] ?? '').toLowerCase();
-      const ons: TriggerKind[] = head.startsWith('when you play me or')
-        ? ['PLAY', OR_WHEN[m[2]?.toLowerCase() ?? ''] ?? 'CONQUER']
-        : head.startsWith('when you play me')
-          ? ['PLAY']
-          : head.startsWith('when i hold')
-            ? ['HOLD']
-            : head.startsWith('when i conquer')
-              ? ['CONQUER']
-              : head.startsWith('when i attack or defend')
-                ? ['ATTACK', 'DEFEND']
-                : head.startsWith('when i attack')
-                  ? ['ATTACK']
-                  : head.startsWith('when i defend')
-                    ? ['DEFEND']
-                    : head.startsWith('when i move')
-                      ? ['MOVE']
-                      : ['DEATH'];
+      const ons: TriggerKind[] = head.startsWith('when i win a combat')
+        ? ['WIN_COMBAT']
+        : head.startsWith('when a combat that i was in ends')
+          ? ['COMBAT_END']
+          : head.startsWith('when you play me or')
+            ? ['PLAY', OR_WHEN[m[2]?.toLowerCase() ?? ''] ?? 'CONQUER']
+            : head.startsWith('when you play me')
+              ? ['PLAY']
+              : head.startsWith('when i hold')
+                ? ['HOLD']
+                : head.startsWith('when i conquer')
+                  ? ['CONQUER']
+                  : head.startsWith('when i attack or defend')
+                    ? ['ATTACK', 'DEFEND']
+                    : head.startsWith('when i attack')
+                      ? ['ATTACK']
+                      : head.startsWith('when i defend')
+                        ? ['DEFEND']
+                        : head.startsWith('when i move')
+                          ? ['MOVE']
+                          : ['DEATH'];
       let body = m[3] ?? '';
       let when: Condition | undefined;
       if (body) {
@@ -1653,12 +1702,20 @@ export function parseCardAbilities(
         if (when) return null;
         when = { kind: 'AT_BATTLEFIELD' };
       }
-      cur = { kind: 'trigger', ons, legion, ...(when ? { when } : {}), sens: body ? [body] : [] };
+      cur = {
+        kind: 'trigger',
+        ons,
+        legion,
+        ...(when ? { when } : {}),
+        ...(once ? { once: true } : {}),
+        sens: body ? [body] : [],
+      };
       groups.push(cur);
       continue;
     }
     // R52: only triggers can be Empowered-only (statics are read by parseStaticLines).
     if (empowered) return null;
+    if (once) return null;
     if (/^This enters exhausted$/i.test(sen) && !legion && opts.gearLike === true) {
       out.entersExhausted = true;
       cur = null;
@@ -1726,6 +1783,8 @@ export function parseCardAbilities(
           ...(g.legion ? { condition: 'LEGION' as const } : {}),
           ...(g.when ? { when: g.when } : {}),
           ...(g.playFilter ? { playFilter: g.playFilter } : {}),
+          ...(g.dies ? { dies: g.dies } : {}),
+          ...(g.once ? { oncePerTurn: true } : {}),
         });
       }
     }

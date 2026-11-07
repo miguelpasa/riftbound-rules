@@ -43,6 +43,7 @@ import type {
   GameEventInput,
   GameState,
   CardEffect,
+  CardTrigger,
   ChooseTriggerTargetIntent,
   PlayFilter,
   PlayerId,
@@ -84,16 +85,33 @@ function playMatches(
 function collect(state: GameState, cards: CardDatabase, events: readonly GameEvent[]): Pending[] {
   const out: Pending[] = [];
   let paidExtra = false;
-  const add = (obj: CardInstance | undefined, kind: TriggerKind, controller: PlayerId): void => {
+  let diedAlone: boolean | undefined;
+  const batchSeen = new Set<string>();
+  /** R71: "once each turn" triggers already collected in this pass (object id + index). */
+  const onceSeen = new Set<string>();
+  const add = (
+    obj: CardInstance | undefined,
+    kind: TriggerKind,
+    controller: PlayerId,
+    pick?: (t: CardTrigger) => boolean,
+  ): void => {
     const triggers = obj ? cards[obj.cardId]?.triggers : undefined;
     triggers?.forEach((t, index) => {
       if (!obj || t.on !== kind) return;
+      if (pick && !pick(t)) return;
+      if (t.oncePerTurn) {
+        if (obj.onceTurn?.[index] === state.turn.number) return;
+        if (onceSeen.has(obj.id + ':' + index)) return;
+        onceSeen.add(obj.id + ':' + index);
+      }
       // 812: a Legion-dependent ability triggers only while another card was played this turn.
       if (t.condition === 'LEGION' && !legionActive(state, controller, obj.id)) return;
       // R43: a general condition must hold as the ability triggers.
       // R58: "if you paid the additional cost" is read from the CARD_PLAYED event that caused the trigger.
       if (t.when?.kind === 'PAID_ADDITIONAL') {
         if (!paidExtra) return;
+      } else if (t.when?.kind === 'DIED_ALONE') {
+        if ((diedAlone === true) === (t.when.not === true)) return;
       } else if (t.when && !evalCondition(state, cards, t.when, controller, obj.id)) return;
       out.push({ sourceId: obj.id, cardId: obj.cardId, battlefield: false, index, controller });
     });
@@ -163,7 +181,43 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       }
     } else if (e.type === 'UNIT_KILLED') {
       const o = state.objects[e.unitId];
-      if (o && o.zone.kind === 'trash') add(o, 'DEATH', o.owner);
+      if (o && o.zone.kind === 'trash') {
+        diedAlone = e.alone === true;
+        add(o, 'DEATH', o.owner);
+        diedAlone = undefined;
+      }
+      // R71: "When a friendly / an enemy unit dies" fires for the permanents on the board.
+      const dead = cards[e.cardId ?? o?.cardId ?? ''];
+      const deadIsUnit =
+        dead?.type === 'UNIT' || (dead?.type === 'TOKEN' && dead.stats.might !== undefined);
+      if (deadIsUnit && e.controller) {
+        const deadController = e.controller;
+        for (const src of Object.values(state.objects)) {
+          if (src.id === e.unitId || !onBoard(src)) continue;
+          const here = src.zone.kind === 'battlefield' ? src.zone.battlefieldId : 'base';
+          const seenBatch = batchSeen;
+          add(src, 'UNIT_DIES', src.controller, (t) => {
+            const f = t.dies;
+            if (!f) return false;
+            if ((f.side === 'friendly') !== (src.controller === deadController)) return false;
+            if (f.here && (here === 'base' || here !== e.at)) return false;
+            if (f.batch) {
+              const key = src.id + ':' + t.effects.length;
+              if (seenBatch.has(key)) return false;
+              seenBatch.add(key);
+            }
+            return true;
+          });
+        }
+      }
+    } else if (e.type === 'COMBAT_ENDED') {
+      // R71: the winner's units win the combat; every unit still standing was "in" it.
+      for (const id of e.participants) {
+        const o = state.objects[id];
+        if (!o || !onBoard(o) || cards[o.cardId]?.type !== 'UNIT') continue;
+        add(o, 'COMBAT_END', o.controller);
+        if (e.winner !== null && o.controller === e.winner) add(o, 'WIN_COMBAT', o.controller);
+      }
     } else if (e.type === 'SHOWDOWN_STARTED' && e.isCombat) {
       const c = state.flow.combat;
       if (!c || c.battlefieldId !== e.battlefieldId) continue;
@@ -224,6 +278,10 @@ export function fireTriggers(
     };
     s.flow.chain.push(item);
     added++;
+    if (cards[p.cardId]?.triggers?.[p.index]?.oncePerTurn && !p.battlefield) {
+      const src = s.objects[p.sourceId];
+      if (src) src.onceTurn = { ...(src.onceTurn ?? {}), [p.index]: s.turn.number };
+    }
     raw.push({ type: 'CHAIN_ITEM_ADDED', chainItemId: item.id, controller: p.controller });
     if (auto) {
       raw.push({

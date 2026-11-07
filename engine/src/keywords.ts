@@ -138,13 +138,30 @@ export function temporaryOnBeginning(
       );
     })
     .sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));
+  const crowd = new Map<string, number>();
+  for (const u of Object.values(s.objects)) {
+    if (isOnBoard(u) && (cards[u.cardId]?.type === 'UNIT' || cards[u.cardId]?.type === 'TOKEN')) {
+      const k =
+        u.controller + '|' + (u.zone.kind === 'battlefield' ? u.zone.battlefieldId : 'base');
+      crowd.set(k, (crowd.get(k) ?? 0) + 1);
+    }
+  }
   for (const o of doomed) {
+    const at = o.zone.kind === 'battlefield' ? o.zone.battlefieldId : 'base';
+    const death = {
+      type: 'UNIT_KILLED' as const,
+      unitId: o.id,
+      controller: o.controller,
+      cardId: o.cardId,
+      at,
+      alone: (crowd.get(o.controller + '|' + at) ?? 1) <= 1,
+    };
     const from = s.players[playerIndex(o.zone.player)];
     from.base = from.base.filter((id) => id !== o.id);
     recordDeath(s, cards, o.controller); // R56
     if (cards[o.cardId]?.type === 'TOKEN') {
       removeTokenFromGame(s, o.id); // 186.1: tokens cease to exist outside the Board
-      events.push({ type: 'UNIT_KILLED', unitId: o.id });
+      events.push(death);
       continue;
     }
     s.players[playerIndex(o.owner)].trash.push(o.id);
@@ -153,7 +170,7 @@ export function temporaryOnBeginning(
     o.mightBonus = 0;
     delete o.attachedTo; // Temporary Gear: it leaves its unit too
     detachAll(s, o.id);
-    events.push({ type: 'UNIT_KILLED', unitId: o.id });
+    events.push(death);
   }
   return { state: s, events };
 }
