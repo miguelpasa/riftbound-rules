@@ -22,6 +22,8 @@ export type GameEvent = EventBase &
         cardId: string;
         /** R58: the optional additional cost was paid (public, as the payment is). */
         paidExtra?: boolean;
+        /** R100: the card was played from face down (a Hidden card revealed). */
+        fromFacedown?: boolean;
       }
     | { type: 'CARD_HIDDEN'; player: PlayerId; battlefieldId: string }
     | { type: 'FACEDOWN_REMOVED'; battlefieldId: string; cardId: string }

@@ -154,6 +154,8 @@ export function evalCondition(
       if (cond.withOther && others === 0) return false;
       return true;
     }
+    case 'FROM_FACEDOWN':
+      return true; // decided by the triggering CARD_PLAYED event (triggers.ts)
     case 'CONTROLS_HERE': {
       const here = hereOfSource(state, sourceId);
       return (

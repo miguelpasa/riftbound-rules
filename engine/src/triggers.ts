@@ -72,6 +72,7 @@ function playMatches(
   f: PlayFilter | undefined,
   cardId: string,
   player: PlayerId,
+  fromFacedown = false,
 ): boolean {
   if (!f) return true;
   const def = cards[cardId];
@@ -83,6 +84,7 @@ function playMatches(
     const rec = state.players[player === 'p0' ? 0 : 1]?.playedThisTurn;
     if (!rec || rec.turn !== state.turn.number || rec.objectIds.length !== f.nth) return false;
   }
+  if (f.fromFacedown && !fromFacedown) return false;
   if (f.token) return false; // token plays are matched separately (TOKEN_PLAYED)
   if (f.onOpponentTurn && state.turn.activePlayer === player) return false;
   if (f.inShowdown && !state.flow.showdown) return false;
@@ -92,6 +94,7 @@ function playMatches(
 function collect(state: GameState, cards: CardDatabase, events: readonly GameEvent[]): Pending[] {
   const out: Pending[] = [];
   let paidExtra = false;
+  let facedownPlay = false;
   let diedAlone: boolean | undefined;
   const batchSeen = new Set<string>();
   /** R71: "once each turn" triggers already collected in this pass (object id + index). */
@@ -115,7 +118,9 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       if (t.condition === 'LEGION' && !legionActive(state, controller, obj.id)) return;
       // R43: a general condition must hold as the ability triggers.
       // R58: "if you paid the additional cost" is read from the CARD_PLAYED event that caused the trigger.
-      if (t.when?.kind === 'PAID_ADDITIONAL') {
+      if (t.when?.kind === 'FROM_FACEDOWN') {
+        if (!facedownPlay) return;
+      } else if (t.when?.kind === 'PAID_ADDITIONAL') {
         if (!paidExtra) return;
       } else if (t.when?.kind === 'DIED_ALONE') {
         if ((diedAlone === true) === (t.when.not === true)) return;
@@ -138,12 +143,17 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
   };
   for (const e of events) {
     if (e.type === 'CARD_PLAYED') {
+      // R100: hiding a card emits a private CARD_PLAYED marker; that is not playing the card.
+      if (e.visibleTo !== undefined) continue;
       // R49: "When you play a <card>" fires for the player's other permanents (and their Legend).
       for (const src of Object.values(state.objects)) {
         if (src.id === e.cardInstanceId || src.controller !== e.player) continue;
         if (!onBoard(src) && src.zone.kind !== 'legend') continue;
         cards[src.cardId]?.triggers?.forEach((t, index) => {
-          if (t.on !== 'YOU_PLAY' || !playMatches(state, cards, t.playFilter, e.cardId, e.player))
+          if (
+            t.on !== 'YOU_PLAY' ||
+            !playMatches(state, cards, t.playFilter, e.cardId, e.player, e.fromFacedown === true)
+          )
             return;
           if (t.when && !evalCondition(state, cards, t.when, e.player, src.id)) return;
           out.push({
@@ -158,8 +168,10 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       const o = state.objects[e.cardInstanceId];
       if (o && onBoard(o) && ['UNIT', 'GEAR'].includes(cards[o.cardId]?.type ?? '')) {
         paidExtra = e.paidExtra === true;
+        facedownPlay = e.fromFacedown === true;
         add(o, 'PLAY', o.controller);
         paidExtra = false;
+        facedownPlay = false;
       }
     } else if (e.type === 'BATTLEFIELD_SCORED') {
       addBattlefield(e.battlefieldId, e.method, e.player);
@@ -225,6 +237,12 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     } else if (e.type === 'EFFECT_EMPOWERED') {
       const o = state.objects[e.unitId];
       if (o && onBoard(o)) add(o, 'BECOME_EMPOWERED', o.controller);
+    } else if (e.type === 'CARD_HIDDEN') {
+      // R100: "When you hide a card".
+      for (const src of Object.values(state.objects)) {
+        if (src.controller !== e.player || !onBoard(src)) continue;
+        add(src, 'YOU_HIDE', src.controller);
+      }
     } else if (e.type === 'TOKEN_PLAYED') {
       // R99: "When you play a token unit" fires for the player's permanents.
       const tokenDef = cards[e.cardId];

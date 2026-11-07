@@ -276,6 +276,7 @@ export function playHiddenCard(
   w.zone = { kind: 'hand', player: pid };
   delete w.facedown;
   delete w.hidden;
+  w.faceDownPlay = true; // R100: read (and cleared) by playCard
   work.players[playerIndex(pid)].hand.push(w.id);
 
   // Gains Reaction; base cost reduced to 0 (additional costs still apply).

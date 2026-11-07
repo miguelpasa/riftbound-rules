@@ -467,3 +467,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Token units:** only effect-played tokens trigger "a token unit" heads; "a unit" heads still mean cards.
 - **Nth card:** counted from the cards the player played this turn (Hidden plays included).
 - **Rule numbers:** tests cite 303.
+
+## R100: Hide / play-from-face-down triggers (and a fix: hiding is not playing) (A-R100)
+
+- **Hide vs play:** a hidden card is placed, not played; it triggers "When you hide" only.
+- **Rule numbers:** tests cite 811.

@@ -617,7 +617,9 @@ export function playCard(
     cardInstanceId: obj.id,
     cardId: obj.cardId,
     ...(paidExtra ? { paidExtra: true } : {}),
+    ...(obj.faceDownPlay ? { fromFacedown: true } : {}),
   });
+  delete obj.faceDownPlay;
   const playedEvents = stampEvents(work, events);
   const pushed = pushPendingItem(work, item);
 

@@ -609,6 +609,8 @@ export type Condition =
   | { kind: 'IN_COMBAT' }
   /** R85: the controller controls the battlefield the source stands at ("if you control this battlefield"). */
   | { kind: 'CONTROLS_HERE' }
+  /** R100: this card was just played from face down (read from the triggering CARD_PLAYED event). */
+  | { kind: 'FROM_FACEDOWN' }
   /**
    * R95: the source is in the combat being fought as an attacker / defender (`role`), optionally `alone` (no other
    * friendly unit at the battlefield) or `withOther` (at least one other friendly unit there).
@@ -701,7 +703,9 @@ export type TriggerKind =
   | 'BECOME_READY'
   | 'BECOME_EMPOWERED'
   /** R92: "When an opponent scores" (a point from any source). */
-  | 'OPP_SCORES';
+  | 'OPP_SCORES'
+  /** R100: "When you hide a card". */
+  | 'YOU_HIDE';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {
@@ -723,6 +727,8 @@ export interface PlayFilter {
   other?: boolean;
   /** "that costs [N] or more" / "with Energy cost [N] or more": the printed Energy cost. */
   minEnergy?: number;
+  /** R100: "When you play a card from face down". */
+  fromFacedown?: boolean;
   /** R99: "with Power cost [A][A] or more": the printed generic Power cost. */
   minPower?: number;
   /** R99: "a token unit": fires when a token unit is played by an effect (never for cards). */
