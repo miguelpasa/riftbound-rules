@@ -102,6 +102,18 @@ export interface CardStats {
  * 'partial' + `effects` means the listed effects run and no "unimplemented" badge is shown.
  * Slice 1 is target-free: more ops (damage, buff, kill, move, ...) extend this union.
  */
+/**
+ * R81: "..., if <condition>, <stronger effect> instead" on a targeted damage / Might effect. The alternative
+ * replaces the amount when it holds: `when` is a controller / source condition (Level, facedown card, source
+ * Empowered); `target` is a state of the chosen unit. `temp` turns a [Buff] into a plain "+N this turn".
+ */
+export interface AltAmount {
+  amount: number;
+  when?: Condition;
+  target?: 'EMPOWERED' | 'ATTACKING' | 'BUFFED';
+  temp?: boolean;
+}
+
 /** Whose unit may be targeted, relative to the spell's controller (default 'any'). */
 export type TargetSide = 'friendly' | 'enemy' | 'any';
 
@@ -171,6 +183,8 @@ export type CardEffect =
       amount: number;
       /** R74: "damage equal to my Might / [Assault] / [Shield]": read from the source when the effect runs (amount is 0). */
       amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD';
+      /** R81: "... instead" when a condition holds. */
+      alt?: AltAmount;
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;
@@ -182,6 +196,8 @@ export type CardEffect =
       amount: number;
       /** R54: [Buff] the target: a +1 Might buff if it has none (amount is 1). */
       buff?: boolean;
+      /** R81: "... instead" when a condition holds. */
+      alt?: AltAmount;
       side?: TargetSide;
       duration?: 'TURN';
       slot?: number;

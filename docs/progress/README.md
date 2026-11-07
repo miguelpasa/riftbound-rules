@@ -117,3 +117,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R78](R78-become-triggers.md) | "When I become exhausted / ready / Empowered" triggers (439 -> 444 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R79](R79-move-here.md) | "Move an enemy unit to that battlefield / here" effect moves (444 -> 447 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R80](R80-counter-filters.md) | Counters limited by the countered spell's cost (Hush, Defy) (447 -> 449 cards full) | Low | Sonnet | Done | uncommitted |
+| [R81](R81-instead-alt.md) | "... instead" alternatives on targeted Might and damage effects (449 -> 456 cards full) | Medium | Sonnet | Done | uncommitted |

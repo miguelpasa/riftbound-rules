@@ -358,3 +358,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Printed cost:** the limits compare the countered spell's printed Energy and Power costs (not what was actually paid after reductions or surcharges).
 - **Rule numbers:** tests cite 359.3.
+
+## R81: "... instead" alternatives on targeted Might and damage effects (A-R81)
+
+- **Attacking:** a unit at the combat battlefield whose controller is the combat's attacker.
+- **Level:** the XP check is made when the effect resolves.
+- **Rule numbers:** tests cite 359.3 and 466.2.c.

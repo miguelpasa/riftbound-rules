@@ -16,8 +16,10 @@ import { allocObjectId } from './setup.js';
 import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
 import { defWithGrants, staticBonus } from './statics.js';
+import { evalCondition } from './conditions.js';
 import { playerIndex } from './types/constants.js';
 import type {
+  AltAmount,
   CardDatabase,
   CardDef,
   CardEffect,
@@ -611,6 +613,26 @@ export function runEffects(
     );
     return (kw ?? []).reduce((n, k) => n + (k.value ?? 1), 0);
   };
+  /** R81: does the "... instead" alternative of `e` apply to target `u`? */
+  const altApplies = (alt: AltAmount | undefined, u: CardInstance): alt is AltAmount => {
+    if (!alt) return false;
+    if (alt.when && !evalCondition(state, cards, alt.when, controller, sourceObjectId))
+      return false;
+    if (alt.target === 'EMPOWERED' && !u.empowered) return false;
+    if (alt.target === 'BUFFED' && !u.buffed) return false;
+    if (alt.target === 'ATTACKING') {
+      const c = state.flow.combat;
+      if (
+        !c ||
+        c.attacker !== u.controller ||
+        u.zone.kind !== 'battlefield' ||
+        u.zone.battlefieldId !== c.battlefieldId
+      ) {
+        return false;
+      }
+    }
+    return true;
+  };
   const addTemp = (u: CardInstance, amount: number, temp: boolean): void => {
     u.mightBonus += amount;
     if (temp) u.tempMight = (u.tempMight ?? 0) + amount;
@@ -775,7 +797,7 @@ export function runEffects(
         }
         for (const u of legal) {
           if (e.op === 'DAMAGE_TARGET') {
-            damage(u, damageAmount(e));
+            damage(u, altApplies(e.alt, u) ? e.alt.amount : damageAmount(e));
           } else if (e.op === 'KILL_TARGET' && isGearDef(cards[u.cardId])) {
             // R46: "kill a unit or gear" chose a gear.
             doneSlots.set(slot, u.controller);
@@ -826,6 +848,9 @@ export function runEffects(
           } else if (e.op === 'COUNTER_SPELL') {
             counterSpell(state, u);
             out.push({ type: 'EFFECT_COUNTERED', cardId: u.cardId });
+          } else if (e.alt && altApplies(e.alt, u)) {
+            // R81: the stronger alternative replaces the whole effect.
+            addTemp(u, e.alt.amount, true);
           } else if (e.buff) {
             // R54: [Buff]: a +1 Might buff if the unit does not have one.
             if (!u.buffed) {

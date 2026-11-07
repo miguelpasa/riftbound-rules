@@ -41,6 +41,7 @@ import type {
   CostCount,
   CostReduction,
   StaticCount,
+  AltAmount,
   DeathFilter,
   PlayFilter,
   StaticAbility,
@@ -1236,6 +1237,8 @@ export function parseRepeatCost(
 
 export function parseSpellText(text: string): CardEffect[] | null {
   const cleaned = protectGrants(text)
+    .replace(/\b(is|it's|it’s) \[Empowered\]/gi, '$1 empowered')
+    .replace(/\[Level (\d+)\]\s*(?:\[>\]|[—–-])\s*/gi, 'LEVEL$1 ')
     .replace(/(?:^|\n)\s*\[Repeat\]\s*(?:\[[0-9C]+\]\s*)+/gi, '\n')
     .replace(/(?:^|\n)\s*\[Repeat\]\s*[—–-][^(\n]*/gi, '\n')
     .replace(/\[(Action|Reaction|Hidden)\]/gi, ' ')
@@ -1252,6 +1255,42 @@ export function parseSpellText(text: string): CardEffect[] | null {
  * triggered and activated abilities). "A, then B" is two sentences in order. Null unless every
  * sentence is understood and every chosen unit is used by an effect.
  */
+/**
+ * R81: "[If <condition>,] give it +N [M] this turn instead" / "[If ...,] deal N to it instead" attaches an
+ * alternative amount to the previous targeted Might / damage effect. Conditions: the chosen unit is Empowered /
+ * attacking / already buffed, or a controller / source condition (Level N, a facedown card, "this is Empowered").
+ */
+function attachInstead(sen: string, out: CardEffect[]): boolean {
+  const m =
+    /^(?:If (.+?), )?(?:LEVEL(\d+) )?(?:give (?:it|that unit) \+(\d+) \[M\] this turn|deal (\d+) to it) instead$/i.exec(
+      sen,
+    );
+  if (!m) return false;
+  const last = out[out.length - 1];
+  const isGive = m[3] !== undefined;
+  if (!last || last.op !== (isGive ? 'BUFF_TARGET' : 'DAMAGE_TARGET') || last.alt) return false;
+  const alt: AltAmount = { amount: Number(m[3] ?? m[4]) };
+  if (m[1] !== undefined) {
+    const c = m[1].trim().replace(/^it['’]s /i, 'it is ');
+    if (/^it is (?:already )?empowered$/i.test(c)) alt.target = 'EMPOWERED';
+    else if (/^it is attacking$/i.test(c)) alt.target = 'ATTACKING';
+    else if (/^it is already buffed$/i.test(c)) alt.target = 'BUFFED';
+    else if (/^this is empowered$/i.test(c)) alt.when = { kind: 'EMPOWERED' };
+    else {
+      const w = parseCondition(m[1]);
+      if (!w) return false;
+      alt.when = w;
+    }
+  } else if (m[2] !== undefined) {
+    alt.when = { kind: 'XP', n: Number(m[2]) };
+  } else {
+    return false;
+  }
+  if (isGive && last.op === 'BUFF_TARGET' && last.buff) alt.temp = true;
+  last.alt = alt;
+  return true;
+}
+
 function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
@@ -1264,6 +1303,7 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     })
     .map((x) => x.replace(/^Then /i, '').trim());
   for (let i = 0; i < list.length; i++) {
+    if (attachInstead(list[i] as string, out)) continue;
     const look = parseLookSequence(list, i);
     if (look) {
       out.push(look.effect);
@@ -1546,7 +1586,7 @@ export function parseCondition(raw: string): Condition | null {
         kind: 'RUNES_VS_OPPONENT',
         cmp: (rv[1] ?? '').toLowerCase() === 'fewer' ? 'FEWER' : 'MORE',
       };
-    const fd = /^you control a facedown card(?: (here)| at a battlefield)$/i.exec(text);
+    const fd = /^you control a facedown card(?: (here)| at a battlefield)?$/i.exec(text);
     if (fd) return { kind: 'FACEDOWN', ...(fd[1] ? { here: true } : {}) };
   }
   if (/^I (?:didn['’]t|did not) die alone$/i.test(text)) return { kind: 'DIED_ALONE', not: true };
@@ -1794,6 +1834,7 @@ export function parseCardAbilities(
     .replace(/\s*\n\s*/g, '. ')
     .replace(/\([^)]*\)/g, ' ')
     .replace(TOKEN_WITH, '$1 with $2')
+    .replace(/\b(is|it's|it’s) \[Empowered\]/gi, '$1 empowered')
     // R78: "When I become [Empowered]" is a trigger head, not the Empowered gate.
     .replace(/\bbecome \[Empowered\]/gi, 'become empowered')
     // R74: keep "my [Assault]" from being read as the keyword itself.

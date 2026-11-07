@@ -335,7 +335,10 @@ export function convertRow(row: RawRow): ConvertResult {
     card.supportLevel === 'partial' &&
     keywords.every(
       (k) =>
-        MVP_SET.has(k.name) || (k.name === 'Repeat' && repeatCost !== null) || k.name === 'Predict',
+        MVP_SET.has(k.name) ||
+        (k.name === 'Repeat' && repeatCost !== null) ||
+        k.name === 'Predict' ||
+        k.name === 'Level',
     )
   ) {
     const modes = parseModalSpell(text);
