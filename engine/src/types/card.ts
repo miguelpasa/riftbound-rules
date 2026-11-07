@@ -366,6 +366,17 @@ export type TargetedEffect = Extract<
  * source's controller. It grants Might and / or keywords (only Assault, Shield, Tank, Ganking and
  * Deflect are read).
  */
+/** R67: what a counted static counts (always from the source's point of view). */
+export type StaticCount =
+  | 'OTHER_EXHAUSTED_UNIT'
+  | 'OTHER_SAME_NAME_HERE'
+  | 'FRIENDLY_TOKEN_UNIT'
+  | 'FRIENDLY_TEMPORARY_HERE'
+  | 'FRIENDLY_GEAR'
+  | 'BUFFED_FRIENDLY_HERE'
+  | 'ENEMY_UNITS_HERE'
+  | 'POINTS';
+
 export interface StaticAbility {
   affects:
     | 'SELF'
@@ -376,6 +387,12 @@ export interface StaticAbility {
     | 'UNITS_HERE'
     | 'ALL_UNITS';
   subtype?: string;
+  /**
+   * R67: "for each ...": `might` is multiplied by this count; with `perKeyword` the keyword is granted with the
+   * count as its value ("I have [Assault] equal to the number of gear you control").
+   */
+  per?: StaticCount;
+  perKeyword?: 'Assault' | 'Shield';
   /** R57: a movement restriction instead of / besides a grant: units it affects cannot move to the Base. */
   restrict?: 'NO_MOVE_TO_BASE';
   when?: Condition;

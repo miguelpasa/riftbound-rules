@@ -264,3 +264,10 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Empowered Deathknell:** "[Empowered][>][>>][Deathknell][>] <effect>" is a Deathknell that fires only if the unit was Empowered when it died (the flag stays on the object in the Trash until it is played again); the "[>>]" icon is ignored.
 - **Not done:** Empower with alternatives ("[1] or [C]"), Empower cost modifiers, "Your units that are [Empowered] have ...", Empowered replacement effects (Gangplank).
 - **Rule numbers:** test cites 145.1 only.
+
+## R67: counted statics (A-R67)
+
+- **Model:** `StaticAbility.per` multiplies `might` by a count taken from the source's point of view (other exhausted friendly units, other same-name units at my battlefield, friendly token units, friendly Temporary units at my battlefield, friendly gear, buffed friendly units at my battlefield, enemy units at my battlefield, your points); with `perKeyword` the count becomes the value of Assault / Shield ("I have [Assault] equal to the number of gear you control"; nothing is granted at 0). The source itself is never counted.
+- **Gear count** includes gear-like tokens (Gold) and gear on the board only.
+- **Not done:** "for each time I'm Empowered" (Kayle), conditional counts of "units and/or gear", "[Assault] equal to my [Shield]".
+- **Rule numbers:** tests cite 143.2 only.

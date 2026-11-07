@@ -40,6 +40,7 @@ import type {
   CardTrigger,
   CostCount,
   CostReduction,
+  StaticCount,
   PlayFilter,
   StaticAbility,
   Condition,
@@ -745,6 +746,35 @@ const LEVEL_PREFIX = /^\[Level (\d+)\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
 const EMPOWERED_PREFIX = /^\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
 const STATIC_KW = 'Deflect|Ganking|Assault|Shield|Tank';
 const STATIC_GRANT = String.raw`((?:\+\d+ \[M\](?:,? and )?)?(?:\[(?:${STATIC_KW})(?: \d+)?\](?:,? and |, )?)*)`;
+const COUNT_PHRASES: [RegExp, StaticCount][] = [
+  [/^other exhausted units? you control$/i, 'OTHER_EXHAUSTED_UNIT'],
+  [/^other units? you control here with my name$/i, 'OTHER_SAME_NAME_HERE'],
+  [/^token units? you control$/i, 'FRIENDLY_TOKEN_UNIT'],
+  [/^of your units with \[Temporary\] at my battlefield$/i, 'FRIENDLY_TEMPORARY_HERE'],
+  [/^(?:friendly gear|gear you control)$/i, 'FRIENDLY_GEAR'],
+  [/^buffed friendly units? at my battlefield$/i, 'BUFFED_FRIENDLY_HERE'],
+  [/^enemy units here$/i, 'ENEMY_UNITS_HERE'],
+];
+
+/** R67: "I have +N [M] for each <thing>", "My Might is increased by your points", "I have [Assault] equal to the number of <thing>". */
+function parseCountedStatic(body: string): StaticAbility | null {
+  if (/^My Might is increased by your points$/i.test(body)) {
+    return { affects: 'SELF', might: 1, per: 'POINTS' };
+  }
+  const m = /^I (?:have|get) \+(\d+) \[M\] for each (.+)$/i.exec(body);
+  if (m) {
+    const c = COUNT_PHRASES.find(([re]) => re.test((m[2] ?? '').trim()));
+    return c ? { affects: 'SELF', might: Number(m[1]), per: c[1] } : null;
+  }
+  const k = /^I have \[(Assault|Shield)\] equal to the number of (.+)$/i.exec(body);
+  if (k) {
+    const c = COUNT_PHRASES.find(([re]) => re.test((k[2] ?? '').trim()));
+    const name = (k[1] ?? '').toLowerCase() === 'shield' ? 'Shield' : 'Assault';
+    return c ? { affects: 'SELF', per: c[1], perKeyword: name } : null;
+  }
+  return null;
+}
+
 const STATIC_RESTRICT = [
   [/^(I) can['’]t move to base$/i, 'SELF'],
   [/^(Units) can['’]t move to base$/i, 'ALL_UNITS'],
@@ -802,6 +832,11 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
     // R53: "[Level N][>] I have ..." applies while the controller has N or more XP.
     const lv = em ? null : LEVEL_PREFIX.exec(plain);
     const body = em ? (em[1] ?? '') : lv ? (lv[2] ?? '') : plain;
+    const cnt = parseCountedStatic(body);
+    if (cnt) {
+      statics.push(cnt);
+      continue;
+    }
     const rs = STATIC_RESTRICT.find(([re]) => re.test(body));
     if (rs) {
       statics.push({ affects: rs[1], restrict: 'NO_MOVE_TO_BASE' });

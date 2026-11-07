@@ -41,6 +41,61 @@ function isUnit(def: CardDef | undefined): boolean {
   return def?.type === 'UNIT' || (def?.type === 'TOKEN' && def.stats.might !== undefined);
 }
 
+function isTempDef(def: CardDef | undefined): boolean {
+  return def?.keywords.some((k) => k.name === 'Temporary') === true;
+}
+
+/** R67: the number a counted static multiplies by. */
+function countStatic(
+  state: GameState,
+  cards: CardDatabase,
+  src: CardInstance,
+  what: NonNullable<StaticAbility['per']>,
+): number {
+  if (what === 'POINTS') return state.players[src.controller === 'p0' ? 0 : 1]?.points ?? 0;
+  const here = targetBattlefield(src);
+  let n = 0;
+  for (const o of Object.values(state.objects)) {
+    if (o.id === src.id) continue;
+    const z = o.zone.kind;
+    if (z !== 'base' && z !== 'battlefield') continue;
+    const d = cards[o.cardId];
+    const friendly = o.controller === src.controller;
+    const at = targetBattlefield(o);
+    switch (what) {
+      case 'OTHER_EXHAUSTED_UNIT':
+        if (friendly && isUnit(d) && !o.ready) n++;
+        break;
+      case 'OTHER_SAME_NAME_HERE':
+        if (
+          friendly &&
+          isUnit(d) &&
+          here !== null &&
+          at === here &&
+          d?.name === cards[src.cardId]?.name
+        )
+          n++;
+        break;
+      case 'FRIENDLY_TOKEN_UNIT':
+        if (friendly && d?.type === 'TOKEN' && isUnit(d)) n++;
+        break;
+      case 'FRIENDLY_TEMPORARY_HERE':
+        if (friendly && isUnit(d) && here !== null && at === here && isTempDef(d)) n++;
+        break;
+      case 'FRIENDLY_GEAR':
+        if (friendly && (d?.type === 'GEAR' || (d?.type === 'TOKEN' && !isUnit(d)))) n++;
+        break;
+      case 'BUFFED_FRIENDLY_HERE':
+        if (friendly && isUnit(d) && here !== null && at === here && o.buffed) n++;
+        break;
+      case 'ENEMY_UNITS_HERE':
+        if (!friendly && isUnit(d) && here !== null && at === here) n++;
+        break;
+    }
+  }
+  return n;
+}
+
 function applies(
   s: StaticAbility,
   sourceId: string,
@@ -112,7 +167,14 @@ export function staticBonus(
     for (const s of def?.statics ?? []) {
       if (!applies(s, sourceId, controller, here, target, targetDef)) continue;
       if (s.when && !when(s.when)) continue;
-      might += s.might ?? 0;
+      if (s.per) {
+        const src = state.objects[sourceId];
+        const n = src ? countStatic(state, cards, src, s.per) : 0;
+        might += (s.might ?? 0) * n;
+        if (s.perKeyword && n > 0) keywords.push({ name: s.perKeyword, value: n });
+      } else {
+        might += s.might ?? 0;
+      }
       if (s.restrict === 'NO_MOVE_TO_BASE') noMoveToBase = true;
       for (const k of s.keywords ?? []) keywords.push({ ...k });
     }
