@@ -375,3 +375,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Lock scope:** applies to the rest of the turn in which it was set; a Cards lock is never weakened by a later Spells lock. Hidden plays go through the same timing check.
 - **Minimum:** each unit loses min(N, Might - minimum), never below the minimum.
 - **Rule numbers:** tests cite 143.2, 354 and 359.3.
+
+## R84: Modal spells with Repeat, damage to a unit in a Base (A-R84)
+
+- **Repeat with modes:** the repeat uses the same mode and targets (the real text lets the player choose differently, UNCLEAR; same reading as R42).
+- **Rule numbers:** tests cite 355.10 and 820.

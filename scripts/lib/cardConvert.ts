@@ -344,6 +344,7 @@ export function convertRow(row: RawRow): ConvertResult {
     const modes = parseModalSpell(text);
     if (modes) {
       card.modes = modes;
+      if (repeatCost) card.repeatCost = repeatCost;
       card.supportLevel = 'full';
     }
     const effects = modes ? null : parseSpellText(text);

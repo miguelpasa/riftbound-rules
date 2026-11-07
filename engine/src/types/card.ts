@@ -199,6 +199,8 @@ export type CardEffect =
       alt?: AltAmount;
       side?: TargetSide;
       atBattlefield?: boolean;
+      /** R84: "a unit in a base" (either player's Base). */
+      inBase?: boolean;
       slot?: number;
       count?: TargetCount;
     } & TargetScope)

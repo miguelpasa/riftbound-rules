@@ -381,7 +381,9 @@ function parseChooserBase(sen: string): Chooser | null {
       w === 'might' ? 'MY_MIGHT' : w.includes('assault') ? 'MY_ASSAULT' : 'MY_SHIELD';
     return { ...base, effect: { ...base.effect, amount: 0, amountFrom } };
   }
-  let m = new RegExp(`^Deal (\\d+) to an? ${SIDE}unit( at a battlefield)?$`, 'i').exec(sen);
+  let m = new RegExp(`^Deal (\\d+) to an? ${SIDE}unit( at a battlefield| in a base)?$`, 'i').exec(
+    sen,
+  );
   if (m) {
     const s = side(m[2]);
     return {
@@ -389,7 +391,8 @@ function parseChooserBase(sen: string): Chooser | null {
         op: 'DAMAGE_TARGET',
         amount: Number(m[1]),
         ...sideProp(s),
-        ...(m[3] ? { atBattlefield: true } : {}),
+        ...(/battlefield/i.test(m[3] ?? '') ? { atBattlefield: true } : {}),
+        ...(/base/i.test(m[3] ?? '') ? { inBase: true } : {}),
       },
       decl: { side: s ?? 'any' },
     };
@@ -1140,7 +1143,9 @@ export function parseModalSpell(text: string): CardEffect[][] | null {
     modes.push(eff);
   }
   const before = lines.slice(0, head).join('\n');
-  if (before && !/^(?:\[(?:Action|Reaction|Hidden)\]\s*)+$/i.test(before)) return null;
+  // R84: a Repeat cost line may precede the modes (the cost itself is stored separately).
+  const keywordsOnly = before.replace(/^\[Repeat\]\s*(?:\[[0-9CA]+\]\s*)+$/gim, '').trim();
+  if (keywordsOnly && !/^(?:\[(?:Action|Reaction|Hidden)\]\s*)+$/i.test(keywordsOnly)) return null;
   return modes.length >= 2 ? modes : null;
 }
 
