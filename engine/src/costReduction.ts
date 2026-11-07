@@ -98,6 +98,37 @@ export function selfEnergyDiscount(
     total += def.legionCostReduction;
   const r = def.costReduction;
   if (r) total += reductionAmount(state, cards, pid, def, r, sourceId, def.cost.energy - total);
+  total += staticPlayCostDiscount(state, cards, pid, def, def.cost.energy - total);
+  return total;
+}
+
+/** R104: Energy knocked off by "cost modifier" statics of the player's permanents and Legend. */
+function staticPlayCostDiscount(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  def: CardDef,
+  baseEnergy: number,
+): number {
+  let total = 0;
+  for (const o of Object.values(state.objects)) {
+    if (o.controller !== pid) continue;
+    const z = o.zone.kind;
+    if (z !== 'base' && z !== 'battlefield' && z !== 'legend') continue;
+    for (const s of cards[o.cardId]?.statics ?? []) {
+      const m = s.playCostMod;
+      if (!m) continue;
+      if (m.spellsOnly && def.type !== 'SPELL') continue;
+      if (
+        m.subtype &&
+        !def.subtypes.some((x) => x.toLowerCase() === (m.subtype ?? '').toLowerCase())
+      ) {
+        continue;
+      }
+      if (s.when && !evalCondition(state, cards, s.when, pid, o.id)) continue;
+      total += Math.min(m.energy, Math.max(0, baseEnergy - total - m.min));
+    }
+  }
   return total;
 }
 

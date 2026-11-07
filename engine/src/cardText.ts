@@ -1108,6 +1108,34 @@ function parseCountedStatic(body: string): StaticAbility | null {
   return null;
 }
 
+/** R104: "[While <condition>,] the Energy costs for spells you play are reduced by [N], to a minimum of [M]" and "Your Dragons' Energy costs are reduced by [N], to a minimum of [M]". */
+function parsePlayCostMod(body: string): StaticAbility | null {
+  const a =
+    /^(?:While (.+?), )?the Energy costs? (?:for|of) spells you play (?:is|are) reduced by \[(\d+)\], to a minimum of \[(\d+)\]$/i.exec(
+      body,
+    );
+  if (a) {
+    const when = a[1] === undefined ? undefined : parseCondition(a[1]);
+    if (a[1] !== undefined && !when) return null;
+    return {
+      affects: 'SELF',
+      playCostMod: { energy: Number(a[2]), min: Number(a[3]), spellsOnly: true },
+      ...(when ? { when } : {}),
+    };
+  }
+  const b =
+    /^Your ([A-Za-z]+)s['’] Energy costs are reduced by \[(\d+)\], to a minimum of \[(\d+)\]$/i.exec(
+      body,
+    );
+  if (b) {
+    return {
+      affects: 'SELF',
+      playCostMod: { energy: Number(b[2]), min: Number(b[3]), subtype: b[1] as string },
+    };
+  }
+  return null;
+}
+
 /** R74: "I don't deal combat damage [unless ...]", "Enemy units here with less Might than me don't deal combat damage", "I can't be chosen by enemy spells and abilities [unless ...]", "I must be assigned combat damage last". */
 function parseRestrictStatic(body: string): StaticAbility | null {
   if (/^I must be assigned combat damage last$/i.test(body)) {
@@ -1226,6 +1254,12 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
         restrict: 'NO_MOVE_TO_BASE',
         ...(gateWhen ? { when: gateWhen } : {}),
       });
+      continue;
+    }
+    // R104: cost-modifier statics.
+    const pcm = parsePlayCostMod(body);
+    if (pcm) {
+      statics.push({ ...pcm, ...(gateWhen ? { when: gateWhen } : {}) });
       continue;
     }
     // R88: "Your tokens enter ready" / "Other friendly units enter ready".

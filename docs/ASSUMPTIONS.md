@@ -488,3 +488,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Scope:** only at the start of a line and only before a parenthesised reminder.
 - **Rule numbers:** the script test cites 799.
+
+## R104: Cost modifiers for the cards you play (statics) (A-R104)
+
+- **Energy only:** Power reductions ("[1][A] less") are not modelled.
+- **Stacking:** several modifiers apply one after another, each bounded by its own minimum.
+- **Rule numbers:** tests cite 156.
