@@ -256,6 +256,16 @@ export type CardEffect =
       count?: TargetCount;
     } & TargetScope)
   /** Stun the target unit: it deals no combat damage this turn (expires in the Ending step). */
+  /** R98: "Give it [Temporary]" (permanent until it leaves): killed at its controller's next Beginning Phase. */
+  | ({
+      op: 'GRANT_TEMPORARY_TARGET';
+      side?: TargetSide;
+      kind?: 'unit' | 'gear' | 'unitOrGear';
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
+  /** R98: "Double a unit's Might this turn". */
+  | ({ op: 'DOUBLE_MIGHT_TARGET'; side?: TargetSide; slot?: number } & TargetScope)
   /** R97: the target unit's base Might becomes `amount` this turn (a temporary change, other bonuses stay). */
   | ({ op: 'SET_BASE_MIGHT'; amount: number; side?: TargetSide; slot?: number } & TargetScope)
   | ({
@@ -454,6 +464,8 @@ export type TargetedEffect = Extract<
       | 'LOCK_MOVE_TARGET'
       | 'STUN_TARGET'
       | 'SET_BASE_MIGHT'
+      | 'GRANT_TEMPORARY_TARGET'
+      | 'DOUBLE_MIGHT_TARGET'
       | 'DEBUFF_TARGET'
       | 'KILL_GEAR'
       | 'RETURN_TARGET'

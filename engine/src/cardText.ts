@@ -437,6 +437,32 @@ function parseChooser(sen: string): Chooser | null {
 }
 
 function parseChooserBase(sen: string): Chooser | null {
+  // R98: "Give a gear [Temporary]", "Give a unit at a battlefield or a gear [Temporary]", "Double a friendly unit's Might this turn".
+  {
+    const gt = new RegExp(
+      `^Give an? ${SIDE}(gear|unit at a battlefield or a gear|unit) \\[Temporary\\]$`,
+      'i',
+    ).exec(sen);
+    if (gt) {
+      const s = side(gt[1]);
+      const what = (gt[2] ?? '').toLowerCase();
+      const kind = what === 'gear' ? 'gear' : what === 'unit' ? 'unit' : 'unitOrGear';
+      return {
+        effect: {
+          op: 'GRANT_TEMPORARY_TARGET',
+          kind,
+          ...(kind === 'unitOrGear' ? { atBattlefield: true } : {}),
+          ...sideProp(s),
+        },
+        decl: { side: s ?? 'any' },
+      };
+    }
+    const dm = new RegExp(`^Double an? ${SIDE}unit['’]s Might this turn$`, 'i').exec(sen);
+    if (dm) {
+      const s = side(dm[1]);
+      return { effect: { op: 'DOUBLE_MIGHT_TARGET', ...sideProp(s) }, decl: { side: s ?? 'any' } };
+    }
+  }
   // R93: "Give a unit [Assault] this turn equal to its Might" / "Give a unit -[M] this turn equal to the number of exhausted units you control" / "+N [M] ... for each enemy unit there".
   {
     const bw = new RegExp(
@@ -802,6 +828,7 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
   if (m) return { op: 'DAMAGE_TARGET', amount: Number(m[1]), ...sd, ...bf, ...at };
   m = /^Its base Might becomes (\d+) this turn$/i.exec(sen);
   if (m) return { op: 'SET_BASE_MIGHT', amount: Number(m[1]), ...sd, ...at };
+  if (/^Give it \[Temporary\]$/i.test(sen)) return { op: 'GRANT_TEMPORARY_TARGET', ...sd, ...at };
   if (/^Ready it$/i.test(sen)) return { op: 'READY_TARGET', ...sd, ...at };
   if (/^It can['’]t move this turn$/i.test(sen)) return { op: 'LOCK_MOVE_TARGET', ...sd, ...at };
   if (/^Stun it$/i.test(sen)) return { op: 'STUN_TARGET', ...sd, ...bf, ...at };
@@ -1551,6 +1578,8 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       return [x];
     })
     .filter((x) => !/^Choose an opponent$/i.test(x)) // R97: the only opponent in a duel
+    // R98: "Choose a friendly unit without [Temporary]": granting it again changes nothing.
+    .map((x) => x.replace(/ without \[Temporary\]/i, ''))
     .map((x) =>
       x
         .replace(/^Then,? /i, '')

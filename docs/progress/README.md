@@ -134,3 +134,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R95](R95-combat-role.md) | Combat-role statics and "Stun an attacking unit" (501 -> 504 cards full) | Low | Sonnet | Done | uncommitted |
 | [R96](R96-look-top-filters.md) | Look at the top cards with type and cost limits, rest to the Trash (504 -> 508 cards full) | Medium | Sonnet | Done | uncommitted |
 | [R97](R97-opponent-choices.md) | Opponent-directed effects and "base Might becomes N" (508 -> 512 cards full) | Low | Sonnet | Done | uncommitted |
+| [R98](R98-grant-temporary.md) | Give a permanent [Temporary], double a unit's Might (512 -> 516 cards full) | Medium | Sonnet | Done | uncommitted |

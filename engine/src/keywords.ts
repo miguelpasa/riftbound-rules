@@ -134,7 +134,8 @@ export function temporaryOnBeginning(
         o.controller === player &&
         isOnBoard(o) &&
         (def?.type === 'UNIT' || def?.type === 'TOKEN' || def?.type === 'GEAR') &&
-        hasKeyword(def, 'Temporary')
+        (hasKeyword(def, 'Temporary') ||
+          (o.temporaryOf !== undefined && o.temporaryOf === o.enteredTurn))
       );
     })
     .sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));

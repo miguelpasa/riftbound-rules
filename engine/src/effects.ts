@@ -78,6 +78,8 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'LOCK_MOVE_TARGET' ||
   e.op === 'STUN_TARGET' ||
   e.op === 'SET_BASE_MIGHT' ||
+  e.op === 'GRANT_TEMPORARY_TARGET' ||
+  e.op === 'DOUBLE_MIGHT_TARGET' ||
   e.op === 'DEBUFF_TARGET' ||
   e.op === 'KILL_GEAR' ||
   e.op === 'RETURN_TARGET' ||
@@ -117,6 +119,7 @@ function specOf(e: TargetedEffect): Spec {
     if (e.maxEnergy !== undefined) spec.counterMaxEnergy = e.maxEnergy;
     if (e.maxPower !== undefined) spec.counterMaxPower = e.maxPower;
   }
+  if (e.op === 'GRANT_TEMPORARY_TARGET' && e.kind) spec.kind = e.kind;
   if (e.op === 'RETURN_FROM_TRASH') {
     spec.side = 'friendly';
     spec.trashWhat = e.what;
@@ -856,6 +859,8 @@ export function runEffects(
       case 'LOCK_MOVE_TARGET':
       case 'STUN_TARGET':
       case 'SET_BASE_MIGHT':
+      case 'GRANT_TEMPORARY_TARGET':
+      case 'DOUBLE_MIGHT_TARGET':
       case 'DEBUFF_TARGET':
       case 'KILL_GEAR':
       case 'RETURN_TARGET':
@@ -897,6 +902,12 @@ export function runEffects(
           } else if (e.op === 'READY_TARGET') {
             u.ready = true;
             out.push({ type: 'EFFECT_READIED', unitId: u.id });
+          } else if (e.op === 'GRANT_TEMPORARY_TARGET') {
+            u.temporaryOf = u.enteredTurn ?? state.turn.number;
+            if (u.enteredTurn === undefined) u.enteredTurn = state.turn.number;
+            out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
+          } else if (e.op === 'DOUBLE_MIGHT_TARGET') {
+            addTemp(u, Math.max(0, mightOf(u)), true);
           } else if (e.op === 'SET_BASE_MIGHT') {
             const printed = cards[u.cardId]?.stats.might ?? 0;
             addTemp(u, e.amount - printed, true);

@@ -455,3 +455,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Base Might:** applied as a this-turn modifier of (N - printed Might); permanent buffs and equipment still add.
 - **Choose an opponent:** always the other player.
 - **Rule numbers:** tests cite 143.2, 160 and 186.
+
+## R98: Give a permanent [Temporary], double a unit's Might (A-R98)
+
+- **Temporary:** the keyword is stored on the instance, not the card; "without [Temporary]" restrictions are ignored (granting twice changes nothing).
+- **Double Might:** adds the unit's current Might as a this-turn bonus.
+- **Rule numbers:** tests cite 816.

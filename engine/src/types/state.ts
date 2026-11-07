@@ -64,6 +64,11 @@ export interface CardInstance {
   hidden?: boolean;
   /** Turn number it entered play. */
   enteredTurn?: number;
+  /**
+   * R98: "Give it [Temporary]": the `enteredTurn` of this stay on the board. It counts only while `enteredTurn`
+   * still matches, so a card that left and came back is no longer Temporary.
+   */
+  temporaryOf?: number;
   /** R71: turn number of the last time each "once each turn" trigger (by index) went on the Chain. */
   onceTurn?: Record<number, number>;
 }
