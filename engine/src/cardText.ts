@@ -913,6 +913,27 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     prev.elseDraw = Number(m[1]);
     return true;
   }
+  // R94: "It deals damage equal to its Might to <unit>" (the chosen unit hits another unit, one way).
+  m = /^It deals damage equal to its Might to (.+)$/i.exec(sen);
+  if (m) {
+    if (st.it === undefined || st.locked || st.slots.length !== 1) return false;
+    const ch = parseChooser('Deal 1 to ' + (m[1] ?? ''));
+    if (!ch || ch.effect.op !== 'DAMAGE_TARGET' || ch.multi) return false;
+    if (!canAdd(st, [ch.decl])) return false;
+    const from = st.it;
+    const slot = st.slots.length;
+    st.slots.push(ch.decl);
+    st.it = slot;
+    out.push({
+      ...ch.effect,
+      slot,
+      amount: 0,
+      amountFrom: 'SLOT_MIGHT',
+      amountSlot: from,
+      amountSlotSide: (st.slots[from] as SlotDecl).side,
+    });
+    return true;
+  }
   if (st.it !== undefined && !st.locked) {
     const eff = parseItSentence(sen, st.slots[st.it] as SlotDecl, st.it);
     if (eff) {

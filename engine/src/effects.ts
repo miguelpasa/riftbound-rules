@@ -150,6 +150,16 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
       });
     }
   }
+  // R94: "It deals damage equal to its Might to ..." also needs the unit that deals the damage.
+  for (const ef of effects ?? []) {
+    if (ef.op === 'DAMAGE_TARGET' && ef.amountSlot !== undefined && !reqs.has(ef.amountSlot)) {
+      reqs.set(ef.amountSlot, {
+        slot: ef.amountSlot,
+        kind: 'unit',
+        side: ef.amountSlotSide ?? 'any',
+      });
+    }
+  }
   return [...reqs.values()].sort((a, b) => a.slot - b.slot);
 }
 
@@ -610,14 +620,24 @@ export function runEffects(
   };
   const mightOf = (u: CardInstance): number => effectiveMight(state, cards, u.id, { role: null });
   /** R74: damage that depends on the source ("equal to my Might"). */
-  const damageAmount = (e: { amount: number; amountFrom?: string }): number => {
+  const damageAmount = (e: {
+    amount: number;
+    amountFrom?: string;
+    amountSlot?: number;
+  }): number => {
     if (!e.amountFrom) return e.amount;
-    const src = state.objects[sourceObjectId];
-    if (!src) return 0;
+    if (e.amountFrom === 'SLOT_MIGHT') {
+      const id = e.amountSlot === undefined ? undefined : ids[e.amountSlot];
+      return id && state.objects[id]
+        ? Math.max(0, effectiveMight(state, cards, id, { role: null }))
+        : 0;
+    }
     if (e.amountFrom === 'EXCESS') {
       const rec = state.players[playerIndex(controller)].excessRecord;
       return rec && rec.turn === state.turn.number ? rec.amount : 0;
     }
+    const src = state.objects[sourceObjectId];
+    if (!src) return 0;
     if (e.amountFrom === 'MY_MIGHT') {
       return Math.max(0, effectiveMight(state, cards, src.id, { role: null }));
     }

@@ -194,7 +194,10 @@ export type CardEffect =
       op: 'DAMAGE_TARGET';
       amount: number;
       /** R74: "damage equal to my Might / [Assault] / [Shield]": read from the source when the effect runs (amount is 0). */
-      amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD' | 'EXCESS';
+      amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD' | 'EXCESS' | 'SLOT_MIGHT';
+      /** R94: with `amountFrom: 'SLOT_MIGHT'`: the chosen unit (target slot) whose Might is dealt ("It deals damage equal to its Might"). */
+      amountSlot?: number;
+      amountSlotSide?: TargetSide;
       /** R81: "... instead" when a condition holds. */
       alt?: AltAmount;
       side?: TargetSide;

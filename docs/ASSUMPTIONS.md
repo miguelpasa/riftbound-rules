@@ -432,3 +432,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Here-scope:** does nothing when the source is in a Base (equal to the printed "if I am at a battlefield").
 - **Exhausted count:** the controller's exhausted units on the board.
 - **Rule numbers:** tests cite 143.2.
+
+## R94: One-way damage equal to the chosen unit's Might (A-R94)
+
+- **Dealer:** the first chosen unit's current Might when the spell resolves (0 if it left the board).
+- **Rule numbers:** tests cite 143.2 and 355.10.
