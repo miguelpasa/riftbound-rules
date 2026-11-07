@@ -108,3 +108,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R69](R69-equip-text.md)             | "Equip [N]" written without keyword brackets (378 -> 380 cards full) | Low | Sonnet | Done | uncommitted |
 | [R70](R70-filtered-statics.md)       | Filtered "here" statics: by keyword or subtype (380 -> 383 cards full) | Low | Sonnet | Done | uncommitted |
 | [R71](R71-combat-death-triggers.md) | Combat and death triggers: win a combat, combat ends, unit dies, died alone, once each turn, gear "play this" (383 -> 394 cards full) | High | Sonnet | Done | uncommitted |
+| [R72](R72-turn-triggers.md) | Turn triggers: start of Beginning Phase and end of turn, rune effects, rune and facedown conditions (394 -> 400 cards full) | High | Sonnet | Done | uncommitted |

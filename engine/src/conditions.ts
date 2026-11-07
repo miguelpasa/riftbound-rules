@@ -95,6 +95,24 @@ export function evalCondition(
             : died(controller) + died(other);
       return n > 0;
     }
+    case 'RUNES_VS_OPPONENT': {
+      const runes = (p: PlayerId): number =>
+        Object.values(state.objects).filter(
+          (o) => o.controller === p && onBoard(o) && cards[o.cardId]?.type === 'RUNE',
+        ).length;
+      const other: PlayerId = controller === 'p0' ? 'p1' : 'p0';
+      return cond.cmp === 'FEWER'
+        ? runes(controller) < runes(other)
+        : runes(controller) > runes(other);
+    }
+    case 'FACEDOWN': {
+      const here = cond.here ? hereOfSource(state, sourceId) : null;
+      if (cond.here && here === null) return false;
+      return state.battlefields.some((b) => {
+        if (b.facedownSlotId === null || (cond.here && b.id !== here)) return false;
+        return state.objects[b.facedownSlotId]?.controller === controller;
+      });
+    }
     case 'DIED_ALONE':
       return true; // decided by the triggering UNIT_KILLED event (triggers.ts)
     case 'PAID_ADDITIONAL':

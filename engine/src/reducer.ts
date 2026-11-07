@@ -44,6 +44,7 @@ import {
 import { applyMulligan } from './mulligan.js';
 import { endTurn, runStartOfTurn } from './phases.js';
 import type { PhaseHooks } from './phases.js';
+import { runTurnTriggers } from './turnTriggers.js';
 import { playCard, playResolver } from './play.js';
 import type { PlayHooks } from './play.js';
 import { activateAbility } from './abilities.js';
@@ -89,10 +90,26 @@ function phaseCleanup(
   return { state: next, events };
 }
 
+/** R72: "At the start of your Beginning Phase" abilities, then the Temporary kills. */
+function beginningHook(state: GameState, cards: CardDatabase) {
+  const a = runTurnTriggers(state, cards, 'TURN_START');
+  const b = temporaryOnBeginning(a.state, cards);
+  return { state: b.state, events: [...a.events, ...b.events] };
+}
+
+/** R72: "At the end of your turn" abilities (then a Cleanup, so lethal damage kills before healing). */
+function endingHook(state: GameState, cards: CardDatabase) {
+  const a = runTurnTriggers(state, cards, 'TURN_END');
+  if (a.events.length === 0) return expireTurnEffects(a.state, cards);
+  const c = phaseCleanup(a.state, cards);
+  const b = expireTurnEffects(c.state, cards);
+  return { state: b.state, events: [...a.events, ...c.events, ...b.events] };
+}
+
 export const ENGINE_HOOKS: EngineHooks = Object.freeze({
   phase: Object.freeze<PhaseHooks>({
-    onBeginning: temporaryOnBeginning,
-    onEndingStep: expireTurnEffects,
+    onBeginning: beginningHook,
+    onEndingStep: endingHook,
     onScoringStep: holdScoringStep,
     runCleanup: phaseCleanup,
   }),

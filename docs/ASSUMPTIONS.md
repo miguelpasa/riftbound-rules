@@ -295,3 +295,12 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Batch deaths:** "one or more units die" triggers once per Cleanup batch.
 - **Once each turn:** counted when the ability goes on the Chain.
 - **Rule numbers:** tests cite 303, 323.4 and 468.
+
+## R72: Turn triggers: start of Beginning Phase and end of turn, rune effects, rune and facedown conditions (A-R72)
+
+- **Inline resolution:** the whole start-of-turn sequence runs inside one reduce call, so these abilities do not use the Chain and cannot be responded to. UNCLEAR: the real rules put them on the Chain.
+- **Order:** start-of-Beginning abilities run before the Temporary kills; end-of-turn abilities run in the Ending step before damage is removed.
+- **Recycle from Trash:** the oldest cards in the Trash are recycled (the real text lets the player choose).
+- **Ready runes:** the lowest-numbered exhausted runes are readied.
+- **Rune comparison:** counts runes in play (not the Rune Deck).
+- **Rule numbers:** tests cite 315.2, 317.1, 317.2, 160, 323.4 and 431.

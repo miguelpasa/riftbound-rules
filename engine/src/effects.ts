@@ -888,6 +888,41 @@ export function runEffects(
         }
         break;
       }
+      case 'READY_RUNES': {
+        const ps = state.players[playerIndex(controller)];
+        let left = e.count;
+        for (const id of [...ps.base].sort((a, b) => num(a) - num(b))) {
+          const r = state.objects[id] as CardInstance;
+          if (left <= 0) break;
+          if (cards[r.cardId]?.type !== 'RUNE' || r.ready) continue;
+          r.ready = true;
+          left--;
+        }
+        break;
+      }
+      case 'RECYCLE_RUNES': {
+        const ps = state.players[playerIndex(controller)];
+        for (const id of [...ps.base].sort((a, b) => num(a) - num(b))) {
+          const r = state.objects[id] as CardInstance;
+          if (cards[r.cardId]?.type !== 'RUNE') continue;
+          ps.base = ps.base.filter((x) => x !== id);
+          state.players[playerIndex(r.owner)].runeDeck.push(id);
+          r.zone = { kind: 'runeDeck', player: r.owner };
+          r.ready = true;
+        }
+        break;
+      }
+      case 'RECYCLE_TRASH': {
+        const ps = state.players[playerIndex(controller)];
+        const take = ps.trash.slice(0, e.count);
+        ps.trash = ps.trash.slice(take.length);
+        for (const id of take) {
+          ps.mainDeck.push(id);
+          (state.objects[id] as CardInstance).zone = { kind: 'mainDeck', player: controller };
+        }
+        if (take.length > 0) out.push({ type: 'CARDS_RECYCLED', player: controller, count: take.length });
+        break;
+      }
       case 'RETURN_ALL_BOARD':
         for (const o of Object.values(state.objects).sort((a, b) => num(a.id) - num(b.id))) {
           if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;

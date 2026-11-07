@@ -163,6 +163,12 @@ export function parseClause(sen: string): CardEffect[] | null {
     ];
   }
   if (/^Ready your legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
+  // R72: runes.
+  m = /^Ready up to (\d+) (?:friendly |your )?runes$/i.exec(sen);
+  if (m) return [{ op: 'READY_RUNES', count: Number(m[1]) }];
+  if (/^Recycle all your runes$/i.test(sen)) return [{ op: 'RECYCLE_RUNES' }];
+  m = /^Recycle (\d+) from your trash$/i.exec(sen);
+  if (m) return [{ op: 'RECYCLE_TRASH', count: Number(m[1]) }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
     const keywords = parseKwList(m[1]);
@@ -1339,6 +1345,16 @@ export function parseCondition(raw: string): Condition | null {
   }
   if (/^you paid the additional cost$/i.test(text)) return { kind: 'PAID_ADDITIONAL' };
   if (/^I died alone$/i.test(text)) return { kind: 'DIED_ALONE' };
+  {
+    const rv = /^you control (fewer|more) runes than an opponent$/i.exec(text);
+    if (rv)
+      return {
+        kind: 'RUNES_VS_OPPONENT',
+        cmp: (rv[1] ?? '').toLowerCase() === 'fewer' ? 'FEWER' : 'MORE',
+      };
+    const fd = /^you control a facedown card(?: (here)| at a battlefield)$/i.exec(text);
+    if (fd) return { kind: 'FACEDOWN', ...(fd[1] ? { here: true } : {}) };
+  }
   if (/^I (?:didn['’]t|did not) die alone$/i.test(text)) return { kind: 'DIED_ALONE', not: true };
   const m0 = /^(?:an? )?(friendly|enemy)? ?unit (?:has )?died this turn$/i.exec(text);
   if (m0) {
@@ -1538,7 +1554,7 @@ const DEATH_HEAD =
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
-  /^(When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -1613,6 +1629,9 @@ export function parseCardAbilities(
       once = true;
       sen = sen.replace(/^Once each turn,\s*/i, '');
     }
+    // R72: "If <condition> at the start of your Beginning Phase, <effects>" reads like the "At ..., if" form.
+    const iat = /^If (.+?) at the start of your Beginning Phase,\s*(.+)$/i.exec(sen);
+    if (iat) sen = `At the start of your Beginning Phase, if ${iat[1]}, ${iat[2]}`;
     const dm = DEATH_HEAD.exec(sen);
     const db = DEATH_BATCH_HEAD.exec(sen);
     if (dm || db) {
@@ -1664,27 +1683,33 @@ export function parseCardAbilities(
     const m = TRIGGER_HEAD.exec(sen);
     if (m) {
       const head = (m[1] ?? '').toLowerCase();
-      const ons: TriggerKind[] = head.startsWith('when i win a combat')
-        ? ['WIN_COMBAT']
-        : head.startsWith('when a combat that i was in ends')
-          ? ['COMBAT_END']
-          : head.startsWith('when you play me or')
-            ? ['PLAY', OR_WHEN[m[2]?.toLowerCase() ?? ''] ?? 'CONQUER']
-            : head.startsWith('when you play me')
-              ? ['PLAY']
-              : head.startsWith('when i hold')
-                ? ['HOLD']
-                : head.startsWith('when i conquer')
-                  ? ['CONQUER']
-                  : head.startsWith('when i attack or defend')
-                    ? ['ATTACK', 'DEFEND']
-                    : head.startsWith('when i attack')
-                      ? ['ATTACK']
-                      : head.startsWith('when i defend')
-                        ? ['DEFEND']
-                        : head.startsWith('when i move')
-                          ? ['MOVE']
-                          : ['DEATH'];
+      const ons: TriggerKind[] = head.startsWith('when you play me or at')
+        ? ['PLAY', 'TURN_START']
+        : head.startsWith('at the end of')
+          ? ['TURN_END']
+          : head.startsWith('at ')
+            ? ['TURN_START']
+            : head.startsWith('when i win a combat')
+              ? ['WIN_COMBAT']
+              : head.startsWith('when a combat that i was in ends')
+                ? ['COMBAT_END']
+                : head.startsWith('when you play me or')
+                  ? ['PLAY', OR_WHEN[m[2]?.toLowerCase() ?? ''] ?? 'CONQUER']
+                  : head.startsWith('when you play me')
+                    ? ['PLAY']
+                    : head.startsWith('when i hold')
+                      ? ['HOLD']
+                      : head.startsWith('when i conquer')
+                        ? ['CONQUER']
+                        : head.startsWith('when i attack or defend')
+                          ? ['ATTACK', 'DEFEND']
+                          : head.startsWith('when i attack')
+                            ? ['ATTACK']
+                            : head.startsWith('when i defend')
+                              ? ['DEFEND']
+                              : head.startsWith('when i move')
+                                ? ['MOVE']
+                                : ['DEATH'];
       let body = m[3] ?? '';
       let when: Condition | undefined;
       if (body) {
@@ -1763,6 +1788,14 @@ export function parseCardAbilities(
       optional = opt?.optional;
     }
     if (!effects || effects.length === 0) return null;
+    // R72: turn triggers resolve inline, so they cannot ask for a target or a payment.
+    if (
+      g.kind === 'trigger' &&
+      g.ons.some((o) => o === 'TURN_START' || o === 'TURN_END') &&
+      (optional || targetRequirements(effects).length > 0)
+    ) {
+      return null;
+    }
     // R46: a Deathknell's "here" would be where the unit died, which the engine does not keep (the
     // object is already in the Trash): such a card stays partial rather than silently doing nothing.
     if (

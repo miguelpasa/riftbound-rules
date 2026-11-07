@@ -152,6 +152,12 @@ export type CardEffect =
   | { op: 'GAIN_XP'; amount: number; perFriendlyUnit?: boolean }
   /** R62: "return me / this to its owner's hand": the source permanent returns to hand (tokens cease to exist). */
   | { op: 'RETURN_SELF' }
+  /** R72: ready up to `count` of the controller's exhausted runes (lowest object id first). */
+  | { op: 'READY_RUNES'; count: number }
+  /** R72: recycle every rune the controller has in play (they go to the bottom of the Rune Deck, ready). */
+  | { op: 'RECYCLE_RUNES' }
+  /** R72: put `count` cards from the controller's Trash (oldest first) on the bottom of their Main Deck. */
+  | { op: 'RECYCLE_TRASH'; count: number }
   /** R52: "Empower me": the source becomes Empowered (nothing if it is not on the board or already is). */
   | { op: 'EMPOWER_SELF' }
   /** R49: "ready me": the source permanent becomes ready (nothing when it left the board). */
@@ -447,6 +453,10 @@ export type Condition =
   | { kind: 'PAID_ADDITIONAL' }
   /** R71: a Deathknell's "if I died alone" (no other friendly unit at its location); `not` = "didn't die alone". */
   | { kind: 'DIED_ALONE'; not?: boolean }
+  /** R72: the controller has fewer / more runes in play than an opponent. */
+  | { kind: 'RUNES_VS_OPPONENT'; cmp: 'FEWER' | 'MORE' }
+  /** R72: the controller has a facedown card at a battlefield (`here` = the source's battlefield). */
+  | { kind: 'FACEDOWN'; here?: boolean }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any' }
   /** R53: Level N: the controller has at least `n` XP. */
@@ -512,7 +522,11 @@ export type TriggerKind =
   /** R71: "When a combat that I was in ends" (any unit still standing there). */
   | 'COMBAT_END'
   /** R71: "When a friendly / an enemy unit dies" (see `CardTrigger.dies`). */
-  | 'UNIT_DIES';
+  | 'UNIT_DIES'
+  /** R72: "At the start of your Beginning Phase" (resolved inline, no Chain). */
+  | 'TURN_START'
+  /** R72: "At the end of your turn" (resolved inline in the Ending step, no Chain). */
+  | 'TURN_END';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {
