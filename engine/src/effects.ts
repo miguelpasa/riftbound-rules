@@ -47,6 +47,9 @@ interface Spec {
   inBase?: boolean;
   /** R95: the unit is attacking in the current combat. */
   attacking?: boolean;
+  /** R106: required / forbidden subtype of the chosen unit. */
+  subtype?: string;
+  notSubtype?: string;
   maxMight?: number;
   /** Gear only: Energy cost at most this. */
   maxEnergy?: number;
@@ -128,6 +131,8 @@ function specOf(e: TargetedEffect): Spec {
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
   if (e.op === 'DAMAGE_TARGET' && e.inBase) spec.inBase = true;
   if (e.op === 'STUN_TARGET' && e.attacking) spec.attacking = true;
+  if (e.op === 'READY_TARGET' && e.subtype) spec.subtype = e.subtype;
+  if (e.op === 'RETURN_TARGET' && e.notSubtype) spec.notSubtype = e.notSubtype;
   if ('here' in e && e.here) spec.here = true;
   if ('another' in e && e.another) spec.another = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergy !== undefined) spec.maxEnergy = e.maxEnergy;
@@ -258,6 +263,11 @@ function legalForSpec(
     if (!gearOk && !isUnitDef(cards[u.cardId])) return false;
     if (spec.atBattlefield && u.zone.kind !== 'battlefield') return false;
     if (spec.inBase && u.zone.kind !== 'base') return false;
+    {
+      const subs = (cards[u.cardId]?.subtypes ?? []).map((x) => x.toLowerCase());
+      if (spec.subtype && !subs.includes(spec.subtype.toLowerCase())) return false;
+      if (spec.notSubtype && subs.includes(spec.notSubtype.toLowerCase())) return false;
+    }
     if (spec.attacking) {
       const cb = state.flow.combat;
       if (

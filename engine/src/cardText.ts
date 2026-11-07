@@ -480,6 +480,23 @@ function parseChooserBase(sen: string): Chooser | null {
       return { effect: { op: 'DOUBLE_MIGHT_TARGET', ...sideProp(s) }, decl: { side: s ?? 'any' } };
     }
   }
+  // R106: subtype-limited choices: "Ready another friendly Mech", "Return a non-Dragon unit to its owner's hand".
+  {
+    const rm = /^[Rr]eady another friendly ([A-Z][a-z]+)$/.exec(sen);
+    if (rm) {
+      return {
+        effect: { op: 'READY_TARGET', side: 'friendly', another: true, subtype: rm[1] as string },
+        decl: { side: 'friendly', another: true },
+      };
+    }
+    const nd = /^[Rr]eturn an? non-([A-Z][a-z]+) unit to its owner['’]s hand$/.exec(sen);
+    if (nd) {
+      return {
+        effect: { op: 'RETURN_TARGET', notSubtype: nd[1] as string },
+        decl: { side: 'any' },
+      };
+    }
+  }
   // R93: "Give a unit [Assault] this turn equal to its Might" / "Give a unit -[M] this turn equal to the number of exhausted units you control" / "+N [M] ... for each enemy unit there".
   {
     const bw = new RegExp(

@@ -500,3 +500,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Tokens:** played tokens also enter ready under the turn-wide effect.
 - **Discount use:** any spell play consumes it, even one that would have cost less.
 - **Rule numbers:** tests cite 156 and 359.2.
+
+## R106: Subtype-limited targets (a Mech, a non-Dragon unit) (A-R106)
+
+- **Subtype match:** against the card's subtype / tag list, case-insensitive.
+- **Rule numbers:** tests cite 355.10.

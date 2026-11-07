@@ -251,7 +251,14 @@ export type CardEffect =
       count?: TargetCount;
     } & TargetScope)
   /** Ready the target unit. */
-  | ({ op: 'READY_TARGET'; side?: TargetSide; slot?: number; count?: TargetCount } & TargetScope)
+  | ({
+      op: 'READY_TARGET';
+      side?: TargetSide;
+      slot?: number;
+      count?: TargetCount;
+      /** R106: only units with this subtype ("ready another friendly Mech"). */
+      subtype?: string;
+    } & TargetScope)
   /** R57: "It can't move this turn": the target cannot be moved until the Ending step. */
   | ({
       op: 'LOCK_MOVE_TARGET';
@@ -371,6 +378,8 @@ export type CardEffect =
   | ({
       op: 'RETURN_TARGET';
       side?: TargetSide;
+      /** R106: "a non-Dragon unit": units with this subtype are not allowed. */
+      notSubtype?: string;
       atBattlefield?: boolean;
       maxMight?: number;
       gear?: boolean;
