@@ -524,6 +524,22 @@ function parseChooserBase(sen: string): Chooser | null {
   if (/^Counter a spell$/i.test(sen)) {
     return { effect: { op: 'COUNTER_SPELL' }, decl: { side: 'any' } };
   }
+  // R80: counters limited by the countered spell's printed cost.
+  m = /^Counter a spell with Power cost ((?:\[A\]){1,4}) or more$/i.exec(sen);
+  if (m) {
+    const n = (m[1] ?? '').split('[').length - 1;
+    return { effect: { op: 'COUNTER_SPELL', minPower: n }, decl: { side: 'any' } };
+  }
+  m = /^Counter a spell that costs no more than \[(\d+)\] and no more than ((?:\[A\]){1,4})$/i.exec(
+    sen,
+  );
+  if (m) {
+    const n = (m[2] ?? '').split('[').length - 1;
+    return {
+      effect: { op: 'COUNTER_SPELL', maxEnergy: Number(m[1]), maxPower: n },
+      decl: { side: 'any' },
+    };
+  }
   m = new RegExp(
     `^Return an? ${SIDE}unit( at a battlefield)?(?: with (\\d+) \\[M\\] or less)? to its owner's hand$`,
     'i',

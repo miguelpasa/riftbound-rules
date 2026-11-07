@@ -247,7 +247,11 @@ export type CardEffect =
   /** Kill every gear on the board. */
   | { op: 'KILL_ALL_GEAR' }
   /** Counter the target spell on the Chain (it is removed and trashed without resolving). */
-  | { op: 'COUNTER_SPELL'; slot?: number }
+  /**
+   * R80: `minPower` = "with Power cost [A][A] or more"; `maxEnergy` / `maxPower` = "that costs no more than [4] and no
+   * more than [A]" (printed costs of the countered spell).
+   */
+  | { op: 'COUNTER_SPELL'; slot?: number; minPower?: number; maxEnergy?: number; maxPower?: number }
   /** The controller of the target unit/gear draws `amount` ("Its controller draws N"). */
   | { op: 'TARGET_CONTROLLER_DRAW'; amount: number; slot?: number }
   /** Give every unit of `side` on the board +amount Might (no target). */

@@ -353,3 +353,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Effect move:** it ignores "can't move" locks and does not exhaust the unit; a moved enemy unit does not contest the battlefield, but the Cleanup stages a Combat when both players have units there.
 - **Who attacks:** the Combat is staged by the existing Cleanup rule (323.8), not by who moved the unit.
 - **Rule numbers:** tests cite 355.10 and 462.
+
+## R80: Counters limited by the countered spell's cost (Hush, Defy) (A-R80)
+
+- **Printed cost:** the limits compare the countered spell's printed Energy and Power costs (not what was actually paid after reductions or surcharges).
+- **Rule numbers:** tests cite 359.3.

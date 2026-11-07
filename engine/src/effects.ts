@@ -43,6 +43,10 @@ interface Spec {
   maxMight?: number;
   /** Gear only: Energy cost at most this. */
   maxEnergy?: number;
+  /** R80: a countered spell's printed cost limits. */
+  counterMinPower?: number;
+  counterMaxEnergy?: number;
+  counterMaxPower?: number;
   /** R75: a card in the controller's Trash: which kind(s) and subtype(s) qualify. */
   trashWhat?: 'unit' | 'gear' | 'unitOrGear' | 'spell';
   trashSubtypes?: string[];
@@ -100,6 +104,11 @@ function specOf(e: TargetedEffect): Spec {
     kind,
     side: e.op === 'WEAPONMASTER_EQUIP' ? 'friendly' : 'side' in e && e.side ? e.side : 'any',
   };
+  if (e.op === 'COUNTER_SPELL') {
+    if (e.minPower !== undefined) spec.counterMinPower = e.minPower;
+    if (e.maxEnergy !== undefined) spec.counterMaxEnergy = e.maxEnergy;
+    if (e.maxPower !== undefined) spec.counterMaxPower = e.maxPower;
+  }
   if (e.op === 'RETURN_FROM_TRASH') {
     spec.side = 'friendly';
     spec.trashWhat = e.what;
@@ -198,10 +207,15 @@ function legalForSpec(
     return !subs || subs.some((s) => d.subtypes.some((x) => x.toLowerCase() === s.toLowerCase()));
   }
   if (spec.kind === 'spell') {
+    const cost = cards[u.cardId]?.cost;
+    const power = cost?.power ?? 0;
     return (
       type === 'SPELL' &&
       u.zone.kind === 'chain' &&
-      state.flow.chain.some((i) => i.kind === 'CARD' && i.sourceObjectId === u.id)
+      state.flow.chain.some((i) => i.kind === 'CARD' && i.sourceObjectId === u.id) &&
+      (spec.counterMinPower === undefined || power >= spec.counterMinPower) &&
+      (spec.counterMaxPower === undefined || power <= spec.counterMaxPower) &&
+      (spec.counterMaxEnergy === undefined || (cost?.energy ?? 0) <= spec.counterMaxEnergy)
     );
   }
   const onBoard = u.zone.kind === 'base' || u.zone.kind === 'battlefield';
