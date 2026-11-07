@@ -281,3 +281,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 ## R69: "Equip [N]" without keyword brackets (A-R69)
 
 - Some printings write the Equip keyword as plain text ("Equip [1] ([1]: Attach this to a unit you control.)"). A line starting with "Equip [" is read as "[Equip] [" so the structured Equip cost (Rule 818) is parsed. No engine change.
+
+## R70: filtered "here" statics (A-R70)
+
+- `StaticAbility.onlyKeyword` / `onlySubtype` restrict a static to units with that printed keyword or subtype: "Units here with [Tank] have +1 [M]", "Units here with [Temporary] have [Shield]", "Champion units here have +1 [M]". Only the printed keyword list is consulted (not temporary or granted keywords). "Champion" is the unit's subtype list entry.
+- **Not done:** "Units here with [Temporary]" using granted Temporary, defending-alone statics, "units here" conditions on battlefield control.
+- **Rule numbers:** test cites 143.2 only.

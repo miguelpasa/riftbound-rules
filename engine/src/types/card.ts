@@ -393,6 +393,9 @@ export interface StaticAbility {
    */
   per?: StaticCount;
   perKeyword?: 'Assault' | 'Shield';
+  /** R70: only units with this keyword / subtype are affected ("Units here with [Tank]", "Champion units here"). */
+  onlyKeyword?: string;
+  onlySubtype?: string;
   /** R57: a movement restriction instead of / besides a grant: units it affects cannot move to the Base. */
   restrict?: 'NO_MOVE_TO_BASE';
   when?: Condition;

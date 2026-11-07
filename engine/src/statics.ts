@@ -106,6 +106,13 @@ function applies(
 ): boolean {
   const friendly = target.controller === sourceController;
   const at = targetBattlefield(target);
+  if (s.onlyKeyword && !targetDef.keywords.some((k) => k.name === s.onlyKeyword)) return false;
+  if (
+    s.onlySubtype &&
+    !targetDef.subtypes.some((x) => x.toLowerCase() === (s.onlySubtype ?? '').toLowerCase())
+  ) {
+    return false;
+  }
   switch (s.affects) {
     case 'SELF':
       return target.id === sourceId;

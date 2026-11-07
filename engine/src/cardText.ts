@@ -781,10 +781,19 @@ const STATIC_RESTRICT = [
   [/^(Units) can['’]t move from here to base$/i, 'UNITS_HERE'],
 ] as const;
 const STATIC_AFF =
-  '(I|Your gear|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here)';
+  '(I|Your gear|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
 
-function staticAffects(raw: string): Pick<StaticAbility, 'affects' | 'subtype'> | null {
+function staticAffects(
+  raw: string,
+): Pick<StaticAbility, 'affects' | 'subtype' | 'onlyKeyword' | 'onlySubtype'> | null {
   const w = raw.toLowerCase();
+  // R70: filtered "here" statics.
+  if (w === 'champion units here') return { affects: 'UNITS_HERE', onlySubtype: 'Champion' };
+  const wk = /^units here with \[([a-z]+)\]$/.exec(w);
+  if (wk) {
+    const name = (wk[1] ?? '').replace(/^./, (c) => c.toUpperCase());
+    return { affects: 'UNITS_HERE', onlyKeyword: name };
+  }
   if (w === 'i') return { affects: 'SELF' };
   if (w === 'your gear') return { affects: 'FRIENDLY_GEAR' };
   if (w === 'friendly units') return { affects: 'FRIENDLY_UNITS' };
