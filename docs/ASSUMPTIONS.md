@@ -494,3 +494,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Energy only:** Power reductions ("[1][A] less") are not modelled.
 - **Stacking:** several modifiers apply one after another, each bounded by its own minimum.
 - **Rule numbers:** tests cite 156.
+
+## R105: Turn-wide enter-ready and one-shot spell discount (A-R105)
+
+- **Tokens:** played tokens also enter ready under the turn-wide effect.
+- **Discount use:** any spell play consumes it, even one that would have cost less.
+- **Rule numbers:** tests cite 156 and 359.2.

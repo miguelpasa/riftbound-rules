@@ -99,6 +99,11 @@ export function selfEnergyDiscount(
   const r = def.costReduction;
   if (r) total += reductionAmount(state, cards, pid, def, r, sourceId, def.cost.energy - total);
   total += staticPlayCostDiscount(state, cards, pid, def, def.cost.energy - total);
+  // R105: a one-shot "the next spell you play this turn costs [N] less".
+  const nd = state.players[playerIndex(pid)]?.nextPlayDiscount;
+  if (nd && nd.turn === state.turn.number && (!nd.spellsOnly || def.type === 'SPELL')) {
+    total += Math.min(nd.energy, Math.max(0, def.cost.energy - total));
+  }
   return total;
 }
 

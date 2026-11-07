@@ -917,6 +917,19 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     st.locked = true;
     return true;
   }
+  {
+    const nd = /^the next spell you play this turn costs \[(\d+)\] less$/i.exec(sen);
+    if (nd) {
+      out.push({ op: 'NEXT_PLAY_DISCOUNT', amount: Number(nd[1]), spellsOnly: true });
+      return true;
+    }
+    if (
+      /^(?:Friendly units enter ready this turn|Units you play this turn enter ready)$/i.test(sen)
+    ) {
+      out.push({ op: 'ENTER_READY_THIS_TURN' });
+      return true;
+    }
+  }
   if (/^Opponents can['’]t play cards this turn$/i.test(sen)) {
     out.push({ op: 'LOCK_PLAYS', who: 'OPPONENTS', what: 'CARDS' });
     return true;

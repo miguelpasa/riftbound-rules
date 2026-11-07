@@ -162,6 +162,10 @@ export type CardEffect =
    * R83: "Opponents can't play cards this turn" (OPPONENTS) / "Its controller can't play spells this turn"
    * (TARGET_CONTROLLER: the controller of the spell countered in `slot`).
    */
+  /** R105: "the next spell you play this turn costs [N] less". */
+  | { op: 'NEXT_PLAY_DISCOUNT'; amount: number; spellsOnly: boolean }
+  /** R105: "Friendly units enter ready this turn" / "Units you play this turn enter ready". */
+  | { op: 'ENTER_READY_THIS_TURN' }
   | {
       op: 'LOCK_PLAYS';
       who: 'OPPONENTS' | 'TARGET_CONTROLLER';

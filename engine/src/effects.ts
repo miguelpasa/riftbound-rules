@@ -632,7 +632,10 @@ function playTokens(
     };
     if (zone.kind === 'base') state.players[playerIndex(controller)].base.push(id);
     // R88: "Your tokens enter ready".
-    if (staticBonus(state, cards, state.objects[id]).entersReady === true) {
+    if (
+      staticBonus(state, cards, state.objects[id]).entersReady === true ||
+      state.players[playerIndex(controller)]?.enterReadyTurn === state.turn.number
+    ) {
       (state.objects[id] as CardInstance).ready = true;
     }
     out.push({ type: 'TOKEN_PLAYED', player: controller, unitId: id, cardId: token });
@@ -1198,6 +1201,16 @@ export function runEffects(
           out.push({ type: 'CARDS_RECYCLED', player: controller, count: take.length });
         break;
       }
+      case 'NEXT_PLAY_DISCOUNT':
+        state.players[playerIndex(controller)].nextPlayDiscount = {
+          turn: state.turn.number,
+          energy: e.amount,
+          spellsOnly: e.spellsOnly,
+        };
+        break;
+      case 'ENTER_READY_THIS_TURN':
+        state.players[playerIndex(controller)].enterReadyTurn = state.turn.number;
+        break;
       case 'LOCK_PLAYS': {
         const who: PlayerId | undefined =
           e.who === 'OPPONENTS' ? (controller === 'p0' ? 'p1' : 'p0') : doneSlots.get(e.slot ?? 0);

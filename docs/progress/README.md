@@ -141,3 +141,4 @@ Earlier in this phase (done by the lead, no separate file): effect DSL slices 1 
 | [R102](R102-compound-clauses.md) | Compound self clauses joined by "and" (522 -> 528 cards full) | Low | Sonnet | Done | uncommitted |
 | [R103](R103-plain-keywords.md) | Keywords printed as plain words (528 -> 530 cards full) | Low | Sonnet | Done | uncommitted |
 | [R104](R104-play-cost-mod.md) | Cost modifiers for the cards you play (statics) (530 -> 532 cards full) | Medium | Sonnet | Done | uncommitted |
+| [R105](R105-turn-wide-buffs.md) | Turn-wide enter-ready and one-shot spell discount (532 -> 535 cards full) | Low | Sonnet | Done | uncommitted |

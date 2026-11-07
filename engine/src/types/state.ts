@@ -129,6 +129,10 @@ export interface PlayerState {
   playedThisTurn?: { turn: number; objectIds: string[] };
   /** R83: "can't play cards / spells this turn": in force during turn `turn`. */
   playLock?: { turn: number; what: 'CARDS' | 'SPELLS' };
+  /** R105: "the next spell you play this turn costs [N] less" (cleared by the next matching play). */
+  nextPlayDiscount?: { turn: number; energy: number; spellsOnly: boolean };
+  /** R105: units this player plays during this turn number enter ready. */
+  enterReadyTurn?: number;
   /** R87: excess combat damage this player assigned as the attacker in the last combat of turn `turn`. */
   excessRecord?: { turn: number; amount: number };
 }

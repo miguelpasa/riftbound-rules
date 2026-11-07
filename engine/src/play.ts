@@ -220,7 +220,9 @@ function placingResolver(
             (def.entersReadyWhen !== undefined &&
               evalCondition(s, cards, def.entersReadyWhen, obj.controller, obj.id)) ||
             // R88: "Other friendly units enter ready" statics.
-            staticBonus(s, cards, obj).entersReady === true;
+            staticBonus(s, cards, obj).entersReady === true ||
+            // R105: "Units you play this turn enter ready".
+            s.players[playerIndex(obj.controller)]?.enterReadyTurn === turnNumber;
       obj.enteredTurn = turnNumber;
       delete obj.empowered; // R52: a permanent always enters un-Empowered
       delete obj.buffed; // R54: and without a Buff
@@ -587,6 +589,11 @@ export function playCard(
     turn: work.turn.number,
     objectIds: [...(sameTurn ? (seat.playedThisTurn?.objectIds ?? []) : []), obj.id],
   };
+  // R105: the one-shot discount is used up by the matching play.
+  const nd = seat.nextPlayDiscount;
+  if (nd && nd.turn === work.turn.number && (!nd.spellsOnly || def.type === 'SPELL')) {
+    delete seat.nextPlayDiscount;
+  }
   const item: ChainItem = {
     id: allocObjectId(work),
     kind: 'CARD',
