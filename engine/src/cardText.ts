@@ -934,7 +934,7 @@ const STATIC_RESTRICT = [
   [/^(Units) can['’]t move from here to base$/i, 'UNITS_HERE'],
 ] as const;
 const STATIC_AFF =
-  '(I|Your gear|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
+  '(I|Your gear|Friendly units here|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
 
 function staticAffects(
   raw: string,
@@ -949,6 +949,7 @@ function staticAffects(
   }
   if (w === 'i') return { affects: 'SELF' };
   if (w === 'your gear') return { affects: 'FRIENDLY_GEAR' };
+  if (w === 'friendly units here') return { affects: 'FRIENDLY_UNITS_HERE' };
   if (w === 'friendly units') return { affects: 'FRIENDLY_UNITS' };
   if (w === 'other friendly units here' || w === 'your other units here')
     return { affects: 'OTHER_FRIENDLY_HERE' };
@@ -1600,6 +1601,7 @@ export function parseCondition(raw: string): Condition | null {
   }
   if (/^an opponent controls a stunned unit$/i.test(text)) return { kind: 'ENEMY_STUNNED' };
   if (/^I['’]m in combat$/i.test(text)) return { kind: 'IN_COMBAT' };
+  if (/^you control this battlefield$/i.test(text)) return { kind: 'CONTROLS_HERE' };
   {
     const g = /^there['’]s an? (friendly )?(gear|unit) here$/i.exec(text);
     if (g) {
@@ -1886,6 +1888,13 @@ export function parseCardAbilities(
     .replace(/\bbecome \[Empowered\]/gi, 'become empowered')
     // R74: keep "my [Assault]" from being read as the keyword itself.
     .replace(/\bmy \[(Assault|Shield)\]/gi, 'my {$1}')
+    // R85: Deploy gear at a battlefield: "When you hold / conquer / win a combat here".
+    .replace(/\bwhen you (hold|conquer) here\b/gi, (m: string, k: string) =>
+      opts.gearLike === true ? 'when I ' + k.toLowerCase() : m,
+    )
+    .replace(/\bwhen you win a combat here\b/gi, (m: string) =>
+      opts.gearLike === true ? 'when I win a combat' : m,
+    )
     // R71: gear says "When you play this" where units say "When you play me".
     .replace(/\bWhen you play this\b/gi, 'When you play me')
     .replace(/\[Stun\]/gi, 'Stun')
@@ -1902,6 +1911,7 @@ export function parseCardAbilities(
     .replace(/\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(?:\[>>\]\s*)?/gi, 'EMPOWERED ')
     .replace(/\[Legion\]\s*(?:\[>\]|[—–-])\s*/gi, 'LEGION ')
     .replace(/\[Level (\d+)\]\s*(?:\[>\]|[—–-])\s*/gi, 'LEVEL$1 ')
+    .replace(/\[Deploy\]/gi, ' ')
     .replace(KEYWORD_TOKENS, ' ')
     .replace(/\[Deathknell\]\s*(?:\[>\]|[—–-])/gi, ' Deathknell: ')
     .replace(/\s+/g, ' ')

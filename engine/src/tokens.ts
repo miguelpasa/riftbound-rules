@@ -61,6 +61,10 @@ export const isGearDef = (def: CardDef | undefined): boolean =>
   def !== undefined &&
   (def.type === 'GEAR' || (def.type === 'TOKEN' && def.stats.might === undefined));
 
+/** R85: a Deploy gear: played only to a battlefield, where it stays instead of being recalled. */
+export const isDeployGear = (def: CardDef | undefined): boolean =>
+  def?.type === 'GEAR' && def.keywords.some((k) => k.name === 'Deploy');
+
 export const TOKEN_CARDS: CardDatabase = Object.fromEntries(
   [
     token('tok-recruit', 'Recruit', 1),

@@ -45,6 +45,7 @@ import { fork } from './workingCopy.js';
 import { syncTurnState } from './chain.js';
 import { continueCombatHook, killLethalUnits, resolveCombat, startCombatHook } from './combat.js';
 import { removeOrphanedFacedown } from './keywords.js';
+import { isDeployGear } from './tokens.js';
 import { checkWin, onConquer } from './scoring.js';
 import { stampEvents } from './setup.js';
 import {
@@ -102,6 +103,7 @@ function recall(s: GameState, cards: CardDatabase, out: GameEventInput[]): void 
     let from: string;
     if (o.zone.kind === 'battlefield' && (type === 'GEAR' || type === 'RUNE')) {
       if (o.attachedTo) continue;
+      if (isDeployGear(cards[o.cardId])) continue; // R85: Deploy gear stays at its battlefield
       from = o.zone.battlefieldId;
     } else if (o.zone.kind === 'base' && o.zone.player !== o.controller) {
       const holder = s.players[playerIndex(o.zone.player)];

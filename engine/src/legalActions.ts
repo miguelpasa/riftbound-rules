@@ -37,7 +37,7 @@ import { costCardCombos, playCostCard } from './costCards.js';
 import { itemSourceId } from './sources.js';
 import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
 import type { TotalCost } from './resources.js';
-import { isUnitDef } from './tokens.js';
+import { isDeployGear, isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
@@ -135,7 +135,9 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
                   .map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
               : []),
           ]
-      : [undefined];
+      : isDeployGear(def)
+        ? myBattlefields.map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
+        : [undefined];
     const accelOptions = isUnit && hasKw(def, 'Accelerate') ? [false, true] : [false];
     // Repeat (820): spells with a Repeat cost may also be played with it paid.
     const repeatOptions = def.type === 'SPELL' && def.repeatCost ? [false, true] : [false];

@@ -20,6 +20,7 @@
  */
 import { fork } from './workingCopy.js';
 import { drawWithBurnOut } from './burnout.js';
+import { isDeployGear } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
@@ -88,6 +89,25 @@ export function scoreBattlefield(
     events.push(...gainPoints(next, player, 1, method)); // 473.1
   }
   events.push({ type: 'BATTLEFIELD_SCORED', player, battlefieldId, method });
+  if (method === 'HOLD') {
+    // R85: Deploy -- "When an opponent holds here, kill this."
+    for (const o of Object.values(next.objects)) {
+      if (
+        o.controller !== player &&
+        o.zone.kind === 'battlefield' &&
+        o.zone.battlefieldId === battlefieldId &&
+        isDeployGear(cards[o.cardId])
+      ) {
+        const ps2 = next.players[playerIndex(o.controller)];
+        ps2.base = ps2.base.filter((x) => x !== o.id);
+        next.players[playerIndex(o.owner)].trash.push(o.id);
+        o.zone = { kind: 'trash', player: o.owner };
+        o.controller = o.owner;
+        o.ready = false;
+        events.push({ type: 'GEAR_KILLED', gearId: o.id });
+      }
+    }
+  }
   if (hooks?.onScored) events.push(...hooks.onScored(next, player, battlefieldId, method)); // 473.2
   return { state: next, events };
 }

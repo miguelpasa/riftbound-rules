@@ -540,6 +540,8 @@ export type Condition =
   | { kind: 'NAME_IN_TRASH' }
   /** R74: the source is in the combat that is being fought. */
   | { kind: 'IN_COMBAT' }
+  /** R85: the controller controls the battlefield the source stands at ("if you control this battlefield"). */
+  | { kind: 'CONTROLS_HERE' }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any' }
   /** R53: Level N: the controller has at least `n` XP. */

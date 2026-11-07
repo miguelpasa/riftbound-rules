@@ -33,6 +33,7 @@ import { allocObjectId, stampEvents } from './setup.js';
 import { abilityTargetsLegal, enumerateSpellTargets } from './effects.js';
 import { legionActive } from './keywords.js';
 import { itemSourceId } from './sources.js';
+import { isDeployGear } from './tokens.js';
 import { evalCondition } from './conditions.js';
 import { ruleError } from './types/index.js';
 import type {
@@ -161,7 +162,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           o.controller === e.player &&
           o.zone.kind === 'battlefield' &&
           o.zone.battlefieldId === e.battlefieldId &&
-          cards[o.cardId]?.type === 'UNIT'
+          (cards[o.cardId]?.type === 'UNIT' || isDeployGear(cards[o.cardId]))
         ) {
           add(o, e.method, e.player);
         }
@@ -225,6 +226,19 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         if (!o || !onBoard(o) || cards[o.cardId]?.type !== 'UNIT') continue;
         add(o, 'COMBAT_END', o.controller);
         if (e.winner !== null && o.controller === e.winner) add(o, 'WIN_COMBAT', o.controller);
+      }
+      // R85: a Deploy gear at the battlefield wins the combat with its controller ("When you win a combat here").
+      if (e.winner !== null) {
+        for (const g of Object.values(state.objects)) {
+          if (
+            g.controller === e.winner &&
+            g.zone.kind === 'battlefield' &&
+            g.zone.battlefieldId === e.battlefieldId &&
+            isDeployGear(cards[g.cardId])
+          ) {
+            add(g, 'WIN_COMBAT', g.controller);
+          }
+        }
       }
     } else if (e.type === 'SHOWDOWN_STARTED' && e.isCombat) {
       const c = state.flow.combat;

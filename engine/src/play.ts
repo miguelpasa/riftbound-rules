@@ -31,7 +31,7 @@ import { selfEnergyDiscount } from './costReduction.js';
 import { evalCondition } from './conditions.js';
 import { optionalPlan } from './optional.js';
 import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
-import { isUnitDef } from './tokens.js';
+import { isDeployGear, isUnitDef } from './tokens.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -441,7 +441,8 @@ export function playCard(
     const bfId = intent.location.battlefieldId;
     const bf = state.battlefields.find((b) => b.id === bfId);
     const hiddenGear = def.type === 'GEAR' && hooks?.hiddenAt === bfId; // 811
-    if (!isUnit && !hiddenGear) {
+    const deployGear = isDeployGear(def);
+    if (!isUnit && !hiddenGear && !deployGear) {
       return ruleError('ILLEGAL_LOCATION', `${def.type} can only enter the Base`);
     }
     if (!bf) return ruleError('ILLEGAL_LOCATION', `battlefield ${bfId} does not exist`);
@@ -449,6 +450,9 @@ export function playCard(
       return ruleError('ILLEGAL_LOCATION', `you do not control battlefield ${bfId}`);
     }
     location = { kind: 'battlefield', battlefieldId: bfId };
+  } else if (isDeployGear(def)) {
+    // R85: "Play this only to a battlefield."
+    return ruleError('ILLEGAL_LOCATION', 'a Deploy gear is played to a battlefield you control');
   }
   const targets = intent.targets ?? [];
   for (const t of targets) {

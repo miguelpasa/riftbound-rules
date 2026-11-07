@@ -380,3 +380,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Repeat with modes:** the repeat uses the same mode and targets (the real text lets the player choose differently, UNCLEAR; same reading as R42).
 - **Rule numbers:** tests cite 355.10 and 820.
+
+## R85: Deploy gear: played to a battlefield, stays there, "here" triggers and statics (A-R85)
+
+- **Deploy gear exposure:** the client shows it among the units at the battlefield (all non-hidden objects there are listed); it has no combat Might.
+- **Opponent holds:** the gear dies when the opponent scores a Hold at its battlefield; a Conquer by the opponent does not kill it by itself.
+- **Rule numbers:** tests cite 303, 323.6, 359.2, 468.3 and 473.

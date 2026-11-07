@@ -114,7 +114,8 @@ const KEYWORD_LOOKUP: Record<string, KeywordName> = {
   disarm: 'Disarm',
 };
 
-const MVP_SET = new Set<string>(MVP_KEYWORDS);
+// R85: Deploy gear is implemented (play location, stays at the battlefield, killed when an opponent holds).
+const MVP_SET = new Set<string>([...MVP_KEYWORDS, 'Deploy']);
 /** Keywords whose behaviour the ability parser turns into triggers (R5, R42): not MVP, but not blockers. */
 const PARSED_KEYWORDS = new Set<string>([
   'Deathknell',

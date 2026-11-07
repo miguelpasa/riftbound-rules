@@ -109,6 +109,12 @@ export function evalCondition(
             : died(controller) + died(other);
       return n > 0;
     }
+    case 'CONTROLS_HERE': {
+      const here = hereOfSource(state, sourceId);
+      return (
+        here !== null && state.battlefields.find((b) => b.id === here)?.controller === controller
+      );
+    }
     case 'IN_COMBAT': {
       const c = state.flow.combat;
       const here = hereOfSource(state, sourceId);
