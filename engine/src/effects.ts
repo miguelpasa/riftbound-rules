@@ -54,6 +54,8 @@ interface Spec {
   subtype?: string;
   notSubtype?: string;
   maxMight?: number;
+  /** X1: every pick must be at one battlefield. */
+  sameBattlefield?: boolean;
   /** Gear only: Energy cost at most this. */
   maxEnergy?: number;
   /** R80: a countered spell's printed cost limits. */
@@ -63,6 +65,9 @@ interface Spec {
   /** R75: a card in the controller's Trash: which kind(s) and subtype(s) qualify. */
   trashWhat?: 'unit' | 'gear' | 'unitOrGear' | 'spell';
   trashSubtypes?: string[];
+  /** X5: printed-cost limits of a Trash card played by an effect. */
+  trashMaxEnergy?: number;
+  trashMaxPower?: number;
   /** R42: at the source's battlefield / not the source itself (needs the source object). */
   here?: boolean;
   another?: boolean;
@@ -90,6 +95,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'KILL_GEAR' ||
   e.op === 'RETURN_TARGET' ||
   e.op === 'RETURN_FROM_TRASH' ||
+  e.op === 'PLAY_FROM_TRASH' ||
   e.op === 'MOVE_BASE_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
@@ -107,7 +113,7 @@ function specOf(e: TargetedEffect): Spec {
   const kind: TargetKind =
     e.op === 'WEAPONMASTER_EQUIP'
       ? 'equipment'
-      : e.op === 'RETURN_FROM_TRASH'
+      : e.op === 'RETURN_FROM_TRASH' || e.op === 'PLAY_FROM_TRASH'
         ? 'trash'
         : e.op === 'KILL_GEAR' || (e.op === 'RETURN_TARGET' && e.gear)
           ? 'gear'
@@ -131,9 +137,17 @@ function specOf(e: TargetedEffect): Spec {
     spec.trashWhat = e.what;
     if (e.subtypes) spec.trashSubtypes = e.subtypes;
   }
+  if (e.op === 'PLAY_FROM_TRASH') {
+    spec.side = 'friendly';
+    spec.trashWhat = 'unit';
+    if (e.subtypes) spec.trashSubtypes = e.subtypes;
+    if (e.maxEnergy !== undefined) spec.trashMaxEnergy = e.maxEnergy;
+    if (e.maxPower !== undefined) spec.trashMaxPower = e.maxPower;
+  }
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
   if (e.op === 'DAMAGE_TARGET' && e.inBase) spec.inBase = true;
   if (e.op === 'STUN_TARGET' && e.attacking) spec.attacking = true;
+  if (e.op === 'DAMAGE_TARGET' && e.sameBattlefield) spec.sameBattlefield = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
   if (e.op === 'READY_TARGET' && e.subtype) spec.subtype = e.subtype;
   if (e.op === 'RETURN_TARGET' && e.notSubtype) spec.notSubtype = e.notSubtype;
@@ -247,6 +261,11 @@ function legalForSpec(
             ? d.type === 'UNIT'
             : d.type === 'UNIT' || d.type === 'GEAR';
     if (!ok) return false;
+    if (spec.trashMaxEnergy !== undefined && d.cost.energy > spec.trashMaxEnergy) return false;
+    if (spec.trashMaxPower !== undefined) {
+      const pw = Object.values(d.cost.power ?? {}).reduce((n, v) => n + (v ?? 0), 0);
+      if (pw > spec.trashMaxPower) return false;
+    }
     const subs = spec.trashSubtypes;
     return !subs || subs.some((s) => d.subtypes.some((x) => x.toLowerCase() === s.toLowerCase()));
   }
@@ -333,6 +352,44 @@ export function isLegalEffectTarget(
   return legalForSpec(state, cards, controller, specOf(e), u, sourceId);
 }
 
+/**
+ * X1 (559.3.d): split `total` damage among the chosen units, in the order they were chosen. Every unit needs at
+ * least 1 (559.3.d.6-7), so with fewer damage than targets the units chosen last stop being targets (559.3.d.8,
+ * the controller decides: here the later picks). The rest goes lethal-first in pick order; any overflow lands on
+ * the last unit. UNCLEAR: a human-chosen split is not modelled (the pick order is the player's lever).
+ */
+function splitDamage(
+  units: readonly CardInstance[],
+  total: number,
+  mightOf: (u: CardInstance) => number,
+  damage: (u: CardInstance, amount: number) => void,
+): void {
+  const used = units.slice(0, Math.max(0, total));
+  if (used.length === 0) return;
+  const give = used.map(() => 1);
+  let left = total - used.length;
+  used.forEach((u, i) => {
+    const room = Math.max(0, Math.max(1, mightOf(u)) - u.damage - 1);
+    const extra = Math.min(left, room);
+    give[i] = (give[i] as number) + extra;
+    left -= extra;
+  });
+  if (left > 0) give[used.length - 1] = (give[used.length - 1] as number) + left;
+  used.forEach((u, i) => damage(u, give[i] as number));
+}
+
+/** X1: do all of these objects stand at one and the same battlefield? */
+function oneBattlefield(state: GameState, ids: readonly string[]): boolean {
+  let bf: string | null = null;
+  for (const id of ids) {
+    const z = state.objects[id]?.zone;
+    if (!z || z.kind !== 'battlefield') return false;
+    if (bf !== null && bf !== z.battlefieldId) return false;
+    bf = z.battlefieldId;
+  }
+  return true;
+}
+
 function objectIds(targets: readonly Target[]): string[] {
   return targets.flatMap((t) => (t.kind === 'object' ? [t.id] : []));
 }
@@ -356,6 +413,7 @@ export function spellTargetsLegal(
     const min = r.count ? r.count.min : 1;
     const max = r.count ? r.count.max : 1;
     if (picks.length < min || picks.length > max) return false;
+    if (r.sameBattlefield && !oneBattlefield(state, picks)) return false;
     for (const id of picks) {
       if (
         seen.has(id) ||
@@ -428,7 +486,11 @@ export function enumerateSpellTargets(
     if (!r.count) return cand.map((id) => [id]);
     const out: string[][] = [];
     for (let k = Math.max(1, r.count.min); k <= r.count.max; k++) {
-      if (cand.length >= k) out.push(...combinations(cand, k));
+      if (cand.length >= k) {
+        out.push(
+          ...combinations(cand, k).filter((c) => !r.sameBattlefield || oneBattlefield(state, c)),
+        );
+      }
     }
     return out;
   });
@@ -903,6 +965,7 @@ export function runEffects(
       case 'KILL_GEAR':
       case 'RETURN_TARGET':
       case 'RETURN_FROM_TRASH':
+      case 'PLAY_FROM_TRASH':
       case 'MOVE_BASE_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
@@ -919,6 +982,10 @@ export function runEffects(
           );
         if (legal.length === 0) {
           fizzle();
+          break;
+        }
+        if (e.op === 'DAMAGE_TARGET' && e.split) {
+          splitDamage(legal, damageAmount(e), mightOf, damage);
           break;
         }
         for (const u of legal) {
@@ -976,6 +1043,30 @@ export function runEffects(
             ps.trash = ps.trash.filter((x) => x !== u.id);
             u.zone = { kind: 'hand', player: u.owner };
             ps.hand.push(u.id);
+          } else if (e.op === 'PLAY_FROM_TRASH') {
+            // X5 (560.1.a, 595.3): played by an effect with every cost set to zero.
+            const ps = state.players[playerIndex(u.owner)];
+            ps.trash = ps.trash.filter((x) => x !== u.id);
+            u.zone = { kind: 'base', player: u.owner };
+            u.controller = u.owner;
+            u.damage = 0;
+            u.mightBonus = 0;
+            u.enteredTurn = state.turn.number;
+            u.ready =
+              staticBonus(state, cards, u).entersReady === true ||
+              ps.enterReadyTurn === state.turn.number;
+            ps.base.push(u.id);
+            const sameTurn = ps.playedThisTurn?.turn === state.turn.number;
+            ps.playedThisTurn = {
+              turn: state.turn.number,
+              objectIds: [...(sameTurn ? (ps.playedThisTurn?.objectIds ?? []) : []), u.id],
+            };
+            out.push({
+              type: 'CARD_PLAYED',
+              player: u.owner,
+              cardInstanceId: u.id,
+              cardId: u.cardId,
+            });
           } else if (e.op === 'RETURN_TARGET') {
             doneSlots.set(slot, u.owner);
             returnToHand(state, u, out);

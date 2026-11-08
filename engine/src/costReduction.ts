@@ -85,7 +85,49 @@ function countFor(
   }
 }
 
-/** Energy knocked off `def`'s cost for `pid` right now (Legion + the card's own `costReduction`). */
+/** One discount: `amount` Energy off, but never taking the cost below `min` (560.4.c: a minimum belongs to its discount). */
+interface Discount {
+  amount: number;
+  /** Undefined = not clamped to the cost (callers clamp the total). */
+  min?: number;
+}
+
+const applyDiscount = (cost: number, d: Discount): number =>
+  d.min === undefined ? d.amount : Math.min(d.amount, Math.max(0, cost - d.min));
+
+/**
+ * X5 (560.4): discounts may be applied in any order, and a minimum applies only to its own discount. The
+ * player always prefers the cheapest result, so take the best order (discounts with a minimum go first when
+ * that is better: 8 Energy with "-1 to a minimum of 1" and "-7" is 0, not 1).
+ */
+export function bestDiscountTotal(baseEnergy: number, ds: readonly Discount[]): number {
+  const live = ds.filter((d) => d.amount > 0);
+  if (live.length === 0) return 0;
+  if (live.every((d) => !d.min) || live.length === 1) {
+    return live.reduce((n, d) => n + applyDiscount(baseEnergy - n, d), 0);
+  }
+  let best = 0;
+  const walk = (left: Discount[], cost: number, total: number): void => {
+    if (left.length === 0) {
+      best = Math.max(best, total);
+      return;
+    }
+    for (let i = 0; i < left.length; i++) {
+      const d = left[i] as Discount;
+      const cut = applyDiscount(cost, d);
+      walk([...left.slice(0, i), ...left.slice(i + 1)], cost - cut, total + cut);
+    }
+  };
+  // Beyond 6 discounts the factorial search is not worth it: minimum-bearing ones first is the greedy order.
+  if (live.length > 6) {
+    const sorted = [...live].sort((a, b) => (b.min ?? 0) - (a.min ?? 0));
+    return sorted.reduce((n, d) => n + applyDiscount(baseEnergy - n, d), 0);
+  }
+  walk(live, baseEnergy, 0);
+  return best;
+}
+
+/** Energy knocked off `def`'s cost for `pid` right now (Legion + the card's own `costReduction` + statics). */
 export function selfEnergyDiscount(
   state: GameState,
   cards: CardDatabase,
@@ -93,29 +135,29 @@ export function selfEnergyDiscount(
   def: CardDef,
   sourceId: string,
 ): number {
-  let total = 0;
-  if (def.legionCostReduction && legionActive(state, pid, sourceId))
-    total += def.legionCostReduction;
+  const ds: Discount[] = [];
+  if (def.legionCostReduction && legionActive(state, pid, sourceId)) {
+    ds.push({ amount: def.legionCostReduction });
+  }
   const r = def.costReduction;
-  if (r) total += reductionAmount(state, cards, pid, def, r, sourceId, def.cost.energy - total);
-  total += staticPlayCostDiscount(state, cards, pid, def, def.cost.energy - total);
+  if (r) ds.push(rawReduction(state, cards, pid, def, r, sourceId));
+  ds.push(...staticPlayCostDiscounts(state, cards, pid, def));
   // R105: a one-shot "the next spell you play this turn costs [N] less".
   const nd = state.players[playerIndex(pid)]?.nextPlayDiscount;
   if (nd && nd.turn === state.turn.number && (!nd.spellsOnly || def.type === 'SPELL')) {
-    total += Math.min(nd.energy, Math.max(0, def.cost.energy - total));
+    ds.push({ amount: nd.energy, min: 0 });
   }
-  return total;
+  return bestDiscountTotal(def.cost.energy, ds);
 }
 
-/** R104: Energy knocked off by "cost modifier" statics of the player's permanents and Legend. */
-function staticPlayCostDiscount(
+/** R104: the "cost modifier" statics of the player's permanents and Legend that apply to `def`. */
+function staticPlayCostDiscounts(
   state: GameState,
   cards: CardDatabase,
   pid: PlayerId,
   def: CardDef,
-  baseEnergy: number,
-): number {
-  let total = 0;
+): Discount[] {
+  const out: Discount[] = [];
   for (const o of Object.values(state.objects)) {
     if (o.controller !== pid) continue;
     const z = o.zone.kind;
@@ -131,10 +173,25 @@ function staticPlayCostDiscount(
         continue;
       }
       if (s.when && !evalCondition(state, cards, s.when, pid, o.id)) continue;
-      total += Math.min(m.energy, Math.max(0, baseEnergy - total - m.min));
+      out.push({ amount: m.energy, min: m.min });
     }
   }
-  return total;
+  return out;
+}
+
+/** The raw amount and minimum of one `CostReduction` (before clamping to the cost). */
+function rawReduction(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  def: CardDef,
+  r: CostReduction,
+  sourceId: string,
+): Discount {
+  let amount = 0;
+  if (r.per) amount = r.energy * countFor(state, cards, pid, def, sourceId, r.per);
+  else if (!r.when || evalCondition(state, cards, r.when, pid, sourceId)) amount = r.energy;
+  return r.min === undefined ? { amount } : { amount, min: r.min };
 }
 
 /** Energy knocked off by one `CostReduction` whose base Energy cost is `baseEnergy` right now. */
@@ -147,11 +204,7 @@ function reductionAmount(
   sourceId: string,
   baseEnergy: number,
 ): number {
-  let amount = 0;
-  if (r.per) amount = r.energy * countFor(state, cards, pid, def, sourceId, r.per);
-  else if (!r.when || evalCondition(state, cards, r.when, pid, sourceId)) amount = r.energy;
-  if (r.min !== undefined) amount = Math.min(amount, Math.max(0, baseEnergy - r.min));
-  return amount;
+  return applyDiscount(baseEnergy, rawReduction(state, cards, pid, def, r, sourceId));
 }
 
 /** R91: the Energy discount of an activated ability's own `costReduction`. */

@@ -72,3 +72,110 @@ describe('scenario: Reaction [Add] abilities during a Closed state (X10)', () =>
     expect(sc.player('p1').runePool.universal).toBe(1);
   });
 });
+
+describe('scenario: discount order (X5)', () => {
+  it('a minimum belongs to its own discount and the player takes the cheaper order', async () => {
+    // Tests Rule 560.4.c: Eager Apprentice (-1, min 1) with Sky Splitter (-7): 8 Energy costs 0, not 1
+    const { bestDiscountTotal } = await import('../costReduction.js');
+    expect(bestDiscountTotal(8, [{ amount: 7 }, { amount: 1, min: 1 }])).toBe(8);
+    expect(bestDiscountTotal(8, [{ amount: 1, min: 1 }, { amount: 7 }])).toBe(8);
+    expect(bestDiscountTotal(3, [{ amount: 5, min: 1 }])).toBe(2);
+    expect(
+      bestDiscountTotal(2, [
+        { amount: 1, min: 1 },
+        { amount: 1, min: 1 },
+      ]),
+    ).toBe(1);
+  });
+});
+
+describe('scenario: play a unit from the Trash, ignoring its cost (X5)', () => {
+  it('puts the unit on its owner Base without paying, fires CARD_PLAYED and counts for Legion', async () => {
+    // Tests Rule 560.1.a: playing "ignoring its cost" sets the base Energy and Power costs to zero
+    const { runEffects, spellTargetsLegal } = await import('../effects.js');
+    const sc = Scenario.start();
+    const titan = sc.putInHand('p0', 'fx-titan');
+    const s = structuredClone(sc.state);
+    const t = s.objects[titan] as CardInstance;
+    s.players[0].hand = s.players[0].hand.filter((x) => x !== titan);
+    s.players[0].trash.push(titan);
+    t.zone = { kind: 'trash', player: 'p0' };
+    const eff = [{ op: 'PLAY_FROM_TRASH' as const }];
+    expect(spellTargetsLegal(s, sc.cards, 'p0', eff, [{ kind: 'object', id: titan }])).toBe(true);
+    // The Titan costs 5 Energy: a limit of 3 excludes it.
+    expect(
+      spellTargetsLegal(
+        s,
+        sc.cards,
+        'p0',
+        [{ op: 'PLAY_FROM_TRASH', maxEnergy: 3 }],
+        [{ kind: 'object', id: titan }],
+      ),
+    ).toBe(false);
+    const ev = runEffects(s, 'p0', eff, sc.cards, [{ kind: 'object', id: titan }]);
+    expect((s.objects[titan] as CardInstance).zone.kind).toBe('base');
+    expect(s.players[0].trash).not.toContain(titan);
+    expect(s.players[0].base).toContain(titan);
+    expect(s.players[0].playedThisTurn?.objectIds).toContain(titan);
+    expect(ev.some((e) => e.type === 'CARD_PLAYED')).toBe(true);
+  });
+});
+
+describe('scenario: split damage (X1)', () => {
+  const setup = () => {
+    const sc = Scenario.start();
+    const a = sc.putUnit('p1', sc.kit('p1').grunt, 'bf0');
+    const b = sc.putUnit('p1', sc.kit('p1').wisp, 'bf0');
+    const c = sc.putUnit('p1', sc.kit('p1').titan, 'bf1');
+    return { sc, a, b, c };
+  };
+  const split = (n: number) => [
+    {
+      op: 'DAMAGE_TARGET' as const,
+      amount: n,
+      split: true,
+      atBattlefield: true,
+      sameBattlefield: true,
+      count: { min: 1, max: n },
+    },
+  ];
+
+  it('only accepts targets at one battlefield', async () => {
+    // Tests Rule 559.3.d: each chosen unit is a target of the split
+    const { spellTargetsLegal } = await import('../effects.js');
+    const { sc, a, b, c } = setup();
+    const ids = (...x: string[]) => x.map((id) => ({ kind: 'object' as const, id }));
+    expect(spellTargetsLegal(sc.state, sc.cards, 'p0', split(5), ids(a, b))).toBe(true);
+    expect(spellTargetsLegal(sc.state, sc.cards, 'p0', split(5), ids(a, c))).toBe(false);
+  });
+
+  it('gives every target at least 1, lethal first in pick order, overflow on the last', async () => {
+    // Tests Rule 559.3.d.6: each target must receive a valid amount of damage (at least 1)
+    const { runEffects } = await import('../effects.js');
+    const { sc, a, b } = setup();
+    const s = structuredClone(sc.state);
+    const might = (id: string) =>
+      sc.cards[(s.objects[id] as CardInstance).cardId]?.stats.might ?? 0;
+    const ev = runEffects(s, 'p0', split(5), sc.cards, [
+      { kind: 'object', id: a },
+      { kind: 'object', id: b },
+    ]);
+    const dealt = ev.flatMap((e) => (e.type === 'EFFECT_DAMAGE' ? [e.amount] : []));
+    expect(dealt.reduce((n, x) => n + x, 0)).toBe(5);
+    expect(dealt.every((x) => x >= 1)).toBe(true);
+    expect((s.objects[a] as CardInstance).damage).toBeGreaterThanOrEqual(Math.min(might(a), 4));
+  });
+
+  it('with fewer damage than targets, the later picks stop being targets', async () => {
+    // Tests Rule 559.3.d.8: more targets than damage, the controller drops targets
+    const { runEffects } = await import('../effects.js');
+    const { sc, a, b } = setup();
+    const s = structuredClone(sc.state);
+    runEffects(s, 'p0', [{ ...split(1)[0] }] as never, sc.cards, [
+      { kind: 'object', id: a },
+      { kind: 'object', id: b },
+    ]);
+    expect((s.objects[a] as CardInstance).damage).toBe(1);
+    expect((s.objects[b] as CardInstance).damage).toBe(0);
+  });
+});

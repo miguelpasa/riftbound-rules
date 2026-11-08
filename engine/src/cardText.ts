@@ -580,6 +580,29 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  // X1: "Deal N damage split among any number of enemy units" (here is lifted off by parseChooser) and
+  // "Deal N damage split among units at a single battlefield".
+  m = new RegExp(
+    `^Deal (\\d+) damage split among (?:any number of ${SIDE}units|units at a single battlefield)$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const n = Number(m[1]);
+    const single = /single battlefield/i.test(sen);
+    const s = single ? undefined : side(m[2]);
+    return {
+      effect: {
+        op: 'DAMAGE_TARGET',
+        amount: n,
+        split: true,
+        ...(single ? { atBattlefield: true, sameBattlefield: true } : {}),
+        ...sideProp(s),
+        count: { min: 1, max: n },
+      },
+      decl: { side: s ?? 'any', ...(single ? { atBattlefield: true } : {}) },
+      multi: true,
+    };
+  }
   m = new RegExp(
     `^Deal (\\d+) to each of up to ${TWO} ${SIDE}units( at a battlefield)?$`,
     'i',
@@ -769,6 +792,21 @@ function parseChooserBase(sen: string): Chooser | null {
         ...(m[3] ? { maxMight: Number(m[3]) } : {}),
       },
       decl: { side: s ?? 'any' },
+    };
+  }
+  // X5: "Play a unit [costing / with cost no more than [3] and no more than [A]] from your trash, ignoring its cost".
+  m =
+    /^[Pp]lay an? unit(?: (?:costing|with cost) no more than \[(\d+)\](?: and no more than \[A\])?)? from your trash, ignoring its cost$/.exec(
+      sen,
+    );
+  if (m) {
+    return {
+      effect: {
+        op: 'PLAY_FROM_TRASH',
+        ...(m[1] !== undefined ? { maxEnergy: Number(m[1]) } : {}),
+        ...(m[1] !== undefined && /and no more than \[A\]/.test(sen) ? { maxPower: 1 } : {}),
+      },
+      decl: { side: 'friendly' },
     };
   }
   // R75: "Return a unit / gear / spell (or a Bird, Cat, ...) from your trash to your hand".

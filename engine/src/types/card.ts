@@ -208,6 +208,10 @@ export type CardEffect =
   | ({
       op: 'DAMAGE_TARGET';
       amount: number;
+      /** X1 (559.3.d): the damage is split among all the chosen units (each gets at least 1; the split is made on resolution). */
+      split?: boolean;
+      /** X1: all chosen units must be at the same battlefield ("units at a single battlefield"). */
+      sameBattlefield?: boolean;
       /** R74: "damage equal to my Might / [Assault] / [Shield]": read from the source when the effect runs (amount is 0). */
       amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD' | 'EXCESS' | 'SLOT_MIGHT';
       /** R94: with `amountFrom: 'SLOT_MIGHT'`: the chosen unit (target slot) whose Might is dealt ("It deals damage equal to its Might"). */
@@ -399,6 +403,19 @@ export type CardEffect =
       slot?: number;
       count?: TargetCount;
     }
+  /**
+   * X5: "Play a unit from your trash, ignoring its cost". The chosen Trash unit is played to its owner's
+   * Base (the location choice is not modelled, UNCLEAR) with its whole cost set to zero (560.1.a); it
+   * fires its own "When you play me" and counts for Legion. `maxEnergy` / `maxPower` are the printed-cost limits.
+   */
+  | {
+      op: 'PLAY_FROM_TRASH';
+      maxEnergy?: number;
+      maxPower?: number;
+      subtypes?: string[];
+      slot?: number;
+      count?: TargetCount;
+    }
   /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
   | ({
       op: 'MOVE_BASE_TARGET';
@@ -485,6 +502,7 @@ export type TargetedEffect = Extract<
       | 'KILL_GEAR'
       | 'RETURN_TARGET'
       | 'RETURN_FROM_TRASH'
+      | 'PLAY_FROM_TRASH'
       | 'MOVE_BASE_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'

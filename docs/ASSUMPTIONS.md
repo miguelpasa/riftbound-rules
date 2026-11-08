@@ -523,3 +523,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 ## R110: "A card from [Hidden]" means played from face down (A-R110)
 
 - **Rule numbers:** the script test cites 811.
+
+## X1 / X5: split damage, discount order, play from Trash ignoring cost (UNCLEAR readings)
+
+- **Split damage (559.3.d):** the player chooses the targets when the spell is played or the ability is put on the Chain; the engine splits on resolution in the order the targets were chosen: 1 each, then lethal-first, overflow on the last target. The rules let the controller choose any valid split, so this is a simplification; picking the targets in a different order is the player's lever. With fewer damage than targets, the later picks stop being targets (559.3.d.8).
+- **Discount order (560.4):** discounts may be applied in any order and a minimum belongs to its own discount. The engine always takes the order that gives the lowest cost (Energy only; Power discounts are not modelled). More than six simultaneous discounts use a greedy order (discounts with a minimum first).
+- **Play from the Trash, ignoring its cost (560.1.a, 595.3):** the unit is played to its owner's Base (choosing a battlefield is not modelled), enters exhausted unless an enter-ready effect applies, fires CARD_PLAYED (its own "When you play me" and other players' "When you play a card" triggers) and counts as a card played this turn for Legion. It does not use the Chain and cannot be responded to separately from the effect that played it. The "[A]" in "no more than [A]" is read as at most 1 Power.
