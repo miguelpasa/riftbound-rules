@@ -52,6 +52,7 @@
 import { baseMight } from './baseMight.js';
 import { fork } from './workingCopy.js';
 import { killGear } from './effects.js';
+import { applyDamageMods } from './damageMod.js';
 import { defWithGrants, staticBonus } from './statics.js';
 import { recordDeath, tracksCombatEnd, tracksExcess } from './conditions.js';
 import { attachedMightBonus, removeTokenFromGame } from './keywords.js';
@@ -407,18 +408,32 @@ function advanceAssignment(s: GameState, cards: CardDatabase): GameEventInput[] 
     }
   }
   c.awaitingAssignmentFrom = null;
-  return dealDamage(s);
+  return dealDamage(s, cards);
 }
 
 /** Deal both stored assignments simultaneously (467.2.d); the step becomes RESOLUTION. */
-function dealDamage(s: GameState): GameEventInput[] {
+function dealDamage(s: GameState, cards: CardDatabase): GameEventInput[] {
   const c = s.flow.combat as CombatState;
   const events: GameEventInput[] = [];
+  const sums = new Map<string, number>();
+  for (const p of [c.attacker, c.defender]) {
+    for (const a of c.damageAssignment?.[p] ?? []) {
+      if (s.objects[a.unitId] && a.amount > 0) {
+        sums.set(a.unitId, (sums.get(a.unitId) ?? 0) + a.amount);
+      }
+    }
+  }
+  // X7: damage dealt to one unit at the same time is one instance for prevention and doubling.
+  for (const [id, total] of sums) {
+    const o = s.objects[id] as CardInstance;
+    const dealt = applyDamageMods(s, cards, o, total, { kind: 'COMBAT' });
+    if (dealt < total) events.push({ type: 'DAMAGE_PREVENTED', unitId: id, amount: total - dealt });
+    o.damage += dealt;
+  }
   for (const p of [c.attacker, c.defender]) {
     for (const a of c.damageAssignment?.[p] ?? []) {
       const o = s.objects[a.unitId];
       if (!o || a.amount <= 0) continue;
-      o.damage += a.amount;
       events.push({
         type: 'COMBAT_DAMAGE_ASSIGNED',
         player: p,

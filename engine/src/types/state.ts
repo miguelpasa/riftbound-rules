@@ -48,6 +48,8 @@ export interface CardInstance {
   mightBonus: number;
   /** Part of mightBonus that expires at the end of the turn ("this turn" effects). */
   tempMight?: number;
+  /** X7: damage replacements on this unit until the end of the turn. */
+  dmgMod?: { preventNext?: boolean; prevent?: number; double?: boolean };
   /** X7: the next time this unit would die this turn it is replaced (recalled healed and exhausted, or banished). */
   deathReplace?: 'RECALL' | 'BANISH';
   /** X2: base Might assigned by an effect ("base Might becomes N this turn"); expires in the Ending step. */
@@ -179,4 +181,6 @@ export interface GameState {
   /** Counters for deterministic id / event-seq generation. */
   nextObjectId: number;
   nextEventSeq: number;
+  /** X7: all spell and ability damage is prevented during this turn number (Unyielding Spirit). */
+  noEffectDamageTurn?: number;
 }

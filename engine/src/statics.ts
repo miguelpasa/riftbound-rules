@@ -165,6 +165,8 @@ export interface StaticBonus {
   noEnemyChoose?: boolean;
   /** R88: the unit enters ready. */
   entersReady?: boolean;
+  /** X7: enemy spells and abilities deal no damage to the unit. */
+  noEnemyEffectDamage?: boolean;
   /** X7: a standing death replacement applies to the unit (first applicable source). */
   replaceDeath?: { sourceId: string; killSource: boolean };
 }
@@ -187,6 +189,7 @@ export function staticBonus(
   let noMoveToBase = false;
   let noCombatDamage = false;
   let noEnemyChoose = false;
+  let noEnemyEffectDamage = false;
   let entersReady = false;
   let replaceDeath: StaticBonus['replaceDeath'];
   const mightOfObj = (o: CardInstance | undefined): number =>
@@ -216,6 +219,7 @@ export function staticBonus(
       if (s.restrict === 'NO_MOVE_TO_BASE') noMoveToBase = true;
       if (s.restrict === 'NO_COMBAT_DAMAGE') noCombatDamage = true;
       if (s.restrict === 'NO_ENEMY_CHOOSE') noEnemyChoose = true;
+      if (s.restrict === 'NO_ENEMY_EFFECT_DAMAGE') noEnemyEffectDamage = true;
       if (s.entersReady) entersReady = true;
       if (s.replaceDeath && !replaceDeath) {
         replaceDeath = { sourceId, killSource: s.replaceDeath.killSource === true };
@@ -242,6 +246,7 @@ export function staticBonus(
     !noMoveToBase &&
     !noCombatDamage &&
     !noEnemyChoose &&
+    !noEnemyEffectDamage &&
     !entersReady &&
     !replaceDeath
     ? NONE
@@ -251,6 +256,7 @@ export function staticBonus(
         ...(noMoveToBase ? { noMoveToBase } : {}),
         ...(noCombatDamage ? { noCombatDamage } : {}),
         ...(noEnemyChoose ? { noEnemyChoose } : {}),
+        ...(noEnemyEffectDamage ? { noEnemyEffectDamage } : {}),
         ...(entersReady ? { entersReady } : {}),
         ...(replaceDeath ? { replaceDeath } : {}),
       };

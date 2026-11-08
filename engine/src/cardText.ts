@@ -119,6 +119,8 @@ function parseClauseNoSplit(sen: string): CardEffect[] | null {
 function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null {
   let m = /^Draw (\d+)$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]) }];
+  if (/^Prevent all spell and ability damage this turn$/i.test(sen))
+    return [{ op: 'PREVENT_EFFECT_DAMAGE_TURN' }];
   m = /^(?:You and that player each draw|Each player draws) (\d+)$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]), eachPlayer: true }];
   m = /^Draw (\d+) and channel (\d+) runes? exhausted$/i.exec(sen);
@@ -908,6 +910,20 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
   if (m) return { op: 'SET_BASE_MIGHT', amount: Number(m[1]), ...sd, ...at };
   if (/^The next time it would die this turn, heal it, exhaust it, and recall it instead$/i.test(sen))
     return { op: 'DEATH_REPLACE_TARGET', mode: 'RECALL', ...sd, ...bf, ...at };
+  if (/^The next time (?:that unit|it) would be dealt damage this turn, prevent it$/i.test(sen))
+    return { op: 'DAMAGE_MOD_TARGET', mod: 'PREVENT_NEXT', ...sd, ...bf, ...at };
+  m = /^Prevent the next (\d+) damage that would be dealt to it this turn$/i.exec(sen);
+  if (m)
+    return {
+      op: 'DAMAGE_MOD_TARGET',
+      mod: 'PREVENT_AMOUNT',
+      amount: Number(m[1]),
+      ...sd,
+      ...bf,
+      ...at,
+    };
+  if (/^Double all damage that would be dealt to it this turn$/i.test(sen))
+    return { op: 'DAMAGE_MOD_TARGET', mod: 'DOUBLE', ...sd, ...bf, ...at };
   if (/^If it would die this turn, banish it instead$/i.test(sen))
     return { op: 'DEATH_REPLACE_TARGET', mode: 'BANISH', ...sd, ...bf, ...at };
   if (/^Give it \[Temporary\]$/i.test(sen)) return { op: 'GRANT_TEMPORARY_TARGET', ...sd, ...at };
@@ -1249,6 +1265,13 @@ function parseRestrictStatic(body: string): StaticAbility | null {
  * exhaust it, and recall it." (Soraka).
  */
 function parseDeathReplaceStatic(body: string): StaticAbility | null {
+  const pd = /^While (.+?), prevent all damage that enemy spells and abilities would deal to me$/i.exec(
+    body,
+  );
+  if (pd) {
+    const when = parseCondition(pd[1] ?? '');
+    return when ? { affects: 'SELF', restrict: 'NO_ENEMY_EFFECT_DAMAGE', when } : null;
+  }
   if (
     /^If a friendly unit would die, kill this instead\. Heal that unit, exhaust it, and recall it$/i.test(
       body,

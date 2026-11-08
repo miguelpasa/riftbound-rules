@@ -7,6 +7,7 @@
  * them. `targetRequirements` derives the slots a spell needs, `spellTargetsLegal` validates a
  * choice (play.ts) and `enumerateSpellTargets` lists choices for `getLegalActions` (capped).
  */
+import { applyDamageMods } from './damageMod.js';
 import { fork } from './workingCopy.js';
 import { burnOutIfEmpty, drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
@@ -90,6 +91,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'STUN_TARGET' ||
   e.op === 'SET_BASE_MIGHT' ||
   e.op === 'DEATH_REPLACE_TARGET' ||
+  e.op === 'DAMAGE_MOD_TARGET' ||
   e.op === 'GRANT_TEMPORARY_TARGET' ||
   e.op === 'DOUBLE_MIGHT_TARGET' ||
   e.op === 'DEBUFF_TARGET' ||
@@ -764,8 +766,11 @@ export function runEffects(
     out.push({ type: 'EFFECT_FIZZLED', cardId: sourceCardId });
   };
   const damage = (u: CardInstance, amount: number): void => {
-    u.damage += amount;
-    out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount });
+    const dealt = applyDamageMods(state, cards, u, amount, { kind: 'EFFECT', controller });
+    if (dealt < amount) out.push({ type: 'DAMAGE_PREVENTED', unitId: u.id, amount: amount - dealt });
+    if (dealt <= 0) return;
+    u.damage += dealt;
+    out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount: dealt });
   };
   const mightOf = (u: CardInstance): number => effectiveMight(state, cards, u.id, { role: null });
   /** R74: damage that depends on the source ("equal to my Might"). */
@@ -954,6 +959,9 @@ export function runEffects(
         }
         break;
       }
+      case 'PREVENT_EFFECT_DAMAGE_TURN':
+        state.noEffectDamageTurn = state.turn.number;
+        break;
       case 'WIN_GAME':
         state.gameStatus = 'FINISHED';
         state.winner = controller;
@@ -967,6 +975,7 @@ export function runEffects(
       case 'STUN_TARGET':
       case 'SET_BASE_MIGHT':
       case 'DEATH_REPLACE_TARGET':
+      case 'DAMAGE_MOD_TARGET':
       case 'GRANT_TEMPORARY_TARGET':
       case 'DOUBLE_MIGHT_TARGET':
       case 'DEBUFF_TARGET':
@@ -1021,6 +1030,11 @@ export function runEffects(
             out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
           } else if (e.op === 'DOUBLE_MIGHT_TARGET') {
             addTemp(u, Math.max(0, mightOf(u)), true);
+          } else if (e.op === 'DAMAGE_MOD_TARGET') {
+            const m = (u.dmgMod ??= {});
+            if (e.mod === 'PREVENT_NEXT') m.preventNext = true;
+            else if (e.mod === 'DOUBLE') m.double = true;
+            else m.prevent = (m.prevent ?? 0) + (e.amount ?? 0);
           } else if (e.op === 'DEATH_REPLACE_TARGET') {
             // X7 (575): several replacements on one event are ordered by the unit's owner; Recall keeps the
             // unit, so it is the owner's better pick over Banish (assumption, ASSUMPTIONS.md X7).
@@ -1448,6 +1462,7 @@ export function expireTurnEffects(
     }
     if (o.baseMightSet !== undefined) delete o.baseMightSet;
     if (o.deathReplace) delete o.deathReplace;
+    if (o.dmgMod) delete o.dmgMod;
     if (o.stunned) delete o.stunned;
     if (o.cantMove) delete o.cantMove;
     if (o.tempKeywords) delete o.tempKeywords;

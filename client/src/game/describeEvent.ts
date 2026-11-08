@@ -115,6 +115,8 @@ export function describeEvent(
       return event.amount < 0
         ? `A unit got ${event.amount} Might.`
         : `A unit got +${event.amount} Might.`;
+    case 'DAMAGE_PREVENTED':
+      return `${event.amount} damage to ${objectName(event.unitId, view, cards, 'a unit')} was prevented.`;
     case 'UNIT_DEATH_REPLACED':
       return event.mode === 'RECALL'
         ? `${cards[event.cardId]?.name ?? 'A unit'} would have died; it was healed, exhausted and recalled to its base instead.`

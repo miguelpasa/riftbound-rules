@@ -279,6 +279,16 @@ export type CardEffect =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** X7 (573): damage replacement markers on the target unit this turn: prevent the next damage, prevent the next N damage, or double all damage. */
+  | ({
+      op: 'DAMAGE_MOD_TARGET';
+      mod: 'PREVENT_NEXT' | 'PREVENT_AMOUNT' | 'DOUBLE';
+      amount?: number;
+      side?: TargetSide;
+      slot?: number;
+    } & TargetScope)
+  /** X7: prevent all damage that spells and abilities would deal this turn (Unyielding Spirit). */
+  | { op: 'PREVENT_EFFECT_DAMAGE_TURN' }
   /** X7 (573): "The next time it would die this turn, heal it, exhaust it, and recall it instead" / "... banish it instead". */
   | ({
       op: 'DEATH_REPLACE_TARGET';
@@ -505,6 +515,7 @@ export type TargetedEffect = Extract<
       | 'STUN_TARGET'
       | 'SET_BASE_MIGHT'
       | 'DEATH_REPLACE_TARGET'
+      | 'DAMAGE_MOD_TARGET'
       | 'GRANT_TEMPORARY_TARGET'
       | 'DOUBLE_MIGHT_TARGET'
       | 'DEBUFF_TARGET'
@@ -575,7 +586,7 @@ export interface StaticAbility {
   onlyKeyword?: string;
   onlySubtype?: string;
   /** R57: a movement restriction instead of / besides a grant: units it affects cannot move to the Base. */
-  restrict?: 'NO_MOVE_TO_BASE' | 'NO_COMBAT_DAMAGE' | 'NO_ENEMY_CHOOSE';
+  restrict?: 'NO_MOVE_TO_BASE' | 'NO_COMBAT_DAMAGE' | 'NO_ENEMY_CHOOSE' | 'NO_ENEMY_EFFECT_DAMAGE';
   /**
    * R104: a cost modifier for the cards its controller plays: "the Energy costs for spells you play are reduced by [1],
    * to a minimum of [1]" / "Your Dragons' Energy costs are reduced by [2], to a minimum of [1]".

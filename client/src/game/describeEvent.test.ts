@@ -54,6 +54,7 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   EFFECT_EMPOWERED: { seq: 35, type: 'EFFECT_EMPOWERED', unitId: 'o1' },
   EFFECT_READIED: { seq: 34, type: 'EFFECT_READIED', unitId: 'o1' },
   EFFECT_FIZZLED: { seq: 33, type: 'EFFECT_FIZZLED', cardId: 'fx-flare' },
+  DAMAGE_PREVENTED: { seq: 35, type: 'DAMAGE_PREVENTED', unitId: 'o1', amount: 3 },
   UNIT_DEATH_REPLACED: {
     seq: 35,
     type: 'UNIT_DEATH_REPLACED',
