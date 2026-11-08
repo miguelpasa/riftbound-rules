@@ -89,6 +89,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'LOCK_MOVE_TARGET' ||
   e.op === 'STUN_TARGET' ||
   e.op === 'SET_BASE_MIGHT' ||
+  e.op === 'DEATH_REPLACE_TARGET' ||
   e.op === 'GRANT_TEMPORARY_TARGET' ||
   e.op === 'DOUBLE_MIGHT_TARGET' ||
   e.op === 'DEBUFF_TARGET' ||
@@ -965,6 +966,7 @@ export function runEffects(
       case 'LOCK_MOVE_TARGET':
       case 'STUN_TARGET':
       case 'SET_BASE_MIGHT':
+      case 'DEATH_REPLACE_TARGET':
       case 'GRANT_TEMPORARY_TARGET':
       case 'DOUBLE_MIGHT_TARGET':
       case 'DEBUFF_TARGET':
@@ -1019,6 +1021,10 @@ export function runEffects(
             out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
           } else if (e.op === 'DOUBLE_MIGHT_TARGET') {
             addTemp(u, Math.max(0, mightOf(u)), true);
+          } else if (e.op === 'DEATH_REPLACE_TARGET') {
+            // X7 (575): several replacements on one event are ordered by the unit's owner; Recall keeps the
+            // unit, so it is the owner's better pick over Banish (assumption, ASSUMPTIONS.md X7).
+            if (!(u.deathReplace === 'RECALL' && e.mode === 'BANISH')) u.deathReplace = e.mode;
           } else if (e.op === 'SET_BASE_MIGHT') {
             // X2 (637.1.a.1, 639.1): assigned in the first layer; the newest assignment replaces older ones
             // and later +/- arithmetic still applies on top.
@@ -1441,6 +1447,7 @@ export function expireTurnEffects(
       delete o.tempMight;
     }
     if (o.baseMightSet !== undefined) delete o.baseMightSet;
+    if (o.deathReplace) delete o.deathReplace;
     if (o.stunned) delete o.stunned;
     if (o.cantMove) delete o.cantMove;
     if (o.tempKeywords) delete o.tempKeywords;

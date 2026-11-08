@@ -906,6 +906,10 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
   if (m) return { op: 'DAMAGE_TARGET', amount: Number(m[1]), ...sd, ...bf, ...at };
   m = /^Its base Might becomes (\d+) this turn$/i.exec(sen);
   if (m) return { op: 'SET_BASE_MIGHT', amount: Number(m[1]), ...sd, ...at };
+  if (/^The next time it would die this turn, heal it, exhaust it, and recall it instead$/i.test(sen))
+    return { op: 'DEATH_REPLACE_TARGET', mode: 'RECALL', ...sd, ...bf, ...at };
+  if (/^If it would die this turn, banish it instead$/i.test(sen))
+    return { op: 'DEATH_REPLACE_TARGET', mode: 'BANISH', ...sd, ...bf, ...at };
   if (/^Give it \[Temporary\]$/i.test(sen)) return { op: 'GRANT_TEMPORARY_TARGET', ...sd, ...at };
   if (/^Ready it$/i.test(sen)) return { op: 'READY_TARGET', ...sd, ...at };
   if (/^It can['’]t move this turn$/i.test(sen)) return { op: 'LOCK_MOVE_TARGET', ...sd, ...at };

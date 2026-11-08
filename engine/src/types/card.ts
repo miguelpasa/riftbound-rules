@@ -279,6 +279,14 @@ export type CardEffect =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** X7 (573): "The next time it would die this turn, heal it, exhaust it, and recall it instead" / "... banish it instead". */
+  | ({
+      op: 'DEATH_REPLACE_TARGET';
+      mode: 'RECALL' | 'BANISH';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
   /** R98: "Double a unit's Might this turn". */
   | ({ op: 'DOUBLE_MIGHT_TARGET'; side?: TargetSide; slot?: number } & TargetScope)
   /** R97: the target unit's base Might becomes `amount` this turn (a temporary change, other bonuses stay). */
@@ -496,6 +504,7 @@ export type TargetedEffect = Extract<
       | 'LOCK_MOVE_TARGET'
       | 'STUN_TARGET'
       | 'SET_BASE_MIGHT'
+      | 'DEATH_REPLACE_TARGET'
       | 'GRANT_TEMPORARY_TARGET'
       | 'DOUBLE_MIGHT_TARGET'
       | 'DEBUFF_TARGET'

@@ -115,6 +115,10 @@ export function describeEvent(
       return event.amount < 0
         ? `A unit got ${event.amount} Might.`
         : `A unit got +${event.amount} Might.`;
+    case 'UNIT_DEATH_REPLACED':
+      return event.mode === 'RECALL'
+        ? `${cards[event.cardId]?.name ?? 'A unit'} would have died; it was healed, exhausted and recalled to its base instead.`
+        : `${cards[event.cardId]?.name ?? 'A unit'} would have died; it was banished instead.`;
     case 'EFFECT_STUNNED':
       return `${objectName(event.unitId, view, cards, 'A unit')} was stunned and deals no combat damage this turn.`;
     case 'EFFECT_KEYWORD_GRANTED':

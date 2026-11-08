@@ -54,6 +54,13 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   EFFECT_EMPOWERED: { seq: 35, type: 'EFFECT_EMPOWERED', unitId: 'o1' },
   EFFECT_READIED: { seq: 34, type: 'EFFECT_READIED', unitId: 'o1' },
   EFFECT_FIZZLED: { seq: 33, type: 'EFFECT_FIZZLED', cardId: 'fx-flare' },
+  UNIT_DEATH_REPLACED: {
+    seq: 35,
+    type: 'UNIT_DEATH_REPLACED',
+    unitId: 'o1',
+    cardId: 'fx-flare',
+    mode: 'RECALL',
+  },
   EFFECT_STUNNED: { seq: 35, type: 'EFFECT_STUNNED', unitId: 'o1' },
   EFFECT_KEYWORD_GRANTED: { seq: 70, type: 'EFFECT_KEYWORD_GRANTED', unitId: 'o1' },
   EFFECT_COUNTERED: { seq: 36, type: 'EFFECT_COUNTERED', cardId: 'fx-flare' },

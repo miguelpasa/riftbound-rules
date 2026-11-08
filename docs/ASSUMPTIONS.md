@@ -536,3 +536,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Stun triggers:** "When you stun an enemy unit" fires when an effect controlled by you newly stuns an enemy unit; "one or more" is read as once per stun effect target, so a mass stun fires it once per unit (UNCLEAR). Stunning an already-stunned unit does nothing and fires nothing.
 - **Discard triggers:** discards only happen as card-choice costs and mandatory discards (COST_CARDS_PAID, kind DISCARD); "When you discard one or more cards" fires once per such payment for the discarding player's permanents and Legend. "When you discard me" (a card in the Trash) is not implemented.
 - **Becomes Mighty (709):** compared per reduced step: a unit on the board with Might below 5 before and 5 or more after fires once for the controller's permanents; a unit entering the board already Mighty does not (its inherent Might counted in the hand, 711), and a unit that goes below 5 and back up inside one step does not fire.
+
+
+## X2 / X7
+
+- X2 (637.1.a.1, 639.1): "base Might becomes N" is stored as the unit's base (`baseMightSet`); the newest assignment wins and +/- effects apply on top in any order. No general layer engine: no other card has dependent trait or ability altering effects.
+- X7 (575): when a unit has both a Recall and a Banish replacement for the same death, the engine applies Recall (the owner would choose to keep the unit). Recall is not a move (no move triggers); a recalled unit that was in combat leaves it. A replaced death is not a death: no Deathknell or "when a unit dies" trigger fires, and it does not count for "a unit died this turn".
