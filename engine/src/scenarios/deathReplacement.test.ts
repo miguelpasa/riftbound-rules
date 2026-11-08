@@ -2,8 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { Scenario } from '../testing/scenario.js';
 import { runCleanup } from '../cleanup.js';
 import { expireTurnEffects, runEffects } from '../effects.js';
-import { parseSpellText } from '../cardText.js';
-import type { CardEffect, CardInstance, GameState } from '../types/index.js';
+import { parseSpellText, parseStaticLines } from '../cardText.js';
+import { SCENARIO_CARDS } from '../testing/scenario.js';
+import { TOKEN_CARDS } from '../tokens.js';
+import type {
+  CardDatabase,
+  CardDef,
+  CardEffect,
+  CardInstance,
+  GameState,
+  StaticAbility,
+} from '../types/index.js';
 
 function killAndSettle(
   sc: Scenario,
@@ -81,5 +90,66 @@ describe('scenario: "would die ... instead" replacement (X7)', () => {
       { op: 'DAMAGE_TARGET', amount: 3, atBattlefield: true },
       { op: 'DEATH_REPLACE_TARGET', mode: 'BANISH' },
     ]);
+  });
+});
+
+const withStatic = (cardId: string, statics: StaticAbility[]): CardDatabase => ({
+  ...TOKEN_CARDS,
+  ...SCENARIO_CARDS,
+  [cardId]: { ...(SCENARIO_CARDS[cardId] as CardDef), statics },
+});
+
+describe('scenario: standing "would die ... instead" replacements (X7)', () => {
+  it('a gear that kills itself instead saves a friendly unit (Zhonya Hourglass)', () => {
+    // Tests Rule 575: a replacement effect applies to the event it names
+    const cards = withStatic('fx-ember-totem', [
+      { affects: 'FRIENDLY_UNITS', replaceDeath: { killSource: true } },
+    ]);
+    const sc = Scenario.start({}, cards);
+    const totem = sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const u = sc.putUnit('p0', 'fx-ash-tank', 'bf0', { control: true });
+    const { state } = killAndSettle(sc, structuredClone(sc.state));
+    expect((state.objects[u] as CardInstance).zone.kind).toBe('base');
+    expect((state.objects[u] as CardInstance).ready).toBe(false);
+    expect((state.objects[totem] as CardInstance).zone.kind).toBe('trash');
+  });
+
+  it('a stronger unit saves another friendly unit here that has less Might (Soraka)', () => {
+    // Tests Rule 575: the replacement is conditional on the Might comparison
+    const cards = withStatic('fx-ash-tank', [
+      { affects: 'OTHER_FRIENDLY_HERE', lessMight: true, replaceDeath: {} },
+    ]);
+    const sc = Scenario.start({}, cards);
+    const guard = sc.putUnit('p0', 'fx-ash-tank', 'bf0', { control: true });
+    const weak = sc.putUnit('p0', 'fx-grunt', 'bf0');
+    const { state } = killAndSettle(sc, structuredClone(sc.state));
+    expect((state.objects[weak] as CardInstance).zone.kind).toBe('base');
+    expect((state.objects[guard] as CardInstance).zone.kind).toBe('trash'); // it does not save itself
+  });
+
+  it('it does not save a unit with equal or more Might', () => {
+    // Tests Rule 575: "if it has less Might than me"
+    const cards = withStatic('fx-grunt', [
+      { affects: 'OTHER_FRIENDLY_HERE', lessMight: true, replaceDeath: {} },
+    ]);
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p0', 'fx-grunt', 'bf0', { control: true });
+    const strong = sc.putUnit('p0', 'fx-ash-tank', 'bf0');
+    const { state } = killAndSettle(sc, structuredClone(sc.state));
+    expect((state.objects[strong] as CardInstance).zone.kind).toBe('trash');
+  });
+
+  it('parses the Zhonya Hourglass and Soraka lines', () => {
+    // Tests Rule 573.1: "instead" marks a replacement effect
+    expect(
+      parseStaticLines(
+        'If a friendly unit would die, kill this instead. Heal that unit, exhaust it, and recall it. (Send it to base. This is not a move.)',
+      )?.statics,
+    ).toEqual([{ affects: 'FRIENDLY_UNITS', replaceDeath: { killSource: true } }]);
+    expect(
+      parseStaticLines(
+        'If another unit you control here would die, if it has less Might than me, instead heal it, exhaust it, and recall it. (Send it to base. This is not a move.)',
+      )?.statics,
+    ).toEqual([{ affects: 'OTHER_FRIENDLY_HERE', lessMight: true, replaceDeath: {} }]);
   });
 });

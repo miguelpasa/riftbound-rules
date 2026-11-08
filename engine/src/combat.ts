@@ -51,6 +51,7 @@
  */
 import { baseMight } from './baseMight.js';
 import { fork } from './workingCopy.js';
+import { killGear } from './effects.js';
 import { defWithGrants, staticBonus } from './statics.js';
 import { recordDeath, tracksCombatEnd, tracksExcess } from './conditions.js';
 import { attachedMightBonus, removeTokenFromGame } from './keywords.js';
@@ -514,6 +515,17 @@ export function killLethalUnits(state: GameState, cards: CardDatabase): GameEven
     if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;
     if (o.damage <= 0 || o.damage < Math.max(1, effectiveMight(state, cards, id))) continue;
     if (o.deathReplace) {
+      events.push(replaceDeath(state, cards, o));
+      continue;
+    }
+    const standing = staticBonus(state, cards, o).replaceDeath;
+    if (standing) {
+      const src = state.objects[standing.sourceId];
+      if (standing.killSource && src && cards[src.cardId]?.type === 'GEAR') {
+        killGear(state, src);
+        events.push({ type: 'GEAR_KILLED', gearId: src.id });
+      }
+      o.deathReplace = 'RECALL';
       events.push(replaceDeath(state, cards, o));
       continue;
     }

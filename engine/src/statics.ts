@@ -165,6 +165,8 @@ export interface StaticBonus {
   noEnemyChoose?: boolean;
   /** R88: the unit enters ready. */
   entersReady?: boolean;
+  /** X7: a standing death replacement applies to the unit (first applicable source). */
+  replaceDeath?: { sourceId: string; killSource: boolean };
 }
 
 const NONE: StaticBonus = { might: 0, keywords: [] };
@@ -186,6 +188,7 @@ export function staticBonus(
   let noCombatDamage = false;
   let noEnemyChoose = false;
   let entersReady = false;
+  let replaceDeath: StaticBonus['replaceDeath'];
   const mightOfObj = (o: CardInstance | undefined): number =>
     baseMight(cards[o?.cardId ?? ''], o) + (o?.mightBonus ?? 0);
   const apply = (
@@ -214,6 +217,9 @@ export function staticBonus(
       if (s.restrict === 'NO_COMBAT_DAMAGE') noCombatDamage = true;
       if (s.restrict === 'NO_ENEMY_CHOOSE') noEnemyChoose = true;
       if (s.entersReady) entersReady = true;
+      if (s.replaceDeath && !replaceDeath) {
+        replaceDeath = { sourceId, killSource: s.replaceDeath.killSource === true };
+      }
       for (const k of s.keywords ?? []) keywords.push({ ...k });
     }
   };
@@ -236,7 +242,8 @@ export function staticBonus(
     !noMoveToBase &&
     !noCombatDamage &&
     !noEnemyChoose &&
-    !entersReady
+    !entersReady &&
+    !replaceDeath
     ? NONE
     : {
         might,
@@ -245,6 +252,7 @@ export function staticBonus(
         ...(noCombatDamage ? { noCombatDamage } : {}),
         ...(noEnemyChoose ? { noEnemyChoose } : {}),
         ...(entersReady ? { entersReady } : {}),
+        ...(replaceDeath ? { replaceDeath } : {}),
       };
 }
 

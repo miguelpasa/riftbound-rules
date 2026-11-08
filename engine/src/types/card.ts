@@ -587,6 +587,11 @@ export interface StaticAbility {
   entersReady?: boolean;
   /** R74: the restriction (or grant) does NOT apply while this condition holds ("... unless <condition>"). */
   unless?: Condition;
+  /**
+   * X7 (573, 575): a standing replacement for the death of an affected unit: it is healed, exhausted and recalled
+   * to its Base instead; `killSource` also kills the source ("kill this instead", Zhonya's Hourglass).
+   */
+  replaceDeath?: { killSource?: boolean };
   /** R74: only units with LESS Might than the source (printed Might plus bonuses) are affected. */
   lessMight?: boolean;
   when?: Condition;

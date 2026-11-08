@@ -1243,6 +1243,29 @@ function parseRestrictStatic(body: string): StaticAbility | null {
   return { ...aff, restrict, ...(unless ? { unless } : {}) };
 }
 
+/**
+ * X7: "If a friendly unit would die, kill this instead. Heal that unit, exhaust it, and recall it." (Zhonya's
+ * Hourglass) and "If another unit you control here would die, if it has less Might than me, instead heal it,
+ * exhaust it, and recall it." (Soraka).
+ */
+function parseDeathReplaceStatic(body: string): StaticAbility | null {
+  if (
+    /^If a friendly unit would die, kill this instead\. Heal that unit, exhaust it, and recall it$/i.test(
+      body,
+    )
+  ) {
+    return { affects: 'FRIENDLY_UNITS', replaceDeath: { killSource: true } };
+  }
+  if (
+    /^If another unit you control here would die, if it has less Might than me, instead heal it, exhaust it, and recall it$/i.test(
+      body,
+    )
+  ) {
+    return { affects: 'OTHER_FRIENDLY_HERE', lessMight: true, replaceDeath: {} };
+  }
+  return null;
+}
+
 const STATIC_RESTRICT = [
   [/^(I) can['’]t move to base$/i, 'SELF'],
   [/^(Units) can['’]t move to base$/i, 'ALL_UNITS'],
@@ -1315,6 +1338,12 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
     const body = body0
       .replace(/^(Other friendly units) (have .+?) here$/i, '$1 here $2')
       .replace(/\ban additional (\+\d+ \[M\])/i, '$1');
+    // X7: standing "would die ... instead" replacements.
+    const rd = parseDeathReplaceStatic(body);
+    if (rd) {
+      statics.push(rd);
+      continue;
+    }
     const cnt = parseCountedStatic(body);
     if (cnt) {
       statics.push(cnt);
