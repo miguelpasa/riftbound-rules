@@ -58,6 +58,21 @@ export function burnOut(
 }
 
 /**
+ * X8 (607.1.b-c): looking at, revealing or milling cards while the Main Deck is EMPTY burns out first (the
+ * Trash is shuffled into the deck, the opponent gains 1 point); a deck with fewer cards than asked for does
+ * not. Returns the events; the caller must check `state.gameStatus` before going on.
+ */
+export function burnOutIfEmpty(
+  state: GameState,
+  player: PlayerId,
+  cards: CardDatabase,
+): GameEventInput[] {
+  const ps = state.players[playerIndex(player)];
+  if (ps.mainDeck.length > 0 || state.gameStatus !== 'IN_PROGRESS') return [];
+  return burnOut(state, player, cards);
+}
+
+/**
  * Draw `n` cards with Burn Out handling (414.4): draw as many as possible, burn out, draw the rest.
  * Stops as soon as the game ends.
  */

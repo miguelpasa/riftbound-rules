@@ -8,7 +8,7 @@
  * choice (play.ts) and `enumerateSpellTargets` lists choices for `getLegalActions` (capped).
  */
 import { fork } from './workingCopy.js';
-import { drawWithBurnOut } from './burnout.js';
+import { burnOutIfEmpty, drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
 import { equipTotalCost, hasKeyword, removeTokenFromGame } from './keywords.js';
 import { autoPlan, payCost } from './resources.js';
@@ -637,7 +637,8 @@ function lookAtTop(
   cards: CardDatabase,
   rest: 'RECYCLE' | 'TRASH' = 'RECYCLE',
 ): GameEventInput[] {
-  const out: GameEventInput[] = [];
+  const out: GameEventInput[] = burnOutIfEmpty(state, player, cards);
+  if (state.gameStatus !== 'IN_PROGRESS') return out;
   const ps = state.players[playerIndex(player)];
   const ids = ps.mainDeck.splice(0, count);
   out.push({ type: 'CARDS_LOOKED_AT', player, count: ids.length });
@@ -849,7 +850,10 @@ export function runEffects(
         break;
       }
       case 'BURN': {
-        // R44: the top cards of the Main Deck go to the Trash; running out of cards is not a Burn Out.
+        // R44: the top cards of the Main Deck go to the Trash. X8: an EMPTY deck burns out first (607.1.c);
+        // having fewer cards than asked for is not a Burn Out.
+        out.push(...burnOutIfEmpty(state, controller, cards));
+        if (state.gameStatus !== 'IN_PROGRESS') break;
         const ps = state.players[playerIndex(controller)];
         const milled = ps.mainDeck.splice(0, e.amount);
         for (const id of milled) {
@@ -875,6 +879,8 @@ export function runEffects(
       }
       case 'PREDICT': {
         // R55: keep a card on top only when it is playable soon: Energy cost at most (runes + 2).
+        out.push(...burnOutIfEmpty(state, controller, cards));
+        if (state.gameStatus !== 'IN_PROGRESS') break;
         const ps = state.players[playerIndex(controller)] as GameState['players'][number];
         const ids = ps.mainDeck.splice(0, e.count);
         out.push({ type: 'CARDS_LOOKED_AT', player: controller, count: ids.length });
@@ -1017,8 +1023,10 @@ export function runEffects(
             const printed = cards[u.cardId]?.stats.might ?? 0;
             addTemp(u, e.amount - printed, true);
           } else if (e.op === 'STUN_TARGET') {
+            // X9 (599.1.a.1): a stunned unit cannot be stunned again, so nothing happens (and nothing triggers).
+            if (u.stunned) continue;
             u.stunned = true;
-            out.push({ type: 'EFFECT_STUNNED', unitId: u.id });
+            out.push({ type: 'EFFECT_STUNNED', unitId: u.id, by: controller });
           } else if (e.op === 'DEBUFF_TARGET') {
             const total = e.timesExhausted
               ? e.amount *

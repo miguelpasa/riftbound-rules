@@ -38,7 +38,7 @@ export type GameEvent = EventBase &
     | { type: 'XP_GAINED'; player: PlayerId; amount: number }
     | { type: 'XP_SPENT'; player: PlayerId; amount: number }
     | { type: 'EFFECT_FIZZLED'; cardId: string }
-    | { type: 'EFFECT_STUNNED'; unitId: string }
+    | { type: 'EFFECT_STUNNED'; unitId: string; by?: PlayerId }
     | { type: 'EFFECT_KEYWORD_GRANTED'; unitId: string }
     | { type: 'EFFECT_COUNTERED'; cardId: string }
     | { type: 'GEAR_KILLED'; gearId: string }
@@ -63,6 +63,8 @@ export type GameEvent = EventBase &
     /** R78: a permanent became exhausted / ready during this step (emitted only when a card reacts to it). */
     | { type: 'BECAME_EXHAUSTED'; objectId: string }
     | { type: 'BECAME_READY'; objectId: string }
+    /** X9 (709): a unit's Might went from below 5 to 5 or more. */
+    | { type: 'BECAME_MIGHTY'; objectId: string }
     /** R71: a combat ended; `participants` are the units still standing at the battlefield (both sides). */
     | {
         type: 'COMBAT_ENDED';

@@ -88,6 +88,18 @@ export function tracksReadiness(cards: CardDatabase): boolean {
   return v ?? false;
 }
 
+const mightyDb = new WeakMap<CardDatabase, boolean>();
+
+/** X9: true when some card reacts to a unit becoming Mighty (the Might diff is computed only then). */
+export function tracksMighty(cards: CardDatabase): boolean {
+  let v = mightyDb.get(cards);
+  if (v === undefined) {
+    v = Object.values(cards).some((d) => d.triggers?.some((t) => t.on === 'UNIT_BECOMES_MIGHTY'));
+    mightyDb.set(cards, v ?? false);
+  }
+  return v ?? false;
+}
+
 /** R56: note that a unit controlled by `controller` died (mutates; no-op unless a card needs it). */
 export function recordDeath(state: GameState, cards: CardDatabase, controller: PlayerId): void {
   if (!tracksDeaths(cards)) return;

@@ -243,6 +243,16 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           });
         }
       }
+    } else if (e.type === 'BECAME_MIGHTY') {
+      // X9: "When a unit you control becomes Mighty" fires for the controller's permanents.
+      const m = state.objects[e.objectId];
+      if (m && onBoard(m)) {
+        for (const src of Object.values(state.objects)) {
+          if (src.controller !== m.controller || (!onBoard(src) && src.zone.kind !== 'legend'))
+            continue;
+          add(src, 'UNIT_BECOMES_MIGHTY', src.controller);
+        }
+      }
     } else if (e.type === 'BECAME_EXHAUSTED' || e.type === 'BECAME_READY') {
       const o = state.objects[e.objectId];
       if (o && onBoard(o)) {
@@ -257,9 +267,25 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       const def = used ? cards[used.cardId] : undefined;
       if (def && (def.type === 'GEAR' || (def.type === 'TOKEN' && def.stats.might === undefined))) {
         for (const src of Object.values(state.objects)) {
-          if (src.controller !== e.player || !onBoard(src)) continue;
+          if (src.controller !== e.player || (!onBoard(src) && src.zone.kind !== 'legend'))
+            continue;
           add(src, 'USE_GEAR_ABILITY', src.controller);
         }
+      }
+    } else if (e.type === 'EFFECT_STUNNED') {
+      // X9: "When you stun an enemy unit": fires for the stunning player's permanents.
+      const stunned = state.objects[e.unitId];
+      if (stunned && e.by !== undefined && stunned.controller !== e.by) {
+        for (const src of Object.values(state.objects)) {
+          if (src.controller !== e.by || (!onBoard(src) && src.zone.kind !== 'legend')) continue;
+          add(src, 'YOU_STUN_ENEMY', src.controller);
+        }
+      }
+    } else if (e.type === 'COST_CARDS_PAID' && e.kind === 'DISCARD' && e.cardIds.length > 0) {
+      // X9: "When you discard one or more cards".
+      for (const src of Object.values(state.objects)) {
+        if (src.controller !== e.player || !onBoard(src)) continue;
+        add(src, 'YOU_DISCARD', src.controller);
       }
     } else if (e.type === 'CARD_HIDDEN') {
       // R100: "When you hide a card".

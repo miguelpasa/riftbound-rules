@@ -51,7 +51,10 @@ import { activateAbility } from './abilities.js';
 import { activateRune } from './resources.js';
 import { holdScoringStep } from './scoring.js';
 import { stampEvents } from './setup.js';
-import { tracksReadiness } from './conditions.js';
+import { tracksMighty, tracksReadiness } from './conditions.js';
+import { effectiveMight } from './combat.js';
+import { MIGHTY_MIGHT_COST } from './costReduction.js';
+import { isUnitDef } from './tokens.js';
 import { chooseStaged, showdownAfterPass } from './showdown.js';
 import type { ShowdownDeps } from './showdown.js';
 import { standardMove } from './movement.js';
@@ -362,6 +365,22 @@ function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent):
         const stamped = stampEvents(c.state, extra);
         all.push(...stamped);
       }
+    }
+    // X9 (709): "becomes Mighty": a unit that was on the board with Might below 5 and now has 5 or more.
+    if (tracksMighty(cards)) {
+      const extra: GameEventInput[] = [];
+      for (const o of Object.values(c.state.objects)) {
+        const before = state.objects[o.id];
+        if (!before || (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield')) continue;
+        if (before.zone.kind !== 'base' && before.zone.kind !== 'battlefield') continue;
+        if (!isUnitDef(cards[o.cardId])) continue;
+        const was = effectiveMight(state, cards, o.id, { role: null });
+        const now = effectiveMight(c.state, cards, o.id, { role: null });
+        if (was < MIGHTY_MIGHT_COST && now >= MIGHTY_MIGHT_COST) {
+          extra.push({ type: 'BECAME_MIGHTY', objectId: o.id });
+        }
+      }
+      if (extra.length > 0) all.push(...stampEvents(c.state, extra));
     }
     const t = fireTriggers(c.state, cards, all);
     return { ok: true, state: t.state, events: [...all, ...t.events] };

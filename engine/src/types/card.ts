@@ -749,7 +749,13 @@ export type TriggerKind =
   /** R108: "When I move from a battlefield". */
   | 'MOVE_FROM'
   /** R108: "When you use an activated ability of a gear". */
-  | 'USE_GEAR_ABILITY';
+  | 'USE_GEAR_ABILITY'
+  /** X9: "When you stun an enemy unit" (a unit that was already stunned is not stunned again, 599.1.a.1). */
+  | 'YOU_STUN_ENEMY'
+  /** X9: "When you discard one or more cards" (598.1.b; discards happen as card-choice costs / discard effects). */
+  | 'YOU_DISCARD'
+  /** X9 (709): "When a unit you control becomes [Mighty]". */
+  | 'UNIT_BECOMES_MIGHTY';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {

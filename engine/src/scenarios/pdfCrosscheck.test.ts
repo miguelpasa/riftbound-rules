@@ -179,3 +179,33 @@ describe('scenario: split damage (X1)', () => {
     expect((s.objects[b] as CardInstance).damage).toBe(0);
   });
 });
+
+describe('scenario: Burn Out on look and mill (X8)', () => {
+  it('milling from an EMPTY deck burns out first; a short deck does not', async () => {
+    // Tests Rule 607.1.c: putting cards from an empty Main Deck into the trash causes a Burn Out
+    const { runEffects } = await import('../effects.js');
+    const sc = Scenario.start();
+    sc.setDeckSize('p0', 0);
+    const empty = structuredClone(sc.state);
+    const before = empty.players[1].points;
+    const ev = runEffects(empty, 'p0', [{ op: 'BURN', amount: 1 }], sc.cards);
+    expect(ev.some((e) => e.type === 'BURN_OUT')).toBe(true);
+    expect(empty.players[1].points).toBe(before + 1);
+
+    const sc2 = Scenario.start();
+    sc2.setDeckSize('p0', 1);
+    const short = structuredClone(sc2.state);
+    const ev2 = runEffects(short, 'p0', [{ op: 'BURN', amount: 3 }], sc2.cards);
+    expect(ev2.some((e) => e.type === 'BURN_OUT')).toBe(false);
+  });
+
+  it('looking at the top of an empty deck burns out first', async () => {
+    // Tests Rule 607.1.b: looking at cards from an empty Main Deck causes a Burn Out
+    const { runEffects } = await import('../effects.js');
+    const sc = Scenario.start();
+    sc.setDeckSize('p0', 0);
+    const s = structuredClone(sc.state);
+    const ev = runEffects(s, 'p0', [{ op: 'PREDICT', count: 1 } as never], sc.cards);
+    expect(ev.some((e) => e.type === 'BURN_OUT')).toBe(true);
+  });
+});

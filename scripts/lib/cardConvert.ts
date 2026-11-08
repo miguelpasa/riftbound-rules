@@ -390,7 +390,17 @@ export function convertRow(row: RawRow): ConvertResult {
       // R68: Legends also have activated abilities (used from the Legend zone).
       (parsed.abilities.length > 0 || parsed.triggers.length > 0) &&
       // R101: and the player-scoped triggers of winning a combat, holding and conquering.
-      parsed.triggers.every((t) => ['YOU_PLAY', 'WIN_COMBAT', 'HOLD', 'CONQUER'].includes(t.on)) &&
+      parsed.triggers.every((t) =>
+        [
+          'YOU_PLAY',
+          'WIN_COMBAT',
+          'HOLD',
+          'CONQUER',
+          'YOU_STUN_ENEMY',
+          'YOU_DISCARD',
+          'UNIT_BECOMES_MIGHTY',
+        ].includes(t.on),
+      ) &&
       !parsed.entersReady &&
       !parsed.entersExhausted &&
       parsed.legionCostReduction === undefined
