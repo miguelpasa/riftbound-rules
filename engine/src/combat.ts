@@ -49,6 +49,7 @@
  *    (attachedTo cleared) and stays where it is. A killed TOKEN ceases to exist instead (186.1):
  *    it is deleted from the game and UNIT_KILLED is still emitted.
  */
+import { baseMight } from './baseMight.js';
 import { fork } from './workingCopy.js';
 import { defWithGrants, staticBonus } from './statics.js';
 import { recordDeath, tracksCombatEnd, tracksExcess } from './conditions.js';
@@ -134,7 +135,7 @@ export function effectiveMight(
   const def = defWithGrants(state, cards, o);
   const role = ctx && 'role' in ctx ? (ctx.role ?? null) : roleOf(state, o);
   return (
-    (def?.stats.might ?? 0) +
+    baseMight(def, o) +
     o.mightBonus +
     keywordBonus(def, role) +
     staticBonus(state, cards, o).might +

@@ -1020,8 +1020,9 @@ export function runEffects(
           } else if (e.op === 'DOUBLE_MIGHT_TARGET') {
             addTemp(u, Math.max(0, mightOf(u)), true);
           } else if (e.op === 'SET_BASE_MIGHT') {
-            const printed = cards[u.cardId]?.stats.might ?? 0;
-            addTemp(u, e.amount - printed, true);
+            // X2 (637.1.a.1, 639.1): assigned in the first layer; the newest assignment replaces older ones
+            // and later +/- arithmetic still applies on top.
+            u.baseMightSet = e.amount;
           } else if (e.op === 'STUN_TARGET') {
             // X9 (599.1.a.1): a stunned unit cannot be stunned again, so nothing happens (and nothing triggers).
             if (u.stunned) continue;
@@ -1439,6 +1440,7 @@ export function expireTurnEffects(
       o.mightBonus -= o.tempMight;
       delete o.tempMight;
     }
+    if (o.baseMightSet !== undefined) delete o.baseMightSet;
     if (o.stunned) delete o.stunned;
     if (o.cantMove) delete o.cantMove;
     if (o.tempKeywords) delete o.tempKeywords;

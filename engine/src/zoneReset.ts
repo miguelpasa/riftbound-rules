@@ -8,6 +8,7 @@ export function clearBoardState(o: CardInstance): void {
   o.damage = 0;
   o.mightBonus = 0;
   delete o.tempMight;
+  delete o.baseMightSet;
   delete o.tempKeywords;
   delete o.stunned;
   delete o.empowered;

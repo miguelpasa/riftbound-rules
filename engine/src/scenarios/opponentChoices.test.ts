@@ -69,6 +69,22 @@ describe('scenario: effects that involve the opponent (R97)', () => {
     sc.endTurn('p0');
     expect(effectiveMight(sc.state, sc.cards, mate, { role: null })).toBe(printed + 1);
   });
+
+  it('X2: the newest base assignment replaces the older one, arithmetic applies on top in either order', () => {
+    // Tests Rule 637.1.a.1 / 637.3 / 639.1: assignment layer before arithmetic, newest first-layer effect wins
+    const sc = Scenario.start({}, withGruntTrigger({ op: 'SET_BASE_MIGHT', amount: 5 }));
+    const mate = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const printed = SCENARIO_CARDS['fx-ash-tank']?.stats.might ?? 0;
+    const might = (): number => effectiveMight(sc.state, sc.cards, mate, { role: null });
+    sc.setMightBonus(mate, 2); // arithmetic applied BEFORE the assignment
+    (sc.state.objects[mate] as { baseMightSet?: number }).baseMightSet = 3; // an older assignment
+    playGrunt(sc, mate); // newer assignment: 5
+    expect(might()).toBe(5 + 2);
+    expect(printed).not.toBe(5);
+    sc.endTurn('p0');
+    expect((sc.state.objects[mate] as { baseMightSet?: number }).baseMightSet).toBeUndefined();
+    expect(might()).toBe(printed + 2);
+  });
 });
 
 describe('parser: opponent choices (R97)', () => {

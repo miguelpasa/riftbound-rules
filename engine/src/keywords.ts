@@ -29,6 +29,7 @@
  *    controller has no unit, in which case the gear is played unattached. makePlayHooks().onEnter
  *    performs the attach from the chain item's first object target.
  */
+import { baseMight } from './baseMight.js';
 import { fork } from './workingCopy.js';
 import { canPlayNow, deriveTurnState, finalizeAndSettle, pushPendingItem } from './chain.js';
 import type { ChainResolver } from './chain.js';
@@ -441,7 +442,7 @@ export function equipTotalCost(
   if (ec.energyReducedByMight && unit) {
     const udef = cards[unit.cardId];
     const might =
-      (udef?.stats.might ?? 0) + unit.mightBonus + attachedMightBonus(state, cards, unit.id);
+      baseMight(udef, unit) + unit.mightBonus + attachedMightBonus(state, cards, unit.id);
     energy = Math.max(0, energy - might);
   }
   return computeTotalCost(

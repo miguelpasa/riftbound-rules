@@ -5,6 +5,7 @@
  * Deflect). A source is a permanent on the board, a Legend in its zone or a Battlefield card; the
  * `when` condition is evaluated from the source's controller. Only public information is read.
  */
+import { baseMight } from './baseMight.js';
 import { evalCondition } from './conditions.js';
 import { defWithTemp } from './tempKeywords.js';
 import type {
@@ -186,7 +187,7 @@ export function staticBonus(
   let noEnemyChoose = false;
   let entersReady = false;
   const mightOfObj = (o: CardInstance | undefined): number =>
-    (cards[o?.cardId ?? '']?.stats.might ?? 0) + (o?.mightBonus ?? 0);
+    baseMight(cards[o?.cardId ?? ''], o) + (o?.mightBonus ?? 0);
   const apply = (
     def: CardDef | undefined,
     sourceId: string,

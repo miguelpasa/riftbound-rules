@@ -48,6 +48,8 @@ export interface CardInstance {
   mightBonus: number;
   /** Part of mightBonus that expires at the end of the turn ("this turn" effects). */
   tempMight?: number;
+  /** X2: base Might assigned by an effect ("base Might becomes N this turn"); expires in the Ending step. */
+  baseMightSet?: number;
   /** Keywords granted until the end of the turn (R43); see tempKeywords.ts. */
   tempKeywords?: KeywordInstance[];
   /** Stunned this turn: deals no combat damage. Expires in the Ending step. */
