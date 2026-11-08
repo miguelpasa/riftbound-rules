@@ -166,6 +166,12 @@ export function runCleanup(
 
     // 3. Lethal damage
     inputs.push(...killLethalUnits(s, cards));
+    // X7 (575): a unit that may be saved by an optional replacement waits for its controller's answer;
+    // nothing after the kill step (control, staging, combat resolution) runs until then.
+    if (s.flow.pendingChoice?.kind === 'DEATH_REPLACE') {
+      s.flow.cleanupIterations = 0;
+      return finish();
+    }
 
     // 4. Control lost (323.5)
     if (isNeutralOpen(s)) {

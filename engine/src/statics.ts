@@ -221,7 +221,7 @@ export function staticBonus(
       if (s.restrict === 'NO_ENEMY_CHOOSE') noEnemyChoose = true;
       if (s.restrict === 'NO_ENEMY_EFFECT_DAMAGE') noEnemyEffectDamage = true;
       if (s.entersReady) entersReady = true;
-      if (s.replaceDeath && !replaceDeath) {
+      if (s.replaceDeath && !s.replaceDeath.offer && !replaceDeath) {
         replaceDeath = { sourceId, killSource: s.replaceDeath.killSource === true };
       }
       for (const k of s.keywords ?? []) keywords.push({ ...k });
@@ -260,6 +260,61 @@ export function staticBonus(
         ...(entersReady ? { entersReady } : {}),
         ...(replaceDeath ? { replaceDeath } : {}),
       };
+}
+
+/** A standing death replacement that applies to a unit (X7). */
+export interface ReplacementSource {
+  sourceId: string;
+  cardId: string;
+  controller: PlayerId;
+  ability: StaticAbility;
+}
+
+/** Every optional ("you may pay ...") standing death replacement that currently applies to `target`. */
+export function optionalReplacements(
+  state: GameState,
+  cards: CardDatabase,
+  target: CardInstance,
+): ReplacementSource[] {
+  const ids = staticIds(cards);
+  const targetDef = cards[target.cardId];
+  const found: ReplacementSource[] = [];
+  if (ids.size === 0 || !targetDef) return found;
+  const mightOfObj = (o: CardInstance | undefined): number =>
+    baseMight(cards[o?.cardId ?? ''], o) + (o?.mightBonus ?? 0);
+  const scan = (
+    cardId: string,
+    sourceId: string,
+    controller: PlayerId,
+    here: string | null,
+    when: (c: NonNullable<StaticAbility['when']>) => boolean,
+  ): void => {
+    for (const s of cards[cardId]?.statics ?? []) {
+      if (!s.replaceDeath?.offer) continue;
+      const mights = s.lessMight
+        ? { source: mightOfObj(state.objects[sourceId]), target: mightOfObj(target) }
+        : undefined;
+      if (!applies(s, sourceId, controller, here, target, targetDef, mights)) continue;
+      if (s.when && !when(s.when)) continue;
+      if (s.unless && when(s.unless)) continue;
+      found.push({ sourceId, cardId, controller, ability: s });
+    }
+  };
+  for (const o of Object.values(state.objects)) {
+    if (!ids.has(o.cardId)) continue;
+    const z = o.zone.kind;
+    if (z !== 'base' && z !== 'battlefield' && z !== 'legend') continue;
+    scan(o.cardId, o.id, o.controller, targetBattlefield(o), (c) =>
+      evalCondition(state, cards, c, o.controller, o.id),
+    );
+  }
+  for (const bf of state.battlefields) {
+    if (!ids.has(bf.cardId)) continue;
+    scan(bf.cardId, bf.id, target.controller, bf.id, (c) =>
+      evalCondition(state, cards, c, target.controller, bf.id),
+    );
+  }
+  return found;
 }
 
 /** The printed definition plus temporary and static keyword grants (the same object if none). */

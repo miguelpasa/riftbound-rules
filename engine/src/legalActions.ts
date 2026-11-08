@@ -440,6 +440,36 @@ export function getLegalActions(
         max,
       );
     }
+    if (pc.kind === 'DEATH_REPLACE') {
+      // X7: decline is listed FIRST (every "take legal[0]" fallback and the timeout decline); then one accept
+      // per offer (and per choice of cards for a card cost), with the automatic payment plan spelled out.
+      const decline: Intent = {
+        type: 'DECIDE_REPLACEMENT',
+        playerId,
+        unitId: pc.unitId,
+        accept: false,
+      };
+      const accepts: Intent[] = [];
+      for (const offer of pc.offers) {
+        const plan = optionalPlan(state, cards, pc.player, offer.cardId, offer.cost, offer.sourceId);
+        if (plan === null) continue;
+        const picks: (string[] | undefined)[] = offer.cost.card
+          ? costCardCombos(state, cards, pc.player, offer.sourceId, offer.cost.card)
+          : [undefined];
+        for (const costCards of picks) {
+          accepts.push({
+            type: 'DECIDE_REPLACEMENT',
+            playerId,
+            unitId: pc.unitId,
+            accept: true,
+            sourceId: offer.sourceId,
+            ...(costCards ? { costCards } : {}),
+            ...(plan.length > 0 ? { payment: plan } : {}),
+          });
+        }
+      }
+      return keep([decline, ...accepts]).slice(0, max);
+    }
     return keep(
       pc.options.map((battlefieldId): Intent => ({
         type: 'CHOOSE_STAGED',

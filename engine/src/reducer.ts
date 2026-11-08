@@ -31,6 +31,7 @@ import { fork, runSession } from './workingCopy.js';
 import { passPriority } from './chain.js';
 import { chooseTriggerTarget, fireTriggers } from './triggers.js';
 import { decideOptional } from './optional.js';
+import { decideReplacement } from './deathOffer.js';
 import { expireTurnEffects } from './effects.js';
 import { runCleanup, defaultShowdownDeps } from './cleanup.js';
 import { assignCombatDamage } from './combat.js';
@@ -169,6 +170,13 @@ function shapeProblem(i: Obj): string | null {
     case 'CHOOSE_TRIGGER_TARGET':
       if (!isStr(i.chainItemId)) return 'chainItemId must be a string';
       return Array.isArray(i.targets) && i.targets.every(isTarget) ? null : 'bad targets';
+    case 'DECIDE_REPLACEMENT':
+      if (!isStr(i.unitId)) return 'unitId must be a string';
+      if (typeof i.accept !== 'boolean') return 'accept must be a boolean';
+      if (!(i.sourceId === undefined || isStr(i.sourceId))) return 'sourceId must be a string';
+      if (!(i.costCards === undefined || isIdList(i.costCards)))
+        return 'costCards must be a list of ids';
+      return i.payment === undefined || isPayment(i.payment) ? null : 'bad payment';
     case 'DECIDE_OPTIONAL':
       if (!isStr(i.chainItemId)) return 'chainItemId must be a string';
       if (typeof i.accept !== 'boolean') return 'accept must be a boolean';
@@ -270,6 +278,8 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
       if (!s.ok) return s;
       return { ok: true, state: s.state, events: [...r.events, ...s.events] };
     }
+    case 'DECIDE_REPLACEMENT':
+      return decideReplacement(state, cards, intent);
     case 'ACTIVATE_ABILITY':
       return activateAbility(state, cards, intent);
     case 'CONCEDE': {
@@ -312,7 +322,9 @@ function applyIntentInSession(state: GameState, cards: CardDatabase, intent: Int
         ? 'CHOOSE_TRIGGER_TARGET'
         : pending?.kind === 'OPTIONAL_EFFECT'
           ? 'DECIDE_OPTIONAL'
-          : 'CHOOSE_STAGED';
+          : pending?.kind === 'DEATH_REPLACE'
+            ? 'DECIDE_REPLACEMENT'
+            : 'CHOOSE_STAGED';
     if (pending && intent.type !== answers && intent.type !== 'CONCEDE') {
       return ruleError(
         'WRONG_PHASE',
@@ -320,7 +332,9 @@ function applyIntentInSession(state: GameState, cards: CardDatabase, intent: Int
           ? `waiting for ${pending.player} to choose the targets of a triggered ability`
           : pending.kind === 'OPTIONAL_EFFECT'
             ? `waiting for ${pending.player} to accept or decline an optional ability`
-            : `waiting for ${pending.player} to choose which battlefield resolves first`,
+            : pending.kind === 'DEATH_REPLACE'
+              ? `waiting for ${pending.player} to decide whether to save a unit from dying`
+              : `waiting for ${pending.player} to choose which battlefield resolves first`,
       );
     }
     return dispatch(state, cards, intent);

@@ -924,6 +924,18 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
     };
   if (/^Double all damage that would be dealt to it this turn$/i.test(sen))
     return { op: 'DAMAGE_MOD_TARGET', mod: 'DOUBLE', ...sd, ...bf, ...at };
+  m = /^The next time it would die this turn, you may pay ((?:\[(?:\d+|C|A)\])+) to heal it, exhaust it, and recall it instead$/i.exec(
+    sen,
+  );
+  if (m)
+    return {
+      op: 'DEATH_REPLACE_TARGET',
+      mode: 'RECALL',
+      offer: offerCost(m[1] ?? ''),
+      ...sd,
+      ...bf,
+      ...at,
+    };
   if (/^If it would die this turn, banish it instead$/i.test(sen))
     return { op: 'DEATH_REPLACE_TARGET', mode: 'BANISH', ...sd, ...bf, ...at };
   if (/^Give it \[Temporary\]$/i.test(sen)) return { op: 'GRANT_TEMPORARY_TARGET', ...sd, ...at };
@@ -1264,7 +1276,61 @@ function parseRestrictStatic(body: string): StaticAbility | null {
  * Hourglass) and "If another unit you control here would die, if it has less Might than me, instead heal it,
  * exhaust it, and recall it." (Soraka).
  */
+/** "[C][1][A]" tokens as an optional cost (Energy / Power of the source's Domain / any Power). */
+function offerCost(tokens: string): OptionalCost {
+  const cost: OptionalCost = {};
+  for (const t of tokens.matchAll(/\[(\d+|C|A)\]/gi)) {
+    const tok = (t[1] ?? '').toUpperCase();
+    if (tok === 'C') cost.power = (cost.power ?? 0) + 1;
+    else if (tok === 'A') cost.anyPower = (cost.anyPower ?? 0) + 1;
+    else cost.energy = (cost.energy ?? 0) + Number(tok);
+  }
+  return cost;
+}
+
 function parseDeathReplaceStatic(body: string): StaticAbility | null {
+  const altar =
+    /^If a unit here would die during combat, its controller may pay ((?:\[(?:\d+|C|A)\])+) to heal it, exhaust it, and recall it instead$/i.exec(
+      body,
+    );
+  if (altar) {
+    return {
+      affects: 'UNITS_HERE',
+      replaceDeath: { offer: { cost: offerCost(altar[1] ?? ''), combatOnly: true } },
+    };
+  }
+  const boss =
+    /^If a buffed unit you control would die, you may pay ((?:\[(?:\d+|C|A)\])+), exhaust me, and spend its buff to heal it, exhaust it, and recall it instead$/i.exec(
+      body,
+    );
+  if (boss) {
+    return {
+      affects: 'FRIENDLY_UNITS',
+      replaceDeath: {
+        offer: {
+          cost: offerCost(boss[1] ?? ''),
+          exhaustSource: true,
+          spendBuff: true,
+          buffedOnly: true,
+        },
+      },
+    };
+  }
+  if (
+    /^Once each turn, if I would die, you may kill a friendly unit to heal me, exhaust me, and recall me instead$/i.test(
+      body,
+    )
+  ) {
+    return {
+      affects: 'SELF',
+      replaceDeath: {
+        offer: {
+          cost: { card: { kind: 'KILL', what: 'unit', another: true } },
+          oncePerTurn: true,
+        },
+      },
+    };
+  }
   const pd = /^While (.+?), prevent all damage that enemy spells and abilities would deal to me$/i.exec(
     body,
   );
@@ -1366,6 +1432,16 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
     if (rd) {
       statics.push(rd);
       continue;
+    }
+    // X7: the replacement may be followed by another sentence on the same line (The Boss: "When you conquer, ready me.").
+    const dot = body.search(/\.\s+(?=[A-Z])/);
+    if (dot > 0) {
+      const lead = parseDeathReplaceStatic(body.slice(0, dot));
+      if (lead) {
+        statics.push(lead);
+        keep.push(body.slice(dot + 1).trim());
+        continue;
+      }
     }
     const cnt = parseCountedStatic(body);
     if (cnt) {

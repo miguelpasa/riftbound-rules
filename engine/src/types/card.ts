@@ -293,6 +293,8 @@ export type CardEffect =
   | ({
       op: 'DEATH_REPLACE_TARGET';
       mode: 'RECALL' | 'BANISH';
+      /** "you may pay ... to": the replacement is offered to the unit's controller instead of applied. */
+      offer?: OptionalCost;
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;
@@ -602,7 +604,7 @@ export interface StaticAbility {
    * X7 (573, 575): a standing replacement for the death of an affected unit: it is healed, exhausted and recalled
    * to its Base instead; `killSource` also kills the source ("kill this instead", Zhonya's Hourglass).
    */
-  replaceDeath?: { killSource?: boolean };
+  replaceDeath?: { killSource?: boolean; offer?: DeathOffer };
   /** R74: only units with LESS Might than the source (printed Might plus bonuses) are affected. */
   lessMight?: boolean;
   when?: Condition;
@@ -727,6 +729,25 @@ export interface OptionalCost {
  *  - RECYCLE: cards from the payer's Trash go to the bottom of their Main Deck.
  */
 export type CostCardKind = 'DISCARD' | 'KILL' | 'EXHAUST' | 'RETURN' | 'RECYCLE';
+
+/**
+ * X7 (575): an optional standing replacement for the death of an affected unit ("you may pay [C] ... to heal it,
+ * exhaust it, and recall it instead"). The unit's controller is asked when it would die (flow.pendingChoice
+ * DEATH_REPLACE) and may pay `cost` (plus the extras below) to have it recalled instead.
+ */
+export interface DeathOffer {
+  cost: OptionalCost;
+  /** "exhaust me": the source must be ready and becomes exhausted. */
+  exhaustSource?: boolean;
+  /** "spend its buff": the unit must carry a Buff, which is removed. */
+  spendBuff?: boolean;
+  /** "Once each turn". */
+  oncePerTurn?: boolean;
+  /** Only a death in combat ("would die during combat"). */
+  combatOnly?: boolean;
+  /** Only a buffed unit qualifies. */
+  buffedOnly?: boolean;
+}
 
 export interface CostCardChoice {
   kind: CostCardKind;

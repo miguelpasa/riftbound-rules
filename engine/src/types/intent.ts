@@ -107,6 +107,18 @@ export interface DecideOptionalIntent extends IntentBase {
   /** R46: the cards that pay a card-choice cost (`OptionalCost.card`); required on accept when the cost has one. */
   costCards?: string[];
 }
+/**
+ * Answer to a flow.pendingChoice of kind DEATH_REPLACE (X7): accept one of the offers (`sourceId` names it;
+ * `payment` / `costCards` pay it like DECIDE_OPTIONAL) or decline, in which case the unit dies.
+ */
+export interface DecideReplacementIntent extends IntentBase {
+  type: 'DECIDE_REPLACEMENT';
+  unitId: string;
+  accept: boolean;
+  sourceId?: string;
+  payment?: PaymentPlan;
+  costCards?: string[];
+}
 export interface ConcedeIntent extends IntentBase {
   type: 'CONCEDE';
 }
@@ -125,6 +137,7 @@ export type Intent =
   | ChooseStagedIntent
   | ChooseTriggerTargetIntent
   | DecideOptionalIntent
+  | DecideReplacementIntent
   | ConcedeIntent;
 
 export type IntentType = Intent['type'];

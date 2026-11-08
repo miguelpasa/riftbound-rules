@@ -133,7 +133,8 @@ export class HostTimers {
       const decline = legal.find(
         (i) =>
           (i.type === 'CHOOSE_TRIGGER_TARGET' && i.targets.length === 0) ||
-          (i.type === 'DECIDE_OPTIONAL' && !i.accept),
+          (i.type === 'DECIDE_OPTIONAL' && !i.accept) ||
+          (i.type === 'DECIDE_REPLACEMENT' && !i.accept),
       );
       const fb =
         decline ??

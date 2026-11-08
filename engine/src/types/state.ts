@@ -1,4 +1,4 @@
-import type { Domain, KeywordInstance } from './card.js';
+import type { Domain, KeywordInstance, OptionalCost } from './card.js';
 import type { FlowState, MulliganState, TurnState } from './chain.js';
 
 /** Bump on any breaking change to GameState shape or rules behavior. */
@@ -48,6 +48,12 @@ export interface CardInstance {
   mightBonus: number;
   /** Part of mightBonus that expires at the end of the turn ("this turn" effects). */
   tempMight?: number;
+  /** X7: "the next time it would die this turn, you may pay ..." (Unlicensed Armory); `cardId` is the source card. */
+  deathOffer?: { cost: OptionalCost; cardId: string };
+  /** X7: its controller declined an optional death replacement; it dies this turn. */
+  deathDeclined?: boolean;
+  /** X7: the turn in which this source used its "once each turn" death replacement. */
+  deathUsedTurn?: number;
   /** X7: damage replacements on this unit until the end of the turn. */
   dmgMod?: { preventNext?: boolean; prevent?: number; double?: boolean };
   /** X7: the next time this unit would die this turn it is replaced (recalled healed and exhausted, or banished). */

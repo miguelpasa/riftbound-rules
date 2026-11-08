@@ -28,6 +28,7 @@ const INTENT_TYPES: Record<IntentType, true> = {
   CHOOSE_STAGED: true,
   CHOOSE_TRIGGER_TARGET: true,
   DECIDE_OPTIONAL: true,
+  DECIDE_REPLACEMENT: true,
   CONCEDE: true,
 };
 

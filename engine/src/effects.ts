@@ -1038,7 +1038,8 @@ export function runEffects(
           } else if (e.op === 'DEATH_REPLACE_TARGET') {
             // X7 (575): several replacements on one event are ordered by the unit's owner; Recall keeps the
             // unit, so it is the owner's better pick over Banish (assumption, ASSUMPTIONS.md X7).
-            if (!(u.deathReplace === 'RECALL' && e.mode === 'BANISH')) u.deathReplace = e.mode;
+            if (e.offer) u.deathOffer = { cost: e.offer, cardId: sourceCardId };
+            else if (!(u.deathReplace === 'RECALL' && e.mode === 'BANISH')) u.deathReplace = e.mode;
           } else if (e.op === 'SET_BASE_MIGHT') {
             // X2 (637.1.a.1, 639.1): assigned in the first layer; the newest assignment replaces older ones
             // and later +/- arithmetic still applies on top.
@@ -1462,6 +1463,8 @@ export function expireTurnEffects(
     }
     if (o.baseMightSet !== undefined) delete o.baseMightSet;
     if (o.deathReplace) delete o.deathReplace;
+    if (o.deathOffer) delete o.deathOffer;
+    if (o.deathDeclined) delete o.deathDeclined;
     if (o.dmgMod) delete o.dmgMod;
     if (o.stunned) delete o.stunned;
     if (o.cantMove) delete o.cantMove;

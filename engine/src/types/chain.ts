@@ -122,7 +122,36 @@ export interface OptionalEffectChoice {
   cost: OptionalCost;
 }
 
-export type PendingChoice = StagedOrderChoice | TriggerTargetChoice | OptionalEffectChoice;
+/** X7: one way to replace the death of a unit with a recall. */
+export interface DeathReplaceOffer {
+  /** The source object or Battlefield card; for a marker offer (Unlicensed Armory) the unit itself. */
+  sourceId: string;
+  /** The source card (the Domain of its [C]). */
+  cardId: string;
+  cost: OptionalCost;
+  exhaustSource?: boolean;
+  spendBuff?: boolean;
+  oncePerTurn?: boolean;
+  /** True when the offer is a marker on the unit rather than a standing ability. */
+  marker?: boolean;
+}
+
+/**
+ * X7 (575): a unit would die and its controller may pay to have it recalled instead. The Cleanup pauses
+ * (the unit keeps its lethal damage) until DECIDE_REPLACEMENT answers; nobody else may act meanwhile.
+ */
+export interface DeathReplaceChoice {
+  kind: 'DEATH_REPLACE';
+  player: PlayerId;
+  unitId: string;
+  offers: DeathReplaceOffer[];
+}
+
+export type PendingChoice =
+  | StagedOrderChoice
+  | TriggerTargetChoice
+  | OptionalEffectChoice
+  | DeathReplaceChoice;
 
 /** Everything about who may act and what is on the chain. */
 export interface FlowState {
