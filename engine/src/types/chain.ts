@@ -31,6 +31,8 @@ export interface ChainItem {
   /** PENDING while being played (Rule 328); FINALIZED once costs paid. */
   status: 'PENDING' | 'FINALIZED';
   targets: Target[];
+  /** X3: the generation of each targeted object when the targets were chosen (see targetGens.ts). */
+  targetGens?: Record<string, number>;
   choices: Record<string, ChoiceValue>;
   /** Set when the effect text is not implemented (supportLevel 'partial'); resolves as a no-op + event. */
   unimplementedEffect?: boolean;

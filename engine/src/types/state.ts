@@ -48,6 +48,8 @@ export interface CardInstance {
   mightBonus: number;
   /** Part of mightBonus that expires at the end of the turn ("this turn" effects). */
   tempMight?: number;
+  /** X3: how often this object has changed between the Board and another zone while targeted (targetGens.ts). */
+  gen?: number;
   /** X7: "the next time it would die this turn, you may pay ..." (Unlicensed Armory); `cardId` is the source card. */
   deathOffer?: { cost: OptionalCost; cardId: string };
   /** X7: its controller declined an optional death replacement; it dies this turn. */

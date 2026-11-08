@@ -782,7 +782,9 @@ export function runEffects(
     if (!e.amountFrom) return e.amount;
     if (e.amountFrom === 'SLOT_MIGHT') {
       const id = e.amountSlot === undefined ? undefined : ids[e.amountSlot];
-      return id && state.objects[id]
+      // X3 (563.2.c.8): information about a target that is no longer on the Board reads zero.
+      const tgt = id ? state.objects[id] : undefined;
+      return id && tgt && (tgt.zone.kind === 'base' || tgt.zone.kind === 'battlefield')
         ? Math.max(0, effectiveMight(state, cards, id, { role: null }))
         : 0;
     }

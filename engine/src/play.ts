@@ -32,6 +32,7 @@ import { evalCondition } from './conditions.js';
 import { optionalPlan } from './optional.js';
 import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
 import { isDeployGear, isUnitDef } from './tokens.js';
+import { liveTargets } from './targetGens.js';
 import { staticBonus } from './statics.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
@@ -263,7 +264,7 @@ function runTrigger(
     const n = Math.min(optional.card.count ?? 1, hand);
     if (n === 0) {
       events.push(
-        ...runEffects(s, item.controller, trig.effects, cards, item.targets, cardId, sourceId),
+        ...runEffects(s, item.controller, trig.effects, cards, liveTargets(s, item), cardId, sourceId),
       );
       return;
     }
@@ -290,7 +291,7 @@ function runTrigger(
     if (!accepted) return;
   }
   events.push(
-    ...runEffects(s, item.controller, trig.effects, cards, item.targets, cardId, sourceId),
+    ...runEffects(s, item.controller, trig.effects, cards, liveTargets(s, item), cardId, sourceId),
   );
 }
 
@@ -310,7 +311,7 @@ export const playResolver: ChainResolver = (state, item, cards) => {
           item.controller,
           ability.effects,
           cards,
-          item.targets,
+          liveTargets(s, item),
           cardId,
           item.sourceObjectId,
         ),
@@ -369,7 +370,7 @@ export const playResolver: ChainResolver = (state, item, cards) => {
           item.controller,
           spellEffects(def, item.mode) ?? [],
           cards,
-          item.targets,
+          liveTargets(s, item),
           obj.cardId,
         ),
       );

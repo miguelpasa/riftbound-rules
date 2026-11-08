@@ -59,6 +59,7 @@ import { isUnitDef } from './tokens.js';
 import { chooseStaged, showdownAfterPass } from './showdown.js';
 import type { ShowdownDeps } from './showdown.js';
 import { standardMove } from './movement.js';
+import { trackTargetGens } from './targetGens.js';
 import { opponentOf, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -397,7 +398,7 @@ function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent):
       if (extra.length > 0) all.push(...stampEvents(c.state, extra));
     }
     const t = fireTriggers(c.state, cards, all);
-    return { ok: true, state: t.state, events: [...all, ...t.events] };
+    return { ok: true, state: trackTargetGens(state, t.state), events: [...all, ...t.events] };
   } catch (e) {
     return ruleError(
       'UNKNOWN_INTENT',
