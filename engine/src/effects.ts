@@ -32,6 +32,7 @@ import type {
   TargetedEffect,
   TargetSide,
 } from './types/index.js';
+import { clearBoardState } from './zoneReset.js';
 
 /** Maximum number of target combinations offered to the AI / UI per spell. */
 export const MAX_TARGET_COMBOS = 48;
@@ -196,9 +197,21 @@ function legalForSpec(
   spec: Spec,
   u: CardInstance | undefined,
   sourceId = '',
+  hiddenAt?: string,
 ): boolean {
   if (!u) return false;
   const type = cards[u.cardId]?.type;
+  // X4 (723.1.d, 563.2.c.4): a card played from face down chooses only among things at its battlefield.
+  const hb =
+    hiddenAt ??
+    state.flow.chain.find((i) => i.sourceObjectId === sourceId && sourceId !== '')?.hiddenAt;
+  if (
+    hb &&
+    spec.kind !== 'spell' &&
+    (u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== hb)
+  ) {
+    return false;
+  }
   if (spec.kind === 'equipment') {
     // Weaponmaster: an Equipment you control, and its reduced Equip cost must be payable.
     const def = cards[u.cardId];
@@ -332,6 +345,7 @@ export function spellTargetsLegal(
   effects: readonly CardEffect[] | undefined,
   targets: readonly Target[],
   sourceId = '',
+  hiddenAt?: string,
 ): boolean {
   const reqs = targetRequirements(effects);
   if (reqs.length === 0) return true;
@@ -343,7 +357,10 @@ export function spellTargetsLegal(
     const max = r.count ? r.count.max : 1;
     if (picks.length < min || picks.length > max) return false;
     for (const id of picks) {
-      if (seen.has(id) || !legalForSpec(state, cards, controller, r, state.objects[id], sourceId)) {
+      if (
+        seen.has(id) ||
+        !legalForSpec(state, cards, controller, r, state.objects[id], sourceId, hiddenAt)
+      ) {
         return false;
       }
       seen.add(id);
@@ -399,14 +416,14 @@ export function enumerateSpellTargets(
   controller: PlayerId,
   effects: readonly CardEffect[] | undefined,
   sourceId = '',
-  opts: { allowNone?: boolean } = {},
+  opts: { allowNone?: boolean; hiddenAt?: string } = {},
 ): Target[][] | null {
   const reqs = targetRequirements(effects);
   if (reqs.length === 0) return null;
   const all = Object.values(state.objects).sort((a, b) => num(a.id) - num(b.id));
   const options = reqs.map((r) => {
     const cand = all
-      .filter((o) => legalForSpec(state, cards, controller, r, o, sourceId))
+      .filter((o) => legalForSpec(state, cards, controller, r, o, sourceId, opts.hiddenAt))
       .map((o) => o.id);
     if (!r.count) return cand.map((id) => [id]);
     const out: string[][] = [];
@@ -498,7 +515,7 @@ export function killGear(state: GameState, g: CardInstance): void {
   g.zone = { kind: 'trash', player: g.owner };
   g.controller = g.owner;
   g.ready = false;
-  delete g.attachedTo;
+  clearBoardState(g);
 }
 
 /** Return a unit or gear to its owner's hand (a token ceases to exist, 186.1). Mutates. */

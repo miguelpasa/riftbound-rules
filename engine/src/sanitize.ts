@@ -68,15 +68,19 @@ function buildHiddenMap(state: GameState, viewer: PlayerId): Map<string, string>
   };
   const take = (owner: PlayerId, zone: 'facedown' | 'other'): string =>
     hiddenToken(owner, zone, counters[owner][zone]++);
+  // X11 (597.4): when the game ends, every face-down card is revealed to all players.
+  const over = state.gameStatus === 'FINISHED';
+  const seen = (o: CardInstance): boolean =>
+    canViewerSeeObject(o, viewer) || (over && o.zone.kind === 'facedown');
   for (const bf of state.battlefields) {
     const obj = bf.facedownSlotId === null ? undefined : state.objects[bf.facedownSlotId];
-    if (obj && !map.has(obj.id) && !canViewerSeeObject(obj, viewer)) {
+    if (obj && !map.has(obj.id) && !seen(obj)) {
       map.set(obj.id, take(obj.controller, 'facedown'));
     }
   }
   // Stragglers: hidden objects not referenced by any zone array / facedown slot.
   for (const [id, obj] of Object.entries(state.objects)) {
-    if (map.has(id) || canViewerSeeObject(obj, viewer)) continue;
+    if (map.has(id) || seen(obj)) continue;
     map.set(
       id,
       obj.zone.kind === 'facedown' ? take(obj.controller, 'facedown') : take(obj.owner, 'other'),

@@ -479,7 +479,15 @@ export function playCard(
   }
   if (
     def.type === 'SPELL' &&
-    !spellTargetsLegal(state, cards, pid, spellEffects(def, intent.mode), targets)
+    !spellTargetsLegal(
+      state,
+      cards,
+      pid,
+      spellEffects(def, intent.mode),
+      targets,
+      '',
+      hooks?.hiddenAt,
+    )
   ) {
     return ruleError('ILLEGAL_TARGET', 'this spell needs legal targets (355.10)');
   }
@@ -607,6 +615,7 @@ export function playCard(
       ? { unimplementedEffect: true }
       : {}),
     ...(isUnit || def.type === 'GEAR' ? { location } : {}),
+    ...(def.type === 'SPELL' && hooks?.hiddenAt ? { hiddenAt: hooks.hiddenAt } : {}),
     ...(accelerate || repeat || paidExtra || flow
       ? {
           additionalCosts: {

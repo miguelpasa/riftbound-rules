@@ -72,6 +72,7 @@ import type {
   ReduceResult,
   RuleError,
 } from './types/index.js';
+import { clearBoardState } from './zoneReset.js';
 
 export type CombatRole = 'ATTACKER' | 'DEFENDER';
 export type AssignmentTier = 'TANK' | 'NORMAL' | 'BACKLINE';
@@ -532,10 +533,8 @@ export function killLethalUnits(state: GameState, cards: CardDatabase): GameEven
     owner.trash.push(id);
     o.zone = { kind: 'trash', player: o.owner };
     o.controller = o.owner;
-    o.damage = 0;
-    o.mightBonus = 0;
+    clearBoardState(o);
     o.ready = false;
-    delete o.attachedTo;
     for (const g of Object.values(state.objects)) {
       if (g.attachedTo === id) delete g.attachedTo;
     }

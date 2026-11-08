@@ -55,6 +55,7 @@ import type {
   ReduceResult,
   Target,
 } from './types/index.js';
+import { clearBoardState } from './zoneReset.js';
 
 // ---------------------------------------------------------------- helpers
 
@@ -167,8 +168,7 @@ export function temporaryOnBeginning(
     }
     s.players[playerIndex(o.owner)].trash.push(o.id);
     o.zone = { kind: 'trash', player: o.owner };
-    o.damage = 0;
-    o.mightBonus = 0;
+    clearBoardState(o);
     delete o.attachedTo; // Temporary Gear: it leaves its unit too
     detachAll(s, o.id);
     events.push(death);

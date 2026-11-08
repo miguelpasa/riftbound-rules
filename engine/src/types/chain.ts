@@ -25,6 +25,8 @@ export interface ChainItem {
    * object. The id of its `BattlefieldState`; `sourceObjectId` is then ''. Absent for every other item.
    */
   sourceBattlefieldId?: string;
+  /** X4 (723.1.d): a spell played from face down may only choose targets at this battlefield. */
+  hiddenAt?: string;
   controller: PlayerId;
   /** PENDING while being played (Rule 328); FINALIZED once costs paid. */
   status: 'PENDING' | 'FINALIZED';

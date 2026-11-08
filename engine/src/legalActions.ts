@@ -157,7 +157,9 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
         def.type === 'GEAR' && hasKw(def, 'QuickDraw') && myUnits.length > 0
           ? myUnits.map((u) => [{ kind: 'object' as const, id: u.id }])
           : def.type === 'SPELL'
-            ? (enumerateSpellTargets(state, cards, pid, spellEffects(def, mode)) ?? [undefined])
+            ? (enumerateSpellTargets(state, cards, pid, spellEffects(def, mode), '', {
+                ...(obj.zone.kind === 'facedown' ? { hiddenAt: obj.zone.battlefieldId } : {}),
+              }) ?? [undefined])
             : [undefined];
       for (const accelerate of accelOptions) {
         for (const paysExtra of extraOptions) {
