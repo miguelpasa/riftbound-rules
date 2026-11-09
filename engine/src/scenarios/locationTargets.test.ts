@@ -242,3 +242,24 @@ describe('scenario: more battlefield and move shapes (Firestorm, Zenith Blade, S
     expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(mine), bf('base')])).toBe(false);
   });
 });
+
+describe('scenario: "Move a unit with 3 [M] or less" (Twilight Step)', () => {
+  const effects = parseSpellText('Move a unit with 3 [M] or less.') ?? [];
+
+  it('reads the Might limit onto the move', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toEqual([{ op: 'MOVE_TARGET', slot: 0, destSlot: 1, maxMight: 3 }]);
+  });
+
+  it('refuses a unit with more Might than the limit', () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const small = sc.putUnit('p0', 'fx-grunt', 'base');
+    const big = sc.putUnit('p0', 'fx-titan', 'base');
+    expect(effectiveMight(sc.state, cards, small, { role: null })).toBeLessThanOrEqual(3);
+    expect(effectiveMight(sc.state, cards, big, { role: null })).toBeGreaterThan(3);
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(small), bf('bf0')])).toBe(true);
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(big), bf('bf0')])).toBe(false);
+  });
+});

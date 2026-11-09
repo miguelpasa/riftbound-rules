@@ -707,6 +707,8 @@ type CardEffectCore =
       count?: TargetCount;
       side?: TargetSide;
       ready?: boolean;
+      /** "Move a unit with 3 [M] or less": only a unit with at most this Might can be chosen. */
+      maxMight?: number;
       /** Which locations may be chosen: any (default), only battlefields, only open ones, ones you control, ... */
       dest?: 'ANY' | 'BATTLEFIELD' | 'OPEN' | 'CONTROLLED' | 'ENEMY_OCCUPIED' | 'TO_OR_FROM_BASE';
     };

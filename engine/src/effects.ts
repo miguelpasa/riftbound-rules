@@ -244,6 +244,7 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
           kind: 'unit',
           side: e.side ?? 'any',
           ...(e.count ? { count: e.count } : {}),
+          ...(e.maxMight !== undefined ? { maxMight: e.maxMight } : {}),
         });
       }
       if (e.destSlot >= 0 && !reqs.has(e.destSlot)) {
@@ -1467,7 +1468,12 @@ export function runEffects(
             state,
             cards,
             controller,
-            { op: 'KILL_TARGET', slot, ...(e.side ? { side: e.side } : {}) },
+            {
+              op: 'KILL_TARGET',
+              slot,
+              ...(e.side ? { side: e.side } : {}),
+              ...(e.maxMight !== undefined ? { maxMight: e.maxMight } : {}),
+            },
             unit,
             sourceObjectId,
           ) ||
