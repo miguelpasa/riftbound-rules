@@ -320,6 +320,8 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
     return [{ op: 'READY_ALL', side: 'friendly' }];
   }
   if (/^Ready all enemy units$/i.test(sen)) return [{ op: 'READY_ALL', side: 'enemy' }];
+  if (/^Heal your units here$/i.test(sen))
+    return [{ op: 'HEAL_ALL', side: 'friendly', here: true }];
   // R93: "[Buff] all units here" / "buff all other friendly units there".
   m = /^(?:\[Buff\]|Buff) all (other )?(friendly )?units (?:here|there)$/i.exec(sen);
   if (m) {
@@ -2667,6 +2669,13 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       return [x];
     })
     .filter((x) => !/^Choose (?:an opponent|a player)$/i.test(x)) // R97: the only opponent in a duel
+    // "Move up to one enemy unit from here to its base" = "You may move an enemy unit here to its base".
+    .map((x) =>
+      x.replace(
+        /^Move up to one ((?:friendly |enemy )?unit) from here to (its|their) base$/i,
+        'You may move an $1 here to $2 base',
+      ),
+    )
     // R98: "Choose a friendly unit without [Temporary]": granting it again changes nothing.
     .map((x) => x.replace(/ without \[Temporary\]/i, ''))
     .map((x) =>

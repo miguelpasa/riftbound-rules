@@ -2091,6 +2091,20 @@ export function runEffects(
         }
         break;
       }
+      case 'HEAL_ALL': {
+        const hb = e.here ? hereOfSource(state, sourceObjectId) : null;
+        for (const u of boardUnits(state, cards)) {
+          if (!sideMatches(e.side, controller, u) || u.damage === 0) continue;
+          if (
+            e.here &&
+            (hb === null || u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== hb)
+          ) {
+            continue;
+          }
+          u.damage = 0;
+        }
+        break;
+      }
       case 'READY_ALL':
       case 'EXHAUST_ALL':
         for (const u of boardUnits(state, cards)) {

@@ -432,3 +432,44 @@ describe('scenario: Daisy! (cost per pet tag, attack trigger needing all four)',
     expect(evalCondition(sc.state, cards, { kind: 'PET_TAGS', n: 4 }, 'p0', me)).toBe(false);
   });
 });
+
+describe('scenario: "heal your units here, then move up to one enemy unit from here to its base" (Janna)', () => {
+  const text =
+    'When you play me, heal your units here, then move up to one enemy unit from here to its base.';
+
+  it('reads as a heal of my units here followed by an optional move of one enemy unit here', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
+      on: 'PLAY',
+      effects: [
+        { op: 'HEAL_ALL', side: 'friendly', here: true },
+        { op: 'MOVE_BASE_TARGET', side: 'enemy', here: true, count: { min: 0, max: 1 } },
+      ],
+    });
+  });
+
+  it('heals the units at my battlefield only, and sends the chosen enemy home', () => {
+    // Tests Rule 583: a triggered ability resolves its effects
+    const trig = parseCardAbilities(text)?.triggers ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const me = sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+    const mate = sc.putUnit('p0', 'fx-archer', 'bf1');
+    const far = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    for (const id of [me, mate, far]) sc.state.objects[id]!.damage = 1;
+    const s = structuredClone(sc.state);
+    runEffects(
+      s,
+      'p0',
+      trig[0]?.effects ?? [],
+      SCENARIO_CARDS,
+      [{ kind: 'object', id: foe }],
+      'fx-grunt',
+      me,
+    );
+    expect(s.objects[me]?.damage).toBe(0);
+    expect(s.objects[mate]?.damage).toBe(0);
+    expect(s.objects[far]?.damage).toBe(1); // not here
+    expect(s.objects[foe]?.zone.kind).toBe('base');
+  });
+});

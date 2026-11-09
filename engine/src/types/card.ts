@@ -419,6 +419,8 @@ type CardEffectCore =
     }
   /** Ready or exhaust every unit of `side` (no target). */
   | { op: 'READY_ALL'; side: TargetSide }
+  /** "Heal your units here": remove all damage from the units of `side` (at the source's battlefield with `here`). */
+  | { op: 'HEAL_ALL'; side: TargetSide; here?: true }
   | { op: 'EXHAUST_ALL'; side: TargetSide }
   /**
    * Channel runes (431), optionally exhausted. If fewer than `amount` runes could be channeled,
