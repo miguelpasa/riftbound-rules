@@ -508,6 +508,20 @@ export type CardEffect =
       miss: 'RECYCLE' | 'TRASH' | 'STAY';
       missBuff?: number;
     }
+  /**
+   * X-hand: "Each player discards N" / "They discard N": every player in `who` chooses `count` cards from their own hand
+   * and discards them (a smaller hand is discarded whole).
+   */
+  | { op: 'HAND_DISCARD'; who: 'EACH' | 'OPPONENT'; count: number }
+  /**
+   * X-hand: "They reveal their hand. Choose a non-unit card from it, and recycle / discard that card": the controller
+   * picks one card of the opponent's revealed hand.
+   */
+  | {
+      op: 'HAND_PICK';
+      action: 'DISCARD' | 'RECYCLE';
+      filter?: { notUnit?: boolean; domain?: string };
+    }
   /** Kill every unit on the board. */
   | {
       op: 'KILL_ALL_UNITS';

@@ -124,6 +124,16 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   if (/^Banish this$/i.test(sen)) return [{ op: 'BANISH_THIS_SPELL' }];
   if (/^Kill this$/i.test(sen)) return [{ op: 'KILL_SELF' }];
   if (/^Take a turn after this one$/i.test(sen)) return [{ op: 'EXTRA_TURN' }];
+  m = /^(Each player|They) discards? (\d+)$/i.exec(sen);
+  if (m) {
+    return [
+      {
+        op: 'HAND_DISCARD',
+        who: /^each/i.test(m[1] ?? '') ? 'EACH' : 'OPPONENT',
+        count: Number(m[2]),
+      },
+    ];
+  }
   m = /^Each player discards their hand, then draws (\d+)$/i.exec(sen);
   if (m) {
     return [
@@ -474,6 +484,54 @@ export function parseRevealSequence(
     };
   }
   return null;
+}
+
+/**
+ * X-hand: "They reveal their hand. Choose a non-unit card from it, and recycle that card." (Sabotage), "... Choose a
+ * card from it, and they discard that card." (Mindsplitter), "They reveal their hand and you choose a Mind card from it.
+ * They recycle that card." (Decree of Strength). `used` is how many sentences were consumed.
+ */
+export function parseHandPickSequence(
+  sens: readonly string[],
+  i: number,
+): { effect: CardEffect; used: number } | null {
+  const first = /^They reveal their hand(?: and you choose an? ([A-Za-z-]+) card from it)?$/i.exec(
+    sens[i] ?? '',
+  );
+  if (!first) return null;
+  const kind = (word: string | undefined): { notUnit?: boolean; domain?: string } | null => {
+    if (!word || /^card$/i.test(word)) return {};
+    if (/^non-unit$/i.test(word)) return { notUnit: true };
+    return /^[A-Z][a-z]+$/.test(word) ? { domain: word } : null;
+  };
+  if (first[1] !== undefined) {
+    const filter = kind(first[1]);
+    const act = /^They (recycle|discard) that card$/i.exec(sens[i + 1] ?? '');
+    if (!filter || !act) return null;
+    return {
+      effect: {
+        op: 'HAND_PICK',
+        action: (act[1] ?? '').toLowerCase() === 'recycle' ? 'RECYCLE' : 'DISCARD',
+        ...(Object.keys(filter).length > 0 ? { filter } : {}),
+      },
+      used: 2,
+    };
+  }
+  const pick =
+    /^Choose an? (non-unit |[A-Z][a-z]+ )?card from it, and (recycle that card|they discard that card)$/i.exec(
+      sens[i + 1] ?? '',
+    );
+  if (!pick) return null;
+  const filter = kind((pick[1] ?? '').trim() || undefined);
+  if (!filter) return null;
+  return {
+    effect: {
+      op: 'HAND_PICK',
+      action: /^recycle/i.test(pick[2] ?? '') ? 'RECYCLE' : 'DISCARD',
+      ...(Object.keys(filter).length > 0 ? { filter } : {}),
+    },
+    used: 2,
+  };
 }
 
 /** A sentence that chooses one unit / gear / spell, or several units. */
@@ -2146,7 +2204,7 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       }
       return [x];
     })
-    .filter((x) => !/^Choose an opponent$/i.test(x)) // R97: the only opponent in a duel
+    .filter((x) => !/^Choose (?:an opponent|a player)$/i.test(x)) // R97: the only opponent in a duel
     // R98: "Choose a friendly unit without [Temporary]": granting it again changes nothing.
     .map((x) => x.replace(/ without \[Temporary\]/i, ''))
     .map((x) =>
@@ -2173,6 +2231,12 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     if (look) {
       out.push(look.effect);
       i += look.used - 1;
+      continue;
+    }
+    const handPick = parseHandPickSequence(list, i);
+    if (handPick) {
+      out.push(handPick.effect);
+      i += handPick.used - 1;
       continue;
     }
     const reveal = parseRevealSequence(list, i);

@@ -518,6 +518,27 @@ export function getLegalActions(
       }
       return keep([decline, ...accepts]).slice(0, max);
     }
+    if (pc.kind === 'HAND_CHOICE') {
+      // X-hand: one answer per choice of `count` offered cards (the first ones first: the timeout default).
+      const ids = pc.options.map((o) => o.id);
+      const combos: string[][] = [];
+      const rec = (start: number, acc: string[]): void => {
+        if (combos.length >= max) return;
+        if (acc.length === pc.count) {
+          combos.push([...acc]);
+          return;
+        }
+        for (let i = start; i < ids.length; i++) {
+          acc.push(ids[i] as string);
+          rec(i + 1, acc);
+          acc.pop();
+        }
+      };
+      rec(0, []);
+      return keep(
+        combos.map((cardIds): Intent => ({ type: 'CHOOSE_HAND_CARDS', playerId, cardIds })),
+      ).slice(0, max);
+    }
     return keep(
       pc.options.map((battlefieldId): Intent => ({
         type: 'CHOOSE_STAGED',

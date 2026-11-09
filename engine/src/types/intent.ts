@@ -126,6 +126,11 @@ export interface ChooseTriggerOrderIntent extends IntentBase {
   type: 'CHOOSE_TRIGGER_ORDER';
   order: string[];
 }
+/** Answer to a flow.pendingChoice of kind HAND_CHOICE (X-hand): exactly the offered number of cards. */
+export interface ChooseHandCardsIntent extends IntentBase {
+  type: 'CHOOSE_HAND_CARDS';
+  cardIds: string[];
+}
 export interface ConcedeIntent extends IntentBase {
   type: 'CONCEDE';
 }
@@ -146,6 +151,7 @@ export type Intent =
   | DecideOptionalIntent
   | DecideReplacementIntent
   | ChooseTriggerOrderIntent
+  | ChooseHandCardsIntent
   | ConcedeIntent;
 
 export type IntentType = Intent['type'];

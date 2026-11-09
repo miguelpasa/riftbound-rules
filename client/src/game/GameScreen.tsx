@@ -8,6 +8,7 @@ import { ChoicePrompt } from '../components/ChoicePrompt';
 import { AbilityCostPrompt } from '../components/AbilityCostPrompt';
 import { OptionalPrompt } from '../components/OptionalPrompt';
 import { DeathReplacePrompt } from '../components/DeathReplacePrompt';
+import { HandChoicePrompt } from '../components/HandChoicePrompt';
 import { TriggerOrderPrompt } from '../components/TriggerOrderPrompt';
 import { CombatDialog } from '../components/CombatDialog';
 import { HostAwayOverlay } from '../components/HostAwayOverlay';
@@ -427,6 +428,7 @@ export function GameScreen({
       <ChoicePrompt />
       <OptionalPrompt />
       <DeathReplacePrompt />
+      <HandChoicePrompt />
       <TriggerOrderPrompt />
       <AbilityCostPrompt ui={ui} />
 

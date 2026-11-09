@@ -13,6 +13,7 @@ import { fork } from './workingCopy.js';
 import { burnOutIfEmpty, drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
 import { equipTotalCost, hasKeyword, removeTokenFromGame } from './keywords.js';
+import { startHandChoice } from './handChoiceStart.js';
 import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import { allocObjectId } from './setup.js';
 import { hereOfSource } from './sources.js';
@@ -1621,6 +1622,32 @@ export function runEffects(
             addTemp(src, e.missBuff, true);
           }
         }
+        break;
+      }
+      case 'HAND_DISCARD':
+      case 'HAND_PICK': {
+        const opp: PlayerId = controller === 'p0' ? 'p1' : 'p0';
+        const turnFirst: PlayerId[] =
+          state.turn.activePlayer === 'p0' ? ['p0', 'p1'] : ['p1', 'p0'];
+        const rest = effects.slice(effects.indexOf(e) + 1);
+        const waiting = startHandChoice(
+          state,
+          cards,
+          {
+            mode: e.op === 'HAND_DISCARD' ? 'SELF' : 'PICK',
+            players: e.op === 'HAND_PICK' ? [opp] : e.who === 'EACH' ? turnFirst : [opp],
+            count: e.op === 'HAND_DISCARD' ? e.count : 1,
+            action: e.op === 'HAND_PICK' ? e.action : 'DISCARD',
+            ...(e.op === 'HAND_PICK' && e.filter ? { filter: e.filter } : {}),
+            controller,
+            sourceObjectId,
+            sourceCardId,
+            rest,
+          },
+          out,
+        );
+        // A pending choice keeps the rest of the effect list; resolve it after the answer.
+        if (waiting) return out;
         break;
       }
       case 'KILL_GEARS_HERE': {

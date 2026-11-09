@@ -32,6 +32,7 @@ import { passPriority } from './chain.js';
 import { chooseTriggerOrder, chooseTriggerTarget, fireTriggers } from './triggers.js';
 import { decideOptional } from './optional.js';
 import { decideReplacement } from './deathOffer.js';
+import { chooseHandCards } from './handChoice.js';
 import { expireTurnEffects } from './effects.js';
 import { runCleanup, defaultShowdownDeps } from './cleanup.js';
 import { assignCombatDamage } from './combat.js';
@@ -178,6 +179,8 @@ function shapeProblem(i: Obj): string | null {
       return Array.isArray(i.targets) && i.targets.every(isTarget) ? null : 'bad targets';
     case 'CHOOSE_TRIGGER_ORDER':
       return isIdList(i.order) ? null : 'order must be a list of ids';
+    case 'CHOOSE_HAND_CARDS':
+      return isIdList(i.cardIds) ? null : 'cardIds must be a list of ids';
     case 'DECIDE_REPLACEMENT':
       if (!isStr(i.unitId)) return 'unitId must be a string';
       if (typeof i.accept !== 'boolean') return 'accept must be a boolean';
@@ -290,6 +293,8 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
       return chooseTriggerOrder(state, cards, intent);
     case 'DECIDE_REPLACEMENT':
       return decideReplacement(state, cards, intent);
+    case 'CHOOSE_HAND_CARDS':
+      return chooseHandCards(state, cards, intent);
     case 'ACTIVATE_ABILITY':
       return activateAbility(state, cards, intent);
     case 'CONCEDE': {
@@ -328,27 +333,31 @@ function applyIntentInSession(state: GameState, cards: CardDatabase, intent: Int
     // The Cleanup is paused on a decision (323.11/323.12): nothing else may happen until it is made.
     const pending = state.flow.pendingChoice;
     const answers =
-      pending?.kind === 'TRIGGER_TARGET'
-        ? 'CHOOSE_TRIGGER_TARGET'
-        : pending?.kind === 'OPTIONAL_EFFECT'
-          ? 'DECIDE_OPTIONAL'
-          : pending?.kind === 'DEATH_REPLACE'
-            ? 'DECIDE_REPLACEMENT'
-            : pending?.kind === 'TRIGGER_ORDER'
-              ? 'CHOOSE_TRIGGER_ORDER'
-              : 'CHOOSE_STAGED';
+      pending?.kind === 'HAND_CHOICE'
+        ? 'CHOOSE_HAND_CARDS'
+        : pending?.kind === 'TRIGGER_TARGET'
+          ? 'CHOOSE_TRIGGER_TARGET'
+          : pending?.kind === 'OPTIONAL_EFFECT'
+            ? 'DECIDE_OPTIONAL'
+            : pending?.kind === 'DEATH_REPLACE'
+              ? 'DECIDE_REPLACEMENT'
+              : pending?.kind === 'TRIGGER_ORDER'
+                ? 'CHOOSE_TRIGGER_ORDER'
+                : 'CHOOSE_STAGED';
     if (pending && intent.type !== answers && intent.type !== 'CONCEDE') {
       return ruleError(
         'WRONG_PHASE',
-        pending.kind === 'TRIGGER_TARGET'
-          ? `waiting for ${pending.player} to choose the targets of a triggered ability`
-          : pending.kind === 'OPTIONAL_EFFECT'
-            ? `waiting for ${pending.player} to accept or decline an optional ability`
-            : pending.kind === 'DEATH_REPLACE'
-              ? `waiting for ${pending.player} to decide whether to save a unit from dying`
-              : pending.kind === 'TRIGGER_ORDER'
-                ? `waiting for ${pending.player} to order their triggered abilities`
-                : `waiting for ${pending.player} to choose which battlefield resolves first`,
+        pending.kind === 'HAND_CHOICE'
+          ? `waiting for ${pending.player} to choose cards from a hand`
+          : pending.kind === 'TRIGGER_TARGET'
+            ? `waiting for ${pending.player} to choose the targets of a triggered ability`
+            : pending.kind === 'OPTIONAL_EFFECT'
+              ? `waiting for ${pending.player} to accept or decline an optional ability`
+              : pending.kind === 'DEATH_REPLACE'
+                ? `waiting for ${pending.player} to decide whether to save a unit from dying`
+                : pending.kind === 'TRIGGER_ORDER'
+                  ? `waiting for ${pending.player} to order their triggered abilities`
+                  : `waiting for ${pending.player} to choose which battlefield resolves first`,
       );
     }
     return dispatch(state, cards, intent);

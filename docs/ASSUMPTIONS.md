@@ -564,3 +564,9 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Power cost:** "ignoring its Energy cost" still costs the card's Power. The engine pays it automatically with the cheapest plan (`autoPlan`), so the controller does not pick which runes are recycled; a card whose Power cannot be paid is not a legal choice.
 - **Where:** a unit played by an effect goes to its owner's Base (the choice of location is not modelled, as before); gear enters ready unless it enters exhausted.
+
+## X-hand: choosing cards from a hand (A-X-hand)
+
+- **Order:** "Each player discards" is asked turn player first. "Choose a player" is read as the opponent (choosing yourself to discard is never useful).
+- **Reveal:** the opponent's revealed hand is shown to both players in the pending choice only; afterwards it is hidden again.
+- **Fewer cards than asked:** the whole hand (or all matching cards) is taken without a question.

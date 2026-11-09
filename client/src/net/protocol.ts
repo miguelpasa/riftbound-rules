@@ -29,6 +29,7 @@ const INTENT_TYPES: Record<IntentType, true> = {
   CHOOSE_TRIGGER_TARGET: true,
   DECIDE_OPTIONAL: true,
   DECIDE_REPLACEMENT: true,
+  CHOOSE_HAND_CARDS: true,
   CHOOSE_TRIGGER_ORDER: true,
   CONCEDE: true,
 };

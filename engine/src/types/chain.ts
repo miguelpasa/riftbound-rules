@@ -1,4 +1,4 @@
-import type { OptionalCost } from './card.js';
+import type { CardEffect, OptionalCost } from './card.js';
 import type { PlayerId } from './state.js';
 
 /** Neutral/Showdown, Open/Closed (Rules 307-310). Open = chain empty; Closed = chain non-empty. */
@@ -162,7 +162,40 @@ export interface TriggerOrderChoice {
   chainItemIds: string[];
 }
 
+/** Which cards of a hand a HAND_CHOICE may offer ("a non-unit card", "a Mind card"). */
+export interface HandPickFilter {
+  notUnit?: boolean;
+  domain?: string;
+}
+
+/**
+ * X-hand: a player must choose `count` cards from a hand: their own (a discard, `mode` 'SELF') or the revealed hand
+ * of the opponent (`mode` 'PICK'). `options` lists the cards that may be chosen; the effects after the choice
+ * wait in `rest`. Answered by CHOOSE_HAND_CARDS. Only the chooser sees `options` unless `reveal`.
+ */
+export interface HandChoice {
+  kind: 'HAND_CHOICE';
+  /** Who chooses. */
+  player: PlayerId;
+  /** Whose hand the cards are in. */
+  handOf: PlayerId;
+  count: number;
+  options: { id: string; cardId: string }[];
+  action: 'DISCARD' | 'RECYCLE';
+  /** The hand is revealed to everybody. */
+  reveal: boolean;
+  mode: 'SELF' | 'PICK';
+  /** Other players who still have to choose after this one. */
+  later: PlayerId[];
+  filter?: HandPickFilter;
+  controller: PlayerId;
+  sourceObjectId: string;
+  sourceCardId: string;
+  rest: CardEffect[];
+}
+
 export type PendingChoice =
+  | HandChoice
   | StagedOrderChoice
   | TriggerTargetChoice
   | OptionalEffectChoice

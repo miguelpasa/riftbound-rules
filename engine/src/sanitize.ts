@@ -102,8 +102,11 @@ function redactChoices(value: unknown, rid: (id: string) => string): unknown {
   return value;
 }
 
-function sanitizeFlow(flow: FlowState, rid: (id: string) => string): FlowState {
+function sanitizeFlow(flow: FlowState, rid: (id: string) => string, viewer: PlayerId): FlowState {
   const out = structuredClone(flow);
+  // X-hand: the offered cards of a hand choice are for the chooser only, unless the hand is revealed.
+  const pc = out.pendingChoice;
+  if (pc?.kind === 'HAND_CHOICE' && !pc.reveal && pc.player !== viewer) pc.options = [];
   out.chain = out.chain.map((item: ChainItem) => ({
     ...item,
     sourceObjectId: rid(item.sourceObjectId),
@@ -180,7 +183,7 @@ export function sanitizeFor(state: GameState, viewer: PlayerId): ClientGameState
     battlefields,
     turn: structuredClone(state.turn),
     turnState: structuredClone(state.turnState),
-    flow: sanitizeFlow(state.flow, rid),
+    flow: sanitizeFlow(state.flow, rid, viewer),
     mulligan: structuredClone(state.mulligan),
     gameStatus: state.gameStatus,
   };
