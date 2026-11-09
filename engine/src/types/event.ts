@@ -66,6 +66,8 @@ export type GameEvent = EventBase &
         stunned?: boolean;
         /** It had 5+ Might as it died (709): "if I was Mighty". */
         mighty?: boolean;
+        /** It carried a buff when it died ("a buffed friendly unit dies"). */
+        buffed?: boolean;
         /** It died while a combat was being fought at its location ("When I die in combat"). */
         inCombat?: boolean;
       }

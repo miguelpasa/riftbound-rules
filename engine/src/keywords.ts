@@ -173,6 +173,7 @@ export function temporaryOnBeginning(
       at,
       alone: (crowd.get(o.controller + '|' + at) ?? 1) <= 1,
       ...(o.stunned ? { stunned: true } : {}),
+      ...(o.buffed ? { buffed: true } : {}),
       ...(evalCondition(s, cards, { kind: 'MIGHTY' }, o.controller, o.id) ? { mighty: true } : {}),
     };
     const from = s.players[playerIndex(o.zone.player)];

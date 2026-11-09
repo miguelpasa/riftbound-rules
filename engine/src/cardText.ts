@@ -3790,8 +3790,11 @@ export function parseCardAbilities(
       sen = 'When ' + ft[1] + ' ' + ft[2] + ', ' + ft[3];
     }
     const deadStunned = /^When (?:a|an) stunned (enemy|friendly) unit\b/i.test(sen);
+    const deadBuffed = /^When (?:a|an) buffed (enemy|friendly) unit\b/i.test(sen);
     const dm = DEATH_HEAD.exec(
-      deadStunned ? sen.replace(/stunned (enemy|friendly) unit/i, '$1 unit') : sen,
+      deadStunned || deadBuffed
+        ? sen.replace(/(?:stunned|buffed) (enemy|friendly) unit/i, '$1 unit')
+        : sen,
     );
     const db = DEATH_BATCH_HEAD.exec(sen);
     if (dm || db) {
@@ -3818,6 +3821,7 @@ export function parseCardAbilities(
           side,
           ...(dm?.[3] ? { here: true } : {}),
           ...(deadStunned ? { stunned: true } : {}),
+          ...(deadBuffed ? { buffed: true } : {}),
           ...(dm?.[1] ? { exceptSubtype: dm[1] } : {}),
           ...(db ? { batch: true } : {}),
         },

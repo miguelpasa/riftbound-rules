@@ -275,6 +275,38 @@ describe('parser: combat and death triggers (R71)', () => {
   });
 });
 
+describe('scenario: "When a buffed friendly unit dies" (Vanguard Helm)', () => {
+  const text = 'When a buffed friendly unit dies, buff another friendly unit.';
+  const watching = withCards({
+    'fx-ash-tank': {
+      triggers: [{ on: 'UNIT_DIES', dies: { side: 'friendly', buffed: true }, effects: BUFF2 }],
+    },
+  });
+
+  it('reads the buffed filter', () => {
+    // Tests Rule 303: parsed trigger text
+    expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
+      on: 'UNIT_DIES',
+      dies: { side: 'friendly', buffed: true },
+      effects: [{ op: 'BUFF_TARGET', buff: true, side: 'friendly', another: true }],
+    });
+  });
+
+  it('fires only when the unit that died carried a buff', () => {
+    // Tests Rule 323.4: the unit is read as it died (its buff is gone in the Trash)
+    const sc = Scenario.start({}, watching);
+    const watcher = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const plain = sc.putUnit('p0', 'fx-grunt', 'base');
+    const buffed = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.state.objects[buffed]!.buffed = true;
+    const before = mightOf(sc, watcher);
+    kill(sc, plain);
+    expect(mightOf(sc, watcher)).toBe(before);
+    kill(sc, buffed);
+    expect(mightOf(sc, watcher)).toBe(before + 2);
+  });
+});
+
 describe('scenario: Deathknell "if I was Mighty" (Unsung Hero)', () => {
   const mighty = withCards({
     'fx-grunt': {

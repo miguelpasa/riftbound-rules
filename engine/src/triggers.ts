@@ -309,6 +309,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
             if ((f.side === 'friendly') !== (src.controller === deadController)) return false;
             if (f.here && (here === 'base' || here !== e.at)) return false;
             if (f.stunned && e.stunned !== true) return false;
+            if (f.buffed && e.buffed !== true) return false;
             if (
               f.exceptSubtype &&
               dead?.subtypes.some((x) => x.toLowerCase() === (f.exceptSubtype ?? '').toLowerCase())
