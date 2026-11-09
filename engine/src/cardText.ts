@@ -699,11 +699,17 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
-  m = new RegExp(`^(?:\\[Buff\\]|Buff) an? ${SIDE}unit$`, 'i').exec(sen);
+  m = new RegExp(`^(?:\\[Buff\\]|Buff) an? ${SIDE}unit( in your base)?$`, 'i').exec(sen);
   if (m) {
     const s = side(m[1]);
     return {
-      effect: { op: 'BUFF_TARGET', amount: 1, buff: true, ...sideProp(s) },
+      effect: {
+        op: 'BUFF_TARGET',
+        amount: 1,
+        buff: true,
+        ...(m[2] ? { inBase: true } : {}),
+        ...sideProp(s),
+      },
       decl: { side: s ?? 'any' },
     };
   }
@@ -1114,9 +1120,23 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     return true;
   }
   // "Move an enemy unit" / "Move a friendly unit and ready it": the unit and where it goes are both chosen.
-  m = new RegExp(`^Move an? ${SIDE}unit( and ready it)?( to or from its base)?$`, 'i').exec(sen);
+  m = new RegExp(
+    `^Move an? ${SIDE}unit( and ready it)?( to or from its base| to an occupied enemy battlefield| to an open battlefield| to a battlefield)?$`,
+    'i',
+  ).exec(sen);
   if (m) {
     const s = side(m[1]);
+    const where3 = (m[3] ?? '').toLowerCase();
+    const dest: 'TO_OR_FROM_BASE' | 'ENEMY_OCCUPIED' | 'OPEN' | 'BATTLEFIELD' | undefined =
+      where3.includes('from its base')
+        ? 'TO_OR_FROM_BASE'
+        : where3.includes('occupied')
+          ? 'ENEMY_OCCUPIED'
+          : where3.includes('open')
+            ? 'OPEN'
+            : where3.includes('a battlefield')
+              ? 'BATTLEFIELD'
+              : undefined;
     const unit: SlotDecl = { side: s ?? 'any' };
     const where: SlotDecl = { side: 'any', kind: 'location' };
     if (!canAdd(st, [unit, where])) return false;
@@ -1129,7 +1149,51 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
       destSlot: slot + 1,
       ...sideProp(s),
       ...(m[2] ? { ready: true } : {}),
-      ...(m[3] ? { dest: 'TO_OR_FROM_BASE' as const } : {}),
+      ...(dest ? { dest } : {}),
+    });
+    return true;
+  }
+  // "Move it to a battlefield" (the unit chosen or buffed by the sentence before).
+  if (/^Move it to a battlefield$/i.test(sen) && st.it !== undefined) {
+    const where: SlotDecl = { side: 'any', kind: 'location' };
+    if (!canAdd(st, [where])) return false;
+    const destSlot = st.slots.length;
+    st.slots.push(where);
+    out.push({ op: 'MOVE_TARGET', slot: st.it, destSlot, dest: 'BATTLEFIELD' });
+    return true;
+  }
+  // "You may move a friendly unit to that enemy unit's battlefield" (Zenith Blade).
+  m = /^You may move an? friendly unit to that (?:enemy )?unit['’]s battlefield$/i.exec(sen);
+  if (m) {
+    if (st.it === undefined) return false;
+    const unit: SlotDecl = { side: 'friendly' };
+    if (!canAdd(st, [unit])) return false;
+    const slot = st.slots.length;
+    const from = st.it;
+    st.slots.push(unit);
+    out.push({
+      op: 'MOVE_TARGET',
+      slot,
+      destSlot: -1,
+      destFromSlot: from,
+      side: 'friendly',
+      count: { min: 0, max: 1 },
+    });
+    return true;
+  }
+  // "Deal 3 to all enemy units at a battlefield": the battlefield is chosen.
+  m = /^Deal (\d+) to all (friendly |enemy )?units at a battlefield$/i.exec(sen);
+  if (m) {
+    const add: SlotDecl = { side: 'any', kind: 'battlefield' };
+    if (!canAdd(st, [add])) return false;
+    const slot = st.slots.length;
+    st.slots.push(add);
+    out.push({
+      op: 'DAMAGE_ALL',
+      amount: Number(m[1]),
+      side: side((m[2] ?? '').trim()) ?? 'any',
+      scope: 'chosen',
+      slot,
     });
     return true;
   }
@@ -1172,6 +1236,10 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
       out.push({ op: 'ENTER_READY_NEXT' });
       return true;
     }
+  }
+  if (/^Opponents can['’]t play spells this turn$/i.test(sen)) {
+    out.push({ op: 'LOCK_PLAYS', who: 'OPPONENTS', what: 'SPELLS' });
+    return true;
   }
   if (/^Opponents can['’]t play cards this turn$/i.test(sen)) {
     out.push({ op: 'LOCK_PLAYS', who: 'OPPONENTS', what: 'CARDS' });

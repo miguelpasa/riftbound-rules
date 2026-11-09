@@ -140,3 +140,105 @@ describe('scenario: moving a chosen unit to a chosen location (Charm, Ride the W
     expect(sc.obj(mine).zone).toMatchObject({ kind: 'battlefield', battlefieldId: 'bf1' });
   });
 });
+
+describe('scenario: more battlefield and move shapes (Firestorm, Zenith Blade, Showstopper, Cataclysm)', () => {
+  it('reads them from card text', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(parseSpellText('Deal 3 to all enemy units at a battlefield.')).toEqual([
+      { op: 'DAMAGE_ALL', amount: 3, side: 'enemy', scope: 'chosen', slot: 0 },
+    ]);
+    expect(
+      parseSpellText(
+        "Stun an enemy unit at a battlefield. You may move a friendly unit to that enemy unit's battlefield.",
+      ),
+    ).toEqual([
+      { op: 'STUN_TARGET', side: 'enemy', atBattlefield: true },
+      {
+        op: 'MOVE_TARGET',
+        slot: 1,
+        destSlot: -1,
+        destFromSlot: 0,
+        side: 'friendly',
+        count: { min: 0, max: 1 },
+      },
+    ]);
+    expect(
+      parseSpellText('Buff a friendly unit in your base, then move it to a battlefield.'),
+    ).toEqual([
+      { op: 'BUFF_TARGET', amount: 1, buff: true, inBase: true, side: 'friendly' },
+      { op: 'MOVE_TARGET', slot: 0, destSlot: 1, dest: 'BATTLEFIELD' },
+    ]);
+  });
+
+  it('Firestorm damages only the enemy units at the chosen battlefield', () => {
+    // Tests Rule 355.10: the battlefield is a chosen target
+    const sc = Scenario.start(
+      {},
+      spellWith([{ op: 'DAMAGE_ALL', amount: 1, side: 'enemy', scope: 'chosen', slot: 0 }]),
+    );
+    const mine = sc.putUnit('p0', 'fx-ash-tank', 'bf0');
+    const there = sc.putUnit('p1', 'fx-order-tank', 'bf0');
+    const elsewhere = sc.putUnit('p1', 'fx-tide-archer', 'bf1');
+    cast(sc, [bf('bf0')]);
+    expect(sc.obj(mine).damage).toBe(0);
+    expect(sc.obj(there).damage).toBe(1);
+    expect(sc.obj(elsewhere).damage).toBe(0);
+  });
+
+  it("Zenith Blade moves a friendly unit to the stunned unit's battlefield, or nothing if declined", () => {
+    // Tests Rule 596.2.a: a unit moves when a game effect says so
+    const effects: CardEffect[] = [
+      { op: 'STUN_TARGET', side: 'enemy', atBattlefield: true },
+      {
+        op: 'MOVE_TARGET',
+        slot: 1,
+        destSlot: -1,
+        destFromSlot: 0,
+        side: 'friendly',
+        count: { min: 0, max: 1 },
+      },
+    ];
+    const run = (withMove: boolean): { zone: string; stunned: boolean } => {
+      const sc = Scenario.start({}, spellWith(effects));
+      const enemy = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+      const mine = sc.putUnit('p0', 'fx-ash-tank', 'base');
+      cast(sc, withMove ? [obj(enemy), obj(mine)] : [obj(enemy)]);
+      return { zone: sc.obj(mine).zone.kind, stunned: sc.obj(enemy).stunned === true };
+    };
+    expect(run(true)).toEqual({ zone: 'battlefield', stunned: true });
+    expect(run(false)).toEqual({ zone: 'base', stunned: true });
+  });
+
+  it('Showstopper buffs a unit in the Base and moves it to a battlefield', () => {
+    // Tests Rule 596.2.a: a unit moves when a game effect says so
+    const effects: CardEffect[] = [
+      { op: 'BUFF_TARGET', amount: 1, buff: true, inBase: true, side: 'friendly' },
+      { op: 'MOVE_TARGET', slot: 0, destSlot: 1, dest: 'BATTLEFIELD' },
+    ];
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const inBase = sc.putUnit('p0', 'fx-grunt', 'base');
+    const atBf = sc.putUnit('p0', 'fx-ash-tank', 'bf0');
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(atBf), bf('bf1')])).toBe(false);
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(inBase), bf('base')])).toBe(
+      false,
+    );
+    cast(sc, [obj(inBase), bf('bf0')]);
+    expect(sc.obj(inBase).buffed).toBe(true);
+    expect(sc.obj(inBase).zone).toMatchObject({ kind: 'battlefield', battlefieldId: 'bf0' });
+  });
+
+  it('Cataclysm needs an occupied enemy battlefield', () => {
+    // Tests Rule 596.1: moving is between two locations
+    const effects: CardEffect[] = [
+      { op: 'MOVE_TARGET', slot: 0, destSlot: 1, side: 'friendly', dest: 'ENEMY_OCCUPIED' },
+    ];
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mine = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(mine), bf('bf1')])).toBe(true);
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(mine), bf('bf0')])).toBe(false);
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(mine), bf('base')])).toBe(false);
+  });
+});

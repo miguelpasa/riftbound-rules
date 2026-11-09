@@ -237,6 +237,8 @@ export type CardEffect =
       /** R93: the amount is multiplied by the number of enemy units at the target's battlefield. */
       timesEnemiesThere?: boolean;
       atBattlefield?: boolean;
+      /** "Buff a friendly unit in your base": the unit stands in a Base. */
+      inBase?: boolean;
       /** R81: "... instead" when a condition holds. */
       alt?: AltAmount;
       side?: TargetSide;
@@ -384,7 +386,9 @@ export type CardEffect =
       amount: number;
       side: TargetSide;
       /** R86: "here" = the source's battlefield; `amountFrom` reads the damage from the source (amount is 0). */
-      scope: 'battlefields' | 'bases' | 'combat' | 'here';
+      scope: 'battlefields' | 'bases' | 'combat' | 'here' | 'chosen';
+      /** `chosen`: the slot that holds the chosen battlefield ("Deal 3 to all enemy units at a battlefield"). */
+      slot?: number;
       amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD';
     }
   /** Ready or exhaust every unit of `side` (no target). */
@@ -561,7 +565,12 @@ export type CardEffect =
   | {
       op: 'MOVE_TARGET';
       slot?: number;
+      /** The chosen location's slot, or -1 when `destFromSlot` gives the destination instead. */
       destSlot: number;
+      /** "... to that enemy unit's battlefield": go to the battlefield where the unit in this slot stands. */
+      destFromSlot?: number;
+      /** "You may move ...": 0..1 units. */
+      count?: TargetCount;
       side?: TargetSide;
       ready?: boolean;
       /** Which locations may be chosen: any (default), only battlefields, only open ones, ones you control, ... */

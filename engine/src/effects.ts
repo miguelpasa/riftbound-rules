@@ -166,7 +166,7 @@ function specOf(e: TargetedEffect): Spec {
     if (e.maxPower !== undefined) spec.trashMaxPower = e.maxPower;
   }
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
-  if (e.op === 'DAMAGE_TARGET' && e.inBase) spec.inBase = true;
+  if ((e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET') && e.inBase) spec.inBase = true;
   if (e.op === 'STUN_TARGET' && e.attacking) spec.attacking = true;
   if (e.op === 'DAMAGE_TARGET' && e.sameBattlefield) spec.sameBattlefield = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
@@ -196,10 +196,20 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
     } else if (e.op === 'BF_AREA') {
       const slot = e.slot ?? 0;
       if (!reqs.has(slot)) reqs.set(slot, { slot, kind: 'battlefield', side: 'any' });
+    } else if (e.op === 'DAMAGE_ALL' && e.scope === 'chosen') {
+      const slot = e.slot ?? 0;
+      if (!reqs.has(slot)) reqs.set(slot, { slot, kind: 'battlefield', side: 'any' });
     } else if (e.op === 'MOVE_TARGET') {
       const slot = e.slot ?? 0;
-      if (!reqs.has(slot)) reqs.set(slot, { slot, kind: 'unit', side: e.side ?? 'any' });
-      if (!reqs.has(e.destSlot)) {
+      if (!reqs.has(slot)) {
+        reqs.set(slot, {
+          slot,
+          kind: 'unit',
+          side: e.side ?? 'any',
+          ...(e.count ? { count: e.count } : {}),
+        });
+      }
+      if (e.destSlot >= 0 && !reqs.has(e.destSlot)) {
         reqs.set(e.destSlot, {
           slot: e.destSlot,
           kind: 'location',
@@ -1176,8 +1186,17 @@ export function runEffects(
       }
       case 'MOVE_TARGET': {
         const slot = e.slot ?? 0;
+        if (e.count && e.count.min === 0 && ids[slot] === undefined) break; // "you may": chose no unit
         const unit = state.objects[ids[slot] ?? ''];
-        const key = ids[e.destSlot];
+        // "... to that enemy unit's battlefield": where the unit in another slot stands now.
+        const from =
+          e.destFromSlot === undefined ? undefined : state.objects[ids[e.destFromSlot] ?? ''];
+        const key =
+          e.destFromSlot === undefined
+            ? ids[e.destSlot]
+            : from?.zone.kind === 'battlefield'
+              ? 'bf:' + from.zone.battlefieldId
+              : undefined;
         const spec: Spec = { kind: 'location', side: 'any', forSlot: slot, dest: e.dest ?? 'ANY' };
         if (
           !unit ||
@@ -1589,8 +1608,14 @@ export function runEffects(
         break;
       case 'DAMAGE_ALL': {
         const bf = state.flow.combat?.battlefieldId;
-        const here = e.scope === 'here' ? hereOfSource(state, sourceObjectId) : null;
-        if (e.scope === 'here' && here === null) {
+        const pickedKey = e.scope === 'chosen' ? ids[e.slot ?? 0] : undefined;
+        const here =
+          e.scope === 'here'
+            ? hereOfSource(state, sourceObjectId)
+            : pickedKey?.startsWith('bf:')
+              ? pickedKey.slice(3)
+              : null;
+        if ((e.scope === 'here' || e.scope === 'chosen') && here === null) {
           fizzle();
           break;
         }
@@ -1602,7 +1627,7 @@ export function runEffects(
               ? u.zone.kind === 'base'
               : e.scope === 'battlefields'
                 ? u.zone.kind === 'battlefield'
-                : e.scope === 'here'
+                : e.scope === 'here' || e.scope === 'chosen'
                   ? u.zone.kind === 'battlefield' && u.zone.battlefieldId === here
                   : u.zone.kind === 'battlefield' && u.zone.battlefieldId === bf;
           if (inScope) damage(u, dmgAmount);
