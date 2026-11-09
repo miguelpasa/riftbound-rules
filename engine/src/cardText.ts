@@ -265,7 +265,9 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
     ];
   }
   // R86: "Deal N to all enemy units here" / "Deal damage equal to my Might to all enemy units here".
-  m = /^Deal (\d+) to (?:all )?(friendly |enemy )?units (?:here|at my battlefield)$/i.exec(sen);
+  m = /^Deal (\d+) to (?:all |each )?(friendly |enemy )?units? (?:here|at my battlefield)$/i.exec(
+    sen,
+  );
   if (m) {
     return [
       {
@@ -3574,7 +3576,16 @@ export function parseCardAbilities(
  * (all-or-nothing, like units). Static and "while you control this battlefield" text stays partial.
  */
 export function parseBattlefieldAbilities(text: string): CardTrigger[] | null {
-  const rewritten = text.replace(
+  // "At the start of each player's [first] Beginning Phase, that player ...": the active player's turn start.
+  const firstTurn = /At the start of each player['’]s first Beginning Phase/i.test(text);
+  const rewritten = text
+    .replace(
+      /At the start of each player['’]s (?:first )?Beginning Phase/gi,
+      'At the start of your Beginning Phase',
+    )
+    .replace(/\bthat player channels\b/gi, 'channel')
+    .replace(/\bthat player gains (\d+) points?\b/gi, 'score $1 point')
+    .replace(
     /(^|[.\n]\s*)When you (hold|conquer|defend|attack) here\b/gi,
     (_m, pre: string, k: string) => `${pre}When I ${k.toLowerCase()}`,
   );
@@ -3583,8 +3594,11 @@ export function parseBattlefieldAbilities(text: string): CardTrigger[] | null {
   if (r.abilities.length > 0 || r.entersReady || r.entersReadyWhen || r.entersExhausted)
     return null;
   if (r.legionCostReduction !== undefined || r.triggers.some((t) => t.condition)) return null;
-  if (r.triggers.some((t) => !['HOLD', 'CONQUER', 'DEFEND', 'ATTACK'].includes(t.on))) return null;
-  return r.triggers;
+  if (r.triggers.some((t) => !['HOLD', 'CONQUER', 'DEFEND', 'ATTACK', 'TURN_START'].includes(t.on)))
+    return null;
+  return firstTurn
+    ? r.triggers.map((t) => (t.on === 'TURN_START' ? { ...t, firstTurn: true } : t))
+    : r.triggers;
 }
 
 /** Triggered abilities only (kept for callers and tests): null unless the text has a trigger. */

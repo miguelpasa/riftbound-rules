@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { parseCardAbilities, parseSpellText } from '../cardText.js';
+import { parseBattlefieldAbilities, parseCardAbilities, parseSpellText } from '../cardText.js';
 import { runEffects } from '../effects.js';
+import { runTurnTriggers } from '../turnTriggers.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
@@ -93,5 +94,42 @@ describe('scenario: "If you do," follow-ups (Adaptatron)', () => {
     const none = structuredClone(sc.state);
     runEffects(none, 'p0', effects, sc.cards, [], '', me);
     expect(none.objects[me]?.mightBonus ?? 0).toBe(0);
+  });
+});
+
+describe('scenario: Battlefield cards with turn-start abilities', () => {
+  it('reads "each player\'s first Beginning Phase" and "each unit here"', () => {
+    // Tests Rule 315: the Beginning Phase
+    const first = parseBattlefieldAbilities(
+      "At the start of each player's first Beginning Phase, that player channels 1 rune.",
+    );
+    expect(first?.[0]).toMatchObject({ on: 'TURN_START', firstTurn: true });
+    const point = parseBattlefieldAbilities(
+      "At the start of each player's first Beginning Phase, that player gains 1 point.",
+    );
+    expect(point?.[0]?.effects[0]).toMatchObject({ op: 'GAIN_POINT', amount: 1 });
+    const fort = parseBattlefieldAbilities(
+      "At the start of each player's Beginning Phase, deal 1 to each unit here.",
+    );
+    expect(fort?.[0]?.firstTurn).toBeUndefined();
+    expect(fort?.[0]?.effects[0]).toMatchObject({ op: 'DAMAGE_ALL', scope: 'here', amount: 1 });
+  });
+
+  it('damages every unit at the battlefield at the start of each turn', () => {
+    // Tests Rule 315: the Beginning Phase
+    const fort = parseBattlefieldAbilities(
+      "At the start of each player's Beginning Phase, deal 1 to each unit here.",
+    );
+    const sc = Scenario.start({});
+    const bf = sc.state.battlefields[0];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      [bf?.cardId ?? '']: { ...base(bf?.cardId ?? ''), triggers: fort ?? [] },
+    };
+    const mine = sc.putUnit('p0', 'fx-ash-tank', bf?.id ?? 'bf1');
+    const theirs = sc.putUnit('p1', 'fx-tide-grunt', bf?.id ?? 'bf1');
+    const r = runTurnTriggers(structuredClone(sc.state), cards, 'TURN_START');
+    expect(r.state.objects[mine]?.damage).toBe(1);
+    expect(r.state.objects[theirs]?.damage).toBe(1);
   });
 });

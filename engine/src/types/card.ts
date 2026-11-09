@@ -1045,6 +1045,8 @@ export interface CardTrigger {
   dies?: DeathFilter;
   /** `on: 'UNIT_ATTACKS'`: which unit in a combat triggers it. */
   unitFilter?: { side: 'friendly' | 'enemy'; alone?: boolean; attacking?: boolean; atMine?: boolean };
+  /** Battlefield `TURN_START`: only during each player's first turn ("each player's first Beginning Phase"). */
+  firstTurn?: boolean;
   /** `on: 'UNIT_CHOSEN'`: `friendly` = any friendly unit you choose (the ability's target is that unit); `self` = this unit is chosen. */
   chosen?: { target: 'friendly' | 'self'; spellOnly?: boolean };
   /** "When you conquer / hold" on a unit or gear: fires when its controller scores at ANY battlefield. */

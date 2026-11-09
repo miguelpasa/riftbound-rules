@@ -47,5 +47,16 @@ export function runTurnTriggers(
       events.push(...runEffects(s, player, t.effects, cards, [], o.cardId, o.id));
     }
   }
+  // A Battlefield card's own turn-start abilities ("At the start of each player's Beginning Phase"): the active player is the controller.
+  if (kind === 'TURN_START') {
+    for (const bf of s.battlefields) {
+      for (const t of cards[bf.cardId]?.triggers ?? []) {
+        if (t.on !== kind) continue;
+        if (s.gameStatus !== 'IN_PROGRESS') return { state: s, events };
+        if (t.firstTurn && s.turn.number > 2) continue;
+        events.push(...runEffects(s, player, t.effects, cards, [], bf.cardId, bf.id));
+      }
+    }
+  }
   return { state: s, events };
 }
