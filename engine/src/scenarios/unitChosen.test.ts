@@ -579,3 +579,34 @@ describe('scenario: an ability gated by "[Empowered][>]" (Defender of Tomorrow)'
     expect(sc.tryDo(intent).ok).toBe(true);
   });
 });
+
+describe('scenario: "give your units here [Ganking] this turn" (Megatusk)', () => {
+  const text = 'Spend 3 XP: Give your units here [Ganking] this turn.';
+
+  it('reads as an XP-cost ability granting the keyword to my units here', () => {
+    // Tests Rule 145.1: an activated ability with a cost and an effect
+    expect(parseCardAbilities(text)?.abilities[0]).toMatchObject({
+      cost: { xp: 3 },
+      effects: [
+        { op: 'GRANT_KEYWORD_ALL', keywords: [{ name: 'Ganking' }], side: 'friendly', here: true },
+      ],
+    });
+  });
+
+  it('grants the keyword to the friendly units at my battlefield only', () => {
+    // Tests Rule 145.1: the effect resolves for every unit here, none elsewhere
+    const eff = parseCardAbilities(text)?.abilities[0]?.effects ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const me = sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+    const mate = sc.putUnit('p0', 'fx-archer', 'bf1');
+    const far = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const s = structuredClone(sc.state);
+    runEffects(s, 'p0', eff, SCENARIO_CARDS, [], 'fx-grunt', me);
+    const has = (id: string) => s.objects[id]?.tempKeywords?.some((k) => k.name === 'Ganking');
+    expect(has(me)).toBe(true);
+    expect(has(mate)).toBe(true);
+    expect(has(far)).toBeFalsy();
+    expect(has(foe)).toBeFalsy();
+  });
+});

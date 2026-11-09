@@ -322,6 +322,14 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   if (/^Ready all enemy units$/i.test(sen)) return [{ op: 'READY_ALL', side: 'enemy' }];
   if (/^Heal your units here$/i.test(sen))
     return [{ op: 'HEAL_ALL', side: 'friendly', here: true }];
+  // "Give your units here [Ganking] this turn" (Megatusk).
+  m = new RegExp(`^Give (?:your|all friendly) units( here)? ${KW_LIST} this turn$`, 'i').exec(sen);
+  if (m) {
+    const keywords = parseKwList(m[2]);
+    return keywords
+      ? [{ op: 'GRANT_KEYWORD_ALL', keywords, side: 'friendly', ...(m[1] ? { here: true } : {}) }]
+      : null;
+  }
   // R93: "[Buff] all units here" / "buff all other friendly units there".
   m = /^(?:\[Buff\]|Buff) all (other )?(friendly )?units (?:here|there)$/i.exec(sen);
   if (m) {
@@ -4063,6 +4071,18 @@ export function parseCardAbilities(
       /^Use this ability only while I['’]m at a battlefield$/i.test(sen)
     ) {
       cur.atBattlefield = true;
+      continue;
+    }
+    // "Use my abilities only while I'm at a battlefield": every activated ability of the card.
+    if (/^Use my abilities only while I['’]m at a battlefield$/i.test(sen)) {
+      let any = false;
+      for (const g of groups) {
+        if (g.kind === 'ability') {
+          g.atBattlefield = true;
+          any = true;
+        }
+      }
+      if (!any) return null;
       continue;
     }
     if (!cur) return null;

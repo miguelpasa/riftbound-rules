@@ -2110,6 +2110,20 @@ export function runEffects(
         }
         break;
       }
+      case 'GRANT_KEYWORD_ALL': {
+        const gb = e.here ? hereOfSource(state, sourceObjectId) : null;
+        for (const u of boardUnits(state, cards)) {
+          if (!sideMatches(e.side, controller, u)) continue;
+          if (
+            e.here &&
+            (gb === null || u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== gb)
+          )
+            continue;
+          u.tempKeywords = [...(u.tempKeywords ?? []), ...e.keywords.map((k) => ({ ...k }))];
+          out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
+        }
+        break;
+      }
       case 'READY_ALL':
       case 'EXHAUST_ALL':
         for (const u of boardUnits(state, cards)) {

@@ -423,6 +423,8 @@ type CardEffectCore =
   | { op: 'READY_ALL'; side: TargetSide }
   /** "Heal your units here": remove all damage from the units of `side` (at the source's battlefield with `here`). */
   | { op: 'HEAL_ALL'; side: TargetSide; here?: true }
+  /** "Give your units here [Ganking] this turn": every matching unit (at the source's battlefield if `here`) gets the keywords until end of turn. */
+  | { op: 'GRANT_KEYWORD_ALL'; keywords: KeywordInstance[]; side: TargetSide; here?: true }
   | { op: 'EXHAUST_ALL'; side: TargetSide }
   /**
    * Channel runes (431), optionally exhausted. If fewer than `amount` runes could be channeled,

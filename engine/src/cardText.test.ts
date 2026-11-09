@@ -880,3 +880,14 @@ describe('parseSpellText: two keyword actions in one sentence', () => {
     ]);
   });
 });
+
+describe('parseCardAbilities: "Use my abilities only while I\'m at a battlefield"', () => {
+  it('limits every activated ability of the card to a battlefield (Renata Glasc)', () => {
+    // Tests Rule 145.1: an activated ability can carry a usage restriction
+    const parsed = parseCardAbilities(
+      "[1][C]: Draw 1.\n[4][C][C][C][C], [E]: Score 1 point.\nUse my abilities only while I'm at a battlefield.",
+    );
+    expect(parsed?.abilities).toHaveLength(2);
+    expect(parsed?.abilities.every((a) => a.atBattlefield === true)).toBe(true);
+  });
+});
