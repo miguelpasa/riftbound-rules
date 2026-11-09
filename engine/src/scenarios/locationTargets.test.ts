@@ -263,3 +263,30 @@ describe('scenario: "Move a unit with 3 [M] or less" (Twilight Step)', () => {
     expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(big), bf('bf0')])).toBe(false);
   });
 });
+
+describe('scenario: "Move an enemy unit that moved this turn" (Siren\'s Song)', () => {
+  const effects = parseSpellText('Move an enemy unit that moved this turn.') ?? [];
+
+  it('reads the moved-this-turn limit onto the move', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toEqual([
+      { op: 'MOVE_TARGET', slot: 0, destSlot: 1, side: 'enemy', movedThisTurn: true },
+    ]);
+  });
+
+  it('only a unit that moved this turn can be chosen', () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mover = sc.putUnit('p0', 'fx-grunt', 'base');
+    const idle = sc.putUnit('p0', 'fx-archer', 'base');
+    sc.do({
+      type: 'STANDARD_MOVE',
+      playerId: 'p0',
+      unitIds: [mover],
+      destination: { kind: 'battlefield', battlefieldId: 'bf0' },
+    });
+    expect(spellTargetsLegal(sc.state, cards, 'p1', effects, [obj(mover), bf('base')])).toBe(true);
+    expect(spellTargetsLegal(sc.state, cards, 'p1', effects, [obj(idle), bf('bf1')])).toBe(false);
+  });
+});

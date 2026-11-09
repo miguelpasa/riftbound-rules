@@ -83,6 +83,8 @@ interface Spec {
   subtype?: string;
   notSubtype?: string;
   maxMight?: number;
+  /** The unit has moved this turn. */
+  movedThisTurn?: boolean;
   /** X1: every pick must be at one battlefield. */
   sameBattlefield?: boolean;
   /** Gear only: Energy cost at most this. */
@@ -245,6 +247,7 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
           side: e.side ?? 'any',
           ...(e.count ? { count: e.count } : {}),
           ...(e.maxMight !== undefined ? { maxMight: e.maxMight } : {}),
+          ...(e.movedThisTurn ? { movedThisTurn: true } : {}),
         });
       }
       if (e.destSlot >= 0 && !reqs.has(e.destSlot)) {
@@ -452,6 +455,7 @@ function legalForSpec(
       }
     }
     if (spec.another && u.id === sourceId) return false;
+    if (spec.movedThisTurn && !(u.moves && u.moves.turn === state.turn.number)) return false;
     if (spec.domain && !(cards[u.cardId]?.domains ?? []).includes(spec.domain)) return false;
     if (spec.exhausted && u.ready) return false;
   }
@@ -1473,6 +1477,7 @@ export function runEffects(
               slot,
               ...(e.side ? { side: e.side } : {}),
               ...(e.maxMight !== undefined ? { maxMight: e.maxMight } : {}),
+              ...(e.movedThisTurn ? { movedThisTurn: true } : {}),
             },
             unit,
             sourceObjectId,

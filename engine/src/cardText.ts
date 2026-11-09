@@ -1643,12 +1643,12 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
   }
   // "Move an enemy unit" / "Move a friendly unit and ready it": the unit and where it goes are both chosen.
   m = new RegExp(
-    `^Move an? ${SIDE}unit(?: with (\\d+) \\[M\\] or less)?( and ready it)?( to or from its base| to an occupied enemy battlefield| to an open battlefield| to a battlefield)?$`,
+    `^Move an? ${SIDE}unit(?: with (\\d+) \\[M\\] or less)?( that moved this turn)?( and ready it)?( to or from its base| to an occupied enemy battlefield| to an open battlefield| to a battlefield)?$`,
     'i',
   ).exec(sen);
   if (m) {
     const s = side(m[1]);
-    const where3 = (m[4] ?? '').toLowerCase();
+    const where3 = (m[5] ?? '').toLowerCase();
     const dest: 'TO_OR_FROM_BASE' | 'ENEMY_OCCUPIED' | 'OPEN' | 'BATTLEFIELD' | undefined =
       where3.includes('from its base')
         ? 'TO_OR_FROM_BASE'
@@ -1671,7 +1671,8 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
       destSlot: slot + 1,
       ...sideProp(s),
       ...(m[2] ? { maxMight: Number(m[2]) } : {}),
-      ...(m[3] ? { ready: true } : {}),
+      ...(m[3] ? { movedThisTurn: true } : {}),
+      ...(m[4] ? { ready: true } : {}),
       ...(dest ? { dest } : {}),
     });
     return true;
