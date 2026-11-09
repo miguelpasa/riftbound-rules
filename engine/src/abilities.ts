@@ -29,6 +29,7 @@ import { costCardCombos, costCardsLegal, costCardsPayable, payCostCards } from '
 import { autoPlan, genericPower, payCost } from './resources.js';
 import type { TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
+import { legionActive } from './keywords.js';
 import { isGearDef } from './tokens.js';
 import { playerIndex, ruleError } from './types/index.js';
 import type {
@@ -96,6 +97,10 @@ export function activateAbility(
   // R74: "Use this ability only while I'm at a battlefield."
   if (ability.atBattlefield && src.zone.kind !== 'battlefield') {
     return ruleError('ABILITY_NOT_AVAILABLE', 'this ability works only at a battlefield');
+  }
+  // 812: "[Legion] —" on an activated ability needs another card played this turn.
+  if (ability.legion && !legionActive(state, pid, src.id)) {
+    return ruleError('ABILITY_NOT_AVAILABLE', 'Legion: play another card this turn first');
   }
   // R52: "Use only if not Empowered": an Empower ability cannot be used again while Empowered.
   if (src.empowered && ability.effects.some((e) => e.op === 'EMPOWER_SELF')) {

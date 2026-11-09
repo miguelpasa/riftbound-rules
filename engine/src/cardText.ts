@@ -237,7 +237,7 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
     ];
   }
   // R86: "Deal N to all enemy units here" / "Deal damage equal to my Might to all enemy units here".
-  m = /^Deal (\d+) to all (friendly |enemy )?units here$/i.exec(sen);
+  m = /^Deal (\d+) to all (friendly |enemy )?units (?:here|at my battlefield)$/i.exec(sen);
   if (m) {
     return [
       {
@@ -1096,6 +1096,10 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
       out.push({ op: 'ENTER_READY_THIS_TURN' });
       return true;
     }
+    if (/^The next unit you play this turn enters ready$/i.test(sen)) {
+      out.push({ op: 'ENTER_READY_NEXT' });
+      return true;
+    }
   }
   if (/^Opponents can['’]t play cards this turn$/i.test(sen)) {
     out.push({ op: 'LOCK_PLAYS', who: 'OPPONENTS', what: 'CARDS' });
@@ -1436,11 +1440,14 @@ const STATIC_RESTRICT = [
   [/^(Units) can['’]t move from here to base$/i, 'UNITS_HERE'],
 ] as const;
 const STATIC_AFF =
-  '(I|Your gear|Your token units|Friendly units here|Friendly units|Your units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
+  '(I|Your gear|Your token units|Friendly units here|Friendly buffed units|Other friendly units|Friendly units|Your units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
 
 function staticAffects(
   raw: string,
-): Pick<StaticAbility, 'affects' | 'subtype' | 'onlyKeyword' | 'onlySubtype' | 'onlyToken'> | null {
+): Pick<
+  StaticAbility,
+  'affects' | 'subtype' | 'onlyKeyword' | 'onlySubtype' | 'onlyToken' | 'onlyBuffed'
+> | null {
   const w = raw.toLowerCase();
   // R70: filtered "here" statics.
   if (w === 'champion units here') return { affects: 'UNITS_HERE', onlySubtype: 'Champion' };
@@ -1453,6 +1460,8 @@ function staticAffects(
   if (w === 'your gear') return { affects: 'FRIENDLY_GEAR' };
   if (w === 'your token units') return { affects: 'FRIENDLY_UNITS', onlyToken: true };
   if (w === 'friendly units here') return { affects: 'FRIENDLY_UNITS_HERE' };
+  if (w === 'friendly buffed units') return { affects: 'FRIENDLY_UNITS', onlyBuffed: true };
+  if (w === 'other friendly units') return { affects: 'OTHER_FRIENDLY_UNITS' };
   if (w === 'friendly units' || w === 'your units') return { affects: 'FRIENDLY_UNITS' };
   if (w === 'other friendly units here' || w === 'your other units here')
     return { affects: 'OTHER_FRIENDLY_HERE' };
@@ -1501,7 +1510,8 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
     // R86: "Other friendly units have +1 [M] here" = "Other friendly units here have +1 [M]"; "an additional +1" = "+1".
     const body = body0
       .replace(/^(Other friendly units) (have .+?) here$/i, '$1 here $2')
-      .replace(/\ban additional (\+\d+ \[M\])/i, '$1');
+      .replace(/\ban additional (\+\d+ \[M\])/i, '$1')
+      .replace(/^(Friendly buffed units have .+?) if they didn['’]t already$/i, '$1');
     // X7: standing "would die ... instead" replacements.
     const rd = parseDeathReplaceStatic(body);
     if (rd) {
@@ -2470,7 +2480,7 @@ function parsePlayHead(sen: string): { filter: PlayFilter; body: string } | null
 
 /** R71: "When [another] a friendly / an enemy unit [here] dies [while I'm at a battlefield]" and "When one or more friendly units die". */
 const DEATH_HEAD =
-  /^When (?:(?:another|an?) )?(friendly|enemy) unit( here)? dies( while I['’]m at a battlefield)?\s*,\s*(.*)$/i;
+  /^When (?:(?:another|an?) )?(?:non-([A-Za-z]+) )?(?:(friendly|enemy) unit|unit you control)( here)? dies( while I['’]m at a battlefield)?\s*,\s*(.*)$/i;
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
@@ -2514,6 +2524,7 @@ export function parseCardAbilities(
     // R71: gear says "When you play this" where units say "When you play me".
     .replace(/\bWhen you play this\b/gi, 'When you play me')
     .replace(/\[Stun\]/gi, 'Stun')
+    .replace(/\[Reaction\],\s*(?=\[Legion\])/gi, 'REACTION ')
     .replace(
       /\[(Reaction|Action)\]\s*(?:\[>\]|[—–-])\s*/gi,
       (_m, k: string) => `${k.toUpperCase()} `,
@@ -2550,6 +2561,7 @@ export function parseCardAbilities(
         kind: 'ability';
         cost: AbilityCost;
         reaction: boolean;
+        legion?: boolean;
         atBattlefield?: boolean;
         costReduction?: CostReduction;
         sens: string[];
@@ -2598,9 +2610,11 @@ export function parseCardAbilities(
     const db = DEATH_BATCH_HEAD.exec(sen);
     if (dm || db) {
       const side =
-        ((dm ? dm[1] : db?.[1]) ?? '').toLowerCase() === 'friendly' ? 'friendly' : 'enemy';
-      let body = (dm ? dm[4] : db?.[2]) ?? '';
-      let when: Condition | undefined = dm?.[3] ? { kind: 'AT_BATTLEFIELD' } : undefined;
+        ((dm ? (dm[2] ?? 'friendly') : db?.[1]) ?? '').toLowerCase() === 'friendly'
+          ? 'friendly'
+          : 'enemy';
+      let body = (dm ? dm[5] : db?.[2]) ?? '';
+      let when: Condition | undefined = dm?.[4] ? { kind: 'AT_BATTLEFIELD' } : undefined;
       const split = splitCondition(body);
       if (!split || (split.when && when)) return null;
       when = when ?? split.when;
@@ -2614,7 +2628,12 @@ export function parseCardAbilities(
         ons: ['UNIT_DIES'],
         legion,
         ...(when ? { when } : {}),
-        dies: { side, ...(dm?.[2] ? { here: true } : {}), ...(db ? { batch: true } : {}) },
+        dies: {
+          side,
+          ...(dm?.[3] ? { here: true } : {}),
+          ...(dm?.[1] ? { exceptSubtype: dm[1] } : {}),
+          ...(db ? { batch: true } : {}),
+        },
         ...(once ? { once: true } : {}),
         sens: [body],
       };
@@ -2767,12 +2786,27 @@ export function parseCardAbilities(
       cur = null;
       continue;
     }
-    if (legion) return null;
     const ab = /^(?:(REACTION|ACTION) )?([^:]+): (?:(REACTION|ACTION) )?(.+)$/.exec(sen);
+    // 812: "<cost>: [Legion] — <effect>" is an activated ability usable only after another card was played.
+    const abLegion = ab !== null && /^(?:REACTION,? )?LEGION /.test(ab[4] ?? '');
+    if (legion && !abLegion && !ab) return null;
     if (ab && ab[1] !== 'ACTION' && ab[3] !== 'ACTION') {
       const cost = parseAbilityCost(ab[2] ?? '', opts.gearLike === true);
       if (!cost) return null;
-      cur = { kind: 'ability', cost, reaction: !!(ab[1] ?? ab[3]), sens: [ab[4] as string] };
+      let abBody = ab[4] as string;
+      let abReaction = !!(ab[1] ?? ab[3]);
+      const lead = /^(REACTION,? )?LEGION /.exec(abBody);
+      if (lead) {
+        if (lead[1]) abReaction = true;
+        abBody = abBody.slice(lead[0].length).trim();
+      }
+      cur = {
+        kind: 'ability',
+        cost,
+        reaction: abReaction,
+        ...(legion || abLegion ? { legion: true } : {}),
+        sens: [abBody],
+      };
       groups.push(cur);
       continue;
     }
@@ -2844,6 +2878,7 @@ export function parseCardAbilities(
       out.abilities.push({
         cost: g.cost,
         ...(g.reaction ? { reaction: true } : {}),
+        ...(g.legion ? { legion: true } : {}),
         ...(g.atBattlefield ? { atBattlefield: true } : {}),
         ...(g.costReduction ? { costReduction: g.costReduction } : {}),
         effects,

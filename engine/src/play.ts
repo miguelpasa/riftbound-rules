@@ -224,6 +224,12 @@ function placingResolver(
             staticBonus(s, cards, obj).entersReady === true ||
             // R105: "Units you play this turn enter ready".
             s.players[playerIndex(obj.controller)]?.enterReadyTurn === turnNumber;
+      // "The next unit you play this turn enters ready" (Sun Disc): the first unit played consumes the grant.
+      const grantee = s.players[playerIndex(obj.controller)];
+      if (def.type === 'UNIT' && grantee?.enterReadyNext !== undefined) {
+        if (grantee.enterReadyNext === turnNumber) obj.ready = true;
+        delete grantee.enterReadyNext;
+      }
       obj.enteredTurn = turnNumber;
       delete obj.empowered; // R52: a permanent always enters un-Empowered
       delete obj.buffed; // R54: and without a Buff
@@ -264,7 +270,15 @@ function runTrigger(
     const n = Math.min(optional.card.count ?? 1, hand);
     if (n === 0) {
       events.push(
-        ...runEffects(s, item.controller, trig.effects, cards, liveTargets(s, item), cardId, sourceId),
+        ...runEffects(
+          s,
+          item.controller,
+          trig.effects,
+          cards,
+          liveTargets(s, item),
+          cardId,
+          sourceId,
+        ),
       );
       return;
     }
@@ -378,7 +392,9 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   }
   if (def?.type === 'SPELL' && obj.zone.kind === 'chain') {
     const owner = s.players[playerIndex(obj.owner)];
-    const banishThis = (spellEffects(def, item.mode) ?? []).some((e) => e.op === 'BANISH_THIS_SPELL');
+    const banishThis = (spellEffects(def, item.mode) ?? []).some(
+      (e) => e.op === 'BANISH_THIS_SPELL',
+    );
     if (item.additionalCosts?.flow === true || banishThis) {
       // R61: a spell played with Flow is banished instead of going to the Trash.
       owner.banishment.push(obj.id);

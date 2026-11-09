@@ -166,6 +166,8 @@ export type CardEffect =
   | { op: 'NEXT_PLAY_DISCOUNT'; amount: number; spellsOnly: boolean }
   /** R105: "Friendly units enter ready this turn" / "Units you play this turn enter ready". */
   | { op: 'ENTER_READY_THIS_TURN' }
+  /** "The next unit you play this turn enters ready" (Sun Disc): consumed by the next unit card played. */
+  | { op: 'ENTER_READY_NEXT' }
   | {
       op: 'LOCK_PLAYS';
       who: 'OPPONENTS' | 'TARGET_CONTROLLER';
@@ -629,6 +631,8 @@ export interface StaticAbility {
   playCostMod?: { energy: number; min: number; spellsOnly?: boolean; subtype?: string };
   /** R88: only token units are affected ("Your token units have +1 [M]"). */
   onlyToken?: boolean;
+  /** Only buffed units are affected ("Friendly buffed units have [Deflect]"). */
+  onlyBuffed?: boolean;
   /** R88: the affected units (or tokens) enter ready ("Your tokens enter ready"). */
   entersReady?: boolean;
   /** R74: the restriction (or grant) does NOT apply while this condition holds ("... unless <condition>"). */
@@ -843,6 +847,8 @@ export interface DeathFilter {
   side: 'friendly' | 'enemy';
   /** "enemy unit here": it died at the source's battlefield. */
   here?: boolean;
+  /** "another non-Recruit unit": units with this subtype (case-insensitive) do not trigger it. */
+  exceptSubtype?: string;
   /** "When one or more ... die": once per batch of deaths, not once per unit. */
   batch?: boolean;
 }
@@ -937,6 +943,8 @@ export interface ActivatedAbility {
   atBattlefield?: boolean;
   /** Reaction speed (usable in a Closed state / Showdown). */
   reaction?: boolean;
+  /** "[Legion] —" before the effect: usable only while the controller has played another card this turn. */
+  legion?: boolean;
   effects: CardEffect[];
 }
 

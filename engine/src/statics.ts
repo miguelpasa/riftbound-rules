@@ -119,6 +119,7 @@ function applies(
     return false;
   }
   if (s.onlyToken && targetDef.type !== 'TOKEN') return false;
+  if (s.onlyBuffed && target.buffed !== true) return false;
   if (s.lessMight && (!mights || mights.target >= mights.source)) return false;
   switch (s.affects) {
     case 'OTHER_FRIENDLY_UNITS':

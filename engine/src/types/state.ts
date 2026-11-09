@@ -147,6 +147,8 @@ export interface PlayerState {
   nextPlayDiscount?: { turn: number; energy: number; spellsOnly: boolean };
   /** R105: units this player plays during this turn number enter ready. */
   enterReadyTurn?: number;
+  /** "The next unit you play this turn enters ready": the turn it was granted; cleared by the next unit played. */
+  enterReadyNext?: number;
   /** R87: excess combat damage this player assigned as the attacker in the last combat of turn `turn`. */
   excessRecord?: { turn: number; amount: number };
 }

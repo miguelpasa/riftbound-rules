@@ -1483,6 +1483,9 @@ export function runEffects(
       case 'ENTER_READY_THIS_TURN':
         state.players[playerIndex(controller)].enterReadyTurn = state.turn.number;
         break;
+      case 'ENTER_READY_NEXT':
+        state.players[playerIndex(controller)].enterReadyNext = state.turn.number;
+        break;
       case 'LOCK_PLAYS': {
         const who: PlayerId | undefined =
           e.who === 'OPPONENTS' ? (controller === 'p0' ? 'p1' : 'p0') : doneSlots.get(e.slot ?? 0);

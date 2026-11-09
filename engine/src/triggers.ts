@@ -235,6 +235,12 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
             if (!f) return false;
             if ((f.side === 'friendly') !== (src.controller === deadController)) return false;
             if (f.here && (here === 'base' || here !== e.at)) return false;
+            if (
+              f.exceptSubtype &&
+              dead?.subtypes.some((x) => x.toLowerCase() === (f.exceptSubtype ?? '').toLowerCase())
+            ) {
+              return false;
+            }
             if (f.batch) {
               const key = src.id + ':' + t.effects.length;
               if (seenBatch.has(key)) return false;
