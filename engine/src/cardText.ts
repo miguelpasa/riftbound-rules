@@ -2673,6 +2673,7 @@ function parseAbilityCost(text: string, gearLike: boolean): AbilityCost | null {
         else cost.energy = (cost.energy ?? 0) + Number(tok);
       }
     } else if (/^Kill this$/i.test(part) && gearLike) cost.killSelf = true;
+    else if (/^Disempower (?:this|me)$/i.test(part)) cost.disempower = true;
     else {
       const cc = parseCostCard(part);
       if (!cc || cost.card) return null; // one card-choice component per cost
@@ -2685,6 +2686,7 @@ function parseAbilityCost(text: string, gearLike: boolean): AbilityCost | null {
     cost.anyPower ||
     cost.killSelf ||
     cost.card ||
+    cost.disempower ||
     cost.xp
     ? cost
     : null;
@@ -3188,7 +3190,7 @@ export function parseCardAbilities(
     // R52: "[Empower] <cost>" is the activated ability "<cost>: Empower me"; "[Empowered][>] ..." prefixes an
     // ability that only exists while Empowered.
     .replace(
-      /\[Empower\]\s*(?:\[>\]|[^\w[\s])?\s*((?:\[[0-9CA]+\])+|Discard \d+|Kill an? [a-z ]+?)(?=[ \t]*[.\n(]|[ \t]*$)/gi,
+      /\[Empower\]\s*(?:\[>\]|[^\w[\s])?\s*((?:\[[0-9CAE]+\](?:, )?)+|Discard \d+|Kill an? [a-z ]+?)(?=[ \t]*[.\n(]|[ \t]*$)/gi,
       '$1: Empower me. ',
     )
     .replace(/\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(?:\[>>\]\s*)?/gi, 'EMPOWERED ')

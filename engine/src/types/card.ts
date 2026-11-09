@@ -1105,6 +1105,8 @@ export interface AbilityCost {
   card?: CostCardChoice;
   /** R60: "Spend N XP": the controller's XP drops by N. */
   xp?: number;
+  /** "Disempower this / me": the source must be Empowered and stops being so as the cost is paid. */
+  disempower?: boolean;
 }
 
 /**

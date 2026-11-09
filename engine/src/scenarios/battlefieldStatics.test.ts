@@ -207,3 +207,35 @@ describe('scenario: "Discard 1, then draw 2" (Lunar Boon)', () => {
     expect(sc.state.players[0]?.hand.length).toBe(handBefore + 1);
   });
 });
+
+describe('scenario: "Disempower this" as an ability cost (Questionable Tome)', () => {
+  const parsed = parseCardAbilities('[Empower] — [E]\nDisempower this, [1], [E]: Draw 1.', {
+    gearLike: true,
+  });
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-grunt': { ...base('fx-grunt'), abilities: parsed?.abilities ?? [] },
+  };
+
+  it('needs the source to be Empowered, and pays by ending that', () => {
+    // Tests Rule 702: Empower
+    const sc = Scenario.start({}, cards);
+    const g = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.setReady(g, true);
+    const use = () =>
+      reduce(sc.state, cards, {
+        type: 'ACTIVATE_ABILITY',
+        playerId: 'p0',
+        sourceId: g,
+        abilityIndex: 1,
+        payment: sc.exhaustPlan('p0', 1),
+      });
+    expect(use().ok).toBe(false); // not Empowered yet
+    sc.edit((s) => {
+      (s.objects[g] as { empowered?: boolean }).empowered = true;
+    });
+    const r = use();
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.objects[g]?.empowered).toBeUndefined();
+  });
+});

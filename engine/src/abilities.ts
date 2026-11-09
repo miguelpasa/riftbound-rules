@@ -106,6 +106,9 @@ export function activateAbility(
   if (src.empowered && ability.effects.some((e) => e.op === 'EMPOWER_SELF')) {
     return ruleError('ABILITY_NOT_AVAILABLE', 'already Empowered');
   }
+  if (ability.cost.disempower && !src.empowered) {
+    return ruleError('ABILITY_NOT_AVAILABLE', 'not Empowered');
+  }
   // R60: "Spend N XP" needs the XP.
   if (ability.cost.xp && (state.players[playerIndex(pid)]?.xp ?? 0) < ability.cost.xp) {
     return ruleError('INSUFFICIENT_RESOURCES', `not enough XP (need ${ability.cost.xp})`);
@@ -154,6 +157,7 @@ export function activateAbility(
     { type: 'ABILITY_ACTIVATED', player: pid, sourceId: src.id, abilityIndex: intent.abilityIndex },
   ];
   if (ability.cost.exhaust) obj.ready = false;
+  if (ability.cost.disempower) delete obj.empowered;
   if (ability.cost.xp) {
     const ps = work.players[playerIndex(pid)] as GameState['players'][number];
     ps.xp = (ps.xp ?? 0) - ability.cost.xp;
