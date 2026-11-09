@@ -562,6 +562,7 @@ export function killLethalUnits(state: GameState, cards: CardDatabase): GameEven
       cardId: o.cardId,
       at: locOf(o),
       alone: (crowd.get(o.controller + '|' + locOf(o)) ?? 1) <= 1,
+      ...(o.stunned ? { stunned: true } : {}),
       ...(state.flow.combat && state.flow.combat.battlefieldId === locOf(o)
         ? { inCombat: true }
         : {}),

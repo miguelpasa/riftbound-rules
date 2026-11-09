@@ -146,3 +146,11 @@ describe('scenario: kill a gear, then play a Gold token (Pickpocket)', () => {
     ]);
   });
 });
+
+describe('scenario: a stunned enemy unit dies (Storm Raptor)', () => {
+  it('reads the stunned filter on the death head', () => {
+    // Tests Rule 583: triggered abilities
+    const t = parseCardAbilities('When a stunned enemy unit here dies, draw 1.');
+    expect(t?.triggers[0]?.dies).toEqual({ side: 'enemy', here: true, stunned: true });
+  });
+});

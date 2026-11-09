@@ -1067,6 +1067,8 @@ export interface DeathFilter {
   side: 'friendly' | 'enemy';
   /** "enemy unit here": it died at the source's battlefield. */
   here?: boolean;
+  /** "a stunned enemy unit": it was stunned when it died. */
+  stunned?: boolean;
   /** "another non-Recruit unit": units with this subtype (case-insensitive) do not trigger it. */
   exceptSubtype?: string;
   /** "When one or more ... die": once per batch of deaths, not once per unit. */

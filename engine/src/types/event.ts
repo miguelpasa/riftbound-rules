@@ -62,6 +62,8 @@ export type GameEvent = EventBase &
         cardId?: string;
         at?: string;
         alone?: boolean;
+        /** It was stunned when it died. */
+        stunned?: boolean;
         /** It died while a combat was being fought at its location ("When I die in combat"). */
         inCombat?: boolean;
       }

@@ -172,6 +172,7 @@ export function temporaryOnBeginning(
       cardId: o.cardId,
       at,
       alone: (crowd.get(o.controller + '|' + at) ?? 1) <= 1,
+      ...(o.stunned ? { stunned: true } : {}),
     };
     const from = s.players[playerIndex(o.zone.player)];
     from.base = from.base.filter((id) => id !== o.id);
