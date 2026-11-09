@@ -503,6 +503,22 @@ export type CardEffect =
       count?: TargetCount;
     } & TargetScope)
   /**
+   * X-reveal-play: reveal the top `count` cards of a Main Deck (or, with `untilUnit`, cards until a unit), banish the
+   * most expensive playable one (a unit, with `unitsOnly`) and play it: for free (`ALL`), paying only its Power
+   * (`ENERGY`), with its Energy reduced by `reduceBy` (`REDUCE`) or at full cost (`FULL`). The rest is recycled or drawn.
+   */
+  | {
+      op: 'REVEAL_PLAY';
+      from: 'SELF' | 'OPPONENT';
+      count?: number;
+      untilUnit?: boolean;
+      unitsOnly?: boolean;
+      play: 'ALL' | 'ENERGY' | 'REDUCE' | 'FULL';
+      reduceBy?: number;
+      here?: boolean;
+      rest: 'RECYCLE' | 'DRAW';
+    }
+  /**
    * X-reveal: reveal the top card of your Main Deck. If it matches `filter` (any card when absent) it is `hit` (drawn, or
    * put into your hand without drawing); otherwise `miss` (recycled, put into your Trash with an optional +N [M] to the
    * source this turn, or left on top). "[Mighty]" means a unit with Might 5 or more.

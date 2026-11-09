@@ -550,6 +550,84 @@ export function parseHandPickSequence(
   };
 }
 
+/**
+ * X-reveal-play: "reveal / look at the top N cards, banish one, play it [ignoring / reducing its cost], recycle (or
+ * draw) the rest" (Reinforce, Rek'Sai, Void Burrower, Void Rush, Blind Fury, Drakehound Packmaster) and Dazzling
+ * Aurora's "reveal cards until you reveal a unit and banish it. Play it, ignoring its cost, and recycle the rest".
+ * The choice among the revealed cards is made by the engine (the most expensive playable card; UNCLEAR).
+ */
+export function parseRevealPlaySequence(
+  sens: readonly string[],
+  i: number,
+): { effect: CardEffect; used: number } | null {
+  const first = sens[i] ?? '';
+  // Dazzling Aurora.
+  if (
+    /^[Rr]eveal cards from the top of your Main Deck until you reveal a unit and banish it$/.test(
+      first,
+    ) &&
+    /^Play it, ignoring its cost, and recycle the rest$/i.test(sens[i + 1] ?? '')
+  ) {
+    return {
+      effect: { op: 'REVEAL_PLAY', from: 'SELF', untilUnit: true, play: 'ALL', rest: 'RECYCLE' },
+      used: 2,
+    };
+  }
+  let from: 'SELF' | 'OPPONENT' = 'SELF';
+  let count = 1;
+  let unitsOnly = false;
+  const own = /^(?:You may )?(?:[Rr]eveal|[Ll]ook at) the top (\d+) cards of your Main Deck$/.exec(
+    first,
+  );
+  const opp =
+    /^(?:Each opponent reveals the top card of their Main Deck|[Rr]eveal the top card of each opponent['’]s Main Deck)$/.exec(
+      first,
+    );
+  if (own) count = Number(own[1]);
+  else if (opp) from = 'OPPONENT';
+  else return null;
+  // ", then" splits the sentence, so "banish ..." and "play it ..." arrive separately.
+  const banish =
+    /^(?:Choose one and banish it|You may banish (a unit|one)(?: from among them)?)$/i.exec(
+      sens[i + 1] ?? '',
+    );
+  const second = banish
+    ? /^play it(?:, (ignoring its cost|reducing its cost by \[(\d+)\]))?$/i.exec(sens[i + 2] ?? '')
+    : null;
+  if (!banish || !second) return null;
+  unitsOnly = /unit/i.test(banish[1] ?? '');
+  let k = i + 3;
+  let here = false;
+  if (/^If it is a unit, you may play it here$/i.test(sens[k] ?? '')) {
+    here = true;
+    k++;
+  }
+  const tail = sens[k] ?? '';
+  let rest: 'RECYCLE' | 'DRAW';
+  if (/^(?:Then )?[Rr]ecycle the (?:rest|remaining cards)$/.test(tail)) rest = 'RECYCLE';
+  else if (/^Draw any you didn['’]t banish$/i.test(tail)) rest = 'DRAW';
+  else return null;
+  const how = (second[1] ?? '').toLowerCase();
+  const play: 'ALL' | 'REDUCE' | 'FULL' = how.startsWith('ignoring')
+    ? 'ALL'
+    : how.startsWith('reducing')
+      ? 'REDUCE'
+      : 'FULL';
+  return {
+    effect: {
+      op: 'REVEAL_PLAY',
+      from,
+      count,
+      play,
+      ...(play === 'REDUCE' ? { reduceBy: Number(second[2]) } : {}),
+      ...(unitsOnly ? { unitsOnly: true } : {}),
+      ...(here ? { here: true } : {}),
+      rest,
+    },
+    used: k - i + 1,
+  };
+}
+
 /** A sentence that chooses one unit / gear / spell, or several units. */
 interface Chooser {
   effect: CardEffect;
@@ -2307,6 +2385,12 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     if (look) {
       out.push(look.effect);
       i += look.used - 1;
+      continue;
+    }
+    const revealPlay = parseRevealPlaySequence(list, i);
+    if (revealPlay) {
+      out.push(revealPlay.effect);
+      i += revealPlay.used - 1;
       continue;
     }
     const handPick = parseHandPickSequence(list, i);

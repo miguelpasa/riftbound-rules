@@ -889,6 +889,116 @@ export function takeChosen(
   }
 }
 
+/**
+ * X5 / X-play: play the card `u` (in its owner's Trash, hand or a revealed zone) by an effect. Units and gear go to
+ * their owner's Base (or the battlefield `opts.at`); a spell goes on the Chain with its targets chosen like a trigger's.
+ * `opts.power`: only the Energy cost is ignored, the Power cost is paid first (automatically);
+ * `opts.reduceEnergy`: the Energy cost is reduced instead. Returns false when it cannot be played. Mutates.
+ */
+export function playByEffect(
+  state: GameState,
+  cards: CardDatabase,
+  u: CardInstance,
+  controller: PlayerId,
+  opts: { power?: boolean; reduceEnergy?: number; recycleAfter?: boolean; at?: string },
+  out: GameEventInput[],
+): boolean {
+  // X5 (560.1.a, 595.3): played by an effect with every cost set to zero ("ignoring its cost"), or with only the
+  // Energy cost set to zero ("ignoring its Energy cost"): the Power cost is paid first, with the automatic plan.
+  if (opts.power || opts.reduceEnergy !== undefined) {
+    const full = computeTotalCost(cards[u.cardId] as CardDef);
+    const total = {
+      energy: opts.power ? 0 : Math.max(0, full.energy - (opts.reduceEnergy ?? 0)),
+      power: full.power,
+    };
+    const plan = autoPlan(state, cards, controller, total);
+    const paid = plan === null ? null : payCost(state, cards, controller, total, plan);
+    if (!paid || !paid.ok) {
+      return false;
+    }
+    if (paid.state !== state) {
+      // Take over the payment's changes without replacing objects this loop already holds.
+      state.players = paid.state.players;
+      for (const r of plan ?? []) {
+        const rune = paid.state.objects[r.runeId];
+        if (rune) state.objects[r.runeId] = rune;
+      }
+    }
+  }
+  const own = state.players[playerIndex(u.owner)];
+  own.trash = own.trash.filter((x) => x !== u.id);
+  own.hand = own.hand.filter((x) => x !== u.id);
+  own.banishment = own.banishment.filter((x) => x !== u.id);
+  const ps = state.players[playerIndex(controller)];
+  if (cards[u.cardId]?.type === 'SPELL') {
+    // A spell played by an effect goes on the Chain; its targets are chosen like a trigger's.
+    const sdef = cards[u.cardId] as CardDef;
+    const tchoices = enumerateSpellTargets(state, cards, controller, spellEffects(sdef), u.id);
+    if (tchoices !== null && tchoices.length === 0) {
+      return false;
+    }
+    u.zone = { kind: 'chain', player: u.owner };
+    const spellItem: ChainItem = {
+      id: allocObjectId(state),
+      kind: 'CARD',
+      sourceObjectId: u.id,
+      controller,
+      status: tchoices === null || tchoices.length === 1 ? 'FINALIZED' : 'PENDING',
+      targets: tchoices?.length === 1 ? (tchoices[0] as Target[]) : [],
+      choices: {},
+      byEffect: true,
+      ...(opts.recycleAfter ? { recycleAfter: true } : {}),
+    };
+    state.flow.chain.push(spellItem);
+    if (spellItem.status === 'PENDING') {
+      state.flow.pendingChoice = {
+        kind: 'TRIGGER_TARGET',
+        player: controller,
+        chainItemId: spellItem.id,
+      };
+    }
+    const seat = state.players[playerIndex(controller)];
+    const same = seat.playedThisTurn?.turn === state.turn.number;
+    seat.playedThisTurn = {
+      turn: state.turn.number,
+      objectIds: [...(same ? (seat.playedThisTurn?.objectIds ?? []) : []), u.id],
+    };
+    out.push({
+      type: 'CARD_PLAYED',
+      player: controller,
+      cardInstanceId: u.id,
+      cardId: u.cardId,
+    });
+    return true;
+  }
+  u.zone = opts.at
+    ? { kind: 'battlefield', player: controller, battlefieldId: opts.at }
+    : { kind: 'base', player: controller };
+  u.controller = controller;
+  u.damage = 0;
+  u.mightBonus = 0;
+  u.enteredTurn = state.turn.number;
+  u.ready =
+    cards[u.cardId]?.type === 'GEAR'
+      ? cards[u.cardId]?.entersExhausted !== true
+      : staticBonus(state, cards, u).entersReady === true ||
+        ps.enterReadyTurn === state.turn.number;
+  if (!opts.at) ps.base.push(u.id);
+  const sameTurn = ps.playedThisTurn?.turn === state.turn.number;
+  ps.playedThisTurn = {
+    turn: state.turn.number,
+    objectIds: [...(sameTurn ? (ps.playedThisTurn?.objectIds ?? []) : []), u.id],
+  };
+  out.push({
+    type: 'CARD_PLAYED',
+    player: controller,
+    cardInstanceId: u.id,
+    cardId: u.cardId,
+  });
+
+  return true;
+}
+
 /** Play `count` tokens for `controller` (Base, or the source's battlefield with `here`). Mutates. */
 function playTokens(
   state: GameState,
@@ -1403,101 +1513,19 @@ export function runEffects(
             u.zone = { kind: 'hand', player: u.owner };
             ps.hand.push(u.id);
           } else if (e.op === 'PLAY_FROM_TRASH') {
-            // X5 (560.1.a, 595.3): played by an effect with every cost set to zero ("ignoring its cost"), or with only the
-            // Energy cost set to zero ("ignoring its Energy cost"): the Power cost is paid first, with the automatic plan.
-            if (e.payPower) {
-              const total = {
-                energy: 0,
-                power: computeTotalCost(cards[u.cardId] as CardDef).power,
-              };
-              const plan = autoPlan(state, cards, controller, total);
-              const paid = plan === null ? null : payCost(state, cards, controller, total, plan);
-              if (!paid || !paid.ok) {
-                fizzle();
-                continue;
-              }
-              if (paid.state !== state) {
-                // Take over the payment's changes without replacing objects this loop already holds.
-                state.players = paid.state.players;
-                for (const r of plan ?? []) {
-                  const rune = paid.state.objects[r.runeId];
-                  if (rune) state.objects[r.runeId] = rune;
-                }
-              }
-            }
-            const ps = state.players[playerIndex(u.owner)];
-            ps.trash = ps.trash.filter((x) => x !== u.id);
-            ps.hand = ps.hand.filter((x) => x !== u.id);
-            if (cards[u.cardId]?.type === 'SPELL') {
-              // A spell played by an effect goes on the Chain; its targets are chosen like a trigger's.
-              const sdef = cards[u.cardId] as CardDef;
-              const tchoices = enumerateSpellTargets(
+            // X5 (560.1.a, 595.3): played by an effect.
+            if (
+              !playByEffect(
                 state,
                 cards,
+                u,
                 controller,
-                spellEffects(sdef),
-                u.id,
-              );
-              if (tchoices !== null && tchoices.length === 0) {
-                fizzle();
-                continue;
-              }
-              u.zone = { kind: 'chain', player: u.owner };
-              const spellItem: ChainItem = {
-                id: allocObjectId(state),
-                kind: 'CARD',
-                sourceObjectId: u.id,
-                controller,
-                status: tchoices === null || tchoices.length === 1 ? 'FINALIZED' : 'PENDING',
-                targets: tchoices?.length === 1 ? (tchoices[0] as Target[]) : [],
-                choices: {},
-                byEffect: true,
-                ...(e.thenRecycle ? { recycleAfter: true } : {}),
-              };
-              state.flow.chain.push(spellItem);
-              if (spellItem.status === 'PENDING') {
-                state.flow.pendingChoice = {
-                  kind: 'TRIGGER_TARGET',
-                  player: controller,
-                  chainItemId: spellItem.id,
-                };
-              }
-              const seat = state.players[playerIndex(controller)];
-              const same = seat.playedThisTurn?.turn === state.turn.number;
-              seat.playedThisTurn = {
-                turn: state.turn.number,
-                objectIds: [...(same ? (seat.playedThisTurn?.objectIds ?? []) : []), u.id],
-              };
-              out.push({
-                type: 'CARD_PLAYED',
-                player: controller,
-                cardInstanceId: u.id,
-                cardId: u.cardId,
-              });
-              continue;
+                { power: e.payPower === true, recycleAfter: e.thenRecycle === true },
+                out,
+              )
+            ) {
+              fizzle();
             }
-            u.zone = { kind: 'base', player: u.owner };
-            u.controller = u.owner;
-            u.damage = 0;
-            u.mightBonus = 0;
-            u.enteredTurn = state.turn.number;
-            u.ready =
-              cards[u.cardId]?.type === 'GEAR'
-                ? cards[u.cardId]?.entersExhausted !== true
-                : staticBonus(state, cards, u).entersReady === true ||
-                  ps.enterReadyTurn === state.turn.number;
-            ps.base.push(u.id);
-            const sameTurn = ps.playedThisTurn?.turn === state.turn.number;
-            ps.playedThisTurn = {
-              turn: state.turn.number,
-              objectIds: [...(sameTurn ? (ps.playedThisTurn?.objectIds ?? []) : []), u.id],
-            };
-            out.push({
-              type: 'CARD_PLAYED',
-              player: u.owner,
-              cardInstanceId: u.id,
-              cardId: u.cardId,
-            });
           } else if (e.op === 'RETURN_TARGET') {
             doneSlots.set(slot, u.owner);
             returnToHand(state, u, out);
@@ -1769,6 +1797,71 @@ export function runEffects(
         );
         // A pending choice keeps the rest of the effect list; resolve it after the answer.
         if (waiting) return out;
+        break;
+      }
+      case 'REVEAL_PLAY': {
+        const who: PlayerId =
+          e.from === 'OPPONENT' ? (controller === 'p0' ? 'p1' : 'p0') : controller;
+        const deckOwner = state.players[playerIndex(who)];
+        const pulled: CardInstance[] = [];
+        if (e.untilUnit) {
+          while (deckOwner.mainDeck.length > 0) {
+            const o = state.objects[deckOwner.mainDeck.shift() as string] as CardInstance;
+            pulled.push(o);
+            if (isUnitDef(cards[o.cardId])) break;
+          }
+        } else {
+          for (const id of deckOwner.mainDeck.splice(0, e.count ?? 1)) {
+            pulled.push(state.objects[id] as CardInstance);
+          }
+        }
+        for (const o of pulled) {
+          out.push({ type: 'CARD_REVEALED', player: who, cardInstanceId: o.id, cardId: o.cardId });
+        }
+        // The engine picks: the most expensive card that qualifies (the first on ties).
+        const eligible = pulled.filter((o) => !e.unitsOnly || isUnitDef(cards[o.cardId]));
+        const pick = [...eligible].sort(
+          (a, b) => (cards[b.cardId]?.cost.energy ?? 0) - (cards[a.cardId]?.cost.energy ?? 0),
+        )[0];
+        const others = pulled.filter((o) => o !== pick);
+        if (pick) {
+          const holder = state.players[playerIndex(pick.owner)];
+          holder.banishment.push(pick.id);
+          pick.zone = { kind: 'banishment', player: pick.owner };
+          const at =
+            e.here && isUnitDef(cards[pick.cardId]) ? hereOfSource(state, sourceObjectId) : null;
+          playByEffect(
+            state,
+            cards,
+            pick,
+            controller,
+            {
+              ...(e.play === 'ENERGY' ? { power: true } : {}),
+              ...(e.play === 'REDUCE' ? { reduceEnergy: e.reduceBy ?? 0 } : {}),
+              ...(e.play === 'FULL' ? { reduceEnergy: 0 } : {}),
+              ...(at !== null ? { at } : {}),
+            },
+            out,
+          );
+        }
+        for (const o of others) {
+          if (e.rest === 'DRAW') {
+            o.zone = { kind: 'hand', player: controller };
+            state.players[playerIndex(controller)].hand.push(o.id);
+            out.push({
+              type: 'CARD_DRAWN',
+              player: controller,
+              cardInstanceId: o.id,
+              visibleTo: [controller],
+            });
+          } else {
+            deckOwner.mainDeck.push(o.id);
+            o.zone = { kind: 'mainDeck', player: o.owner };
+          }
+        }
+        if (e.rest === 'RECYCLE' && others.length > 0) {
+          out.push({ type: 'CARDS_RECYCLED', player: who, count: others.length });
+        }
         break;
       }
       case 'KILL_GEARS_HERE': {
