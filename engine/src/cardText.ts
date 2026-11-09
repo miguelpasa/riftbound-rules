@@ -1025,12 +1025,12 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
-  m = new RegExp(`^Kill an? ${SIDE}unit or gear$`, 'i').exec(sen);
+  m = new RegExp(`^Kill an? ${SIDE}unit or gear( here)?$`, 'i').exec(sen);
   if (m) {
     // R46: either kind of permanent; "an enemy unit or gear" limits it to the opponent's.
     const s = side(m[1]);
     return {
-      effect: { op: 'KILL_TARGET', orGear: true, ...sideProp(s) },
+      effect: { op: 'KILL_TARGET', orGear: true, ...sideProp(s), ...(m[2] ? { here: true } : {}) },
       decl: { side: s ?? 'any' },
     };
   }
@@ -2729,7 +2729,7 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
 const TOKEN_WITH = /(tokens?) with \[(\w+)\]/gi;
 
 const KEYWORD_TOKENS =
-  /\[(Tank|Backline|Assault(?: \d+)?|Shield(?: \d+)?|Ganking|Accelerate|Temporary|Hidden|Deflect(?: \d+)?|Action|Reaction|Ambush)\]/gi;
+  /\[(Tank|Backline|Assault(?: \d+)?|Shield(?: \d+)?|Ganking|Accelerate|Temporary|Hidden|Deflect(?: \d+)?|Action|Reaction|Ambush|Unique)\]/gi;
 
 /** What a unit / gear / token text defines besides keywords (R5, R38). */
 export interface ParsedAbilities {

@@ -195,3 +195,13 @@ describe('scenario: "you may kill me to ..." (Overzealous Fan)', () => {
     });
   });
 });
+
+describe("scenario: [Unique] next to a trigger (Shurelya's Requiem)", () => {
+  it('ignores the Unique keyword token when reading abilities', () => {
+    // Tests Rule 103.3: Unique is a deck-building keyword
+    const t = parseCardAbilities('[Unique]\nWhen you play this, ready your units.', {
+      gearLike: true,
+    });
+    expect(t?.triggers[0]).toMatchObject({ on: 'PLAY', effects: [{ op: 'READY_ALL' }] });
+  });
+});
