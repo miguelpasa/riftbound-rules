@@ -1759,8 +1759,13 @@ const COST_PER: [RegExp, CostCount][] = [
  * (other zones, "to play from anywhere other than your hand", Power, several lines).
  */
 export function parseSelfCostReduction(
-  text: string,
+  text0: string,
 ): { reduction: CostReduction; rest: string } | null {
+  // "I cost [N] less to play from anywhere other than your hand" = the reversed condition form.
+  const text = text0.replace(
+    /\bI cost \[(\d+)\] less to play from anywhere other than your hand\b/i,
+    'If I am not in your hand, I cost [$1] less',
+  );
   // R91: "This spell's Energy cost is reduced by the highest Might among units you control."
   const hm =
     /(?:^|\n)[ \t]*This spell['’]s Energy cost is reduced by the highest Might among units you control\.?[ \t]*(?=\n|$)/i.exec(
@@ -2181,6 +2186,7 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
+  if (/^I am not in your hand$/i.test(text)) return { kind: 'NOT_IN_HAND' };
   if (/^I have moved twice this turn$/i.test(text)) return { kind: 'MOVES_AT_LEAST', n: 2 };
   if (/^an opponent controls a battlefield$/i.test(text)) {
     return { kind: 'CONTROLS_BATTLEFIELD', who: 'enemy' };

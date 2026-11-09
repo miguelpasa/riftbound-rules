@@ -87,8 +87,10 @@ describe('parser: self cost reductions', () => {
       energy: 2,
       when: { kind: 'CONTROL_SUBTYPE', subtype: 'Mech' },
     });
+    // Now read as a not-in-hand condition (tail round 8, Void Drone).
     expect(
-      parseSelfCostReduction('I cost [2] less to play from anywhere other than your hand.'),
-    ).toBeNull();
+      parseSelfCostReduction('I cost [2] less to play from anywhere other than your hand.')
+        ?.reduction,
+    ).toEqual({ energy: 2, when: { kind: 'NOT_IN_HAND' } });
   });
 });

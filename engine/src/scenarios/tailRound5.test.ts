@@ -6,7 +6,8 @@ import { countMove } from '../moveCount.js';
 import { applyDamageMods } from '../damageMod.js';
 import { runEffects } from '../effects.js';
 import { staticBonus } from '../statics.js';
-import { parseCardAbilities, parseStaticLines } from '../cardText.js';
+import { parseCardAbilities, parseSelfCostReduction, parseStaticLines } from '../cardText.js';
+import { selfEnergyDiscount } from '../costReduction.js';
 import type {
   CardDatabase,
   CardDef,
@@ -379,5 +380,37 @@ describe('scenario: "Your [Deathknell] effects trigger an additional time" (Kart
     // Tests Rule 726: an additional trigger of a Deathknell
     expect(chainAfterDeath(false)).toBe(1);
     expect(chainAfterDeath(true)).toBe(2);
+  });
+});
+
+describe('scenario: "I cost [2] less to play from anywhere other than your hand" (Void Drone)', () => {
+  const parsedCost = parseSelfCostReduction(
+    'I cost [2] less to play from anywhere other than your hand.',
+  );
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-titan': {
+      ...base('fx-titan'),
+      ...(parsedCost ? { costReduction: parsedCost.reduction } : {}),
+    },
+  };
+
+  it('parses to a not-in-hand condition', () => {
+    // Tests Rule 156: a cost reduction that depends on where the card is played from
+    expect(parsedCost?.reduction).toEqual({ energy: 2, when: { kind: 'NOT_IN_HAND' } });
+  });
+
+  it('gives no discount from the hand, and the discount from the Trash', () => {
+    // Tests Rule 156: reductions apply while the card is played from another zone
+    const sc = Scenario.start({}, cards);
+    const id = sc.putInHand('p0', 'fx-titan');
+    const def = cards['fx-titan'] as CardDef;
+    expect(selfEnergyDiscount(sc.state, cards, 'p0', def, id)).toBe(0);
+    const s = structuredClone(sc.state);
+    const o = s.objects[id] as CardInstance;
+    s.players[0].hand = s.players[0].hand.filter((x) => x !== id);
+    s.players[0].trash.push(id);
+    o.zone = { kind: 'trash', player: 'p0' };
+    expect(selfEnergyDiscount(s, cards, 'p0', def, id)).toBe(2);
   });
 });

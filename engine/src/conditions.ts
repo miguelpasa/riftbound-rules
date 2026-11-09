@@ -257,6 +257,8 @@ export function evalCondition(
       const mv = state.objects[sourceId]?.moves;
       return mv !== undefined && mv.turn === state.turn.number && mv.n >= cond.n;
     }
+    case 'NOT_IN_HAND':
+      return state.objects[sourceId]?.zone.kind !== 'hand';
     case 'BUFFED':
       return state.objects[sourceId]?.buffed === true;
     case 'EMPOWERED':

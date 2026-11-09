@@ -694,6 +694,8 @@ export type Condition =
   | { kind: 'EMPOWERED' }
   /** R54: the source carries a Buff ("While I'm buffed"). */
   | { kind: 'BUFFED' }
+  /** "I cost [N] less to play from anywhere other than your hand": the source is being played from another zone. */
+  | { kind: 'NOT_IN_HAND' }
   /** "If I have moved twice this turn": the source has moved to a battlefield at least `n` times this turn. */
   | { kind: 'MOVES_AT_LEAST'; n: number }
   /** R62: `who` controls at least one battlefield. */
