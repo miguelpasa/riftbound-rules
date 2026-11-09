@@ -215,8 +215,14 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
       const count = 'count' in e && e.count ? { count: e.count } : {};
       reqs.set(slot, { slot, ...specOf(e), ...count });
     } else if (e.op === 'PLAY_TOKEN' && e.atSlot !== undefined) {
-      if (!reqs.has(e.atSlot))
-        reqs.set(e.atSlot, { slot: e.atSlot, kind: 'battlefield', side: 'any' });
+      if (!reqs.has(e.atSlot)) {
+        reqs.set(e.atSlot, {
+          slot: e.atSlot,
+          kind: 'battlefield',
+          side: 'any',
+          ...(e.atEnemyOccupied ? { dest: 'ENEMY_OCCUPIED' as const } : {}),
+        });
+      }
     } else if (e.op === 'BF_AREA') {
       const slot = e.slot ?? 0;
       if (!reqs.has(slot)) reqs.set(slot, { slot, kind: 'battlefield', side: 'any' });
@@ -517,7 +523,17 @@ function legalLocation(
 ): boolean {
   if (key === undefined || !key.startsWith('bf:')) return false;
   const loc = key.slice(3);
-  if (spec.kind === 'battlefield') return state.battlefields.some((b) => b.id === loc);
+  if (spec.kind === 'battlefield') {
+    if (!state.battlefields.some((b) => b.id === loc)) return false;
+    if (spec.dest !== 'ENEMY_OCCUPIED') return true;
+    return Object.values(state.objects).some(
+      (o) =>
+        o.zone.kind === 'battlefield' &&
+        o.zone.battlefieldId === loc &&
+        o.controller !== controller &&
+        isUnitDef(cards[o.cardId]),
+    );
+  }
   const unit = spec.forSlot === undefined ? undefined : state.objects[ids[spec.forSlot] ?? ''];
   if (!unit || (unit.zone.kind !== 'base' && unit.zone.kind !== 'battlefield')) return false;
   if (loc === BASE_LOCATION) {

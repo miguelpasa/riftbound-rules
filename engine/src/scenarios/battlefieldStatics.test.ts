@@ -721,3 +721,49 @@ describe('scenario: "When you hide a card here" (Bandle Scouts\' Academy)', () =
     expect(hideAt('bf1')).toBe(0);
   });
 });
+
+describe('scenario: "Choose an occupied enemy battlefield" (Rally for War)', () => {
+  const text =
+    'Choose an occupied enemy battlefield. Play three 1 [M] Recruit unit tokens there.';
+
+  it('reads as a battlefield choice followed by tokens played to it', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    expect(parseSpellText(text)).toEqual([
+      { op: 'PLAY_TOKEN', token: 'tok-recruit', count: 3, atSlot: 0, atEnemyOccupied: true },
+    ]);
+  });
+
+  it('only accepts a battlefield where an enemy unit stands, and plays the tokens there', () => {
+    // Tests Rule 355.10: targets must be legal
+    const effects = parseSpellText(text) as CardEffect[];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      ...TOKEN_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects },
+    };
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const play = (bf: string) =>
+      reduce(sc.state, cards, {
+        type: 'PLAY_CARD',
+        playerId: 'p0',
+        cardInstanceId: flare,
+        payment: sc.exhaustPlan('p0', 1),
+        targets: [{ kind: 'battlefield', battlefieldId: bf }],
+      });
+    expect(play('bf0').ok).toBe(false); // empty
+    const ok = play('bf1');
+    expect(ok.ok).toBe(true);
+    if (!ok.ok) return;
+    sc.state = ok.state;
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    const recruits = Object.values(sc.state.objects).filter(
+      (o) => o.cardId === 'tok-recruit' && o.controller === 'p0',
+    );
+    expect(recruits).toHaveLength(3);
+    expect(recruits.every((o) => o.zone.kind === 'battlefield' && o.zone.battlefieldId === 'bf1')).toBe(true);
+  });
+});

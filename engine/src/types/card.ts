@@ -435,6 +435,8 @@ type CardEffectCore =
       here?: boolean;
       /** X-loc: the tokens are played to the battlefield chosen in this slot ("to a battlefield"). */
       atSlot?: number;
+      /** "Choose an occupied enemy battlefield": the chosen battlefield must hold an enemy unit. */
+      atEnemyOccupied?: true;
       /** R97: the (only) opponent plays the token(s) ("choose an opponent. They play ..."). */
       forOpponent?: boolean;
     }

@@ -95,6 +95,8 @@ const sideProp = (s: TargetSide | undefined): { side?: TargetSide } => (s ? { si
 /** A chosen-unit slot declared by an earlier sentence. */
 interface SlotDecl {
   side: TargetSide;
+  /** "Choose an occupied enemy battlefield": only battlefields with an enemy unit. */
+  enemyOccupied?: boolean;
   /** "another unit": distinct from the earlier slot even without a side. */
   another?: boolean;
   /** "Choose a unit at a battlefield". */
@@ -1502,6 +1504,30 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     st.slots.push(add);
     delete st.it;
     return true;
+  }
+  // "Choose an occupied enemy battlefield. Play three 1 [M] Recruit unit tokens there."
+  if (/^Choose an occupied enemy battlefield$/i.test(sen)) {
+    const add: SlotDecl = { side: 'any', kind: 'battlefield', enemyOccupied: true };
+    if (!canAdd(st, [add])) return false;
+    st.slots.push(add);
+    delete st.it;
+    return true;
+  }
+  {
+    const there = /^(Play .+ unit tokens?) there$/i.exec(sen);
+    const bfSlot = st.slots.findIndex((d) => d.kind === 'battlefield');
+    if (there && bfSlot >= 0) {
+      const tok = parseTokenClause(`${there[1]} here`);
+      if (!tok || tok.op !== 'PLAY_TOKEN') return false;
+      const placed = { ...tok };
+      delete placed.here; // "there" is the chosen battlefield, not the source's
+      out.push({
+        ...placed,
+        atSlot: bfSlot,
+        ...(st.slots[bfSlot]?.enemyOccupied ? { atEnemyOccupied: true as const } : {}),
+      });
+      return true;
+    }
   }
   // "Give friendly units there +1 [M] this turn and enemy units there -1 [M] this turn, to a minimum of 1 [M]".
   let m = new RegExp(
