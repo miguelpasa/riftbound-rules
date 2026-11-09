@@ -309,6 +309,8 @@ export type CardEffect =
       atBattlefield?: boolean;
       /** R95: only a unit that is attacking in the combat being fought. */
       attacking?: boolean;
+      /** "If it's already stunned, return it to its owner's hand instead" (Existential Dread). */
+      orReturn?: boolean;
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
@@ -366,6 +368,8 @@ export type CardEffect =
       minMight?: number;
       /** R93: [Buff] each unit instead (a +1 buff if it has none). */
       buff?: boolean;
+      /** Only units with this subtype ("Give your Mechs +1 [M]"). */
+      subtype?: string;
       /** R93: only the units at the source's battlefield ("all units here"), skipping the source with `others`. */
       here?: boolean;
       others?: boolean;

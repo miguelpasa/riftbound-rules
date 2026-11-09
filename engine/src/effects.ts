@@ -1092,7 +1092,13 @@ export function runEffects(
             u.baseMightSet = e.amount;
           } else if (e.op === 'STUN_TARGET') {
             // X9 (599.1.a.1): a stunned unit cannot be stunned again, so nothing happens (and nothing triggers).
-            if (u.stunned) continue;
+            if (u.stunned) {
+              if (e.orReturn) {
+                doneSlots.set(slot, u.owner);
+                returnToHand(state, u, out);
+              }
+              continue;
+            }
             u.stunned = true;
             out.push({ type: 'EFFECT_STUNNED', unitId: u.id, by: controller });
           } else if (e.op === 'DEBUFF_TARGET') {
@@ -1332,6 +1338,12 @@ export function runEffects(
       case 'BUFF_ALL':
         for (const u of boardUnits(state, cards)) {
           if (!sideMatches(e.side, controller, u)) continue;
+          if (
+            e.subtype &&
+            !cards[u.cardId]?.subtypes.some((x) => x.toLowerCase() === e.subtype?.toLowerCase())
+          ) {
+            continue;
+          }
           if (e.here || e.others) {
             const hb = hereOfSource(state, sourceObjectId);
             if (

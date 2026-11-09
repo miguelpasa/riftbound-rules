@@ -284,6 +284,19 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
       },
     ];
   }
+  // "Give your Mechs +1 [M] this turn" (Danger Zone): every friendly unit with the subtype.
+  m = /^Give your ([A-Z][a-z]+)s \+(\d+) \[M\] this turn$/.exec(sen);
+  if (m && m[1] !== 'Unit') {
+    return [
+      {
+        op: 'BUFF_ALL',
+        amount: Number(m[2]),
+        side: 'friendly',
+        duration: 'TURN',
+        subtype: m[1] as string,
+      },
+    ];
+  }
   m = /^Ready your units and give them \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) {
     return [
@@ -431,7 +444,10 @@ function parseChooser(sen: string): Chooser | null {
   // R75: "buff up to two other friendly units" = up to two friendly units besides the source.
   const otherMany = /\bup to (\w+) other (?=(?:friendly |enemy )?units\b)/i.test(text);
   if (otherMany) text = text.replace(/\bup to (\w+) other /i, 'up to $1 ');
-  const another = anotherRe.test(text) || otherMany;
+  // X5/tail: "deal 2 to up to one other unit" = an optional second unit, distinct from the first.
+  const otherOne = /\bup to one other (?=(?:friendly |enemy )?unit\b)/i.test(text);
+  if (otherOne) text = text.replace(/\bup to one other /i, 'up to one ');
+  const another = anotherRe.test(text) || otherMany || otherOne;
   if (another) text = text.replace(anotherRe, 'a ');
   const ch = parseChooserBase(text);
   if (!ch) return null;
@@ -583,6 +599,21 @@ function parseChooserBase(sen: string): Chooser | null {
         ...sideProp(s),
         ...(/battlefield/i.test(m[3] ?? '') ? { atBattlefield: true } : {}),
         ...(/base/i.test(m[3] ?? '') ? { inBase: true } : {}),
+      },
+      decl: { side: s ?? 'any' },
+    };
+  }
+  // "Deal N to up to one [other] unit": an optional single target.
+  m = new RegExp(`^Deal (\\d+) to up to one ${SIDE}unit( at a battlefield)?$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[2]);
+    return {
+      effect: {
+        op: 'DAMAGE_TARGET',
+        amount: Number(m[1]),
+        count: { min: 0, max: 1 },
+        ...sideProp(s),
+        ...(m[3] ? { atBattlefield: true } : {}),
       },
       decl: { side: s ?? 'any' },
     };
@@ -1871,6 +1902,17 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
         .trim(),
     );
   for (let i = 0; i < list.length; i++) {
+    // "Stun a unit. If it's already stunned, return it to its owner's hand instead" (Existential Dread).
+    if (
+      /^If it['’]s already stunned, return it to its owner['’]s hand instead$/i.test(
+        list[i] as string,
+      )
+    ) {
+      const last = out[out.length - 1];
+      if (last?.op !== 'STUN_TARGET' || last.orReturn) return null;
+      last.orReturn = true;
+      continue;
+    }
     if (attachInstead(list[i] as string, out)) continue;
     const look = parseLookSequence(list, i);
     if (look) {
