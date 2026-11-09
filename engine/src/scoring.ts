@@ -74,6 +74,11 @@ export function scoreBattlefield(
   if (!bf || next.gameStatus !== 'IN_PROGRESS' || bf.scoredThisTurnBy.includes(player)) {
     return { state: next, events }; // 472: at most once per turn
   }
+  // Forgotten Monument: nobody scores here before their own third turn.
+  if (cards[bf.cardId]?.statics?.some((s) => s.restrict === 'NO_EARLY_SCORE')) {
+    const n = next.turn.number;
+    if ((player === 'p0' ? Math.ceil(n / 2) : Math.floor(n / 2)) < 3) return { state: next, events };
+  }
   bf.scoredThisTurnBy.push(player);
   const ps = next.players[playerIndex(player)];
   const atFinal = ps.points >= next.victoryScore - 1;

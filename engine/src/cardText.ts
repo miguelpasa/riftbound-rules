@@ -1828,6 +1828,14 @@ function parseDeathReplaceStatic(body: string): StaticAbility | null {
       minMight: Number(lc[2]),
     };
   }
+  if (/^Units can['’]t be played here$/i.test(body)) return { affects: 'SELF', restrict: 'NO_PLAY_HERE' };
+  if (/^Players can['’]t score here until their third turn$/i.test(body)) {
+    return { affects: 'SELF', restrict: 'NO_EARLY_SCORE' };
+  }
+  const vb = /^Increase the points needed to win the game by (\d+)$/i.exec(body);
+  if (vb) return { affects: 'SELF', victoryBonus: Number(vb[1]) };
+  const fw = /^While a unit here is defending alone, it has -(\d+) \[M\]$/i.exec(body);
+  if (fw) return { affects: 'UNITS_HERE', onlyDefendingAlone: true, might: -Number(fw[1]) };
   const wj = /^While a friendly unit defends alone, it gets \+(\d+) \[M\]$/i.exec(body);
   if (wj) return { affects: 'FRIENDLY_UNITS', onlyDefendingAlone: true, might: Number(wj[1]) };
   const bd =

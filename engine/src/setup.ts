@@ -168,6 +168,11 @@ export function createGameWithSeating(
     });
   });
 
+  // Aspirant's Climb: a Battlefield card in the game raises the points needed to win.
+  for (const bf of state.battlefields) {
+    for (const s of cards[bf.cardId]?.statics ?? []) state.victoryScore += s.victoryBonus ?? 0;
+  }
+
   // 116: each player draws HAND_SIZE cards.
   const inputs: GameEventInput[] = [];
   for (const pid of PLAYER_IDS) inputs.push(...drawFromTop(state, pid, HAND_SIZE));

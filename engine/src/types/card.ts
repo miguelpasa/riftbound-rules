@@ -735,7 +735,13 @@ export interface StaticAbility {
     | 'NO_COMBAT_DAMAGE'
     | 'NO_ENEMY_CHOOSE'
     | 'NO_ENEMY_EFFECT_DAMAGE'
-    | 'NO_DAMAGE';
+    | 'NO_DAMAGE'
+    /** Battlefield card: units cannot be played to it (Rockfall Path). */
+    | 'NO_PLAY_HERE'
+    /** Battlefield card: no player can score it before their third turn (Forgotten Monument). */
+    | 'NO_EARLY_SCORE';
+  /** Battlefield card: the points needed to win are raised by this much (Aspirant's Climb). */
+  victoryBonus?: number;
   /**
    * R104: a cost modifier for the cards its controller plays: "the Energy costs for spells you play are reduced by [1],
    * to a minimum of [1]" / "Your Dragons' Energy costs are reduced by [2], to a minimum of [1]".

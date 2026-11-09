@@ -494,6 +494,9 @@ export function playCard(
       return ruleError('ILLEGAL_LOCATION', `${def.type} can only enter the Base`);
     }
     if (!bf) return ruleError('ILLEGAL_LOCATION', `battlefield ${bfId} does not exist`);
+    if (isUnit && cards[bf.cardId]?.statics?.some((s) => s.restrict === 'NO_PLAY_HERE')) {
+      return ruleError('ILLEGAL_LOCATION', `units cannot be played to battlefield ${bfId}`);
+    }
     if (bf.controller !== pid && !ambush && !playToAllowed(state, cards, def, pid, bfId)) {
       return ruleError('ILLEGAL_LOCATION', `you do not control battlefield ${bfId}`);
     }
