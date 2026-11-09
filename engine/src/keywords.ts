@@ -105,7 +105,21 @@ function detachAll(state: GameState, unitId: string): void {
  * object from the game entirely (objects map and every zone array) and detaches its Equipment.
  * Mutates the working state.
  */
+/** Tokens whose "when it dies" ability still resolves after the token ceased to exist (Bomb). */
+const GHOST_TOKENS = new Set(['tok-bomb']);
+
 export function removeTokenFromGame(state: GameState, id: string): void {
+  const gone = state.objects[id];
+  if (gone && GHOST_TOKENS.has(gone.cardId)) {
+    state.lki = {
+      ...(state.lki ?? {}),
+      [id]: {
+        cardId: gone.cardId,
+        controller: gone.controller,
+        at: gone.zone.kind === 'battlefield' ? gone.zone.battlefieldId : null,
+      },
+    };
+  }
   for (const p of state.players) {
     p.base = p.base.filter((x) => x !== id);
     p.trash = p.trash.filter((x) => x !== id);

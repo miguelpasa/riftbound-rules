@@ -54,7 +54,34 @@ const GOLD: CardDef = {
   ],
 };
 
+/**
+ * The Bomb gear token (Ziggs, Amateur Demolitionist, ...): "It has [Deploy]. When it dies, deal 2 to an enemy
+ * there and kill your other Bombs there." It stands at a battlefield.
+ */
+const BOMB: CardDef = {
+  cardId: 'tok-bomb',
+  name: 'Bomb token',
+  type: 'TOKEN',
+  subtypes: ['Bomb'],
+  cost: { energy: 0 },
+  domains: [],
+  stats: {},
+  keywords: [{ name: 'Deploy' }],
+  text: '[Deploy] When I die, deal 2 to an enemy there and kill your other Bombs there.',
+  supportLevel: 'full',
+  triggers: [
+    {
+      on: 'GEAR_LEAVES',
+      effects: [
+        { op: 'DAMAGE_TARGET', amount: 2, side: 'enemy', here: true, count: { min: 0, max: 1 } },
+        { op: 'KILL_GEARS_HERE', subtype: 'Bomb' },
+      ],
+    },
+  ],
+};
+
 export const GOLD_TOKEN_ID = 'tok-gold';
+export const BOMB_TOKEN_ID = 'tok-bomb';
 
 /** Gear, or a token without Might (a gear-like permanent such as Gold). */
 export const isGearDef = (def: CardDef | undefined): boolean =>
@@ -63,7 +90,7 @@ export const isGearDef = (def: CardDef | undefined): boolean =>
 
 /** R85: a Deploy gear: played only to a battlefield, where it stays instead of being recalled. */
 export const isDeployGear = (def: CardDef | undefined): boolean =>
-  def?.type === 'GEAR' && def.keywords.some((k) => k.name === 'Deploy');
+  (def?.type === 'GEAR' || def?.type === 'TOKEN') && def.keywords.some((k) => k.name === 'Deploy');
 
 export const TOKEN_CARDS: CardDatabase = Object.fromEntries(
   [
@@ -75,6 +102,7 @@ export const TOKEN_CARDS: CardDatabase = Object.fromEntries(
     token('tok-sand-soldier', 'Sand Soldier', 2),
     token('tok-shadow-clone', 'Shadow Clone', 0),
     GOLD,
+    BOMB,
   ].map((c) => [c.cardId, c]),
 );
 

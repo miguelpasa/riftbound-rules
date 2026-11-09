@@ -31,7 +31,7 @@
  * become `CardTrigger.optional` (accept / decline when the ability resolves); "a unit you control" = a friendly unit.
  */
 import { targetRequirements } from './effects.js';
-import { GOLD_TOKEN_ID, tokenIdFor } from './tokens.js';
+import { BOMB_TOKEN_ID, GOLD_TOKEN_ID, tokenIdFor } from './tokens.js';
 import type {
   AbilityCost,
   ActivatedAbility,
@@ -1032,7 +1032,7 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
 function canAdd(st: ParseState, add: SlotDecl[]): boolean {
   if (st.locked) return false;
   // Battlefield / location choices are not units: at most one of them, beside the unit rules below.
-  if ([...st.slots, ...add].filter((d) => d.kind !== undefined).length > 1) return false;
+  if ([...st.slots, ...add].filter((d) => d.kind !== undefined).length > 2) return false;
   const all = [...st.slots, ...add].filter((d) => d.kind === undefined);
   if (all.length <= 1) return true;
   if (all.length > 2) return false;
@@ -1097,6 +1097,20 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     const keywords = parseKwList(m[1] ?? '');
     if (bf < 0 || !keywords) return false;
     out.push({ op: 'BF_AREA', slot: bf, keywords });
+    return true;
+  }
+  // Bomb gear tokens are played to a battlefield the controller chooses (one battlefield for all of them).
+  m = /^Play (an?|one|two|three|four|d+) Bomb gear tokens? to (?:a|a single) battlefield$/i.exec(
+    sen,
+  );
+  if (m) {
+    const n = COUNT_WORDS[(m[1] ?? '').toLowerCase()] ?? Number(m[1]);
+    const add: SlotDecl = { side: 'any', kind: 'battlefield' };
+    if (!(n >= 1) || !canAdd(st, [add])) return false;
+    const slot = st.slots.length;
+    st.slots.push(add);
+    delete st.it;
+    out.push({ op: 'PLAY_TOKEN', token: BOMB_TOKEN_ID, count: n, atSlot: slot });
     return true;
   }
   // "Move an enemy unit" / "Move a friendly unit and ready it": the unit and where it goes are both chosen.

@@ -554,3 +554,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Effect moves:** the controller of the spell or ability chooses the destination (rule 596 only says units move "when instructed"). A unit cannot be moved to the location it is already at, and a unit in a Base cannot be moved to a Base. An effect move does not exhaust the unit; a unit arriving at a battlefield its controller does not control contests it (190.3).
 - **"Unforgiven":** "to or from its base" lets a unit in a Base go to any battlefield and a unit at a battlefield go to its Base.
 - **Siphon Power:** the debuff stops at the stated minimum Might; units that arrive at the battlefield later this turn are not affected (the effect is applied once, on resolution).
+
+## X-bomb: Bomb tokens (A-X-bomb)
+
+- **Where:** the controller chooses the battlefield when the ability goes on the Chain; several Bombs from one effect all go to that one battlefield.
+- **Death ability:** it is a trigger of the dead token, resolved from its last known battlefield (`GameState.lki`); "an enemy there" is an up-to-one target, so with no enemy there the Bombs are still killed. Only the Bomb's controller's other Bombs there are killed.

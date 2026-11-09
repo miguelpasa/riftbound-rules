@@ -197,4 +197,9 @@ export interface GameState {
   extraTurnFor?: PlayerId;
   /** X7: all spell and ability damage is prevented during this turn number (Unyielding Spirit). */
   noEffectDamageTurn?: number;
+  /**
+   * Last known information of a token that left the game while its death trigger is still to resolve (Bomb):
+   * where it stood and who controlled it. Stored only for such tokens.
+   */
+  lki?: Record<string, { cardId: string; controller: PlayerId; at: string | null }>;
 }

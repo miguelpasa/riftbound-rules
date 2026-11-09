@@ -283,7 +283,10 @@ describe('parseSpellText: tokens, "it" sentences, return / move / look (R3 round
     // Tests Rule 186.1: never invent a token
     expect(parseSpellText('Play a 4 [M] Recruit unit token.')).toBeNull();
     expect(parseSpellText('Play a 1 [M] Bird unit token.')).toBeNull(); // the table Bird has Deflect
-    expect(parseSpellText('Play a Bomb gear token to a battlefield.')).toBeNull();
+    // The Bomb token is known now, and plays to a chosen battlefield (X-loc).
+    expect(parseSpellText('Play a Bomb gear token to a battlefield.')).toEqual([
+      { op: 'PLAY_TOKEN', token: 'tok-bomb', count: 1, atSlot: 0 },
+    ]);
     expect(parseSpellText('Play three 1 [M] Recruit unit tokens there.')).toBeNull();
   });
 

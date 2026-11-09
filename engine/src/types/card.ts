@@ -350,6 +350,8 @@ export type CardEffect =
     } & TargetScope)
   /** Kill every gear on the board. */
   | { op: 'KILL_ALL_GEAR' }
+  /** Bomb: "kill your other <subtype> gear there" (at the source's battlefield, last known if it is gone). */
+  | { op: 'KILL_GEARS_HERE'; subtype: string }
   /** Counter the target spell on the Chain (it is removed and trashed without resolving). */
   /**
    * R80: `minPower` = "with Power cost [A][A] or more"; `maxEnergy` / `maxPower` = "that costs no more than [4] and no
@@ -403,6 +405,8 @@ export type CardEffect =
       count: number;
       ready?: boolean;
       here?: boolean;
+      /** X-loc: the tokens are played to the battlefield chosen in this slot ("to a battlefield"). */
+      atSlot?: number;
       /** R97: the (only) opponent plays the token(s) ("choose an opponent. They play ..."). */
       forOpponent?: boolean;
     }

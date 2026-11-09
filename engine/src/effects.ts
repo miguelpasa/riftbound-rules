@@ -190,6 +190,9 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
       if (reqs.has(slot)) continue;
       const count = 'count' in e && e.count ? { count: e.count } : {};
       reqs.set(slot, { slot, ...specOf(e), ...count });
+    } else if (e.op === 'PLAY_TOKEN' && e.atSlot !== undefined) {
+      if (!reqs.has(e.atSlot))
+        reqs.set(e.atSlot, { slot: e.atSlot, kind: 'battlefield', side: 'any' });
     } else if (e.op === 'BF_AREA') {
       const slot = e.slot ?? 0;
       if (!reqs.has(slot)) reqs.set(slot, { slot, kind: 'battlefield', side: 'any' });
@@ -610,7 +613,10 @@ export function enumerateSpellTargets(
   // R42 "you may": when every slot is optional, choosing nothing (declining) is a legal answer. With
   // no legal target at all the ability is skipped, so there is nothing to decline.
   if (opts.allowNone && reqs.every((r) => r.count !== undefined && r.count.min === 0)) {
-    if (acc.length === 0) return [];
+    if (acc.length === 0) {
+      // Nothing to choose: the ability still resolves when it has effects that need no target (Bomb).
+      return (effects ?? []).some((x) => !isTargeted(x)) ? [[]] : [];
+    }
     acc.push([]);
   }
   return acc.map((ids) =>
@@ -819,11 +825,11 @@ function playTokens(
   controller: PlayerId,
   token: string,
   count: number,
-  opts: { ready?: boolean; here?: boolean },
+  opts: { ready?: boolean; here?: boolean; at?: string },
   sourceObjectId: string,
   out: GameEventInput[],
 ): void {
-  const here = opts.here ? hereOfSource(state, sourceObjectId) : null;
+  const here = opts.at ?? (opts.here ? hereOfSource(state, sourceObjectId) : null);
   for (let i = 0; i < count; i++) {
     const id = allocObjectId(state);
     const zone: CardInstance['zone'] =
@@ -1511,6 +1517,28 @@ export function runEffects(
         out.push(...drawWithBurnOut(state, who, e.amount, cards));
         break;
       }
+      case 'KILL_GEARS_HERE': {
+        const here = hereOfSource(state, sourceObjectId);
+        if (here === null) break;
+        const gear = Object.values(state.objects)
+          .filter(
+            (o) =>
+              o.id !== sourceObjectId &&
+              o.controller === controller &&
+              o.zone.kind === 'battlefield' &&
+              o.zone.battlefieldId === here &&
+              isGearDef(cards[o.cardId]) &&
+              (cards[o.cardId]?.subtypes ?? []).some(
+                (x) => x.toLowerCase() === e.subtype.toLowerCase(),
+              ),
+          )
+          .sort((a, b) => num(a.id) - num(b.id));
+        for (const g of gear) {
+          killGear(state, g);
+          out.push({ type: 'GEAR_KILLED', gearId: g.id });
+        }
+        break;
+      }
       case 'KILL_ALL_GEAR': {
         const gear = Object.values(state.objects)
           .filter(
@@ -1694,7 +1722,13 @@ export function runEffects(
         }
         break;
       case 'PLAY_TOKEN': {
-        if (!cards[e.token]) {
+        const chosenAt =
+          e.atSlot === undefined
+            ? undefined
+            : ids[e.atSlot]?.startsWith('bf:')
+              ? ids[e.atSlot]?.slice(3)
+              : undefined;
+        if (!cards[e.token] || (e.atSlot !== undefined && chosenAt === undefined)) {
           fizzle();
           break;
         }
@@ -1704,7 +1738,7 @@ export function runEffects(
           e.forOpponent ? (controller === 'p0' ? 'p1' : 'p0') : controller,
           e.token,
           e.count,
-          e,
+          { ...e, ...(chosenAt !== undefined ? { at: chosenAt } : {}) },
           sourceObjectId,
           out,
         );

@@ -63,6 +63,8 @@ interface Pending {
   controller: PlayerId;
   /** The unit the event is about ("When a friendly unit attacks alone, give IT ..."): preset as the ability's target. */
   subject?: string;
+  /** The source token has left the game (Bomb): its card id is read from the Chain item's `sourceCardId`. */
+  ghost?: boolean;
 }
 
 const onBoard = (o: CardInstance): boolean =>
@@ -223,6 +225,20 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       ) {
         add(o, 'MOVE_FROM', o.controller);
       }
+    } else if (e.type === 'GEAR_KILLED' && !state.objects[e.gearId] && state.lki?.[e.gearId]) {
+      // A token gear that ceased to exist (Bomb): its "when it dies" ability uses the last known information.
+      const g = state.lki[e.gearId] as NonNullable<GameState['lki']>[string];
+      cards[g.cardId]?.triggers?.forEach((t, index) => {
+        if (t.on !== 'GEAR_LEAVES') return;
+        out.push({
+          sourceId: e.gearId,
+          cardId: g.cardId,
+          battlefield: false,
+          index,
+          controller: g.controller,
+          ghost: true,
+        });
+      });
     } else if (e.type === 'GEAR_KILLED') {
       // "When this leaves the board" / "... or killed": a killed gear (not a token, which ceases to exist).
       const o = state.objects[e.gearId];
@@ -476,6 +492,7 @@ export function fireTriggers(
       choices: {},
       triggered: true,
       triggerIndex: p.index,
+      ...(p.ghost ? { sourceCardId: p.cardId } : {}),
     };
     s.flow.chain.push(item);
     added++;
@@ -510,7 +527,7 @@ export function triggerSourceCardId(state: GameState, item: ChainItem): string |
   if (item.sourceBattlefieldId !== undefined) {
     return state.battlefields.find((b) => b.id === item.sourceBattlefieldId)?.cardId;
   }
-  return state.objects[item.sourceObjectId]?.cardId;
+  return state.objects[item.sourceObjectId]?.cardId ?? item.sourceCardId;
 }
 
 /** The effects of the triggered or activated ability behind a Chain item (undefined for others). */

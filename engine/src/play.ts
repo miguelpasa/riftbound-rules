@@ -347,6 +347,12 @@ export const playResolver: ChainResolver = (state, item, cards) => {
     }
     return { state: s, events };
   }
+  if (!obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined && item.sourceCardId) {
+    // A token that left the game (Bomb): its "when it dies" ability resolves from the last known information.
+    const trig = cards[item.sourceCardId]?.triggers?.[item.triggerIndex];
+    if (trig) runTrigger(s, cards, item, trig, item.sourceCardId, item.sourceObjectId, events);
+    return { state: s, events };
+  }
   if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
     const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
     // R43: the general condition is checked again as the ability resolves.

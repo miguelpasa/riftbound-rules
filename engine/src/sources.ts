@@ -16,6 +16,8 @@ export function hereOfSource(
 ): string | null {
   const o: CardInstance | undefined = state.objects[sourceId];
   if (o) return o.zone.kind === 'battlefield' ? o.zone.battlefieldId : null;
+  const ghost = (state as Pick<GameState, 'lki'>).lki?.[sourceId];
+  if (ghost) return ghost.at;
   return state.battlefields.some((b) => b.id === sourceId) ? sourceId : null;
 }
 
