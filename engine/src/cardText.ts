@@ -572,6 +572,20 @@ export function parseRevealPlaySequence(
   i: number,
 ): { effect: CardEffect; used: number } | null {
   const first = sens[i] ?? '';
+  // Clocktower Guardian: "Banish the top card of your Main Deck. You may play it, ignoring its Energy cost."
+  const topPlay = /^You may play it, ignoring its (Energy )?cost$/i.exec(sens[i + 1] ?? '');
+  if (/^Banish the top card of your Main Deck$/i.test(first) && topPlay) {
+    return {
+      effect: {
+        op: 'REVEAL_PLAY',
+        from: 'SELF',
+        count: 1,
+        play: topPlay[1] ? 'ENERGY' : 'ALL',
+        rest: 'RECYCLE',
+      },
+      used: 2,
+    };
+  }
   // Dazzling Aurora.
   if (
     /^[Rr]eveal cards from the top of your Main Deck until you reveal a unit and banish it$/.test(
