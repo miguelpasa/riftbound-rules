@@ -1755,6 +1755,27 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     });
     return true;
   }
+  // "Deal damage equal to its [Shield] to <unit>": the unit chosen / given Shield just before (Ntofo Strikes).
+  m = /^Deal damage equal to its \[Shield\] to (.+)$/i.exec(sen);
+  if (m) {
+    const k = st.it;
+    if (k === undefined || st.locked || (st.slots[k] as SlotDecl).kind !== undefined) return false;
+    const ch = parseChooser('Deal 1 to ' + (m[1] ?? ''));
+    if (!ch || ch.effect.op !== 'DAMAGE_TARGET' || ch.multi) return false;
+    if (!canAdd(st, [ch.decl])) return false;
+    const slot = st.slots.length;
+    st.slots.push(ch.decl);
+    st.it = slot;
+    out.push({
+      ...ch.effect,
+      slot,
+      amount: 0,
+      amountFrom: 'SLOT_SHIELD',
+      amountSlot: k,
+      amountSlotSide: (st.slots[k] as SlotDecl).side,
+    });
+    return true;
+  }
   // "Deal damage equal to its Energy cost to <unit>": the gear chosen just before names the amount.
   m = /^Deal damage equal to its Energy cost to (.+)$/i.exec(sen);
   if (m) {

@@ -238,6 +238,8 @@ type CardEffectCore =
         | 'SLOT_MIGHT'
         /** "damage equal to its Energy cost": the printed Energy cost of the chosen gear (target slot `amountSlot`). */
         | 'SLOT_ENERGY'
+        /** "damage equal to its [Shield]": the total Shield of the chosen unit (target slot `amountSlot`), counting grants. */
+        | 'SLOT_SHIELD'
         /** "damage equal to the damage marked on it" (Morgana): read from each target as the damage is dealt. */
         | 'TARGET_DAMAGE';
       /** R94: with `amountFrom: 'SLOT_MIGHT'`: the chosen unit (target slot) whose Might is dealt ("It deals damage equal to its Might"). */

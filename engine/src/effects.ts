@@ -1246,6 +1246,14 @@ export function runEffects(
         ? Math.max(0, effectiveMight(state, cards, id, { role: null }))
         : 0;
     }
+    if (e.amountFrom === 'SLOT_SHIELD') {
+      const id = e.amountSlot === undefined ? undefined : ids[e.amountSlot];
+      const unit = id ? state.objects[id] : undefined;
+      if (!unit || (unit.zone.kind !== 'base' && unit.zone.kind !== 'battlefield')) return 0;
+      return (defWithGrants(state, cards, unit)?.keywords ?? [])
+        .filter((k) => k.name === 'Shield')
+        .reduce((n, k) => n + (k.value ?? 1), 0);
+    }
     if (e.amountFrom === 'SLOT_ENERGY') {
       const id = e.amountSlot === undefined ? undefined : ids[e.amountSlot];
       const gear = id ? state.objects[id] : undefined;

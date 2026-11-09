@@ -407,3 +407,36 @@ describe('scenario: "Choose a friendly unit. Kill an enemy unit with less Might 
     expect(sc.obj(foe).zone.kind).toBe('trash');
   });
 });
+
+describe("scenario: damage equal to a chosen unit's [Shield] (Ntofo Strikes)", () => {
+  const text =
+    'Give a friendly unit [Shield 2] this turn, then deal damage equal to its [Shield] to an enemy unit.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads the grant, then damage read from the same unit', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'GRANT_KEYWORD_TARGET', keywords: [{ name: 'Shield', value: 2 }], side: 'friendly' },
+      {
+        op: 'DAMAGE_TARGET',
+        amount: 0,
+        amountFrom: 'SLOT_SHIELD',
+        amountSlot: 0,
+        side: 'enemy',
+        slot: 1,
+      },
+    ]);
+  });
+
+  it('adds the granted Shield to what the unit already has and deals that much', () => {
+    // Tests Rule 355.10: the spell resolves its effects in order
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    sc.state.objects[foe]!.mightBonus = 9; // survives
+    sc.state.objects[mine]!.tempKeywords = [{ name: 'Shield', value: 1 }]; // already has Shield 1
+    cast(sc, [obj(mine), obj(foe)]);
+    expect(sc.obj(foe).damage).toBe(3);
+  });
+});
