@@ -39,7 +39,7 @@ import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import type { CostMod, TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { defWithGrants } from './statics.js';
-import { recordDeath } from './conditions.js';
+import { evalCondition, recordDeath } from './conditions.js';
 import { DEFERRED_KEYWORDS, MVP_KEYWORDS, playerIndex, ruleError } from './types/index.js';
 import type {
   ChainItem,
@@ -173,6 +173,7 @@ export function temporaryOnBeginning(
       at,
       alone: (crowd.get(o.controller + '|' + at) ?? 1) <= 1,
       ...(o.stunned ? { stunned: true } : {}),
+      ...(evalCondition(s, cards, { kind: 'MIGHTY' }, o.controller, o.id) ? { mighty: true } : {}),
     };
     const from = s.players[playerIndex(o.zone.player)];
     from.base = from.base.filter((id) => id !== o.id);

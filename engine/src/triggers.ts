@@ -102,6 +102,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
   let paidExtra = false;
   let facedownPlay = false;
   let diedAlone: boolean | undefined;
+  let diedMighty = false;
   const batchSeen = new Set<string>();
   /** R71: "once each turn" triggers already collected in this pass (object id + index). */
   const onceSeen = new Set<string>();
@@ -129,6 +130,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         if (!facedownPlay) return;
       } else if (t.when?.kind === 'PAID_ADDITIONAL') {
         if (!paidExtra) return;
+      } else if (t.when?.kind === 'DIED_MIGHTY') {
+        if (!diedMighty) return;
       } else if (t.when?.kind === 'DIED_ALONE') {
         if ((diedAlone === true) === (t.when.not === true)) return;
       } else if (t.when && !evalCondition(state, cards, t.when, controller, obj.id)) return;
@@ -267,6 +270,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       const o = state.objects[e.unitId];
       if (o && o.zone.kind === 'trash') {
         diedAlone = e.alone === true;
+        diedMighty = e.mighty === true;
         add(o, 'DEATH', o.owner, (t) => !t.inCombat || e.inCombat === true);
         // Karthus: "Your [Deathknell] effects trigger an additional time" (not the "die in combat" form).
         const doubles = Object.values(state.objects).some(
@@ -277,6 +281,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         );
         if (doubles) add(o, 'DEATH', o.owner, (t) => !t.inCombat);
         diedAlone = undefined;
+        diedMighty = false;
       }
       // R71: "When a friendly / an enemy unit dies" fires for the permanents on the board.
       const dead = cards[e.cardId ?? o?.cardId ?? ''];

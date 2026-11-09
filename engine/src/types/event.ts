@@ -64,6 +64,8 @@ export type GameEvent = EventBase &
         alone?: boolean;
         /** It was stunned when it died. */
         stunned?: boolean;
+        /** It had 5+ Might as it died (709): "if I was Mighty". */
+        mighty?: boolean;
         /** It died while a combat was being fought at its location ("When I die in combat"). */
         inCombat?: boolean;
       }

@@ -274,3 +274,33 @@ describe('parser: combat and death triggers (R71)', () => {
     expect(t('When you play this, draw 1.')).toMatchObject({ on: 'PLAY' });
   });
 });
+
+describe('scenario: Deathknell "if I was Mighty" (Unsung Hero)', () => {
+  const mighty = withCards({
+    'fx-grunt': {
+      triggers: [{ on: 'DEATH', when: { kind: 'DIED_MIGHTY' }, effects: DRAW1 }],
+    },
+  });
+
+  it('draws only when it had 5+ Might as it died', () => {
+    // Tests Rule 709: Mighty = 5+ Might, read as the unit died (it is in the Trash when the trigger resolves)
+    const sc = Scenario.start({}, mighty);
+    const big = sc.putUnit('p0', 'fx-grunt', 'base');
+    (sc.state.objects[big] as { mightBonus: number }).mightBonus = 5;
+    const hand = sc.player('p0').hand.length;
+    kill(sc, big);
+    expect(sc.player('p0').hand.length).toBe(hand + 1);
+
+    const sc2 = Scenario.start({}, mighty);
+    const small = sc2.putUnit('p0', 'fx-grunt', 'base');
+    const hand2 = sc2.player('p0').hand.length;
+    kill(sc2, small);
+    expect(sc2.player('p0').hand.length).toBe(hand2);
+  });
+
+  it('parses "If I was [Mighty], draw 2."', () => {
+    // Tests Rule 303: parsed trigger text
+    const trig = parseCardAbilities('[Deathknell] — If I was [Mighty], draw 2.')?.triggers[0];
+    expect(trig).toMatchObject({ on: 'DEATH', when: { kind: 'DIED_MIGHTY' } });
+  });
+});

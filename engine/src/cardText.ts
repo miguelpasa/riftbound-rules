@@ -3135,6 +3135,7 @@ export function parseCondition(raw: string): Condition | null {
   }
   if (/^you paid the additional cost$/i.test(text)) return { kind: 'PAID_ADDITIONAL' };
   if (/^I died alone$/i.test(text)) return { kind: 'DIED_ALONE' };
+  if (/^I was \[?Mighty\]?$/i.test(text)) return { kind: 'DIED_MIGHTY' };
   if (/^you['’]ve played a unit or gear to a battlefield this turn$/i.test(text)) {
     return { kind: 'PLAYED_TO_BATTLEFIELD' };
   }
