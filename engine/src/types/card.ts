@@ -808,7 +808,9 @@ export interface StaticAbility {
     /** Battlefield card: no player can score it before their third turn (Forgotten Monument). */
     | 'NO_EARLY_SCORE'
     /** Unit card: it cannot be played on its player's first three turns (Ol' Poro). */
-    | 'NO_PLAY_EARLY';
+    | 'NO_PLAY_EARLY'
+    /** Unit card: while its condition holds, opponents cannot gain points (Tianna Crownguard). */
+    | 'NO_ENEMY_POINTS';
   /** Battlefield card: the points needed to win are raised by this much (Aspirant's Climb). */
   victoryBonus?: number;
   /**

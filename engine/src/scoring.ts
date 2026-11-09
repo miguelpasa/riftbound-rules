@@ -21,6 +21,7 @@
 import { fork } from './workingCopy.js';
 import { drawWithBurnOut } from './burnout.js';
 import { isDeployGear } from './tokens.js';
+import { pointsLocked } from './pointsLock.js';
 import { playerIndex } from './types/constants.js';
 import type {
   CardDatabase,
@@ -53,7 +54,10 @@ export function gainPoints(
   player: PlayerId,
   amount: number,
   source: PointSource,
+  /** Given by card-driven scoring: a point lock on the player stops a gain. */
+  cards?: CardDatabase,
 ): GameEventInput[] {
+  if (cards && amount > 0 && pointsLocked(state, cards, player)) return [];
   const ps = state.players[playerIndex(player)];
   ps.points = Math.max(0, ps.points + amount);
   return [{ type: 'POINT_GAINED', player, amount, source }];
@@ -77,7 +81,8 @@ export function scoreBattlefield(
   // Forgotten Monument: nobody scores here before their own third turn.
   if (cards[bf.cardId]?.statics?.some((s) => s.restrict === 'NO_EARLY_SCORE')) {
     const n = next.turn.number;
-    if ((player === 'p0' ? Math.ceil(n / 2) : Math.floor(n / 2)) < 3) return { state: next, events };
+    if ((player === 'p0' ? Math.ceil(n / 2) : Math.floor(n / 2)) < 3)
+      return { state: next, events };
   }
   bf.scoredThisTurnBy.push(player);
   const ps = next.players[playerIndex(player)];
@@ -85,13 +90,13 @@ export function scoreBattlefield(
   if (method === 'CONQUER' && atFinal) {
     const scoredAll = next.battlefields.every((b) => b.scoredThisTurnBy.includes(player));
     if (scoredAll) {
-      events.push(...gainPoints(next, player, 1, 'CONQUER')); // 473.1.b
+      events.push(...gainPoints(next, player, 1, 'CONQUER', cards)); // 473.1.b
     } else {
       events.push({ type: 'FINAL_POINT_DENIED_DREW_CARD', player }); // 473.1.b.1
       events.push(...drawWithBurnOut(next, player, 1, cards));
     }
   } else {
-    events.push(...gainPoints(next, player, 1, method)); // 473.1
+    events.push(...gainPoints(next, player, 1, method, cards)); // 473.1
   }
   events.push({ type: 'BATTLEFIELD_SCORED', player, battlefieldId, method });
   if (method === 'HOLD') {

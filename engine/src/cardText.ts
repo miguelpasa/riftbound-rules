@@ -2320,6 +2320,17 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       );
       continue;
     }
+    // "[While <condition>,] opponents can't gain points" (Tianna Crownguard).
+    const np = /^(?:While (.+?), )?Opponents can['’]t gain points$/i.exec(body);
+    if (np) {
+      const w = np[1] === undefined ? undefined : parseCondition(np[1]);
+      if (np[1] !== undefined && !w) {
+        keep.push(line);
+        continue;
+      }
+      statics.push({ affects: 'SELF', restrict: 'NO_ENEMY_POINTS', ...(w ? { when: w } : {}) });
+      continue;
+    }
     // R74: combat-damage and targeting restrictions, "... unless <condition>", and "must be assigned last".
     const rx = parseRestrictStatic(body);
     if (rx) {

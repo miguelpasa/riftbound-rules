@@ -20,6 +20,7 @@ import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
 import { bonusDamageTo, defWithGrants, staticBonus } from './statics.js';
 import { evalCondition, recordDeath } from './conditions.js';
+import { pointsLocked } from './pointsLock.js';
 import { petTagCount } from './petTags.js';
 import { playerIndex } from './types/constants.js';
 import type {
@@ -2333,6 +2334,7 @@ export function runEffects(
       case 'GAIN_POINT':
         {
           const who = e.forOpponent ? (controller === 'p0' ? 'p1' : 'p0') : controller;
+          if (pointsLocked(state, cards, who)) break;
           state.players[playerIndex(who)].points += e.amount;
           out.push({ type: 'POINT_GAINED', player: who, amount: e.amount, source: 'EFFECT' });
         }
