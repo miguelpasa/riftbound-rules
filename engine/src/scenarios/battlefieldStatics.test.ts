@@ -378,3 +378,51 @@ describe('scenario: Show Off (Battle Preparations)', () => {
     expect(ra).toBeGreaterThan(rb);
   });
 });
+
+describe('scenario: Action-speed activated abilities (Divining Shells)', () => {
+  const parsed = parseCardAbilities('[Action][>] Kill this, [E]: Give a unit +2 [M] this turn.', {
+    gearLike: true,
+  });
+
+  it('reads the [Action] label as a flag on the ability', () => {
+    // Tests Rule 151: activated abilities
+    expect(parsed?.abilities[0]).toMatchObject({ action: true, cost: { killSelf: true } });
+  });
+
+  it('can be used in a showdown, unlike a plain activated ability', () => {
+    // Tests Rule 308.1.a: Showdown State timing
+    const mk = (action: boolean): CardDatabase => ({
+      ...SCENARIO_CARDS,
+      'fx-blade': {
+        ...base('fx-blade'),
+        abilities: [
+          {
+            ...(parsed?.abilities[0] as NonNullable<typeof parsed>['abilities'][0]),
+            ...(action ? {} : { action: undefined }),
+          },
+        ],
+      },
+    });
+    const run = (cards: CardDatabase) => {
+      const sc = Scenario.start({}, cards);
+      const g = sc.putUnit('p0', 'fx-blade', 'base');
+      const target = sc.putUnit('p0', 'fx-ash-tank', 'base');
+      sc.state.flow.showdown = {
+        battlefieldId: 'bf1',
+        passesInRow: 0,
+      } as unknown as NonNullable<typeof sc.state.flow.showdown>;
+      sc.state.turnState = { kind: 'SHOWDOWN', open: true };
+      return reduce(sc.state, cards, {
+        type: 'ACTIVATE_ABILITY',
+        playerId: 'p0',
+        sourceId: g,
+        abilityIndex: 0,
+        payment: [],
+        targets: [{ kind: 'object', id: target }],
+      });
+    };
+    const refused = run(mk(false));
+    expect(refused.ok).toBe(false);
+    expect(run(mk(true)).ok).toBe(true);
+  });
+});

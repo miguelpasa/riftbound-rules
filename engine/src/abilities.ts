@@ -121,6 +121,7 @@ export function activateAbility(
     const timing = canPlayNow(state, cards, pid, def, {
       isAbility: true,
       isReactionAbility: ability.reaction === true,
+      isActionAbility: ability.action === true,
     });
     if (!timing.ok) return timing;
   }

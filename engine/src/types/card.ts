@@ -1162,6 +1162,8 @@ export interface ActivatedAbility {
   atBattlefield?: boolean;
   /** Reaction speed (usable in a Closed state / Showdown). */
   reaction?: boolean;
+  /** "[Action][>]": the ability may also be used in a Showdown (Action speed). */
+  action?: boolean;
   /** "[Legion] —" before the effect: usable only while the controller has played another card this turn. */
   legion?: boolean;
   effects: CardEffect[];

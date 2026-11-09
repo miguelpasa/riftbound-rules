@@ -2004,7 +2004,7 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       .replace(/\([^)]*\)/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/\.$/, '');
+      .replace(/\s*\.$/, '');
     // R52: "[Empowered][>] ..." is a static that applies only while the source is Empowered.
     const em = EMPOWERED_PREFIX.exec(plain);
     // R53: "[Level N][>] I have ..." applies while the controller has N or more XP.
@@ -3280,6 +3280,7 @@ export function parseCardAbilities(
         kind: 'ability';
         cost: AbilityCost;
         reaction: boolean;
+        action?: boolean;
         legion?: boolean;
         atBattlefield?: boolean;
         costReduction?: CostReduction;
@@ -3560,11 +3561,11 @@ export function parseCardAbilities(
     // 812: "<cost>: [Legion] — <effect>" is an activated ability usable only after another card was played.
     const abLegion = ab !== null && /^(?:REACTION,? )?LEGION /.test(ab[4] ?? '');
     if (legion && !abLegion && !ab) return null;
-    if (ab && ab[1] !== 'ACTION' && ab[3] !== 'ACTION') {
+    if (ab) {
       const cost = parseAbilityCost(ab[2] ?? '', opts.gearLike === true);
       if (!cost) return null;
       let abBody = ab[4] as string;
-      let abReaction = !!(ab[1] ?? ab[3]);
+      let abReaction = ab[1] === 'REACTION' || ab[3] === 'REACTION';
       const lead = /^(REACTION,? )?LEGION /.exec(abBody);
       if (lead) {
         if (lead[1]) abReaction = true;
@@ -3574,6 +3575,7 @@ export function parseCardAbilities(
         kind: 'ability',
         cost,
         reaction: abReaction,
+        ...(ab[1] === 'ACTION' || ab[3] === 'ACTION' ? { action: true } : {}),
         ...(legion || abLegion ? { legion: true } : {}),
         sens: [abBody],
       };
@@ -3673,6 +3675,7 @@ export function parseCardAbilities(
       out.abilities.push({
         cost: g.cost,
         ...(g.reaction ? { reaction: true } : {}),
+        ...(g.action ? { action: true } : {}),
         ...(g.legion ? { legion: true } : {}),
         ...(g.atBattlefield ? { atBattlefield: true } : {}),
         ...(g.costReduction ? { costReduction: g.costReduction } : {}),

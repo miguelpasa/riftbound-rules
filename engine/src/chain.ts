@@ -60,6 +60,8 @@ export interface PlayTimingOpts {
   isAbility?: boolean;
   /** The ability has Reaction speed (only meaningful with isAbility). */
   isReactionAbility?: boolean;
+  /** The ability has Action speed: usable in an Open Showdown as well as on your own turn. */
+  isActionAbility?: boolean;
   /**
    * Rune abilities (ACTIVATE_RUNE) are Reaction-speed and need no Priority (handled by E2):
    * skips Priority/phase/state checks entirely.
@@ -151,7 +153,7 @@ export function canPlayNow(
   const reaction = isAbility
     ? opts.isReactionAbility === true
     : hasKeyword(card, 'Reaction') || hasKeyword(card, 'QuickDraw') || opts.ambush === true; // 819: Quick-Draw has Reaction inherently; 822 Ambush
-  const action = !isAbility && hasKeyword(card, 'Action');
+  const action = isAbility ? opts.isActionAbility === true : hasKeyword(card, 'Action');
   const ts = deriveTurnState(state);
 
   if (!ts.open) return reaction ? OK : ruleError('CLOSED_STATE_REACTION_ONLY');
