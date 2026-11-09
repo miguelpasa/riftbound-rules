@@ -132,6 +132,24 @@ const PARSED_KEYWORDS = new Set<string>([
 const OLD_TEXT_RE = /▲?\s*\[OLD TEXT\][\s\S]*$/;
 
 /** Strip the errata marker (and everything after it) and normalise symbols. */
+/** A spell's flag lines ("This can't be countered.", "Ignore [Deflect] while paying this spell's cost.") taken out of its text. */
+function takeSpellFlags(text: string): {
+  uncounterable: boolean;
+  ignoreDeflect: boolean;
+  rest: string;
+} | null {
+  const counter = /(?:^|\n)[ \t]*This can['’]t be countered\.?[ \t]*(?=\n|$)/i;
+  const deflect = /(?:^|\n)[ \t]*Ignore \[Deflect\] while paying this spell['’]s cost\.?[ \t]*(?=\n|$)/i;
+  const uncounterable = counter.test(text);
+  const ignoreDeflect = deflect.test(text);
+  if (!uncounterable && !ignoreDeflect) return null;
+  return {
+    uncounterable,
+    ignoreDeflect,
+    rest: text.replace(counter, '').replace(deflect, '').replace(/^\n+/, ''),
+  };
+}
+
 export function normalizeText(raw: string | null | undefined): string {
   const text = (raw ?? '').replace(OLD_TEXT_RE, '');
   return (
@@ -272,9 +290,12 @@ export function convertRow(row: RawRow): ConvertResult {
   );
   // R47: "As an additional cost to play this, <card-choice cost>." is taken out of the text and stored
   // on the card (only when the rest of the card turns out fully supported, see below).
+  // "This can't be countered." / "Ignore [Deflect] while paying this spell's cost." are flags of the card.
+  const spellFlags = type === 'SPELL' ? takeSpellFlags(fullText) : null;
+  const baseText = spellFlags ? spellFlags.rest : fullText;
   const additional =
-    type === 'UNIT' || type === 'SPELL' || type === 'GEAR' ? parseAdditionalCost(fullText) : null;
-  const afterAdditionalCost = additional ? additional.rest : fullText;
+    type === 'UNIT' || type === 'SPELL' || type === 'GEAR' ? parseAdditionalCost(baseText) : null;
+  const afterAdditionalCost = additional ? additional.rest : baseText;
   // R61: a spell's Flow cost line is stored on the card (kept only when the rest is fully supported).
   const flowLine = type === 'SPELL' ? parseFlowCost(afterAdditionalCost) : null;
   // R76: "You may play me to an open battlefield." lines of a Unit.
@@ -427,6 +448,10 @@ export function convertRow(row: RawRow): ConvertResult {
   if (playToLine && card.supportLevel === 'full') card.playTo = playToLine.playTo;
   // R61: likewise the Flow cost.
   if (flowLine && card.supportLevel === 'full') card.flowCost = flowLine.cost;
+  if (spellFlags && card.supportLevel === 'full') {
+    if (spellFlags.uncounterable) card.uncounterable = true;
+    if (spellFlags.ignoreDeflect) card.ignoreDeflect = true;
+  }
   // R58: likewise the optional additional cost.
   if (optionalExtra && card.supportLevel === 'full')
     card.optionalAdditionalCost = optionalExtra.cost;

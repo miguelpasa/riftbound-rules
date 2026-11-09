@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { parseBattlefieldAbilities, parseCardAbilities, parseStaticLines } from '../cardText.js';
+import {
+  parseBattlefieldAbilities,
+  parseCardAbilities,
+  parseSpellText,
+  parseStaticLines,
+} from '../cardText.js';
 import { scoreBattlefield } from '../scoring.js';
 import { endCombatGrants, runEffects } from '../effects.js';
 import { effectiveMight } from '../combat.js';
@@ -125,5 +130,51 @@ describe('scenario: "this combat" effects (Fiora, Fortified Position, Durand Mem
     expect(effectiveMight(s, sc.cards, u, { role: null })).toBe(before + 1);
     expect(s.objects[u]?.tempKeywords).toBeUndefined();
     expect(s.objects[u]?.combatGrant).toBeUndefined();
+  });
+});
+
+describe('scenario: domain-filtered targets and spell flags (Decree cards)', () => {
+  it('reads "an enemy Calm unit" as a domain filter on the target', () => {
+    // Tests Rule 355.10: targets must be legal
+    const e = parseSpellText('Deal 4 to an enemy Calm   unit.');
+    expect(e?.[0]).toMatchObject({ op: 'DAMAGE_TARGET', amount: 4, side: 'enemy', domain: 'Calm' });
+    const k = parseSpellText('Kill an enemy Chaos   unit or gear.');
+    expect(k?.[0]).toMatchObject({ op: 'KILL_TARGET', side: 'enemy', domain: 'Chaos' });
+  });
+
+  it('only offers targets of that domain', () => {
+    // Tests Rule 355.10: targets must be legal
+    const e = parseSpellText('Deal 4 to an enemy Calm unit.') ?? [];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects: e },
+    };
+    const sc = Scenario.start({}, cards);
+    const calm = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const domainOf = (id: string): string[] => cards[sc.obj(id).cardId]?.domains ?? [];
+    const tryPlay = (target: string) =>
+      reduce(sc.state, cards, {
+        type: 'PLAY_CARD',
+        playerId: 'p0',
+        cardInstanceId: flare,
+        payment: sc.exhaustPlan('p0', 1),
+        targets: [{ kind: 'object', id: target }],
+      });
+    // the fixture grunt is not Calm: refused; with its domains patched to Calm: accepted
+    expect(domainOf(calm)).not.toContain('Calm');
+    expect(tryPlay(calm).ok).toBe(false);
+    const cards2: CardDatabase = {
+      ...cards,
+      [sc.obj(calm).cardId]: { ...base(sc.obj(calm).cardId), domains: ['Calm'] },
+    };
+    const ok = reduce(sc.state, cards2, {
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: flare,
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: calm }],
+    });
+    expect(ok.ok).toBe(true);
   });
 });

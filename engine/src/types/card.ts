@@ -136,6 +136,8 @@ export interface TargetCount {
 export interface TargetScope {
   here?: boolean;
   another?: boolean;
+  /** "an enemy Calm unit": only a target of this domain. */
+  domain?: Domain;
 }
 
 /** R96: which card a Look-at-the-top effect may take (the first match from the top is taken). */
@@ -1170,6 +1172,10 @@ export interface CardDef {
   legionCostReduction?: number;
   /** R51: static abilities ("Your gear have [Deflect]", "While ..., I have +1 [M]"); see statics.ts. */
   statics?: StaticAbility[];
+  /** "This can't be countered." (Decree of Rage). */
+  uncounterable?: boolean;
+  /** "Ignore [Deflect] while paying this spell's cost." (Decree of Insight). */
+  ignoreDeflect?: boolean;
   /** R61: Flow cost: the spell may be played from its owner's Trash for this cost instead, then it is banished. */
   flowCost?: { energy: number; power?: number; anyPower?: number };
   /** R59: a modal spell ("Choose one — ..."): the effects of each mode; the player picks one (PLAY_CARD.mode). */

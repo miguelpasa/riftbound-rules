@@ -25,6 +25,7 @@ import type {
   HandAction,
   LookTake,
   AltAmount,
+  Domain,
   CardDatabase,
   CardDef,
   CardEffect,
@@ -61,6 +62,8 @@ export const BASE_LOCATION = 'base';
 interface Spec {
   kind: TargetKind;
   side: TargetSide;
+  /** Only a target card of this domain. */
+  domain?: Domain;
   /** Location slots: the earlier slot that holds the unit being moved, and which locations are allowed. */
   forSlot?: number;
   dest?: 'ANY' | 'BATTLEFIELD' | 'OPEN' | 'CONTROLLED' | 'ENEMY_OCCUPIED' | 'TO_OR_FROM_BASE';
@@ -188,6 +191,7 @@ function specOf(e: TargetedEffect): Spec {
   if (e.op === 'READY_TARGET' && e.subtype) spec.subtype = e.subtype;
   if (e.op === 'RETURN_TARGET' && e.notSubtype) spec.notSubtype = e.notSubtype;
   if ('here' in e && e.here) spec.here = true;
+  if ('domain' in e && e.domain) spec.domain = e.domain;
   if ('another' in e && e.another) spec.another = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergy !== undefined) spec.maxEnergy = e.maxEnergy;
   if ((e.op === 'KILL_TARGET' || e.op === 'RETURN_TARGET') && e.maxMight !== undefined) {
@@ -361,6 +365,7 @@ function legalForSpec(
       type === 'SPELL' &&
       u.zone.kind === 'chain' &&
       state.flow.chain.some((i) => i.kind === 'CARD' && i.sourceObjectId === u.id) &&
+      cards[u.cardId]?.uncounterable !== true &&
       (spec.counterMinPower === undefined || power >= spec.counterMinPower) &&
       (spec.counterMaxPower === undefined || power <= spec.counterMaxPower) &&
       (spec.counterMaxEnergy === undefined || (cost?.energy ?? 0) <= spec.counterMaxEnergy)
@@ -419,6 +424,7 @@ function legalForSpec(
       }
     }
     if (spec.another && u.id === sourceId) return false;
+    if (spec.domain && !(cards[u.cardId]?.domains ?? []).includes(spec.domain)) return false;
   }
   if (spec.side === 'friendly') return u.controller === controller;
   if (spec.side === 'enemy') return u.controller !== controller;

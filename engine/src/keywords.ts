@@ -364,7 +364,9 @@ export function deflectExtraCost(
 export function makePlayHooks(base: PlayHooks = {}): PlayHooks {
   return {
     extraCosts(state, cards, playerId, def, intent) {
-      const mine = deflectExtraCost(state, cards, playerId, intent.targets ?? []);
+      const mine = def.ignoreDeflect
+        ? null
+        : deflectExtraCost(state, cards, playerId, intent.targets ?? []);
       const other = base.extraCosts?.(state, cards, playerId, def, intent) ?? null;
       if (!mine) return other;
       if (!other) return mine;

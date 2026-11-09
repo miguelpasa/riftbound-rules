@@ -36,6 +36,7 @@ import type {
   AbilityCost,
   ActivatedAbility,
   CardEffect,
+  Domain,
   CardDef,
   CardTrigger,
   CostCount,
@@ -985,9 +986,14 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
-  if (/^Kill an? unit or gear$/i.test(sen)) {
-    // R46: either kind of permanent (any side).
-    return { effect: { op: 'KILL_TARGET', orGear: true }, decl: { side: 'any' } };
+  m = new RegExp(`^Kill an? ${SIDE}unit or gear$`, 'i').exec(sen);
+  if (m) {
+    // R46: either kind of permanent; "an enemy unit or gear" limits it to the opponent's.
+    const s = side(m[1]);
+    return {
+      effect: { op: 'KILL_TARGET', orGear: true, ...sideProp(s) },
+      decl: { side: s ?? 'any' },
+    };
   }
   m = new RegExp(`^Kill an? ${SIDE}gear(?: with Energy cost \\[?(\\d+)\\]? or less)?$`, 'i').exec(
     sen,
@@ -2376,9 +2382,21 @@ function attachInstead(sen: string, out: CardEffect[]): boolean {
   return true;
 }
 
+const DOMAIN_OPS: ReadonlySet<string> = new Set([
+  'KILL_TARGET',
+  'DAMAGE_TARGET',
+  'DEBUFF_TARGET',
+  'BUFF_TARGET',
+  'RETURN_TARGET',
+  'STUN_TARGET',
+  'READY_TARGET',
+  'GRANT_KEYWORD_TARGET',
+]);
+
 function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
+  const doms: (Domain | undefined)[] = [];
   const list = sens
     .flatMap((x) =>
       /^Banish an? [a-z ]*unit, then its owner plays it/i.test(x) ||
@@ -2410,8 +2428,26 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
         // R93: "if I am at a battlefield" is implied by a "here / there" effect (it does nothing elsewhere).
         .replace(/^if I am at a battlefield, /i, '')
         .trim(),
-    );
+    )
+    // "an enemy Calm unit": the domain word becomes a filter on the effect that targets it (`doms`, by sentence).
+    .map((x) => {
+      const dm = /\b(Fury|Calm|Mind|Body|Chaos|Order)\s+(units?)\b/.exec(x);
+      doms.push(dm ? (dm[1] as Domain) : undefined);
+      return dm ? x.replace(dm[0], dm[2] as string).replace(/\s+/g, ' ') : x;
+    });
+  let pend: { from: number; dom: Domain } | null = null;
+  const flushDomain = (): void => {
+    if (!pend || out.length <= pend.from) return;
+    for (let k = pend.from; k < out.length; k++) {
+      const ef = out[k] as CardEffect;
+      if (DOMAIN_OPS.has(ef.op)) (ef as { domain?: Domain }).domain = pend.dom;
+    }
+    pend = null;
+  };
   for (let i = 0; i < list.length; i++) {
+    flushDomain();
+    const dom = doms[i];
+    if (dom && !pend) pend = { from: out.length, dom };
     // "Stun a unit. If it's already stunned, return it to its owner's hand instead" (Existential Dread).
     if (
       /^If it['’]s already stunned, return it to its owner['’]s hand instead$/i.test(
@@ -2458,6 +2494,7 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     }
     if (!parseSpellSentence(list[i] as string, st, out)) return null;
   }
+  flushDomain();
   // Every chosen unit must be used by an effect (a bare "Choose a unit." does nothing).
   if (targetRequirements(out).length !== st.slots.length) return null;
   return out;

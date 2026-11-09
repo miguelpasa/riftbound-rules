@@ -140,6 +140,8 @@
       }
     },
     "entersReady": { "type": "boolean" },
+    "uncounterable": { "type": "boolean" },
+    "ignoreDeflect": { "type": "boolean" },
     "entersReadyWhen": { "type": "object" },
     "entersExhausted": { "type": "boolean" },
     "legionCostReduction": { "type": "integer", "minimum": 0 },
