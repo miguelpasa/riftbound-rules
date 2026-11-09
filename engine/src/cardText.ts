@@ -3294,7 +3294,7 @@ const DEATH_HEAD =
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
-  /^(When you conquer or hold|When you or an ally hold|When you conquer|When you hold|When a friendly unit attacks or defends alone|When an enemy unit attacks a battlefield you control|When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you choose a friendly unit|When you choose me with a spell|When you choose or ready me|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend one on one|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you conquer or hold|When you or an ally hold|When you conquer|When you hold|When a friendly unit attacks or defends alone|When an enemy unit attacks a battlefield you control|When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you buff me|When you buff a friendly unit|When you choose a friendly unit|When you choose me with a spell|When you choose or ready me|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend one on one|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -3452,6 +3452,7 @@ export function parseCardAbilities(
         youScore?: boolean;
         unitFilter?: CardTrigger['unitFilter'];
         chosen?: CardTrigger['chosen'];
+        buffed?: CardTrigger['buffed'];
         inCombat?: boolean;
         sens: string[];
       }
@@ -3577,6 +3578,8 @@ export function parseCardAbilities(
           : [head.endsWith('conquer') ? 'CONQUER' : 'HOLD']
         : head.includes('unit attacks')
           ? ['UNIT_ATTACKS']
+          : head.startsWith('when you buff')
+            ? ['UNIT_BUFFED']
           : head.startsWith('when you choose or ready me')
             ? ['UNIT_CHOSEN', 'BECOME_READY']
             : head.startsWith('when you choose')
@@ -3670,7 +3673,12 @@ export function parseCardAbilities(
         : head.startsWith('when you choose')
           ? { target: 'self', ...(head.includes('spell') ? { spellOnly: true } : {}) }
           : undefined;
-      if (chosen?.target === 'friendly') {
+      const buffed: CardTrigger['buffed'] | undefined = head.startsWith('when you buff me')
+        ? 'self'
+        : head.startsWith('when you buff')
+          ? 'friendly'
+          : undefined;
+      if (chosen?.target === 'friendly' || buffed === 'friendly') {
         body = body.replace(/ ready it$/i, ' ready a friendly unit');
       }
       let when: Condition | undefined;
@@ -3707,6 +3715,7 @@ export function parseCardAbilities(
         ...(youScore ? { youScore: true } : {}),
         ...(unitFilter ? { unitFilter } : {}),
         ...(chosen ? { chosen } : {}),
+        ...(buffed ? { buffed } : {}),
         ...(head.startsWith('when i die in combat') ? { inCombat: true } : {}),
         sens: body ? [body] : [],
       };
@@ -3888,6 +3897,7 @@ export function parseCardAbilities(
           ...(g.youScore ? { youScore: true } : {}),
           ...(g.unitFilter ? { unitFilter: g.unitFilter } : {}),
           ...(g.chosen ? { chosen: g.chosen } : {}),
+          ...(g.buffed ? { buffed: g.buffed } : {}),
           ...(g.inCombat ? { inCombat: true } : {}),
         });
       }

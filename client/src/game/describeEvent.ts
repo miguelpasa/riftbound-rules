@@ -223,6 +223,8 @@ export function describeEvent(
     }
     case 'TRIGGER_NO_TARGET':
       return `${objectName(event.sourceId, view, cards, 'An ability')} had no legal target and did nothing.`;
+    case 'UNIT_BUFFED':
+      return `${objectName(event.objectId, view, cards, 'A unit')} was buffed.`;
     case 'UNIT_CHOSEN':
       return `${objectName(event.objectId, view, cards, 'A unit')} was chosen.`;
     case 'BECAME_MIGHTY':

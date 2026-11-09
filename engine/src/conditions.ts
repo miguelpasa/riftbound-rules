@@ -101,6 +101,18 @@ export function tracksChosen(cards: CardDatabase): boolean {
   return v;
 }
 
+const buffedDb = new WeakMap<CardDatabase, boolean>();
+
+/** True when some card reacts to a unit being buffed (the buff diff runs only then). */
+export function tracksBuffed(cards: CardDatabase): boolean {
+  let v = buffedDb.get(cards);
+  if (v === undefined) {
+    v = Object.values(cards).some((d) => d.triggers?.some((t) => t.on === 'UNIT_BUFFED'));
+    buffedDb.set(cards, v);
+  }
+  return v;
+}
+
 const mightyDb = new WeakMap<CardDatabase, boolean>();
 
 /** X9: true when some card reacts to a unit becoming Mighty (the Might diff is computed only then). */

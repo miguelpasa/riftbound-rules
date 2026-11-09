@@ -295,6 +295,20 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           });
         }
       }
+    } else if (e.type === 'UNIT_BUFFED') {
+      const u = state.objects[e.objectId];
+      if (u) {
+        for (const src of Object.values(state.objects)) {
+          if (src.controller !== u.controller || (!onBoard(src) && src.zone.kind !== 'legend')) continue;
+          add(
+            src,
+            'UNIT_BUFFED',
+            src.controller,
+            (t) => (t.buffed === 'self' ? src.id === u.id : t.buffed === 'friendly'),
+            u.id,
+          );
+        }
+      }
     } else if (e.type === 'UNIT_CHOSEN') {
       const u = state.objects[e.objectId];
       if (u) {

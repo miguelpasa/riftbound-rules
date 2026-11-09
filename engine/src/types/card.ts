@@ -1060,7 +1060,9 @@ export type TriggerKind =
   /** "When a friendly unit attacks or defends alone" / "When an enemy unit attacks a battlefield you control" (see `CardTrigger.unitFilter`); the unit is the ability's target ("give it"). */
   | 'UNIT_ATTACKS'
   /** "When you choose a friendly unit" / "When you choose me with a spell": a spell or ability chose a unit. */
-  | 'UNIT_CHOSEN';
+  | 'UNIT_CHOSEN'
+  /** "When you buff me / a friendly unit": a unit you control gained a buff. */
+  | 'UNIT_BUFFED';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {
@@ -1130,6 +1132,8 @@ export interface CardTrigger {
   firstTurn?: boolean;
   /** `on: 'UNIT_CHOSEN'`: `friendly` = any friendly unit you choose (the ability's target is that unit); `self` = this unit is chosen. */
   chosen?: { target: 'friendly' | 'self'; spellOnly?: boolean };
+  /** `on: 'UNIT_BUFFED'`: `self` = this unit got the buff; `friendly` = any friendly unit (the ability's target). */
+  buffed?: 'self' | 'friendly';
   /** "When you conquer / hold" on a unit or gear: fires when its controller scores at ANY battlefield. */
   youScore?: boolean;
   /** "The third time I move in a turn": fires only on the unit's n-th move to a battlefield this turn. */

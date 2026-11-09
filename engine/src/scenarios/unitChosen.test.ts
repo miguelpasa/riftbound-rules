@@ -154,3 +154,30 @@ describe('scenario: a stunned enemy unit dies (Storm Raptor)', () => {
     expect(t?.triggers[0]?.dies).toEqual({ side: 'enemy', here: true, stunned: true });
   });
 });
+
+describe('scenario: "When you buff me" (Simian Ancestor)', () => {
+  it('readies the unit when it gets a buff', () => {
+    // Tests Rule 583: triggered abilities
+    const parsed = parseCardAbilities('When you buff me, ready me.');
+    expect(parsed?.triggers[0]).toMatchObject({ on: 'UNIT_BUFFED', buffed: 'self' });
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ash-tank': { ...base('fx-ash-tank'), triggers: parsed?.triggers ?? [] },
+    };
+    const eff = parseSpellText('Buff a friendly unit.') ?? [];
+    cards['fx-flare'] = { ...base('fx-flare'), supportLevel: 'full', effects: eff };
+    const sc = Scenario.start({}, cards);
+    const u = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    sc.setReady(u, false);
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: u }],
+    });
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    expect(sc.obj(u).buffed).toBe(true);
+    expect(sc.obj(u).ready).toBe(true);
+  });
+});

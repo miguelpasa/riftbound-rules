@@ -53,7 +53,7 @@ import { activateAbility } from './abilities.js';
 import { activateRune } from './resources.js';
 import { holdScoringStep } from './scoring.js';
 import { stampEvents } from './setup.js';
-import { tracksChosen, tracksMighty, tracksReadiness } from './conditions.js';
+import { tracksBuffed, tracksChosen, tracksMighty, tracksReadiness } from './conditions.js';
 import { effectiveMight } from './combat.js';
 import { MIGHTY_MIGHT_COST } from './costReduction.js';
 import { isUnitDef } from './tokens.js';
@@ -403,6 +403,17 @@ function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent):
         const stamped = stampEvents(c.state, extra);
         all.push(...stamped);
       }
+    }
+    // "When you buff a unit": a unit on the board that was not buffed before and is now.
+    if (tracksBuffed(cards)) {
+      const extra: GameEventInput[] = [];
+      for (const o of Object.values(c.state.objects)) {
+        const before = state.objects[o.id];
+        if (!before || !o.buffed || before.buffed) continue;
+        if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') continue;
+        extra.push({ type: 'UNIT_BUFFED', objectId: o.id });
+      }
+      if (extra.length > 0) all.push(...stampEvents(c.state, extra));
     }
     // X9 (709): "becomes Mighty": a unit that was on the board with Might below 5 and now has 5 or more.
     if (tracksMighty(cards)) {
