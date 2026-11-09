@@ -67,3 +67,50 @@ describe('parser: limited counters (R80)', () => {
     ).toEqual([{ op: 'COUNTER_SPELL', maxEnergy: 4, maxPower: 1 }]);
   });
 });
+
+describe('scenario: "Counter a spell if an opponent has played another spell this turn" (Crumbling Sands)', () => {
+  const text = 'Counter a spell if an opponent has played another spell this turn.';
+  const counter = parseSpellText(text) ?? [];
+
+  it('reads the counter with its condition on the countered spell', () => {
+    // Tests Rule 359.3: parsed spell text
+    expect(counter).toEqual([{ op: 'COUNTER_SPELL', when: { kind: 'OPP_OTHER_SPELL', slot: 0 } }]);
+  });
+
+  /** p0 plays `n` flares at a unit, p1 answers the last with the guard; returns the damage the unit took. */
+  function damageAfter(n: number): number {
+    const cards = counterCard(counter[0] as CardEffect);
+    const sc = Scenario.start({}, cards);
+    const victim = sc.putUnit('p1', sc.kit('p1').grunt, 'base');
+    sc.state.objects[victim]!.mightBonus = 9; // survives the damage
+    sc.giveRunes('p0', 4);
+    sc.giveRunes('p1', 2);
+    const guard = sc.putInHand('p1', 'fx-tide-guard');
+    let last = '';
+    for (let i = 0; i < n; i++) {
+      if (i > 0) {
+        sc.pass('p1');
+        sc.pass('p0'); // the earlier flare resolves
+      }
+      last = sc.putInHand('p0', 'fx-flare');
+      sc.play('p0', last, {
+        payment: sc.exhaustPlan('p0', 1),
+        targets: [{ kind: 'object', id: victim }],
+      });
+    }
+    sc.play('p1', guard, {
+      payment: sc.exhaustPlan('p1', 1),
+      targets: [{ kind: 'object', id: last }],
+    });
+    for (let k = 0; k < 10 && sc.state.flow.chain.length > 0; k++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    return sc.state.objects[victim]?.damage ?? 0;
+  }
+
+  it('counters the second spell, but not the first one of the turn', () => {
+    // Tests Rule 359.3: the counter works only when its condition holds as it resolves
+    expect(damageAfter(2)).toBe(1); // the second flare was countered
+    expect(damageAfter(1)).toBe(1); // the only flare resolved: nothing to counter
+  });
+});

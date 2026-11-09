@@ -2820,6 +2820,18 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       }
       continue;
     }
+    // "Counter a spell if an opponent has played another spell this turn" (Crumbling Sands).
+    const cs = /^(Counter a spell) if an opponent has played another spell this turn$/i.exec(
+      list[i] as string,
+    );
+    if (cs) {
+      const before = out.length;
+      if (!parseSpellSentence(cs[1] as string, st, out) || out.length !== before + 1) return null;
+      const ce = out[before] as CardEffect;
+      if (ce.op !== 'COUNTER_SPELL') return null;
+      ce.when = { kind: 'OPP_OTHER_SPELL', slot: ce.slot ?? 0 };
+      continue;
+    }
     // "... If <condition>, <effect>": the effect carries its own condition (checked as it resolves).
     const cw = /^If (.+?), (.+)$/i.exec(list[i] as string);
     if (cw && !/^you do$/i.test(cw[1] as string) && !/ instead$/i.test(list[i] as string)) {

@@ -815,6 +815,24 @@ export function returnToHand(state: GameState, o: CardInstance, out: GameEventIn
   state.players[playerIndex(player)].hand.push(o.id);
 }
 
+/** Spells the opponents of `controller` played this turn, not counting `exceptId` (the spell being countered). */
+function opponentOtherSpells(
+  state: GameState,
+  cards: CardDatabase,
+  controller: PlayerId,
+  exceptId: string | undefined,
+): number {
+  const opp = state.players[playerIndex(controller === 'p0' ? 'p1' : 'p0')];
+  const rec = opp?.playedThisTurn;
+  if (!rec || rec.turn !== state.turn.number) return 0;
+  const played = rec.objectIds.filter(
+    (id) => cards[state.objects[id]?.cardId ?? '']?.type === 'SPELL',
+  ).length;
+  // The spell being countered is one of those plays when it is the opponent's own.
+  const target = exceptId === undefined ? undefined : state.objects[exceptId];
+  return target && target.controller !== controller ? Math.max(0, played - 1) : played;
+}
+
 /** "Banish it": a unit leaves the Board for its owner's banishment (a token ceases to exist, 186.1). Mutates. */
 function banishUnit(state: GameState, o: CardInstance): void {
   const ps = state.players[playerIndex(o.controller)];
@@ -1233,7 +1251,9 @@ export function runEffects(
         : c.kind === 'TARGET_MIGHT'
           ? state.objects[ids[c.slot] ?? ''] !== undefined &&
             mightOf(state.objects[ids[c.slot] ?? ''] as CardInstance) <= c.max
-          : evalCondition(state, cards, c, controller, sourceObjectId);
+          : c.kind === 'OPP_OTHER_SPELL'
+            ? opponentOtherSpells(state, cards, controller, ids[c.slot]) > 0
+            : evalCondition(state, cards, c, controller, sourceObjectId);
   let lastDid = true;
   let lastKilled = false;
   for (const e of effects) {
