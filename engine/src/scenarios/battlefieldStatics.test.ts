@@ -767,3 +767,36 @@ describe('scenario: "Choose an occupied enemy battlefield" (Rally for War)', () 
     expect(recruits.every((o) => o.zone.kind === 'battlefield' && o.zone.battlefieldId === 'bf1')).toBe(true);
   });
 });
+
+describe('scenario: "I can\'t be played on your first, second, or third turns" (Ol\' Poro)', () => {
+  const text = "I can't be played on your first, second, or third turns.";
+
+  it('reads as a self restriction', () => {
+    // Tests Rule 355: a card can only be played when its restrictions allow it
+    expect(parseStaticLines(text)?.statics).toEqual([{ affects: 'SELF', restrict: 'NO_PLAY_EARLY' }]);
+  });
+
+  it('refuses the play on the first three turns of its player and allows the fourth', () => {
+    // Tests Rule 355: a card can only be played when its restrictions allow it
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': { ...base('fx-grunt'), statics: parseStaticLines(text)?.statics ?? [] },
+    };
+    const sc = Scenario.start({}, cards);
+    const grunt = sc.putInHand('p0', 'fx-grunt');
+    const tryPlay = (turn: number): boolean => {
+      const s = structuredClone(sc.state);
+      s.turn.number = turn;
+      return reduce(s, cards, {
+        type: 'PLAY_CARD',
+        playerId: 'p0',
+        cardInstanceId: grunt,
+        payment: sc.exhaustPlan('p0', 2),
+        location: { kind: 'base' },
+      }).ok;
+    };
+    expect(tryPlay(1)).toBe(false); // p0's first turn
+    expect(tryPlay(5)).toBe(false); // p0's third turn
+    expect(tryPlay(7)).toBe(true); // p0's fourth turn
+  });
+});

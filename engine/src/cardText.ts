@@ -2054,6 +2054,9 @@ function parseDeathReplaceStatic(body: string): StaticAbility | null {
   }
   if (/^Units can['’]t be played here$/i.test(body))
     return { affects: 'SELF', restrict: 'NO_PLAY_HERE' };
+  if (/^I can['’]t be played on your first, second, or third turns$/i.test(body)) {
+    return { affects: 'SELF', restrict: 'NO_PLAY_EARLY' };
+  }
   if (/^Players can['’]t score here until their third turn$/i.test(body)) {
     return { affects: 'SELF', restrict: 'NO_EARLY_SCORE' };
   }

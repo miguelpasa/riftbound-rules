@@ -485,6 +485,13 @@ export function playCard(
   if (!timing.ok) return timing;
 
   // 4. Choices (355): location and targets.
+  // Ol' Poro: "I can't be played on your first, second, or third turns" (the player's own turns).
+  if (def.statics?.some((s) => s.restrict === 'NO_PLAY_EARLY')) {
+    const n = state.turn.number;
+    if ((pid === 'p0' ? Math.ceil(n / 2) : Math.floor(n / 2)) <= 3) {
+      return ruleError('KEYWORD_RESTRICTION', `${def.name} cannot be played on your first three turns`);
+    }
+  }
   let location: NonNullable<ChainItem['location']> = { kind: 'base' };
   if (intent.location?.kind === 'battlefield') {
     const bfId = intent.location.battlefieldId;
