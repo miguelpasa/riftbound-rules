@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { parseCardAbilities } from '../cardText.js';
+import { parseCardAbilities, parseSpellText } from '../cardText.js';
+import { runEffects } from '../effects.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
@@ -40,5 +41,57 @@ describe('scenario: "When you choose a unit" (Jae Medarda, Spirit Wheel, Blade D
     }
     // one card played from hand, one drawn
     expect(sc.state.players[0]?.hand.length).toBe(handBefore + 1 - 1 + 1);
+  });
+});
+
+describe('scenario: "Choose two units" (Clash of Giants)', () => {
+  it('lets the caster pick any two different units and they hit each other', () => {
+    // Tests Rule 573: damage dealt by an effect
+    const effects = parseSpellText(
+      'Choose two units. They deal damage equal to their Mights to each other.',
+    );
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects: effects ?? [] },
+    };
+    const sc = Scenario.start({}, cards);
+    const a = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const b = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [
+        { kind: 'object', id: a },
+        { kind: 'object', id: b },
+      ],
+    });
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    expect(sc.obj(a).damage + sc.obj(b).damage).toBeGreaterThan(0);
+  });
+});
+
+describe('scenario: "If you do," follow-ups (Adaptatron)', () => {
+  const parsed = parseCardAbilities(
+    "When I conquer, you may kill a gear. If you do, buff me. (If I don't have a buff, I get a +1 [M] buff.)",
+  );
+
+  it('reads the second effect as conditional on the first', () => {
+    // Tests Rule 583: effects of a triggered ability resolve in order
+    expect(parsed?.triggers[0]?.effects.map((e) => [e.op, e.ifDid ?? false])).toEqual([
+      ['KILL_GEAR', false],
+      ['BUFF_SELF', true],
+    ]);
+  });
+
+  it('buffs only when a gear was actually killed', () => {
+    // Tests Rule 583: "if you do" needs the earlier instruction to have been carried out
+    const effects = parsed?.triggers[0]?.effects ?? [];
+    const sc = Scenario.start({});
+    const me = sc.putUnit('p0', 'fx-ash-tank', 'bf1');
+    const none = structuredClone(sc.state);
+    runEffects(none, 'p0', effects, sc.cards, [], '', me);
+    expect(none.objects[me]?.mightBonus ?? 0).toBe(0);
   });
 });

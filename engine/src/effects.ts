@@ -1130,8 +1130,11 @@ export function runEffects(
     out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount });
   };
 
+  let lastDid = true;
   for (const e of effects) {
     if (state.gameStatus !== 'IN_PROGRESS') break;
+    if (e.ifDid && !lastDid) continue;
+    const mark = out.length;
     switch (e.op) {
       case 'DRAW': {
         // R44: "draw 1 for each other battlefield you control" (the source's own battlefield is excluded).
@@ -2139,6 +2142,7 @@ export function runEffects(
         }
         break;
     }
+    lastDid = out.slice(mark).some((ev) => ev.type !== 'EFFECT_FIZZLED');
   }
   return out;
 }

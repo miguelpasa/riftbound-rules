@@ -147,7 +147,10 @@ export interface LookTake {
   maxPower?: number;
 }
 
-export type CardEffect =
+/** `ifDid`: "If you do, ...": runs only when the previous effect changed the game. */
+export type CardEffect = CardEffectCore & { ifDid?: true };
+
+type CardEffectCore =
   /** `perOtherBattlefield`: draw `amount` for each OTHER battlefield the controller controls (R44). */
   | {
       op: 'DRAW';

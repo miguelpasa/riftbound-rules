@@ -1435,6 +1435,13 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     });
     return true;
   }
+  if (/^Choose two units$/i.test(sen)) {
+    const adds: SlotDecl[] = [{ side: 'any' }, { side: 'any', another: true }];
+    if (!canAdd(st, adds)) return false;
+    st.slots.push(...adds);
+    delete st.it;
+    return true;
+  }
   m = CHOOSE.exec(sen);
   if (m) {
     const first: SlotDecl = {
@@ -2378,6 +2385,14 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       const last = out[out.length - 1];
       if (last?.op !== 'STUN_TARGET' || last.orReturn) return null;
       last.orReturn = true;
+      continue;
+    }
+    // "... If you do, <effect>": the effect runs only when the previous effect actually did something.
+    const ifDo = /^If you do, (.+)$/i.exec(list[i] as string);
+    if (ifDo) {
+      const before = out.length;
+      if (before === 0 || !parseSpellSentence(ifDo[1] as string, st, out)) return null;
+      for (let k = before; k < out.length; k++) (out[k] as CardEffect).ifDid = true;
       continue;
     }
     if (attachInstead(list[i] as string, out)) continue;
