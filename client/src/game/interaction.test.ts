@@ -7,6 +7,8 @@ import {
   type PlayIntent,
   playVariants,
   playableIds,
+  targetKey,
+  targetStep,
   primaryAction,
   variantLabel,
 } from './interaction';
@@ -92,5 +94,34 @@ describe('Repeat variants (R42)', () => {
     expect(variants).toHaveLength(1);
     expect(variantLabel(variants[0]!, view, cards)).toMatch(/^Play to /);
     expect(playableIds(legal).has(ambusher)).toBe(true);
+  });
+});
+
+describe('interaction helpers: battlefield and location targets', () => {
+  const play = (targets: PlayIntent['targets']): PlayIntent => ({
+    type: 'PLAY_CARD',
+    playerId: 'p0',
+    cardInstanceId: 'o1',
+    payment: [],
+    targets,
+  });
+
+  it('keeps variants that differ only by the chosen battlefield apart, and steps through a unit then a place', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    const a = play([
+      { kind: 'object', id: 'o7' },
+      { kind: 'battlefield', battlefieldId: 'bf0' },
+    ]);
+    const b = play([
+      { kind: 'object', id: 'o7' },
+      { kind: 'battlefield', battlefieldId: 'base' },
+    ]);
+    expect(playVariants([a, b], 'o1')).toHaveLength(2);
+    expect(targetKey({ kind: 'battlefield', battlefieldId: 'bf0' })).toBe('loc:bf0');
+    const first = targetStep([a, b], []);
+    expect([...first.candidates]).toEqual(['o7']);
+    const second = targetStep([a, b], ['o7']);
+    expect([...second.candidates].sort()).toEqual(['loc:base', 'loc:bf0']);
+    expect(targetStep([a, b], ['o7', 'loc:bf0']).exact).toEqual([a]);
   });
 });

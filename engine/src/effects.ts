@@ -39,12 +39,28 @@ import { clearBoardState } from './zoneReset.js';
 /** Maximum number of target combinations offered to the AI / UI per spell. */
 export const MAX_TARGET_COMBOS = 48;
 
-type TargetKind = 'unit' | 'gear' | 'unitOrGear' | 'spell' | 'equipment' | 'trash';
+type TargetKind =
+  | 'unit'
+  | 'gear'
+  | 'unitOrGear'
+  | 'spell'
+  | 'equipment'
+  | 'trash'
+  /** X-loc: a battlefield (Target kind 'battlefield'). */
+  | 'battlefield'
+  /** X-loc: where a moved unit goes: a battlefield or (as 'base') its own Base. */
+  | 'location';
+
+/** The Base as a chosen location. */
+export const BASE_LOCATION = 'base';
 
 /** What a slot may hold. */
 interface Spec {
   kind: TargetKind;
   side: TargetSide;
+  /** Location slots: the earlier slot that holds the unit being moved, and which locations are allowed. */
+  forSlot?: number;
+  dest?: 'ANY' | 'BATTLEFIELD' | 'OPEN' | 'CONTROLLED' | 'ENEMY_OCCUPIED' | 'TO_OR_FROM_BASE';
   atBattlefield?: boolean;
   /** R84: the unit stands in a Base. */
   inBase?: boolean;
@@ -174,6 +190,21 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
       if (reqs.has(slot)) continue;
       const count = 'count' in e && e.count ? { count: e.count } : {};
       reqs.set(slot, { slot, ...specOf(e), ...count });
+    } else if (e.op === 'BF_AREA') {
+      const slot = e.slot ?? 0;
+      if (!reqs.has(slot)) reqs.set(slot, { slot, kind: 'battlefield', side: 'any' });
+    } else if (e.op === 'MOVE_TARGET') {
+      const slot = e.slot ?? 0;
+      if (!reqs.has(slot)) reqs.set(slot, { slot, kind: 'unit', side: e.side ?? 'any' });
+      if (!reqs.has(e.destSlot)) {
+        reqs.set(e.destSlot, {
+          slot: e.destSlot,
+          kind: 'location',
+          side: 'any',
+          forSlot: slot,
+          dest: e.dest ?? 'ANY',
+        });
+      }
     } else if (e.op === 'MUTUAL_DAMAGE') {
       e.slots.forEach((slot, i) => {
         if (reqs.has(slot)) return;
@@ -395,8 +426,57 @@ function oneBattlefield(state: GameState, ids: readonly string[]): boolean {
   return true;
 }
 
+/**
+ * The chosen targets as positional keys: an object id, or 'bf:<id>' for a chosen battlefield / location
+ * ('bf:base' = the moved unit's own Base). Players are not slots.
+ */
 function objectIds(targets: readonly Target[]): string[] {
-  return targets.flatMap((t) => (t.kind === 'object' ? [t.id] : []));
+  return targets.flatMap((t) =>
+    t.kind === 'object' ? [t.id] : t.kind === 'battlefield' ? ['bf:' + t.battlefieldId] : [],
+  );
+}
+
+/** X-loc: is the chosen battlefield / location key legal for this slot, given the other picks? */
+function legalLocation(
+  state: GameState,
+  cards: CardDatabase,
+  controller: PlayerId,
+  spec: Spec,
+  key: string | undefined,
+  ids: readonly string[],
+): boolean {
+  if (key === undefined || !key.startsWith('bf:')) return false;
+  const loc = key.slice(3);
+  if (spec.kind === 'battlefield') return state.battlefields.some((b) => b.id === loc);
+  const unit = spec.forSlot === undefined ? undefined : state.objects[ids[spec.forSlot] ?? ''];
+  if (!unit || (unit.zone.kind !== 'base' && unit.zone.kind !== 'battlefield')) return false;
+  if (loc === BASE_LOCATION) {
+    return (
+      unit.zone.kind === 'battlefield' && (spec.dest === 'ANY' || spec.dest === 'TO_OR_FROM_BASE')
+    );
+  }
+  const bf = state.battlefields.find((b) => b.id === loc);
+  if (!bf) return false;
+  if (unit.zone.kind === 'battlefield' && unit.zone.battlefieldId === loc) return false;
+  // Unforgiven: "to or from its base": a unit at a battlefield can only go to its Base.
+  if (spec.dest === 'TO_OR_FROM_BASE' && unit.zone.kind === 'battlefield') return false;
+  const there = Object.values(state.objects).filter(
+    (o) =>
+      o.zone.kind === 'battlefield' &&
+      o.zone.battlefieldId === loc &&
+      isUnitDef(cards[o.cardId]) &&
+      o.id !== unit.id,
+  );
+  switch (spec.dest) {
+    case 'OPEN':
+      return there.length === 0;
+    case 'CONTROLLED':
+      return bf.controller === controller;
+    case 'ENEMY_OCCUPIED':
+      return there.some((o) => o.controller !== unit.controller);
+    default:
+      return true;
+  }
 }
 
 /** Are the chosen targets a legal choice for this list of effects (355.10)? */
@@ -414,6 +494,10 @@ export function spellTargetsLegal(
   const ids = objectIds(targets);
   const seen = new Set<string>();
   for (const r of reqs) {
+    if (r.kind === 'battlefield' || r.kind === 'location') {
+      if (!legalLocation(state, cards, controller, r, ids[r.slot], ids)) return false;
+      continue;
+    }
     const picks = r.count ? ids.slice(r.slot) : ids.slice(r.slot, r.slot + 1);
     const min = r.count ? r.count.min : 1;
     const max = r.count ? r.count.max : 1;
@@ -445,7 +529,7 @@ export function abilityTargetsLegal(
   sourceId = '',
 ): boolean {
   const max = targetRequirements(effects).reduce((n, r) => n + (r.count ? r.count.max : 1), 0);
-  if (targets.length > max || targets.some((t) => t.kind !== 'object')) return false;
+  if (targets.length > max || targets.some((t) => t.kind === 'player')) return false;
   return spellTargetsLegal(state, cards, controller, effects, targets, sourceId);
 }
 
@@ -485,6 +569,10 @@ export function enumerateSpellTargets(
   if (reqs.length === 0) return null;
   const all = Object.values(state.objects).sort((a, b) => num(a.id) - num(b.id));
   const options = reqs.map((r) => {
+    if (r.kind === 'battlefield' || r.kind === 'location') {
+      const keys = state.battlefields.map((b) => ['bf:' + b.id]);
+      return r.kind === 'location' ? [...keys, ['bf:' + BASE_LOCATION]] : keys;
+    }
     const cand = all
       .filter((o) => legalForSpec(state, cards, controller, r, o, sourceId, opts.hiddenAt))
       .map((o) => o.id);
@@ -500,11 +588,18 @@ export function enumerateSpellTargets(
     return out;
   });
   let acc: string[][] = [[]];
-  for (const opt of options) {
+  for (const [oi, opt] of options.entries()) {
     const next: string[][] = [];
+    const req = reqs[oi] as TargetReq;
     for (const prefix of acc) {
       for (const choice of opt) {
         if (choice.some((id) => prefix.includes(id))) continue;
+        if (
+          req.kind === 'location' &&
+          !legalLocation(state, cards, controller, req, choice[0], prefix)
+        ) {
+          continue;
+        }
         next.push([...prefix, ...choice]);
         if (next.length >= MAX_TARGET_COMBOS) break;
       }
@@ -518,7 +613,13 @@ export function enumerateSpellTargets(
     if (acc.length === 0) return [];
     acc.push([]);
   }
-  return acc.map((ids) => ids.map((id) => ({ kind: 'object' as const, id })));
+  return acc.map((ids) =>
+    ids.map((id): Target =>
+      id.startsWith('bf:')
+        ? { kind: 'battlefield', battlefieldId: id.slice(3) }
+        : { kind: 'object', id },
+    ),
+  );
 }
 
 /** Units (and tokens) on the board, in object order. */
@@ -1044,6 +1145,63 @@ export function runEffects(
         state.winner = controller;
         out.push({ type: 'GAME_ENDED', winner: controller });
         break;
+      case 'BF_AREA': {
+        const key = ids[e.slot ?? 0];
+        const bfId = key?.startsWith('bf:') ? key.slice(3) : undefined;
+        if (!bfId || !state.battlefields.some((b) => b.id === bfId)) {
+          fizzle();
+          break;
+        }
+        for (const u of boardUnits(state, cards)) {
+          if (u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== bfId) continue;
+          if (u.controller === controller) {
+            if (e.friendlyMight) addTemp(u, e.friendlyMight, true);
+            if (e.keywords) {
+              u.tempKeywords = [...(u.tempKeywords ?? []), ...e.keywords.map((k) => ({ ...k }))];
+              out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
+            }
+          } else if (e.enemyMight) {
+            const room = e.minMight === undefined ? e.enemyMight : mightOf(u) - e.minMight;
+            const cut = Math.max(0, Math.min(e.enemyMight, room));
+            if (cut > 0) addTemp(u, -cut, true);
+          }
+        }
+        break;
+      }
+      case 'MOVE_TARGET': {
+        const slot = e.slot ?? 0;
+        const unit = state.objects[ids[slot] ?? ''];
+        const key = ids[e.destSlot];
+        const spec: Spec = { kind: 'location', side: 'any', forSlot: slot, dest: e.dest ?? 'ANY' };
+        if (
+          !unit ||
+          !isLegalEffectTarget(
+            state,
+            cards,
+            controller,
+            { op: 'KILL_TARGET', slot, ...(e.side ? { side: e.side } : {}) },
+            unit,
+            sourceObjectId,
+          ) ||
+          !legalLocation(state, cards, controller, spec, key, ids)
+        ) {
+          fizzle();
+          break;
+        }
+        const loc = (key as string).slice(3);
+        if (loc === BASE_LOCATION) {
+          moveToBase(state, unit, out);
+        } else {
+          moveHere(state, cards, unit, loc, out);
+          const bf = state.battlefields.find((b) => b.id === loc);
+          // 190.3, 452: a unit arriving at a battlefield its owner does not control contests it.
+          if (bf && bf.controller !== unit.controller) bf.contestedBy = unit.controller;
+        }
+        if (e.ready) {
+          unit.ready = true;
+        }
+        break;
+      }
       case 'DAMAGE_TARGET':
       case 'BUFF_TARGET':
       case 'KILL_TARGET':

@@ -151,7 +151,7 @@ function validateTarget(state: GameState, t: Target): RuleError | null {
     return null;
   }
   if (t.kind === 'battlefield') {
-    return state.battlefields.some((b) => b.id === t.battlefieldId)
+    return t.battlefieldId === 'base' || state.battlefields.some((b) => b.id === t.battlefieldId)
       ? null
       : ruleError('ILLEGAL_TARGET', `battlefield ${t.battlefieldId} does not exist`);
   }

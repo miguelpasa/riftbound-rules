@@ -65,6 +65,11 @@ export function BaseRow({ owner, ui }: BaseRowProps) {
   }
 
   const option = mine ? ui.destOptions.get('base') : undefined;
+  // X-loc: choosing where a moved unit goes: `loc:base` is the Base of the unit's controller (the first pick).
+  const targeting = ui.targeting;
+  const movedUnit = targeting?.chosen[0] ? view.objects[targeting.chosen[0]] : undefined;
+  const baseOwner = movedUnit && !isHiddenCard(movedUnit) ? movedUnit.controller : seat;
+  const pickable = targeting?.candidates.has('loc:base') === true && baseOwner === owner;
   const dragging = mine && ui.dragIds !== null;
   const canTarget = mine && ui.selected.length > 0;
 
@@ -80,13 +85,19 @@ export function BaseRow({ owner, ui }: BaseRowProps) {
       data-dest={mine ? 'base' : undefined}
       data-tutorial-id={mine ? 'base' : 'opp-base'}
       data-legal-dest={option ? 'true' : undefined}
+      data-pickable={pickable ? 'true' : undefined}
       onClick={
-        canTarget
+        pickable
           ? (e) => {
               e.stopPropagation();
-              void ui.moveTo('base');
+              ui.pickTarget('loc:base');
             }
-          : undefined
+          : canTarget
+            ? (e) => {
+                e.stopPropagation();
+                void ui.moveTo('base');
+              }
+            : undefined
       }
       onDragOver={mine ? onDragOver : undefined}
       onDrop={
@@ -98,13 +109,25 @@ export function BaseRow({ owner, ui }: BaseRowProps) {
           : undefined
       }
       className={`flex flex-col gap-2 rounded-xl border bg-slate-900/70 p-2 ${
-        option ? 'border-amber-300 ring-2 ring-amber-300/60' : 'border-slate-800'
+        option || pickable ? 'border-amber-300 ring-2 ring-amber-300/60' : 'border-slate-800'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
           {mine ? 'Your base' : "Opponent's base"}
         </h2>
+        {pickable ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              ui.pickTarget('loc:base');
+            }}
+            className="rounded-md bg-amber-300 px-2 py-0.5 text-xs font-semibold text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            {mine ? 'Choose your base' : 'Choose their base'}
+          </button>
+        ) : null}
         {mine && option ? (
           <button
             type="button"

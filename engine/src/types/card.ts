@@ -536,7 +536,33 @@ export type CardEffect =
       count?: TargetCount;
     } & TargetScope)
   /** "Give me [Ganking] this turn" / "Give your other units here [Shield] this turn" (R43). */
-  | { op: 'GRANT_KEYWORDS'; keywords: KeywordInstance[]; to: 'SELF' | 'OTHERS_HERE' };
+  | { op: 'GRANT_KEYWORDS'; keywords: KeywordInstance[]; to: 'SELF' | 'OTHERS_HERE' }
+  /**
+   * X-loc: "Choose a battlefield. Give friendly units there +1 [M] and enemy units there -1 [M] this turn, to a
+   * minimum of 1 [M]" / "... friendly units there [Shield 2]" (Siphon Power, For Demacia!). `slot` holds the chosen
+   * battlefield (a Target of kind 'battlefield').
+   */
+  | {
+      op: 'BF_AREA';
+      slot?: number;
+      friendlyMight?: number;
+      enemyMight?: number;
+      minMight?: number;
+      keywords?: KeywordInstance[];
+    }
+  /**
+   * X-loc: an effect Move of the unit in `slot` to the location chosen in `destSlot` (a battlefield, or the
+   * unit's own Base, written as the battlefield id 'base'). `ready` readies it afterwards.
+   */
+  | {
+      op: 'MOVE_TARGET';
+      slot?: number;
+      destSlot: number;
+      side?: TargetSide;
+      ready?: boolean;
+      /** Which locations may be chosen: any (default), only battlefields, only open ones, ones you control, ... */
+      dest?: 'ANY' | 'BATTLEFIELD' | 'OPEN' | 'CONTROLLED' | 'ENEMY_OCCUPIED' | 'TO_OR_FROM_BASE';
+    };
 
 /** Effects that choose one unit (or gear / spell) through `PLAY_CARD.targets`. */
 export type TargetedEffect = Extract<

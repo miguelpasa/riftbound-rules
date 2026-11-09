@@ -46,7 +46,16 @@ export function TargetBanner({ ui }: { ui: BoardUi }) {
             {a.type === 'CHOOSE_TRIGGER_TARGET'
               ? a.targets
                   .map((x) =>
-                    x.kind === 'object' ? cardNameOf(x.id, api.view, api.cards) : 'target',
+                    x.kind === 'object'
+                      ? cardNameOf(x.id, api.view, api.cards)
+                      : x.kind === 'battlefield'
+                        ? x.battlefieldId === 'base'
+                          ? 'the Base'
+                          : (api.cards[
+                              api.view.battlefields.find((b) => b.id === x.battlefieldId)?.cardId ??
+                                ''
+                            ]?.name ?? 'a battlefield')
+                        : 'target',
                   )
                   .join(' + ') || 'Decline (do nothing)'
               : ''}

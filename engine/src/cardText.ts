@@ -97,6 +97,8 @@ interface SlotDecl {
   atBattlefield?: boolean;
   /** R42: "... unit here" / "another ... unit" (relative to the ability's source). */
   here?: boolean;
+  /** X-loc: a chosen battlefield, or the location a moved unit goes to (not a unit). */
+  kind?: 'battlefield' | 'location';
 }
 
 interface ParseState {
@@ -1029,7 +1031,9 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
 /** May `add` join the slots already chosen? Several slots must be provably different units. */
 function canAdd(st: ParseState, add: SlotDecl[]): boolean {
   if (st.locked) return false;
-  const all = [...st.slots, ...add];
+  // Battlefield / location choices are not units: at most one of them, beside the unit rules below.
+  if ([...st.slots, ...add].filter((d) => d.kind !== undefined).length > 1) return false;
+  const all = [...st.slots, ...add].filter((d) => d.kind === undefined);
   if (all.length <= 1) return true;
   if (all.length > 2) return false;
   const [a, b] = all as [SlotDecl, SlotDecl];
@@ -1061,7 +1065,61 @@ function giveEffect(
 }
 
 function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boolean {
-  let m = CHOOSE.exec(sen);
+  // X-loc: "Choose a battlefield" declares a battlefield slot for the sentence that follows.
+  if (/^Choose a battlefield$/i.test(sen)) {
+    const add: SlotDecl = { side: 'any', kind: 'battlefield' };
+    if (!canAdd(st, [add])) return false;
+    st.slots.push(add);
+    delete st.it;
+    return true;
+  }
+  // "Give friendly units there +1 [M] this turn and enemy units there -1 [M] this turn, to a minimum of 1 [M]".
+  let m = new RegExp(
+    `^Give friendly units there \\+(\\d+) \\[M\\] this turn and enemy units there ${DASH}(\\d+) \\[M\\] this turn, to a minimum of (\\d+) \\[M\\]$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const bf = st.slots.findIndex((d) => d.kind === 'battlefield');
+    if (bf < 0) return false;
+    out.push({
+      op: 'BF_AREA',
+      slot: bf,
+      friendlyMight: Number(m[1]),
+      enemyMight: Number(m[2]),
+      minMight: Number(m[3]),
+    });
+    return true;
+  }
+  // "Give friendly units there [Shield 2] this turn".
+  m = /^Give friendly units there ((?:\{[^}]+\}(?: and )?)+) this turn$/i.exec(sen);
+  if (m) {
+    const bf = st.slots.findIndex((d) => d.kind === 'battlefield');
+    const keywords = parseKwList(m[1] ?? '');
+    if (bf < 0 || !keywords) return false;
+    out.push({ op: 'BF_AREA', slot: bf, keywords });
+    return true;
+  }
+  // "Move an enemy unit" / "Move a friendly unit and ready it": the unit and where it goes are both chosen.
+  m = new RegExp(`^Move an? ${SIDE}unit( and ready it)?( to or from its base)?$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    const unit: SlotDecl = { side: s ?? 'any' };
+    const where: SlotDecl = { side: 'any', kind: 'location' };
+    if (!canAdd(st, [unit, where])) return false;
+    const slot = st.slots.length;
+    st.slots.push(unit, where);
+    delete st.it;
+    out.push({
+      op: 'MOVE_TARGET',
+      slot,
+      destSlot: slot + 1,
+      ...sideProp(s),
+      ...(m[2] ? { ready: true } : {}),
+      ...(m[3] ? { dest: 'TO_OR_FROM_BASE' as const } : {}),
+    });
+    return true;
+  }
+  m = CHOOSE.exec(sen);
   if (m) {
     const first: SlotDecl = {
       side: side(m[1]) ?? 'any',

@@ -13,6 +13,7 @@ import type {
   PlayLocation,
   PlayerId,
   StandardMoveIntent,
+  Target,
 } from '@riftbound/engine';
 
 export type PlayIntent = Extract<Intent, { type: 'PLAY_CARD' }>;
@@ -41,13 +42,21 @@ export function playVariants(legal: readonly Intent[], cardInstanceId: string): 
   const out: PlayIntent[] = [];
   for (const i of legal) {
     if (i.type !== 'PLAY_CARD' || i.cardInstanceId !== cardInstanceId) continue;
-    const tgt = (i.targets ?? []).map((t) => (t.kind === 'object' ? t.id : '')).join(',');
+    const tgt = (i.targets ?? []).map(targetKey).join(',');
     const key = `${i.location ? destKey(i.location) : '-'}|${i.additionalCosts?.accelerate ? 'acc' : ''}${i.additionalCosts?.repeat ? 'rep' : ''}${i.additionalCosts?.extra ? 'ext' : ''}${i.mode !== undefined ? `m${i.mode}` : ''}|${tgt}`;
     if (seen.has(key)) continue; // first matching payment wins
     seen.add(key);
     out.push(i);
   }
   return out;
+}
+
+/**
+ * A chosen target as a click key: an object id, or `loc:<battlefield id>` for a battlefield / location (`loc:base` =
+ * the moved unit's own Base). Players are not picked on the board.
+ */
+export function targetKey(t: Target): string {
+  return t.kind === 'object' ? t.id : t.kind === 'battlefield' ? 'loc:' + t.battlefieldId : '';
 }
 
 export function playableIds(legal: readonly Intent[]): Set<string> {
@@ -98,6 +107,14 @@ export function variantLabel(
   if (intent.additionalCosts?.extra) parts.push('Pay the additional cost');
   if (intent.mode !== undefined) parts.push(`Mode ${intent.mode + 1}`);
   for (const t of intent.targets ?? []) {
+    if (t.kind === 'battlefield') {
+      parts.push(
+        t.battlefieldId === 'base'
+          ? 'to the Base'
+          : `at ${locationName({ kind: 'battlefield', battlefieldId: t.battlefieldId }, view, cards)}`,
+      );
+      continue;
+    }
     if (t.kind !== 'object') continue;
     const o = view.objects[t.id];
     if (!o || isHiddenCard(o)) {
@@ -113,7 +130,7 @@ export function variantLabel(
 // ------------------------------------------------------------------ click-to-target
 
 const objectTargetIds = (i: TargetedIntent): string[] =>
-  (i.targets ?? []).flatMap((t) => (t.kind === 'object' ? [t.id] : []));
+  (i.targets ?? []).flatMap((t) => (t.kind === 'player' ? [] : [targetKey(t)]));
 
 /**
  * All legal PLAY_CARD variants of a card IF it is a targeted spell the board can drive: every legal
@@ -139,8 +156,9 @@ function drivable<T extends TargetedIntent>(all: T[], view: ClientGameState): T[
   if (all.length === 0) return [];
   for (const v of all) {
     const targets = v.targets ?? [];
-    if (targets.length === 0 || targets.some((t) => t.kind !== 'object')) return [];
+    if (targets.length === 0 || targets.some((t) => t.kind === 'player')) return [];
     for (const id of objectTargetIds(v)) {
+      if (id.startsWith('loc:')) continue; // a battlefield or Base location
       const o = view.objects[id];
       if (!o || isHiddenCard(o)) return [];
       if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') return [];

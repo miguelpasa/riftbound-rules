@@ -46,6 +46,8 @@ export function BattlefieldView({ battlefield: bf, ui }: BattlefieldViewProps) {
 
   const slot = bf.facedownSlotId ? view.objects[bf.facedownSlotId] : undefined;
   const option = ui.destOptions.get(bf.id);
+  // X-loc: a spell or ability is choosing a battlefield / location: this one may be picked.
+  const pickable = ui.targeting?.candidates.has('loc:' + bf.id) === true;
   const dragging = ui.dragIds !== null;
   const canTarget = ui.selected.length > 0;
   const who = (p: PlayerId | null): string =>
@@ -70,13 +72,19 @@ export function BattlefieldView({ battlefield: bf, ui }: BattlefieldViewProps) {
       data-dest={bf.id}
       data-tutorial-id={`battlefield:${view.battlefields.findIndex((b) => b.id === bf.id)}`}
       data-legal-dest={option ? 'true' : undefined}
+      data-pickable={pickable ? 'true' : undefined}
       onClick={
-        canTarget
+        pickable
           ? (e) => {
               e.stopPropagation();
-              void ui.moveTo(bf.id);
+              ui.pickTarget('loc:' + bf.id);
             }
-          : undefined
+          : canTarget
+            ? (e) => {
+                e.stopPropagation();
+                void ui.moveTo(bf.id);
+              }
+            : undefined
       }
       onDragOver={onDragOver}
       onDrop={(e) => {
@@ -84,7 +92,7 @@ export function BattlefieldView({ battlefield: bf, ui }: BattlefieldViewProps) {
         void ui.dropOn(bf.id);
       }}
       className={`flex min-w-0 flex-1 flex-col gap-2 rounded-xl border bg-slate-900 p-2 ${
-        option ? 'border-amber-300 ring-2 ring-amber-300/60' : 'border-slate-700'
+        option || pickable ? 'border-amber-300 ring-2 ring-amber-300/60' : 'border-slate-700'
       }`}
     >
       <header className="flex flex-wrap items-center gap-1.5">
@@ -101,6 +109,18 @@ export function BattlefieldView({ battlefield: bf, ui }: BattlefieldViewProps) {
             tone="slate"
           >{`${p === seat ? 'You' : 'Opponent'} scored this turn`}</Badge>
         ))}
+        {pickable ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              ui.pickTarget('loc:' + bf.id);
+            }}
+            className="rounded-md bg-amber-300 px-2 py-0.5 text-xs font-semibold text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            {`Choose ${name}`}
+          </button>
+        ) : null}
         {option ? (
           <button
             type="button"

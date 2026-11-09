@@ -337,7 +337,10 @@ describe('parseSpellText: tokens, "it" sentences, return / move / look (R3 round
     ]);
     expect(parseSpellText('Kill all units.')).toEqual([{ op: 'KILL_ALL_UNITS' }]);
     // A destination that needs a choice is still refused.
-    expect(parseSpellText('Move an enemy unit.')).toBeNull();
+    // Now a unit and a chosen location (X-loc).
+    expect(parseSpellText('Move an enemy unit.')).toEqual([
+      { op: 'MOVE_TARGET', slot: 0, destSlot: 1, side: 'enemy' },
+    ]);
   });
 
   it('parses the complete look-at-the-top forms and refuses incomplete ones', () => {
