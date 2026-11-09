@@ -1064,6 +1064,23 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  m = new RegExp(`^Ready an? ${SIDE}gear$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: { op: 'READY_TARGET', gear: true, ...sideProp(s) },
+      decl: { side: s ?? 'any' },
+    };
+  }
+  m = new RegExp(`^Ready (?:two|2) ${SIDE}gear$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: { op: 'READY_TARGET', gear: true, ...sideProp(s), count: { min: 0, max: 2 } },
+      decl: { side: s ?? 'any' },
+      multi: true,
+    };
+  }
   m = new RegExp(`^Ready an? ${SIDE}unit$`, 'i').exec(sen);
   if (m) {
     const s = side(m[1]);
@@ -3687,6 +3704,8 @@ export function parseCardAbilities(
         legion?: boolean;
         atBattlefield?: boolean;
         costReduction?: CostReduction;
+        /** "[Empowered][>]" / "[Level N][>]" gate. */
+        when?: Condition;
         sens: string[];
       };
   const groups: Group[] = [];
@@ -3968,8 +3987,8 @@ export function parseCardAbilities(
       cur = null;
       continue;
     }
-    // R52: only triggers can be Empowered-only (statics are read by parseStaticLines).
-    if (empowered) return null;
+    // R52: only triggers and activated abilities can be Empowered-only (statics are read by parseStaticLines).
+    if (empowered && !/^(?:(?:REACTION|ACTION) )?[^:]+: /.test(sen)) return null;
     if (once) return null;
     if (/^This enters exhausted$/i.test(sen) && !legion && opts.gearLike === true) {
       out.entersExhausted = true;
@@ -4015,6 +4034,7 @@ export function parseCardAbilities(
         reaction: abReaction,
         ...(ab[1] === 'ACTION' || ab[3] === 'ACTION' ? { action: true } : {}),
         ...(legion || abLegion ? { legion: true } : {}),
+        ...(empowered && gate ? { when: gate } : {}),
         sens: [abBody],
       };
       groups.push(cur);
@@ -4118,6 +4138,7 @@ export function parseCardAbilities(
         ...(g.reaction ? { reaction: true } : {}),
         ...(g.action ? { action: true } : {}),
         ...(g.legion ? { legion: true } : {}),
+        ...(g.when ? { when: g.when } : {}),
         ...(g.atBattlefield ? { atBattlefield: true } : {}),
         ...(g.costReduction ? { costReduction: g.costReduction } : {}),
         effects,

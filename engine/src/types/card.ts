@@ -288,6 +288,8 @@ type CardEffectCore =
       side?: TargetSide;
       slot?: number;
       count?: TargetCount;
+      /** "Ready a gear": the target is a gear instead of a unit. */
+      gear?: true;
       /** R106: only units with this subtype ("ready another friendly Mech"). */
       subtype?: string;
     } & TargetScope)
@@ -1166,7 +1168,12 @@ export interface CardTrigger {
   /** R71: only for `on: 'UNIT_DIES'`. */
   dies?: DeathFilter;
   /** `on: 'UNIT_ATTACKS'`: which unit in a combat triggers it. */
-  unitFilter?: { side: 'friendly' | 'enemy'; alone?: boolean; attacking?: boolean; atMine?: boolean };
+  unitFilter?: {
+    side: 'friendly' | 'enemy';
+    alone?: boolean;
+    attacking?: boolean;
+    atMine?: boolean;
+  };
   /** Battlefield `TURN_START`: only during each player's first turn ("each player's first Beginning Phase"). */
   firstTurn?: boolean;
   /** `on: 'UNIT_CHOSEN'`: `friendly` = any friendly unit you choose (the ability's target is that unit); `self` = this unit is chosen. */
@@ -1238,6 +1245,8 @@ export interface ActivatedAbility {
   action?: boolean;
   /** "[Legion] —" before the effect: usable only while the controller has played another card this turn. */
   legion?: boolean;
+  /** "[Empowered][>]" / "[Level N][>]" before the cost: the ability exists only while this holds. */
+  when?: Condition;
   effects: CardEffect[];
 }
 

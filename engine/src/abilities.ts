@@ -29,6 +29,7 @@ import { costCardCombos, costCardsLegal, costCardsPayable, payCostCards } from '
 import { autoPlan, genericPower, payCost } from './resources.js';
 import type { TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
+import { evalCondition } from './conditions.js';
 import { legionActive } from './keywords.js';
 import { isGearDef } from './tokens.js';
 import { playerIndex, ruleError } from './types/index.js';
@@ -101,6 +102,13 @@ export function activateAbility(
   // 812: "[Legion] —" on an activated ability needs another card played this turn.
   if (ability.legion && !legionActive(state, pid, src.id)) {
     return ruleError('ABILITY_NOT_AVAILABLE', 'Legion: play another card this turn first');
+  }
+  // "[Empowered][>]" / "[Level N][>]": the ability exists only while its condition holds.
+  if (ability.when && !evalCondition(state, cards, ability.when, pid, src.id)) {
+    return ruleError(
+      'ABILITY_NOT_AVAILABLE',
+      'this ability needs its condition (Empowered / Level)',
+    );
   }
   // R52: "Use only if not Empowered": an Empower ability cannot be used again while Empowered.
   if (src.empowered && ability.effects.some((e) => e.op === 'EMPOWER_SELF')) {

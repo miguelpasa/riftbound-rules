@@ -438,7 +438,7 @@ export function convertRow(row: RawRow): ConvertResult {
   if (
     type === 'LEGEND' &&
     card.supportLevel === 'partial' &&
-    keywords.every((k) => MVP_SET.has(k.name))
+    keywords.every((k) => MVP_SET.has(k.name) || PARSED_KEYWORDS.has(k.name))
   ) {
     const parsed = parseCardAbilities(text, { legend: true });
     if (

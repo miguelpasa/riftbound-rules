@@ -502,3 +502,21 @@ describe('"a card from [Hidden]" (R110)', () => {
     );
   });
 });
+
+describe('Legends with [Empower] and activated abilities (Defender of Tomorrow)', () => {
+  // Tests: a Legend's [Empower] keyword and its Empowered-gated abilities are implemented, so it is fully supported
+  it('marks the Legend full and keeps the Empowered gate on the second ability', () => {
+    const { card } = convertRow(
+      row({
+        cardType: 'Legend',
+        cardTypeLabels: ['Legend'],
+        energy: null,
+        might: null,
+        abilityEffective:
+          '[Empower] [2][A][A] ([2][A][A]: Empower me. Use only if not Empowered.)\n[1], [E]: Ready a gear.\n[Empowered][>] [1], [E]: Ready 2 gear.',
+      }),
+    );
+    expect(card?.supportLevel).toBe('full');
+    expect(card?.abilities?.[2]?.when).toEqual({ kind: 'EMPOWERED' });
+  });
+});

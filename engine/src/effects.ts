@@ -155,7 +155,9 @@ function specOf(e: TargetedEffect): Spec {
       ? 'equipment'
       : e.op === 'RETURN_FROM_TRASH' || e.op === 'PLAY_FROM_TRASH'
         ? 'trash'
-        : e.op === 'KILL_GEAR' || (e.op === 'RETURN_TARGET' && e.gear)
+        : e.op === 'KILL_GEAR' ||
+            (e.op === 'RETURN_TARGET' && e.gear) ||
+            (e.op === 'READY_TARGET' && e.gear)
           ? 'gear'
           : e.op === 'KILL_TARGET' && e.orGear
             ? 'unitOrGear'

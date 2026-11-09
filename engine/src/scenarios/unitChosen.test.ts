@@ -10,7 +10,7 @@ import { evalCondition } from '../conditions.js';
 import { runEffects, spellTargetsLegal } from '../effects.js';
 import { runTurnTriggers } from '../turnTriggers.js';
 import { effectiveMight } from '../combat.js';
-import type { CardDatabase, CardDef } from '../types/index.js';
+import type { CardDatabase, CardDef, CardEffect } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
 
@@ -514,5 +514,68 @@ describe('scenario: "move any number of enemy units here each with 5 [M] or less
     expect(legal([small])).toBe(true);
     expect(legal([big])).toBe(false);
     expect(legal([])).toBe(true);
+  });
+});
+
+describe('scenario: "Ready a gear" / "Ready 2 gear" (Defender of Tomorrow)', () => {
+  it('reads both abilities, the second only while Empowered', () => {
+    // Tests Rule 583: activated abilities have a cost and an effect
+    const r = parseCardAbilities('[1], [E]: Ready a gear.\n[Empowered][>] [1], [E]: Ready 2 gear.');
+    expect(r?.abilities[0]?.effects).toEqual([{ op: 'READY_TARGET', gear: true }]);
+    expect(r?.abilities[1]?.effects).toEqual([
+      { op: 'READY_TARGET', gear: true, count: { min: 0, max: 2 } },
+    ]);
+  });
+
+  it('readies an exhausted gear and refuses a unit as the target', () => {
+    // Tests Rule 355.10: targets must be legal
+    const effects = parseSpellText('Ready a gear.') as CardEffect[];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects },
+    };
+    const sc = Scenario.start({}, cards);
+    const gear = sc.putUnit('p1', 'fx-tide-totem', 'base');
+    const unit = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    sc.state.objects[gear]!.ready = false;
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [{ kind: 'object', id: unit }])).toBe(
+      false,
+    );
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: gear }],
+    });
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    expect(sc.obj(gear).ready).toBe(true);
+  });
+});
+
+describe('scenario: an ability gated by "[Empowered][>]" (Defender of Tomorrow)', () => {
+  it('cannot be activated until its source is Empowered', () => {
+    // Tests Rule 583: an activated ability is available only while its condition holds
+    const parsed = parseCardAbilities('[Empowered][>] [E]: Ready a gear.');
+    expect(parsed?.abilities[0]?.when).toEqual({ kind: 'EMPOWERED' });
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': { ...base('fx-grunt'), abilities: parsed?.abilities ?? [] },
+    };
+    const sc = Scenario.start({}, cards);
+    const me = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.putUnit('p1', 'fx-tide-totem', 'base');
+    const gearId = Object.values(sc.state.objects).find((o) => o.cardId === 'fx-tide-totem')?.id;
+    const intent = {
+      type: 'ACTIVATE_ABILITY' as const,
+      playerId: 'p0' as const,
+      sourceId: me,
+      abilityIndex: 0,
+      payment: [],
+      targets: [{ kind: 'object' as const, id: gearId ?? '' }],
+    };
+    expect(sc.reject(intent).code).toBe('ABILITY_NOT_AVAILABLE');
+    sc.state.objects[me]!.empowered = true;
+    expect(sc.tryDo(intent).ok).toBe(true);
   });
 });
