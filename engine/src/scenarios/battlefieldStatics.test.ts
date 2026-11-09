@@ -426,3 +426,27 @@ describe('scenario: Action-speed activated abilities (Divining Shells)', () => {
     expect(run(mk(true)).ok).toBe(true);
   });
 });
+
+describe('scenario: small self effects (Vi, Ezreal, Jhin)', () => {
+  it('doubles its own Might this turn and moves itself to the Base', () => {
+    // Tests Rule 573: effects change the game state
+    const sc = Scenario.start({});
+    const u = sc.putUnit('p0', 'fx-ash-tank', 'bf1');
+    const s = structuredClone(sc.state);
+    const before = effectiveMight(s, sc.cards, u, { role: null });
+    runEffects(s, 'p0', [{ op: 'DOUBLE_MIGHT_SELF' }], sc.cards, [], '', u);
+    expect(effectiveMight(s, sc.cards, u, { role: null })).toBe(before * 2);
+    runEffects(s, 'p0', [{ op: 'MOVE_SELF_BASE' }], sc.cards, [], '', u);
+    expect(s.objects[u]?.zone).toEqual({ kind: 'base', player: 'p0' });
+    expect(s.players[0]?.base).toContain(u);
+  });
+
+  it('adds Energy and Power together', () => {
+    // Tests Rule 167: Add effects put resources in the Rune Pool
+    const t = parseCardAbilities('When I move, [Add] [1][A].');
+    expect(t?.triggers[0]?.effects).toEqual([
+      { op: 'ADD_ENERGY', amount: 1 },
+      { op: 'ADD_POWER', amount: 1, domain: 'ANY' },
+    ]);
+  });
+});

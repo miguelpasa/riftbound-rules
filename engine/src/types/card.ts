@@ -632,6 +632,8 @@ type CardEffectCore =
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
+  /** "Move me to your base" (Ezreal): the source unit moves from a battlefield to its controller's Base. */
+  | { op: 'MOVE_SELF_BASE' }
   /** "Double my Might this combat" (Fiora). */
   | { op: 'DOUBLE_MIGHT_SELF'; duration?: 'COMBAT' }
   /** "Give me [Ganking] this turn" / "Give your other units here [Shield] this turn" (R43). */

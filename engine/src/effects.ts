@@ -2188,6 +2188,11 @@ export function runEffects(
       case 'LOOK_TOP':
         out.push(...lookAtTop(state, controller, e.count, e.take, cards, e.rest));
         break;
+      case 'MOVE_SELF_BASE': {
+        const me = state.objects[sourceObjectId];
+        if (me) moveToBase(state, me, out);
+        break;
+      }
       case 'DOUBLE_MIGHT_SELF': {
         const me = state.objects[sourceObjectId];
         if (!me) break;
