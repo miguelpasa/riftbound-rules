@@ -3336,6 +3336,22 @@ function extractModal(text: string): { text: string; blocks: ModalBlock[] } {
       });
       continue;
     }
+    // "..., you may draw 1 or buff me." (Buhru Captain): two simple clauses joined by "or" are the same choice.
+    const simple = String.raw`(draw \d+|buff me|ready me|gain \d+ XP|channel \d+ runes?(?: exhausted)?)`;
+    const inline2 = new RegExp(
+      String.raw`^((?:When|At) .+?),\s*(?:you may )?${simple} or ${simple}\.?$`,
+      'i',
+    ).exec(line.trim().replace(/\s*\([^)]*\)\s*$/, ''));
+    if (inline2) {
+      const cap = (t: string): string => `${t.charAt(0).toUpperCase()}${t.slice(1)}.`;
+      out.push(`${inline2[1]}, MODAL${blocks.length}.`);
+      blocks.push({
+        modes: [cap(inline2[2] as string), cap(inline2[3] as string)],
+        once: false,
+        giveMe: false,
+      });
+      continue;
+    }
     const m =
       /^((?:When|At) .+?),\s*choose one( that hasn['’]t been chosen this turn| to give me this turn)?\s*[—–-]\s*$/i.exec(
         line.trim(),
