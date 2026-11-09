@@ -812,7 +812,9 @@ export interface StaticAbility {
     /** Unit card: it cannot be played on its player's first three turns (Ol' Poro). */
     | 'NO_PLAY_EARLY'
     /** Unit card: while its condition holds, opponents cannot gain points (Tianna Crownguard). */
-    | 'NO_ENEMY_POINTS';
+    | 'NO_ENEMY_POINTS'
+    /** Unit card: while its condition holds, every Channel Phase channels at most one rune (Sandstone Chimera). */
+    | 'ONE_CHANNEL';
   /** Battlefield card: the points needed to win are raised by this much (Aspirant's Climb). */
   victoryBonus?: number;
   /**

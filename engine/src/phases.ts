@@ -20,6 +20,7 @@
 import { fork } from './workingCopy.js';
 import { syncTurnState, nextPlayerInTurnOrder } from './chain.js';
 import { drawWithBurnOut } from './burnout.js';
+import { channelLimited } from './channelLimit.js';
 import { stampEvents } from './setup.js';
 import {
   RUNES_PER_CHANNEL,
@@ -135,6 +136,7 @@ function startOfTurn(c: Ctx): void {
   enterPhase(c, 'CHANNEL');
   let count = RUNES_PER_CHANNEL;
   if (player === 'p1' && c.s.turn.number === 2) count += SECOND_PLAYER_EXTRA_FIRST_CHANNEL; // 487.7
+  if (channelLimited(c.s, c.cards)) count = Math.min(count, 1); // Sandstone Chimera
   const cs = c.s.players[playerIndex(player)];
   for (let i = 0; i < count; i++) {
     const id = cs.runeDeck.shift(); // 431.3: as many as available

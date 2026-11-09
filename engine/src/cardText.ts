@@ -2326,6 +2326,20 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       );
       continue;
     }
+    // "[While <condition>,] players only channel 1 rune at the start of their Channel Phase" (Sandstone Chimera).
+    const oc =
+      /^(?:While (.+?), )?Players only channel 1 rune at the start of their Channel Phase$/i.exec(
+        body,
+      );
+    if (oc) {
+      const w = oc[1] === undefined ? undefined : parseCondition(oc[1]);
+      if (oc[1] !== undefined && !w) {
+        keep.push(line);
+        continue;
+      }
+      statics.push({ affects: 'SELF', restrict: 'ONE_CHANNEL', ...(w ? { when: w } : {}) });
+      continue;
+    }
     // "[While <condition>,] opponents can't gain points" (Tianna Crownguard).
     const np = /^(?:While (.+?), )?Opponents can['’]t gain points$/i.exec(body);
     if (np) {
