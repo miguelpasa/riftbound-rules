@@ -228,7 +228,14 @@ type CardEffectCore =
       /** X1: all chosen units must be at the same battlefield ("units at a single battlefield"). */
       sameBattlefield?: boolean;
       /** R74: "damage equal to my Might / [Assault] / [Shield]": read from the source when the effect runs (amount is 0). */
-      amountFrom?: 'MY_MIGHT' | 'MY_ASSAULT' | 'MY_SHIELD' | 'EXCESS' | 'SLOT_MIGHT';
+      amountFrom?:
+        | 'MY_MIGHT'
+        | 'MY_ASSAULT'
+        | 'MY_SHIELD'
+        | 'EXCESS'
+        | 'SLOT_MIGHT'
+        /** "damage equal to the damage marked on it" (Morgana): read from each target as the damage is dealt. */
+        | 'TARGET_DAMAGE';
       /** R94: with `amountFrom: 'SLOT_MIGHT'`: the chosen unit (target slot) whose Might is dealt ("It deals damage equal to its Might"). */
       amountSlot?: number;
       amountSlotSide?: TargetSide;

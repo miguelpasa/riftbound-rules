@@ -812,6 +812,17 @@ function parseChooserBase(sen: string): Chooser | null {
       w === 'might' ? 'MY_MIGHT' : w.includes('assault') ? 'MY_ASSAULT' : 'MY_SHIELD';
     return { ...base, effect: { ...base.effect, amount: 0, amountFrom } };
   }
+  const markedDmg = new RegExp(
+    `^Deal damage to an? ${SIDE}unit equal to the damage marked on it$`,
+    'i',
+  ).exec(sen);
+  if (markedDmg) {
+    const s = side(markedDmg[1]);
+    return {
+      effect: { op: 'DAMAGE_TARGET', amount: 0, amountFrom: 'TARGET_DAMAGE', ...sideProp(s) },
+      decl: { side: s ?? 'any' },
+    };
+  }
   let m = new RegExp(`^Deal (\\d+) to an? ${SIDE}unit( at a battlefield| in a base)?$`, 'i').exec(
     sen,
   );
@@ -1211,6 +1222,23 @@ function parseChooserBase(sen: string): Chooser | null {
     return {
       effect: { op: 'MOVE_BASE_TARGET', ...sideProp(s), ...(m[2] ? { atBattlefield: true } : {}) },
       decl: { side: s ?? 'any' },
+    };
+  }
+  m = new RegExp(
+    `^Move any number of ${SIDE}units( (?:from|at) a battlefield)? to (?:their |its )?base$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: {
+        op: 'MOVE_BASE_TARGET',
+        ...sideProp(s),
+        ...(m[2] ? { atBattlefield: true } : {}),
+        count: { min: 0, max: 99 },
+      },
+      decl: { side: s ?? 'any' },
+      multi: true,
     };
   }
   m = new RegExp(`^Move up to ${TWO} ${SIDE}units to (?:their )?base$`, 'i').exec(sen);

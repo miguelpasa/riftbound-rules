@@ -1489,7 +1489,14 @@ export function runEffects(
         }
         for (const u of legal) {
           if (e.op === 'DAMAGE_TARGET') {
-            damage(u, altApplies(e.alt, u) ? e.alt.amount : damageAmount(e));
+            damage(
+              u,
+              altApplies(e.alt, u)
+                ? e.alt.amount
+                : e.amountFrom === 'TARGET_DAMAGE'
+                  ? u.damage
+                  : damageAmount(e),
+            );
           } else if (e.op === 'KILL_TARGET' && isGearDef(cards[u.cardId])) {
             // R46: "kill a unit or gear" chose a gear.
             doneSlots.set(slot, u.controller);

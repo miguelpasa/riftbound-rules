@@ -596,3 +596,29 @@ describe('scenario: exhausted-unit targets (Arena Bar)', () => {
     expect(tryIt()).toBe(true);
   });
 });
+
+describe('scenario: damage equal to the damage already marked (Morgana)', () => {
+  it('doubles the damage on the target', () => {
+    // Tests Rule 573: damage dealt by an effect
+    const e = parseCardAbilities(
+      'When you play me, deal damage to a unit equal to the damage marked on it.',
+    )?.triggers[0]?.effects as CardEffect[];
+    expect(e[0]).toMatchObject({ op: 'DAMAGE_TARGET', amountFrom: 'TARGET_DAMAGE' });
+    const sc = Scenario.start({});
+    const victim = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const s = structuredClone(sc.state);
+    (s.objects[victim] as { damage: number }).damage = 2;
+    runEffects(s, 'p0', e, sc.cards, [{ kind: 'object', id: victim }]);
+    expect(s.objects[victim]?.damage).toBe(4);
+  });
+
+  it("moves any number of friendly units from battlefields to the Base (Emperor's Divide)", () => {
+    // Tests Rule 573: effects move units
+    const e = parseSpellText('Move any number of friendly units at a battlefield to their base.');
+    expect(e?.[0]).toMatchObject({
+      op: 'MOVE_BASE_TARGET',
+      side: 'friendly',
+      count: { min: 0, max: 99 },
+    });
+  });
+});
