@@ -1802,7 +1802,14 @@ export function runEffects(
           {
             take: takeChosen,
             mode: e.op === 'HAND_DISCARD' ? 'SELF' : 'PICK',
-            players: e.op === 'HAND_PICK' ? [opp] : e.who === 'EACH' ? turnFirst : [opp],
+            players:
+              e.op === 'HAND_PICK'
+                ? [opp]
+                : e.who === 'EACH'
+                  ? turnFirst
+                  : e.who === 'YOU'
+                    ? [controller]
+                    : [opp],
             count: e.op === 'HAND_DISCARD' ? e.count : 1,
             action: e.op === 'HAND_PICK' ? e.action : 'DISCARD',
             ...(e.op === 'HAND_PICK' && e.filter ? { filter: e.filter } : {}),

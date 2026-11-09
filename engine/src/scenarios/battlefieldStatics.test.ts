@@ -178,3 +178,32 @@ describe('scenario: domain-filtered targets and spell flags (Decree cards)', () 
     expect(ok.ok).toBe(true);
   });
 });
+
+describe('scenario: "Discard 1, then draw 2" (Lunar Boon)', () => {
+  it('discards a card of your choice and then draws', () => {
+    // Tests Rule 598: discarding
+    const effects = parseSpellText('Discard 1, then draw 2.') ?? [];
+    expect(effects.map((e) => e.op)).toEqual(['HAND_DISCARD', 'DRAW']);
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects },
+    };
+    const sc = Scenario.start({}, cards);
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, { payment: sc.exhaustPlan('p0', 1) });
+    for (let i = 0; i < 6 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    const choice = sc.state.flow.pendingChoice;
+    expect(choice?.kind).toBe('HAND_CHOICE');
+    if (choice?.kind !== 'HAND_CHOICE') return;
+    const handBefore = sc.state.players[0]?.hand.length ?? 0;
+    sc.do({
+      type: 'CHOOSE_HAND_CARDS',
+      playerId: 'p0',
+      cardIds: [choice.options[0]?.id as string],
+    });
+    // one discarded, two drawn
+    expect(sc.state.players[0]?.hand.length).toBe(handBefore + 1);
+  });
+});

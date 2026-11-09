@@ -1342,6 +1342,12 @@ function giveEffect(
 }
 
 function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boolean {
+  // A spell's own "Discard N" (Lunar Boon): the caster chooses cards from their hand.
+  const selfDiscard = /^Discard (\d+)$/.exec(sen);
+  if (selfDiscard) {
+    out.push({ op: 'HAND_DISCARD', who: 'YOU', count: Number(selfDiscard[1]) });
+    return true;
+  }
   // X-loc: "Choose a battlefield" declares a battlefield slot for the sentence that follows.
   if (/^Choose a battlefield$/i.test(sen)) {
     const add: SlotDecl = { side: 'any', kind: 'battlefield' };

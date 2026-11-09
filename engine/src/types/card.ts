@@ -539,7 +539,7 @@ type CardEffectCore =
    * X-hand: "Each player discards N" / "They discard N": every player in `who` chooses `count` cards from their own hand
    * and discards them (a smaller hand is discarded whole).
    */
-  | { op: 'HAND_DISCARD'; who: 'EACH' | 'OPPONENT'; count: number }
+  | { op: 'HAND_DISCARD'; who: 'EACH' | 'OPPONENT' | 'YOU'; count: number }
   /**
    * X-hand: "Each player kills one of their units / gear", "each player may return a unit to its owner's hand":
    * every player chooses one of their own permanents (`optional`: or nothing); `startWithOpponent`: "starting with the next player".
