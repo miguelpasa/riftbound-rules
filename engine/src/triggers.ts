@@ -93,6 +93,7 @@ function playMatches(
   if (f.token) return false; // token plays are matched separately (TOKEN_PLAYED)
   if (f.onOpponentTurn && state.turn.activePlayer === player) return false;
   if (f.inShowdown && !state.flow.showdown) return false;
+  if (f.mighty && (def.type !== 'UNIT' || (def.stats.might ?? 0) < 5)) return false;
   return true;
 }
 

@@ -119,6 +119,7 @@
               "power": { "type": "integer", "minimum": 1 },
               "anyPower": { "type": "integer", "minimum": 1 },
               "burn": { "type": "integer", "minimum": 1 },
+              "exhaustSelf": { "type": "boolean" },
               "mandatory": { "type": "boolean" },
               "card": { "$ref": "#/definitions/costCardChoice" }
             }
@@ -187,7 +188,8 @@
         "anyPower": { "type": "integer", "minimum": 1 },
         "card": { "$ref": "#/definitions/costCardChoice" },
         "xp": { "type": "integer", "minimum": 1 },
-        "reduceEnergy": { "type": "integer", "minimum": 1 }
+        "reduceEnergy": { "type": "integer", "minimum": 1 },
+        "reduceAll": { "type": "boolean" }
       }
     },
     "costReduction": {

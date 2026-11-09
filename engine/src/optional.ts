@@ -75,6 +75,7 @@ export function optionalPlan(
   sourceId = '',
 ): PaymentPlan | null {
   if ((cost.burn ?? 0) > state.players[playerIndex(player)].mainDeck.length) return null;
+  if (cost.exhaustSelf && !(state.objects[sourceId]?.ready === true)) return null;
   if (cost.card && !costCardsPayable(state, cards, player, sourceId, cost.card)) return null;
   const total = optionalTotalCost(cards, sourceCardId, cost);
   return isFree(total) ? [] : autoPlan(state, cards, player, total);
@@ -139,6 +140,10 @@ export function decideOptional(
     }
     if (cost.card && intent.costCards) {
       own.push(...payCostCards(work, cards, pc.player, sourceId, cost.card, intent.costCards));
+    }
+    if (cost.exhaustSelf) {
+      const me = work.objects[sourceId];
+      if (me) me.ready = false;
     }
     if (cost.burn) {
       const deck = work.players[playerIndex(pc.player)];

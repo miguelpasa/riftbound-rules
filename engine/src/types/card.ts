@@ -853,6 +853,8 @@ export interface OptionalCost {
   power?: number;
   anyPower?: number;
   burn?: number;
+  /** "you may exhaust me to ...": the source must be ready and is exhausted as the cost is paid. */
+  exhaustSelf?: boolean;
   /** R46: cards the controller picks and pays (discard / kill / exhaust / return / recycle). */
   card?: CostCardChoice;
   /**
@@ -990,6 +992,8 @@ export interface PlayFilter {
   onOpponentTurn?: boolean;
   /** "during a showdown". */
   inShowdown?: boolean;
+  /** "a [Mighty] unit": the played unit's printed Might is 5 or more. */
+  mighty?: boolean;
 }
 
 /**

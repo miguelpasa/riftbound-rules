@@ -2765,7 +2765,11 @@ function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest:
     let used = 0;
     const pay = /^pay ((?:\[(?:\d+|C|A)\]\s*)+)/i.exec(s);
     const burn = /^\[Burn (\d+)\]/i.exec(s);
-    if (pay) {
+    const exSelf = /^exhaust (?:me|this)(?= to | and |$)/i.exec(s);
+    if (exSelf) {
+      optional.exhaustSelf = true;
+      used = exSelf[0].length;
+    } else if (pay) {
       for (const t of (pay[1] ?? '').matchAll(/\[(\d+|C|A)\]/gi)) {
         const tok = (t[1] ?? '').toUpperCase();
         if (tok === 'C') optional.power = (optional.power ?? 0) + 1;
@@ -2814,7 +2818,7 @@ const OR_WHEN: Record<string, TriggerKind> = {
 
 /** R49: "When you play [another] a spell / unit / gear / card [that costs [N] or more] [on an opponent's turn]". */
 const PLAY_HEAD =
-  /^When you play (?:(another) )?(?:an? )?(card from face down|card|spell|unit|gear|token unit)(?: (?:that costs|with Energy cost) \[(\d+)\] or more| with Power cost ((?:\[A\])+) or more)?( on an opponent's turn| during a showdown)?\s*,\s*(.+)$/i;
+  /^When you play (?:(another) )?(?:an? )?(\[Mighty\] )?(card from face down|card|spell|unit|gear|token unit)(?: (?:that costs|with Energy cost) \[(\d+)\] or more| with Power cost ((?:\[A\])+) or more)?( on an opponent's turn| during a showdown)?\s*,\s*(.+)$/i;
 /** R99: "When you play your second card in a turn, ..." */
 const PLAY_NTH_HEAD = /^When you play your (second|third) card in a turn\s*,\s*(.+)$/i;
 
@@ -2829,17 +2833,18 @@ function parsePlayHead(sen: string): { filter: PlayFilter; body: string } | null
   const m = PLAY_HEAD.exec(sen);
   if (!m) return null;
   const filter: PlayFilter = {};
-  const kind = (m[2] ?? '').toLowerCase();
+  const kind = (m[3] ?? '').toLowerCase();
   if (kind === 'token unit') filter.token = true;
   else if (kind === 'card from face down') filter.fromFacedown = true;
   else if (kind !== 'card') filter.type = kind.toUpperCase() as 'SPELL' | 'UNIT' | 'GEAR';
   if (m[1]) filter.other = true;
-  if (m[3]) filter.minEnergy = Number(m[3]);
-  if (m[4]) filter.minPower = (m[4].match(/A/g) ?? []).length;
-  const when = (m[5] ?? '').trim();
+  if (m[2]) filter.mighty = true;
+  if (m[4]) filter.minEnergy = Number(m[4]);
+  if (m[5]) filter.minPower = (m[5].match(/A/g) ?? []).length;
+  const when = (m[6] ?? '').trim();
   if (when.startsWith('on an')) filter.onOpponentTurn = true;
   if (when.startsWith('during')) filter.inShowdown = true;
-  return { filter, body: m[6] ?? '' };
+  return { filter, body: m[7] ?? '' };
 }
 
 /** R71: "When [another] a friendly / an enemy unit [here] dies [while I'm at a battlefield]" and "When one or more friendly units die". */

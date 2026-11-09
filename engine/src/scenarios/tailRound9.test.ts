@@ -220,3 +220,28 @@ describe('scenario: spend a buff as an additional cost to ignore the cost (Wallo
     });
   });
 });
+
+describe('scenario: "you may exhaust me to ..." (Relentless Storm, Titanic Shrine, Chemtech Cask)', () => {
+  it('reads the cost and the Mighty-unit play filter', () => {
+    // Tests Rule 583.3: an optional cost on a triggered ability
+    const r = parseCardAbilities(
+      'When you play a [Mighty] unit, you may exhaust me to channel 1 rune exhausted.',
+    );
+    expect(r?.triggers[0]).toMatchObject({
+      on: 'YOU_PLAY',
+      optional: { exhaustSelf: true },
+      playFilter: { type: 'UNIT', mighty: true },
+    });
+  });
+
+  it('is unavailable while the source is exhausted, and exhausts it when paid', async () => {
+    // Tests Rule 583.3: an optional cost on a triggered ability
+    const { optionalPlan } = await import('../optional.js');
+    const sc = Scenario.start();
+    const me = sc.putUnit('p0', 'fx-grunt', 'base');
+    const cost = { exhaustSelf: true };
+    expect(optionalPlan(sc.state, sc.cards, 'p0', 'fx-grunt', cost, me)).toEqual([]);
+    (sc.state.objects[me] as CardInstance).ready = false;
+    expect(optionalPlan(sc.state, sc.cards, 'p0', 'fx-grunt', cost, me)).toBeNull();
+  });
+});
