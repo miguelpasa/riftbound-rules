@@ -1737,6 +1737,24 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     st.it = st.slots.length - 1;
     return true;
   }
+  // "Kill an enemy unit with less Might than it": the unit chosen just before is the yardstick (Public Execution).
+  if (/^Kill an enemy unit with less Might than it$/i.test(sen)) {
+    const k = st.it;
+    if (k === undefined || st.locked || (st.slots[k] as SlotDecl).kind !== undefined) return false;
+    const foe: SlotDecl = { side: 'enemy' };
+    if (!canAdd(st, [foe])) return false;
+    const slot = st.slots.length;
+    st.slots.push(foe);
+    delete st.it;
+    out.push({
+      op: 'KILL_TARGET',
+      side: 'enemy',
+      slot,
+      lessMightThanSlot: k,
+      lessMightSlotSide: (st.slots[k] as SlotDecl).side,
+    });
+    return true;
+  }
   // "Deal damage equal to its Energy cost to <unit>": the gear chosen just before names the amount.
   m = /^Deal damage equal to its Energy cost to (.+)$/i.exec(sen);
   if (m) {

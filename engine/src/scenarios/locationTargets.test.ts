@@ -368,3 +368,42 @@ describe("scenario: damage equal to a chosen friendly gear's Energy cost (Improv
     expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(mine), obj(foe)])).toBe(false);
   });
 });
+
+describe('scenario: "Choose a friendly unit. Kill an enemy unit with less Might than it." (Public Execution)', () => {
+  const text = 'Choose a friendly unit. Kill an enemy unit with less Might than it.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads the kill with its relation to the first chosen unit', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'KILL_TARGET', side: 'enemy', slot: 1, lessMightThanSlot: 0 },
+    ]);
+  });
+
+  it('only an enemy with less Might than the friendly unit is a legal pair', () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const small = sc.putUnit('p0', 'fx-grunt', 'base');
+    const big = sc.putUnit('p0', 'fx-titan', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const mine = (id: string) => effectiveMight(sc.state, cards, id, { role: null });
+    expect(mine(small)).toBeLessThanOrEqual(mine(foe));
+    expect(mine(big)).toBeGreaterThan(mine(foe));
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(big), obj(foe)])).toBe(true);
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(small), obj(foe)])).toBe(false);
+    const picks = enumerateSpellTargets(sc.state, cards, 'p0', effects) ?? [];
+    expect(picks).toContainEqual([obj(big), obj(foe)]);
+    expect(picks).not.toContainEqual([obj(small), obj(foe)]);
+  });
+
+  it('kills the weaker enemy', () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const big = sc.putUnit('p0', 'fx-titan', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    cast(sc, [obj(big), obj(foe)]);
+    expect(sc.obj(foe).zone.kind).toBe('trash');
+  });
+});

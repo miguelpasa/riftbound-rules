@@ -83,6 +83,8 @@ interface Spec {
   subtype?: string;
   notSubtype?: string;
   maxMight?: number;
+  /** Less Might than the unit chosen into this earlier slot. */
+  lessMightThanSlot?: number;
   /** The unit has moved this turn. */
   movedThisTurn?: boolean;
   /** X1: every pick must be at one battlefield. */
@@ -199,6 +201,9 @@ function specOf(e: TargetedEffect): Spec {
   if ((e.op === 'STUN_TARGET' || e.op === 'MOVE_BASE_TARGET') && e.attacking) spec.attacking = true;
   if (e.op === 'DAMAGE_TARGET' && e.sameBattlefield) spec.sameBattlefield = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
+  if (e.op === 'KILL_TARGET' && e.lessMightThanSlot !== undefined) {
+    spec.lessMightThanSlot = e.lessMightThanSlot;
+  }
   if (e.op === 'READY_TARGET' && e.subtype) spec.subtype = e.subtype;
   if (e.op === 'RETURN_TARGET' && e.notSubtype) spec.notSubtype = e.notSubtype;
   if ('here' in e && e.here) spec.here = true;
@@ -283,6 +288,17 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
   }
   // R94: "It deals damage equal to its Might to ..." also needs the unit that deals the damage.
   for (const ef of effects ?? []) {
+    if (
+      ef.op === 'KILL_TARGET' &&
+      ef.lessMightThanSlot !== undefined &&
+      !reqs.has(ef.lessMightThanSlot)
+    ) {
+      reqs.set(ef.lessMightThanSlot, {
+        slot: ef.lessMightThanSlot,
+        kind: 'unit',
+        side: ef.lessMightSlotSide ?? 'any',
+      });
+    }
     if (ef.op === 'DAMAGE_TARGET' && ef.amountSlot !== undefined && !reqs.has(ef.amountSlot)) {
       reqs.set(ef.amountSlot, {
         slot: ef.amountSlot,
@@ -611,8 +627,30 @@ export function spellTargetsLegal(
       }
       seen.add(id);
     }
+    if (
+      r.lessMightThanSlot !== undefined &&
+      !lessMightOk(state, cards, picks[0], ids[r.lessMightThanSlot])
+    ) {
+      return false;
+    }
   }
   return true;
+}
+
+/** "With less Might than it": `id` has less Might than `than` (both on the Board). */
+function lessMightOk(
+  state: GameState,
+  cards: CardDatabase,
+  id: string | undefined,
+  than: string | undefined,
+): boolean {
+  const a = id === undefined ? undefined : state.objects[id];
+  const b = than === undefined ? undefined : state.objects[than];
+  if (!a || !b) return false;
+  return (
+    effectiveMight(state, cards, a.id, { role: null }) <
+    effectiveMight(state, cards, b.id, { role: null })
+  );
 }
 
 /**
@@ -693,6 +731,12 @@ export function enumerateSpellTargets(
     for (const prefix of acc) {
       for (const choice of opt) {
         if (choice.some((id) => prefix.includes(id))) continue;
+        if (
+          req.lessMightThanSlot !== undefined &&
+          !lessMightOk(state, cards, choice[0], prefix[req.lessMightThanSlot])
+        ) {
+          continue;
+        }
         if (
           req.kind === 'location' &&
           !legalLocation(state, cards, controller, req, choice[0], prefix)
@@ -1578,8 +1622,12 @@ export function runEffects(
         // Targets must still be legal; those that are not are skipped. If none is, fizzle.
         const legal = picks
           .map((id) => state.objects[id])
-          .filter((u): u is CardInstance =>
-            isLegalEffectTarget(state, cards, controller, e, u, sourceObjectId),
+          .filter(
+            (u): u is CardInstance =>
+              isLegalEffectTarget(state, cards, controller, e, u, sourceObjectId) &&
+              (e.op !== 'KILL_TARGET' ||
+                e.lessMightThanSlot === undefined ||
+                lessMightOk(state, cards, u?.id, ids[e.lessMightThanSlot])),
           );
         if (legal.length === 0) {
           fizzle();

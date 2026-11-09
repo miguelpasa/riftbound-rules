@@ -279,6 +279,9 @@ type CardEffectCore =
       atBattlefield?: boolean;
       /** Only units whose current Might is at most this. */
       maxMight?: number;
+      /** "... with less Might than it": only a unit with less Might than the unit chosen into this slot. */
+      lessMightThanSlot?: number;
+      lessMightSlotSide?: TargetSide;
       /** R46: "kill a unit or gear": the target may also be a gear (killed like KILL_GEAR). */
       orGear?: boolean;
       slot?: number;
