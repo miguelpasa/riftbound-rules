@@ -64,7 +64,12 @@ import type {
 const GRANT_KW = '(?:Tank|Ganking|(?:Assault|Shield|Deflect)(?: \\d+)?)';
 const KW_LIST = `((?:\\{${GRANT_KW}\\}(?: and )?)+)`;
 export function protectGrants(text: string): string {
-  return text.replace(
+  // "Give <a unit> +N [M] and [Keyword] this turn" = the buff, then the keyword for the same unit.
+  const split = text.replace(
+    new RegExp(`(\\bGive [^.\\n]*? \\+\\d+ \\[M\\]) and \\[(${GRANT_KW})\\](?= this turn)`, 'gi'),
+    (_m, head: string, kw: string) => `${head} this turn. Give it {${kw}}`,
+  );
+  return split.replace(
     new RegExp(
       `(\\b(?:Give|It gains) [^.\\[\\]{}]*?)((?:\\[${GRANT_KW}\\](?: and )?)+)(?= this (?:turn|combat))`,
       'gi',
@@ -2733,6 +2738,8 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     )
     // R98: "Choose a friendly unit without [Temporary]": granting it again changes nothing.
     .map((x) => x.replace(/ without \[Temporary\]/i, ''))
+    // "one of your other units here" (Yuumi) = "another friendly unit here".
+    .map((x) => x.replace(/\bone of your other units here\b/i, 'another friendly unit here'))
     .map((x) =>
       x
         .replace(/^Then,? /i, '')

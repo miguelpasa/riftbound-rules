@@ -610,3 +610,46 @@ describe('scenario: "give your units here [Ganking] this turn" (Megatusk)', () =
     expect(has(foe)).toBeFalsy();
   });
 });
+
+describe('scenario: "give one of your other units here +3 [M] and [Tank] this turn" (Yuumi)', () => {
+  const text =
+    'When I attack or defend, give one of your other units here +3 [M] and [Tank] this turn.';
+
+  it('reads as one chosen other friendly unit here getting the buff and the keyword', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    const trig = parseCardAbilities(text)?.triggers ?? [];
+    expect(trig.map((t) => t.on)).toEqual(['ATTACK', 'DEFEND']);
+    expect(trig[0]?.effects).toEqual([
+      {
+        op: 'BUFF_TARGET',
+        amount: 3,
+        duration: 'TURN',
+        side: 'friendly',
+        here: true,
+        another: true,
+      },
+      { op: 'GRANT_KEYWORD_TARGET', keywords: [{ name: 'Tank' }], side: 'friendly', here: true },
+    ]);
+  });
+
+  it('gives the other unit here both, and never the source itself', () => {
+    // Tests Rule 583: a triggered ability resolves its effects on its chosen target
+    const eff = parseCardAbilities(text)?.triggers[0]?.effects ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const me = sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+    const mate = sc.putUnit('p0', 'fx-archer', 'bf1');
+    const s = structuredClone(sc.state);
+    const before = effectiveMight(s, SCENARIO_CARDS, mate, { role: null });
+    runEffects(s, 'p0', eff, SCENARIO_CARDS, [{ kind: 'object', id: mate }], 'fx-grunt', me);
+    expect(effectiveMight(s, SCENARIO_CARDS, mate, { role: null })).toBe(before + 3);
+    expect(s.objects[mate]?.tempKeywords?.some((k) => k.name === 'Tank')).toBe(true);
+    expect(s.objects[me]?.tempKeywords?.length ?? 0).toBe(0);
+    // the source is not a legal choice for "another"
+    expect(
+      spellTargetsLegal(sc.state, SCENARIO_CARDS, 'p0', eff, [{ kind: 'object', id: me }], me),
+    ).toBe(false);
+    expect(
+      spellTargetsLegal(sc.state, SCENARIO_CARDS, 'p0', eff, [{ kind: 'object', id: mate }], me),
+    ).toBe(true);
+  });
+});
