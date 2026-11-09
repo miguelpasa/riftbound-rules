@@ -161,8 +161,9 @@ describe('parseEquipCost (Rule 818)', () => {
       anyPower: 1,
       energyReducedByMight: true,
     });
-    expect(parseEquipCost('[Equip] — Spend 1 XP (Pay the cost: Attach)')?.nonResource).toBe(
-      'Spend 1 XP',
+    expect(parseEquipCost('[Equip] — Spend 1 XP (Pay the cost: Attach)')).toMatchObject({ xp: 1 });
+    expect(parseEquipCost('[Equip] — [C], Kill a friendly unit')?.nonResource).toBe(
+      'Kill a friendly unit',
     );
     expect(parseEquipCost('[Tank]')).toBeUndefined();
   });
@@ -317,7 +318,7 @@ describe('R43 converter wiring', () => {
     expect(block?.effects?.[0]).toMatchObject({ op: 'GRANT_KEYWORD_TARGET' });
     const dancer = conv('Unit', 'When you play me, give your other units here [Shield] this turn.');
     expect(dancer?.supportLevel).toBe('full');
-    expect(conv('Spell', 'Give a unit [Deflect] this turn.')?.supportLevel).toBe('partial');
+    expect(conv('Spell', 'Give a unit [Backline] this turn.')?.supportLevel).toBe('partial');
   });
 });
 
