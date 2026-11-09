@@ -29,6 +29,7 @@ import type {
   CardDatabase,
   CardDef,
   CardEffect,
+  Condition,
   CardInstance,
   ChainItem,
   GameEventInput,
@@ -1169,13 +1170,20 @@ export function runEffects(
     out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount });
   };
 
+  /** A condition on an effect: a chosen unit's state is read here, everything else by evalCondition. */
+  const holds = (c: Condition): boolean =>
+    c.kind === 'NOT'
+      ? !holds(c.cond)
+      : c.kind === 'TARGET_STUNNED'
+        ? state.objects[ids[c.slot] ?? '']?.stunned === true
+        : evalCondition(state, cards, c, controller, sourceObjectId);
   let lastDid = true;
   let lastKilled = false;
   for (const e of effects) {
     if (state.gameStatus !== 'IN_PROGRESS') break;
     if (e.ifDid && !lastDid) continue;
     if (e.ifKilled && !lastKilled) continue;
-    if (e.when && !evalCondition(state, cards, e.when, controller, sourceObjectId)) {
+    if (e.when && !holds(e.when)) {
       lastDid = false;
       continue;
     }

@@ -253,6 +253,8 @@ export function evalCondition(
       return Object.values(state.objects).some(
         (o) => o.controller === controller && onBoard(o) && o.empowered === true,
       );
+    case 'TARGET_STUNNED':
+      return false; // read from the chosen targets by runEffects
     case 'ENEMY_STUNNED':
       return Object.values(state.objects).some(
         (o) => o.controller !== controller && onBoard(o) && o.stunned === true,

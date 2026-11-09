@@ -897,6 +897,8 @@ export type Condition =
   | { kind: 'CONTROLS_EMPOWERED' }
   /** R73: an opponent controls a stunned unit. */
   | { kind: 'ENEMY_STUNNED' }
+  /** "If it is stunned": the unit chosen into target `slot` is stunned as the effect resolves. */
+  | { kind: 'TARGET_STUNNED'; slot: number }
   /** R73: the controller's Trash holds a card with the source's name ("a card with my name"). */
   | { kind: 'NAME_IN_TRASH' }
   /** R74: the source is in the combat that is being fought. */

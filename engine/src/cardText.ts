@@ -2644,13 +2644,17 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     // "... If <condition>, <effect>": the effect carries its own condition (checked as it resolves).
     const cw = /^If (.+?), (.+)$/i.exec(list[i] as string);
     if (cw && !/^you do$/i.test(cw[1] as string) && !/ instead$/i.test(list[i] as string)) {
-      const parsedCond = parseCondition(cw[1] as string);
+      const parsedCond =
+        /^it is stunned$/i.test(cw[1] as string) && st.it !== undefined
+          ? ({ kind: 'TARGET_STUNNED', slot: st.it } as const)
+          : parseCondition(cw[1] as string);
       const cond =
         parsedCond?.kind === 'PAID_ADDITIONAL' ? { ...parsedCond, spell: true as const } : parsedCond;
       if (cond) {
         const before = out.length;
         if (!parseSpellSentence(cw[2] as string, st, out)) return null;
         for (let k = before; k < out.length; k++) (out[k] as CardEffect).when = cond;
+        if (cond.kind === 'TARGET_STUNNED') lastGate = cond;
         continue;
       }
     }

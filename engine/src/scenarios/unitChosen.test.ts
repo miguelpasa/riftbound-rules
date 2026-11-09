@@ -270,3 +270,46 @@ describe('scenario: "give me [Temporary]" when played off-turn (Momentary Compan
     expect(s.objects[mine]?.temporaryOf).toBeDefined();
   });
 });
+
+describe('scenario: "If it is stunned, kill it. Otherwise, stun it." (Solari Chief)', () => {
+  const text = 'Choose an enemy unit. If it is stunned, kill it. Otherwise, stun it.';
+  const cast = (stunnedFirst: boolean): { stunned: boolean; alive: boolean } => {
+    const effects = parseSpellText(text);
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects: effects ?? [] },
+    };
+    const sc = Scenario.start({}, cards);
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    if (stunnedFirst) sc.state.objects[foe]!.stunned = true;
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: foe }],
+    });
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    const o = sc.state.objects[foe];
+    return {
+      stunned: o?.stunned === true,
+      alive: o?.zone.kind === 'battlefield' || o?.zone.kind === 'base',
+    };
+  };
+
+  it('parses both branches against the one chosen unit', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    expect(parseSpellText(text)?.map((e) => [e.op, e.when])).toEqual([
+      ['KILL_TARGET', { kind: 'TARGET_STUNNED', slot: 0 }],
+      ['STUN_TARGET', { kind: 'NOT', cond: { kind: 'TARGET_STUNNED', slot: 0 } }],
+    ]);
+  });
+
+  it('stuns an unstunned unit and kills a stunned one', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    const first = cast(false);
+    expect(first).toEqual({ stunned: true, alive: true });
+    const second = cast(true);
+    expect(second.alive).toBe(false);
+  });
+});
