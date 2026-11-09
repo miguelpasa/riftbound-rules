@@ -875,7 +875,7 @@ export interface OptionalCost {
  *  - RETURN: friendly units / gear return to their owner's hand (tokens cease to exist).
  *  - RECYCLE: cards from the payer's Trash go to the bottom of their Main Deck.
  */
-export type CostCardKind = 'DISCARD' | 'KILL' | 'EXHAUST' | 'RETURN' | 'RECYCLE';
+export type CostCardKind = 'DISCARD' | 'KILL' | 'EXHAUST' | 'RETURN' | 'RECYCLE' | 'SPEND_BUFF';
 
 /**
  * X7 (575): an optional standing replacement for the death of an affected unit ("you may pay [C] ... to heal it,
@@ -1143,6 +1143,8 @@ export interface CardDef {
     xp?: number;
     /** R63: "If you do, I cost [N] less": Energy knocked off when the extra is paid. */
     reduceEnergy?: number;
+    /** "If you do, ignore this spell's cost" (Wallop, Call to Glory). */
+    reduceAll?: boolean;
   };
   /** R50: "I cost [N] less for each ..." / "This costs [N] less if ...": a discount on this card's own Energy cost. */
   costReduction?: CostReduction;

@@ -4,7 +4,12 @@ import { runEffects } from '../effects.js';
 import { effectiveMight } from '../combat.js';
 import { staticBonus } from '../statics.js';
 import { evalCondition } from '../conditions.js';
-import { parseCardAbilities, parseSpellText, parseStaticLines } from '../cardText.js';
+import {
+  parseCardAbilities,
+  parseOptionalAdditionalCost,
+  parseSpellText,
+  parseStaticLines,
+} from '../cardText.js';
 import type { CardDatabase, CardDef, CardInstance } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
@@ -159,5 +164,59 @@ describe('scenario: more statics (Leona, Fiora, Wuju Bladesman)', () => {
       step: 'DAMAGE',
     } as never;
     expect(effectiveMight(s, cards, d, { role: null })).toBe(printed + 1);
+  });
+});
+
+describe('scenario: spend a buff as an additional cost to ignore the cost (Wallop, Call to Glory)', () => {
+  const parsed = parseOptionalAdditionalCost(
+    "[Action]\nAs you play this, you may spend a buff as an additional cost. If you do, ignore this spell's cost.\nReady a unit.",
+  );
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-flare': {
+      ...base('fx-flare'),
+      supportLevel: 'partial',
+      effects: [{ op: 'GIVE_NOTHING' } as never],
+      ...(parsed ? { optionalAdditionalCost: parsed.cost } : {}),
+    },
+  };
+
+  it('reads the cost and the free play', () => {
+    // Tests Rule 357: additional costs are paid with the rest of the cost
+    expect(parsed?.cost).toEqual({
+      energy: 0,
+      card: { kind: 'SPEND_BUFF' },
+      reduceAll: true,
+    });
+  });
+
+  it('plays for nothing when a buff is spent, and the unit loses the buff', () => {
+    // Tests Rule 357: additional costs are paid with the rest of the cost
+    const sc = Scenario.start({}, cards);
+    const unit = sc.putUnit('p0', 'fx-grunt', 'base');
+    (sc.state.objects[unit] as CardInstance).buffed = true;
+    const spell = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', spell, {
+      payment: [],
+      additionalCosts: { extra: true },
+      costCards: [unit],
+    });
+    expect(sc.obj(unit).buffed).toBeUndefined();
+    expect(sc.obj(spell).zone.kind).toBe('chain');
+  });
+
+  it('cannot be paid without a buffed unit', () => {
+    // Tests Rule 357: additional costs are paid with the rest of the cost
+    const sc = Scenario.start({}, cards);
+    const unit = sc.putUnit('p0', 'fx-grunt', 'base');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    sc.reject({
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: spell,
+      payment: [],
+      additionalCosts: { extra: true },
+      costCards: [unit],
+    });
   });
 });

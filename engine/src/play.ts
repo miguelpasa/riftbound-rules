@@ -594,6 +594,7 @@ export function playCard(
     return ruleError('INSUFFICIENT_RESOURCES', `not enough XP (need ${oac.xp})`);
   }
   if (oac?.reduceEnergy) discounts.push({ energy: oac.reduceEnergy });
+  const ignoreAll = oac?.reduceAll === true;
   const increases: CostMod[] = [
     ...(extra ? [extra] : []),
     ...(oac ? [{ energy: oac.energy, power: oac.power, anyPower: oac.anyPower }] : []),
@@ -601,8 +602,9 @@ export function playCard(
       ? [{ energy: def.repeatCost.energy, power: def.repeatCost.power }]
       : []),
   ];
-  const cost =
-    flow && def.flowCost
+  const cost = ignoreAll
+    ? { energy: 0, power: [] }
+    : flow && def.flowCost
       ? computeTotalCost(
           { ...def, cost: { energy: def.flowCost.energy, power: def.flowCost.power ?? 0 } },
           { increases: def.flowCost.anyPower ? [{ anyPower: def.flowCost.anyPower }] : [] },

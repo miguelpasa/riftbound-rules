@@ -12,7 +12,7 @@
       "required": ["kind"],
       "additionalProperties": false,
       "properties": {
-        "kind": { "enum": ["DISCARD", "KILL", "EXHAUST", "RETURN", "RECYCLE"] },
+        "kind": { "enum": ["DISCARD", "KILL", "EXHAUST", "RETURN", "RECYCLE", "SPEND_BUFF"] },
         "count": { "type": "integer", "minimum": 2 },
         "what": { "enum": ["unit", "gear", "unitOrGear", "spell"] },
         "here": { "type": "boolean" },

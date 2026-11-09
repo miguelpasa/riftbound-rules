@@ -66,6 +66,8 @@ export function costCardText(cc: CostCardChoice): string {
       return `Return ${lead} friendly ${mighty}${noun(what)}${where} to hand`;
     case 'RECYCLE':
       return `Recycle ${n} ${noun(what)} from your Trash`;
+    case 'SPEND_BUFF':
+      return n === 1 ? 'Spend a buff' : `Spend ${n} buffs`;
   }
 }
 
@@ -104,7 +106,9 @@ function qualifies(
   const what = cc.what ?? 'unit';
   const unit = isUnitDef(def);
   const gear = isGearDef(def);
-  if (cc.kind === 'EXHAUST') {
+  if (cc.kind === 'SPEND_BUFF') {
+    if (!unit || o.buffed !== true) return false;
+  } else if (cc.kind === 'EXHAUST') {
     if (!unit || !o.ready) return false;
   } else if (what === 'unit' ? !unit : what === 'gear' ? !gear : !(unit || gear)) {
     return false;
@@ -226,6 +230,9 @@ export function payCostCards(
         break;
       case 'EXHAUST':
         o.ready = false;
+        break;
+      case 'SPEND_BUFF':
+        delete o.buffed;
         break;
       case 'RETURN':
         returnToHand(state, o, out);

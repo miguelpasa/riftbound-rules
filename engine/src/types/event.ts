@@ -114,7 +114,7 @@ export type GameEvent = EventBase &
         type: 'COST_CARDS_PAID';
         player: PlayerId;
         sourceId: string;
-        kind: 'DISCARD' | 'KILL' | 'EXHAUST' | 'RETURN' | 'RECYCLE';
+        kind: 'DISCARD' | 'KILL' | 'EXHAUST' | 'RETURN' | 'RECYCLE' | 'SPEND_BUFF';
         cardIds: string[];
         cardNames: string[];
       }

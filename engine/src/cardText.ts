@@ -1972,10 +1972,10 @@ export function parseOptionalAdditionalCost(text: string): {
   rest: string;
 } | null {
   const re =
-    /(?:^|\n)[ \t]*(?:You may ([^.\n]+?) as an additional cost to play (?:me|this)|As an additional cost to play (?:me|this), you may ([^.\n]+?))\.?(?:[ \t]*If you do, I cost \[(\d+)\] less\.?)?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
+    /(?:^|\n)[ \t]*(?:You may ([^.\n]+?) as an additional cost to play (?:me|this)|As an additional cost to play (?:me|this), you may ([^.\n]+?)|As you play (?:me|this), you may ([^.\n]+?) as an additional cost)\.?(?:[ \t]*If you do, (?:I cost \[(\d+)\] less|reduce my cost by \[(\d+)\]|(ignore this spell['’]s cost))\.?)?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
   const m = re.exec(text);
   if (!m) return null;
-  const phrase = (m[1] ?? m[2] ?? '').trim();
+  const phrase = (m[1] ?? m[2] ?? m[3] ?? '').trim();
   const cost: NonNullable<CardDef['optionalAdditionalCost']> = { energy: 0 };
   const pay = /^pay ((?:\[(?:\d+|C|A)\])+)$/i.exec(phrase);
   const xp = /^spend (\d+) XP$/i.exec(phrase);
@@ -1997,7 +1997,9 @@ export function parseOptionalAdditionalCost(text: string): {
     if (!cc) return null;
     cost.card = cc;
   }
-  if (m[3] !== undefined) cost.reduceEnergy = Number(m[3]);
+  if (m[4] !== undefined) cost.reduceEnergy = Number(m[4]);
+  if (m[5] !== undefined) cost.reduceEnergy = Number(m[5]);
+  if (m[6] !== undefined) cost.reduceAll = true;
   return {
     cost,
     rest: (text.slice(0, m.index) + '\n' + text.slice(m.index + m[0].length)).trim(),
@@ -2373,6 +2375,7 @@ function parseAddClause(sen: string): CardEffect[] | null {
 const CC_N = '(a|an|one|two|three|four|five|\\d+)';
 const CC_BOARD = '(units? or gear|units? and/or gear|units?|gear)';
 const CC_RE: { kind: CostCardChoice['kind']; re: RegExp }[] = [
+  { kind: 'SPEND_BUFF', re: /spend (a|an|one|two|three|\d+) buffs?(?![\w[])/iy },
   {
     kind: 'DISCARD',
     re: new RegExp(`discard ${CC_N}(?: (gear|unit|spell))?(?: cards?)?(?![\\w\\[])`, 'iy'),
@@ -2409,6 +2412,12 @@ function parseCostCardAt(s: string): { cc: CostCardChoice; len: number } | null 
     re.lastIndex = 0;
     const m = re.exec(s);
     if (!m) continue;
+    if (kind === 'SPEND_BUFF') {
+      const w = (m[1] ?? '').toLowerCase();
+      const n = numberOf(w === 'a' || w === 'an' ? 'one' : w);
+      if (n === null || n < 1) return null;
+      return { cc: { kind, ...(n > 1 ? { count: n } : {}) }, len: m[0].length };
+    }
     if (kind === 'DISCARD' || kind === 'RECYCLE') {
       const word = (m[1] ?? '').toLowerCase();
       const count = numberOf(word === 'a' || word === 'an' ? 'one' : word);
