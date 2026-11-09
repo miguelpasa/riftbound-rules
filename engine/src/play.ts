@@ -415,7 +415,12 @@ export const playResolver: ChainResolver = (state, item, cards) => {
     const banishThis = (spellEffects(def, item.mode) ?? []).some(
       (e) => e.op === 'BANISH_THIS_SPELL',
     );
-    if (item.additionalCosts?.flow === true || banishThis) {
+    if (item.recycleAfter === true) {
+      // "Then recycle it" (Fizz, Kai'Sa): to the bottom of the owner's Main Deck.
+      owner.mainDeck.push(obj.id);
+      obj.zone = { kind: 'mainDeck', player: obj.owner };
+      events.push({ type: 'CARDS_RECYCLED', player: obj.owner, count: 1 });
+    } else if (item.additionalCosts?.flow === true || banishThis) {
       // R61: a spell played with Flow is banished instead of going to the Trash.
       owner.banishment.push(obj.id);
       obj.zone = { kind: 'banishment', player: obj.owner };

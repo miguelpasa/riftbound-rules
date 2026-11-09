@@ -451,7 +451,11 @@ export type CardEffect =
       /** "Play a unit from your hand": the card comes from the hand instead of the Trash. */
       from?: 'hand';
       /** "units and/or gear": what may be chosen (a unit by default). */
-      what?: 'unit' | 'unitOrGear';
+      what?: 'unit' | 'unitOrGear' | 'spell';
+      /** "Then recycle it" (a spell played this way goes to the bottom of the Main Deck instead of the Trash). */
+      thenRecycle?: boolean;
+      /** "with Energy cost less than your points". */
+      energyBelowPoints?: boolean;
       maxEnergy?: number;
       maxPower?: number;
       subtypes?: string[];

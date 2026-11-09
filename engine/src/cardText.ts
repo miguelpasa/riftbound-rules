@@ -990,6 +990,23 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: 'friendly' },
     };
   }
+  // "Play a spell from your trash with Energy cost no more than [3] / less than your points, ignoring its Energy cost".
+  m =
+    /^[Pp]lay a spell from your trash(?: with Energy cost (?:no more than \[(\d+)\]|(less than your points)))?,? (?:ignoring its (Energy )?cost|without paying its Energy cost)$/.exec(
+      sen,
+    );
+  if (m) {
+    return {
+      effect: {
+        op: 'PLAY_FROM_TRASH',
+        what: 'spell',
+        payPower: true,
+        ...(m[1] !== undefined ? { maxEnergy: Number(m[1]) } : {}),
+        ...(m[2] ? { energyBelowPoints: true } : {}),
+      },
+      decl: { side: 'friendly' },
+    };
+  }
   // "Play a unit from your hand to your base, ignoring its [Energy] cost" (Rift Herald).
   m = /^[Pp]lay an? unit from your hand to your base, ignoring its (Energy )?cost$/.exec(sen);
   if (m) {
@@ -1482,6 +1499,14 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
       amountSlotSide: (st.slots[from] as SlotDecl).side,
     });
     return true;
+  }
+  // "Then recycle it" after a spell played by an effect (Fizz, Kai'Sa).
+  if (/^recycle it$/i.test(sen)) {
+    const prev = out[out.length - 1];
+    if (prev?.op === 'PLAY_FROM_TRASH' && prev.what === 'spell') {
+      prev.thenRecycle = true;
+      return true;
+    }
   }
   if (st.it !== undefined && !st.locked) {
     const eff = parseItSentence(sen, st.slots[st.it] as SlotDecl, st.it);

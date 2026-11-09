@@ -29,6 +29,7 @@ import type {
   CardDef,
   CardEffect,
   CardInstance,
+  ChainItem,
   GameEventInput,
   GameState,
   PlayerId,
@@ -90,6 +91,8 @@ interface Spec {
   trashMaxPower?: number;
   /** The card is in the controller's hand instead of the Trash. */
   trashFromHand?: boolean;
+  /** "with Energy cost less than your points". */
+  trashEnergyBelowPoints?: boolean;
   /** The Power cost of the Trash card must be payable now ("ignoring its Energy cost"). */
   trashPayPower?: boolean;
   /** R42: at the source's battlefield / not the source itself (needs the source object). */
@@ -167,6 +170,7 @@ function specOf(e: TargetedEffect): Spec {
   if (e.op === 'PLAY_FROM_TRASH') {
     spec.side = 'friendly';
     spec.trashWhat = e.what ?? 'unit';
+    if (e.energyBelowPoints) spec.trashEnergyBelowPoints = true;
     if (e.from === 'hand') spec.trashFromHand = true;
     if (e.subtypes) spec.trashSubtypes = e.subtypes;
     if (e.maxEnergy !== undefined) spec.trashMaxEnergy = e.maxEnergy;
@@ -320,6 +324,20 @@ function legalForSpec(
             : d.type === 'UNIT' || d.type === 'GEAR';
     if (!ok) return false;
     if (spec.trashMaxEnergy !== undefined && d.cost.energy > spec.trashMaxEnergy) return false;
+    if (
+      spec.trashEnergyBelowPoints &&
+      d.cost.energy >= (state.players[playerIndex(controller)]?.points ?? 0)
+    ) {
+      return false;
+    }
+    // A spell played by an effect needs a legal set of targets (modal spells are not modelled).
+    if (spec.trashWhat === 'spell') {
+      if (d.modes) return false;
+      const eff = spellEffects(d);
+      if (!eff || enumerateSpellTargets(state, cards, controller, eff, u.id)?.length === 0) {
+        return false;
+      }
+    }
     if (spec.trashMaxPower !== undefined) {
       const pw = Object.values(d.cost.power ?? {}).reduce((n, v) => n + (v ?? 0), 0);
       if (pw > spec.trashMaxPower) return false;
@@ -1410,6 +1428,54 @@ export function runEffects(
             const ps = state.players[playerIndex(u.owner)];
             ps.trash = ps.trash.filter((x) => x !== u.id);
             ps.hand = ps.hand.filter((x) => x !== u.id);
+            if (cards[u.cardId]?.type === 'SPELL') {
+              // A spell played by an effect goes on the Chain; its targets are chosen like a trigger's.
+              const sdef = cards[u.cardId] as CardDef;
+              const tchoices = enumerateSpellTargets(
+                state,
+                cards,
+                controller,
+                spellEffects(sdef),
+                u.id,
+              );
+              if (tchoices !== null && tchoices.length === 0) {
+                fizzle();
+                continue;
+              }
+              u.zone = { kind: 'chain', player: u.owner };
+              const spellItem: ChainItem = {
+                id: allocObjectId(state),
+                kind: 'CARD',
+                sourceObjectId: u.id,
+                controller,
+                status: tchoices === null || tchoices.length === 1 ? 'FINALIZED' : 'PENDING',
+                targets: tchoices?.length === 1 ? (tchoices[0] as Target[]) : [],
+                choices: {},
+                byEffect: true,
+                ...(e.thenRecycle ? { recycleAfter: true } : {}),
+              };
+              state.flow.chain.push(spellItem);
+              if (spellItem.status === 'PENDING') {
+                state.flow.pendingChoice = {
+                  kind: 'TRIGGER_TARGET',
+                  player: controller,
+                  chainItemId: spellItem.id,
+                };
+              }
+              const seat = state.players[playerIndex(controller)];
+              const same = seat.playedThisTurn?.turn === state.turn.number;
+              seat.playedThisTurn = {
+                turn: state.turn.number,
+                objectIds: [...(same ? (seat.playedThisTurn?.objectIds ?? []) : []), u.id],
+              };
+              out.push({
+                type: 'CARD_PLAYED',
+                player: controller,
+                cardInstanceId: u.id,
+                cardId: u.cardId,
+              });
+              continue;
+            }
             u.zone = { kind: 'base', player: u.owner };
             u.controller = u.owner;
             u.damage = 0;

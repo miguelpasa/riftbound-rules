@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { Scenario } from '../testing/scenario.js';
-import { runEffects } from '../effects.js';
+import { runEffects, spellTargetsLegal } from '../effects.js';
 import { reduce } from '../reducer.js';
 import { getLegalActions } from '../legalActions.js';
 import { sanitizeFor } from '../sanitize.js';
 import { parseCardAbilities, parseSpellText } from '../cardText.js';
-import type { CardEffect, GameState, Intent } from '../types/index.js';
+import type { CardDef, CardEffect, CardInstance, GameState, Intent } from '../types/index.js';
 
 function run(sc: Scenario, effects: CardEffect[]): GameState {
   const s = structuredClone(sc.state);
@@ -172,5 +172,80 @@ describe('scenario: each player kills or returns one of their own (Cull the Weak
     choose(sc, 'p0', []);
     expect(sc.obj(mine).zone.kind).toBe('base');
     expect(sc.state.flow.pendingChoice).toBeUndefined();
+  });
+});
+
+describe("scenario: play a spell from the Trash by an effect and recycle after (Fizz, Kai'Sa)", () => {
+  const cards = {
+    ...Scenario.start().cards,
+  };
+  const setup = () => {
+    const spellCards = {
+      ...cards,
+      'fx-flare': {
+        ...(cards['fx-flare'] as CardDef),
+        supportLevel: 'partial' as const,
+        effects: [{ op: 'DAMAGE_TARGET' as const, amount: 1 }],
+      },
+    };
+    const sc = Scenario.start({}, spellCards);
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const a = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const b = sc.putUnit('p1', 'fx-order-tank', 'bf1');
+    const s = structuredClone(sc.state);
+    s.players[0].hand = s.players[0].hand.filter((x) => x !== flare);
+    s.players[0].trash.push(flare);
+    (s.objects[flare] as CardInstance).zone = { kind: 'trash', player: 'p0' };
+    sc.state = s;
+    return { sc, flare, a, b };
+  };
+
+  it('puts the spell on the Chain, asks for its target, resolves it and recycles it', () => {
+    // Tests Rule 595.3: a card played by an effect is played like any other
+    const { sc, flare, a, b } = setup();
+    const s = structuredClone(sc.state);
+    runEffects(
+      s,
+      'p0',
+      [{ op: 'PLAY_FROM_TRASH', what: 'spell', payPower: true, thenRecycle: true }],
+      sc.cards,
+      [{ kind: 'object', id: flare }],
+    );
+    sc.state = s;
+    expect(sc.obj(flare).zone.kind).toBe('chain');
+    expect(sc.state.flow.pendingChoice).toMatchObject({ kind: 'TRIGGER_TARGET', player: 'p0' });
+    const item = sc.state.flow.chain[0]?.id as string;
+    sc.do({
+      type: 'CHOOSE_TRIGGER_TARGET',
+      playerId: 'p0',
+      chainItemId: item,
+      targets: [{ kind: 'object', id: a }],
+    });
+    for (let k = 0; k < 8 && sc.state.flow.chain.length > 0; k++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    expect(sc.obj(a).damage + (sc.obj(a).zone.kind === 'trash' ? 1 : 0)).toBeGreaterThan(0);
+    expect(sc.obj(b).damage).toBe(0);
+    expect(sc.obj(flare).zone.kind).toBe('mainDeck');
+    expect(sc.player('p0').mainDeck[sc.player('p0').mainDeck.length - 1]).toBe(flare);
+  });
+
+  it('a spell with no legal target is not a legal choice', () => {
+    // Tests Rule 595.3: a card played by an effect needs legal targets
+    const { sc, flare } = setup();
+    const s = structuredClone(sc.state);
+    for (const o of Object.values(s.objects)) {
+      if (o.cardId === 'fx-tide-grunt' || o.cardId === 'fx-order-tank')
+        o.zone = { kind: 'trash', player: o.owner };
+    }
+    expect(
+      spellTargetsLegal(
+        s,
+        sc.cards,
+        'p0',
+        [{ op: 'PLAY_FROM_TRASH', what: 'spell' }],
+        [{ kind: 'object', id: flare }],
+      ),
+    ).toBe(false);
   });
 });

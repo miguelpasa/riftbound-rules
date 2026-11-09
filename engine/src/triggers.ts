@@ -30,7 +30,7 @@
 import { fork } from './workingCopy.js';
 import { deriveTurnState } from './chain.js';
 import { allocObjectId, stampEvents } from './setup.js';
-import { abilityTargetsLegal, enumerateSpellTargets } from './effects.js';
+import { abilityTargetsLegal, enumerateSpellTargets, spellEffects } from './effects.js';
 import { legionActive } from './keywords.js';
 import { itemSourceId } from './sources.js';
 import { isDeployGear } from './tokens.js';
@@ -587,6 +587,10 @@ export function abilityItemEffects(
   cards: CardDatabase,
   item: ChainItem,
 ): readonly CardEffect[] | undefined {
+  if (item.kind === 'CARD' && item.byEffect) {
+    const def = cards[state.objects[item.sourceObjectId]?.cardId ?? ''];
+    return def ? spellEffects(def, item.mode) : undefined;
+  }
   if (item.kind !== 'ABILITY') return undefined;
   const obj = state.objects[item.sourceObjectId];
   if (item.triggerIndex !== undefined) {

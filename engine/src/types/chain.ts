@@ -56,6 +56,10 @@ export interface ChainItem {
   additionalCosts?: { accelerate?: boolean; repeat?: boolean; extra?: boolean; flow?: boolean };
   /** R59: the chosen mode of a modal spell. */
   mode?: number;
+  /** A spell played by an effect ("play a spell from your trash"): its targets are chosen like a trigger's. */
+  byEffect?: boolean;
+  /** "Then recycle it" (Fizz, Kai'Sa): the spell goes to the bottom of its owner's Main Deck instead of the Trash. */
+  recycleAfter?: boolean;
 }
 
 export interface ShowdownState {
