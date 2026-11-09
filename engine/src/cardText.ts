@@ -120,6 +120,7 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   let m = /^Draw (\d+)$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]) }];
   if (/^Banish this$/i.test(sen)) return [{ op: 'BANISH_THIS_SPELL' }];
+  if (/^Play me$/i.test(sen)) return [{ op: 'PLAY_SELF' }];
   if (/^Prevent all spell and ability damage this turn$/i.test(sen))
     return [{ op: 'PREVENT_EFFECT_DAMAGE_TURN' }];
   m = /^(?:You and that player each draw|Each player draws) (\d+)$/i.exec(sen);
@@ -2405,7 +2406,7 @@ const DEATH_HEAD =
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
-  /^(When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you stun (?:an enemy unit|one or more enemy units)|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -2575,8 +2576,10 @@ export function parseCardAbilities(
         ? ['UNIT_BECOMES_MIGHTY']
         : head.startsWith('when you stun')
           ? ['YOU_STUN_ENEMY']
-          : head.startsWith('when you discard')
-            ? ['YOU_DISCARD']
+          : head.startsWith('when you discard me')
+            ? ['DISCARD_SELF']
+            : head.startsWith('when you discard')
+              ? ['YOU_DISCARD']
             : head.startsWith('when i move from a battlefield')
               ? ['MOVE_FROM']
               : head.startsWith('when you use an activated ability of a gear')

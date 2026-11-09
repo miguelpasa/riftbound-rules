@@ -448,6 +448,8 @@ export type CardEffect =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** X9: "play me" - the source card is played from the Trash to its owner's Base (costs already paid by the trigger). */
+  | { op: 'PLAY_SELF' }
   /** X5: "Banish this." - the spell is banished instead of going to the Trash. */
   | { op: 'BANISH_THIS_SPELL' }
   /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
@@ -815,6 +817,8 @@ export type TriggerKind =
   | 'YOU_STUN_ENEMY'
   /** X9: "When you discard one or more cards" (598.1.b; discards happen as card-choice costs / discard effects). */
   | 'YOU_DISCARD'
+  /** X9: "When you discard me": fires for the discarded card itself (now in its owner's Trash). */
+  | 'DISCARD_SELF'
   /** X9 (709): "When a unit you control becomes [Mighty]". */
   | 'UNIT_BECOMES_MIGHTY';
 

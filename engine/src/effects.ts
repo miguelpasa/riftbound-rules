@@ -768,7 +768,8 @@ export function runEffects(
   };
   const damage = (u: CardInstance, amount: number): void => {
     const dealt = applyDamageMods(state, cards, u, amount, { kind: 'EFFECT', controller });
-    if (dealt < amount) out.push({ type: 'DAMAGE_PREVENTED', unitId: u.id, amount: amount - dealt });
+    if (dealt < amount)
+      out.push({ type: 'DAMAGE_PREVENTED', unitId: u.id, amount: amount - dealt });
     if (dealt <= 0) return;
     u.damage += dealt;
     out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount: dealt });
@@ -962,6 +963,34 @@ export function runEffects(
         }
         break;
       }
+      case 'PLAY_SELF': {
+        const me = state.objects[sourceObjectId];
+        if (!me || me.zone.kind !== 'trash') {
+          fizzle();
+          break;
+        }
+        const ps = state.players[playerIndex(me.owner)];
+        ps.trash = ps.trash.filter((x) => x !== me.id);
+        me.zone = { kind: 'base', player: me.owner };
+        me.controller = me.owner;
+        me.enteredTurn = state.turn.number;
+        me.ready =
+          staticBonus(state, cards, me).entersReady === true ||
+          ps.enterReadyTurn === state.turn.number;
+        ps.base.push(me.id);
+        const same = ps.playedThisTurn?.turn === state.turn.number;
+        ps.playedThisTurn = {
+          turn: state.turn.number,
+          objectIds: [...(same ? (ps.playedThisTurn?.objectIds ?? []) : []), me.id],
+        };
+        out.push({
+          type: 'CARD_PLAYED',
+          player: me.owner,
+          cardInstanceId: me.id,
+          cardId: me.cardId,
+        });
+        break;
+      }
       case 'BANISH_THIS_SPELL':
         break; // applied when the spell finishes resolving (play.ts)
       case 'PREVENT_EFFECT_DAMAGE_TURN':
@@ -1118,7 +1147,8 @@ export function runEffects(
             const was = u.zone;
             const holder = state.players[playerIndex(u.controller)];
             holder.base = holder.base.filter((x) => x !== u.id);
-            for (const g of Object.values(state.objects)) if (g.attachedTo === u.id) delete g.attachedTo;
+            for (const g of Object.values(state.objects))
+              if (g.attachedTo === u.id) delete g.attachedTo;
             if (isTokenInstance(u)) {
               removeTokenFromGame(state, u.id); // 186.1: a token is not a card; it ceases to exist
               continue;

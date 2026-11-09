@@ -282,6 +282,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         }
       }
     } else if (e.type === 'COST_CARDS_PAID' && e.kind === 'DISCARD' && e.cardIds.length > 0) {
+      // X9: "When you discard me": the discarded cards themselves (now in the Trash) trigger.
+      for (const id of e.cardIds) add(state.objects[id], 'DISCARD_SELF', e.player);
       // X9: "When you discard one or more cards".
       for (const src of Object.values(state.objects)) {
         if (src.controller !== e.player || !onBoard(src)) continue;
