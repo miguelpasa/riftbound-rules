@@ -2457,6 +2457,17 @@ export function parseSelfCostReduction(
     /\bI cost \[(\d+)\] less to play from anywhere other than your hand\b/i,
     'If I am not in your hand, I cost [$1] less',
   );
+  // "Reduce my cost by [1] for each of the following tags among your units — Bird, Cat, Dog, and Poro." (Daisy!)
+  const pet =
+    /(?:^|\n)[ \t]*Reduce my cost by \[(\d+)\] for each of the following tags among your units [—–-] Bird, Cat, Dog, and Poro\.?[ \t]*(?=\n|$)/i.exec(
+      text,
+    );
+  if (pet) {
+    return {
+      reduction: { energy: Number(pet[1]), per: 'PET_TAGS' },
+      rest: (text.slice(0, pet.index) + '\n' + text.slice(pet.index + pet[0].length)).trim(),
+    };
+  }
   // R91: "This spell's Energy cost is reduced by the highest Might among units you control."
   const hm =
     /(?:^|\n)[ \t]*This spell['’]s Energy cost is reduced by the highest Might among units you control\.?[ \t]*(?=\n|$)/i.exec(
@@ -3089,6 +3100,10 @@ export function parseCondition(raw: string): Condition | null {
   if (/^I['’]m attacking or defending alone$/i.test(text)) {
     return { kind: 'COMBAT_ROLE', role: 'EITHER', alone: true };
   }
+  {
+    const pt = /^your units have all (\d+) tags$/i.exec(text);
+    if (pt) return { kind: 'PET_TAGS', n: Number(pt[1]) };
+  }
   if (/^you['’]ve discarded a card this turn$/i.test(text)) {
     return { kind: 'TURN_FLAG', flag: 'discarded' };
   }
@@ -3578,6 +3593,8 @@ export function parseCardAbilities(
     .replace(/\[Stun\]/gi, 'Stun')
     // "give me [Temporary]" is an effect, not the keyword line (it would be stripped below).
     .replace(/\bgive me \[Temporary\]/gi, 'give me Temporary')
+    // "When I attack while <condition>, ..." = "When I attack, if <condition>, ...".
+    .replace(/\bWhen I (attack|defend|conquer|hold) while (.+?), /gi, 'When I $1, if $2, ')
     .replace(/\[Reaction\],\s*(?=\[Legion\])/gi, 'REACTION ')
     .replace(
       /\[(Reaction|Action)\]\s*(?:\[>\]|[—–-])\s*/gi,

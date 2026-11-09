@@ -20,7 +20,7 @@ import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
 import { bonusDamageTo, defWithGrants, staticBonus } from './statics.js';
 import { evalCondition, recordDeath } from './conditions.js';
-import { petTagCount } from './costReduction.js';
+import { petTagCount } from './petTags.js';
 import { playerIndex } from './types/constants.js';
 import type {
   HandAction,

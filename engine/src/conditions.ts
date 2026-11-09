@@ -12,6 +12,7 @@
  */
 import { playerIndex } from './types/constants.js';
 import { baseMight } from './baseMight.js';
+import { petTagCount } from './petTags.js';
 import { isDeployGear, isUnitDef } from './tokens.js';
 import { hereOfSource } from './sources.js';
 import { effectiveMight } from './combat.js';
@@ -323,6 +324,8 @@ export function evalCondition(
       const rec = state.players[playerIndex(controller)]?.turnFlags;
       return rec !== undefined && rec.turn === state.turn.number && rec[cond.flag] === true;
     }
+    case 'PET_TAGS':
+      return petTagCount(state, cards, controller) >= cond.n;
     case 'TURN_SPENT': {
       const rec = state.players[playerIndex(controller)]?.turnFlags;
       if (!rec || rec.turn !== state.turn.number) return false;

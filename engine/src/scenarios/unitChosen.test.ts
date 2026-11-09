@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { parseBattlefieldAbilities, parseCardAbilities, parseSpellText } from '../cardText.js';
+import {
+  parseBattlefieldAbilities,
+  parseCardAbilities,
+  parseSelfCostReduction,
+  parseSpellText,
+} from '../cardText.js';
+import { evalCondition } from '../conditions.js';
 import { runEffects } from '../effects.js';
 import { runTurnTriggers } from '../turnTriggers.js';
 import { effectiveMight } from '../combat.js';
@@ -248,7 +254,7 @@ describe('scenario: "If this kills it" (Disintegrate)', () => {
 describe('scenario: "give me [Temporary]" when played off-turn (Momentary Companion)', () => {
   const text = "When you play me, if it's not your turn, give me [Temporary].";
 
-  it("reads as a play trigger gated on it not being your turn", () => {
+  it('reads as a play trigger gated on it not being your turn', () => {
     // Tests Rule 583: triggered abilities have a trigger condition and an effect
     expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
       on: 'PLAY',
@@ -334,7 +340,15 @@ describe('scenario: "We deal damage equal to our Mights to each other" (Carnivor
     const me = sc.putUnit('p0', 'fx-ash-tank', 'base'); // 3 Might
     const foe = sc.putUnit('p1', 'fx-tide-grunt', 'bf1'); // 2 Might
     const s = structuredClone(sc.state);
-    runEffects(s, 'p0', trig[0]?.effects ?? [], SCENARIO_CARDS, [{ kind: 'object', id: foe }], 'fx-ash-tank', me);
+    runEffects(
+      s,
+      'p0',
+      trig[0]?.effects ?? [],
+      SCENARIO_CARDS,
+      [{ kind: 'object', id: foe }],
+      'fx-ash-tank',
+      me,
+    );
     expect(s.objects[me]?.damage).toBe(2);
     expect(s.objects[foe]?.damage).toBe(3);
   });
@@ -380,5 +394,41 @@ describe('scenario: "for each of the following tags among your units" (Friendshi
     }
     // Cat, Poro and Dog are present: three distinct tags.
     expect(effectiveMight(sc.state, cards, a, { role: null }) - before).toBe(3);
+  });
+});
+
+describe('scenario: Daisy! (cost per pet tag, attack trigger needing all four)', () => {
+  const costText =
+    'Reduce my cost by [1] for each of the following tags among your units — Bird, Cat, Dog, and Poro.';
+  const atkText =
+    "When I attack while your units have all 4 tags, [Stun] an enemy unit here. (It doesn't deal combat damage this turn.)";
+
+  it('reads the cost reduction and the gated attack trigger', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseSelfCostReduction(costText)).toMatchObject({
+      reduction: { energy: 1, per: 'PET_TAGS' },
+    });
+    expect(parseCardAbilities(atkText)?.triggers[0]).toMatchObject({
+      on: 'ATTACK',
+      effects: [{ op: 'STUN_TARGET', side: 'enemy', here: true }],
+      when: { kind: 'PET_TAGS', n: 4 },
+    });
+  });
+
+  it('costs [1] less per distinct tag and the condition needs all four', () => {
+    // Tests Rule 583: a triggered ability checks its condition as it resolves
+    const tagged = (id: string, tags: string[]): CardDef => ({ ...base(id), subtypes: tags });
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': tagged('fx-grunt', ['Bird', 'Cat']),
+      'fx-archer': tagged('fx-archer', ['Dog']),
+    };
+    const sc = Scenario.start({}, cards);
+    const me = sc.putUnit('p0', 'fx-grunt', 'base');
+    const none = evalCondition(sc.state, cards, { kind: 'PET_TAGS', n: 4 }, 'p0', me);
+    expect(none).toBe(false);
+    sc.putUnit('p0', 'fx-archer', 'base');
+    expect(evalCondition(sc.state, cards, { kind: 'PET_TAGS', n: 3 }, 'p0', me)).toBe(true);
+    expect(evalCondition(sc.state, cards, { kind: 'PET_TAGS', n: 4 }, 'p0', me)).toBe(false);
   });
 });
