@@ -64,6 +64,8 @@ interface Spec {
   side: TargetSide;
   /** Only a target card of this domain. */
   domain?: Domain;
+  /** Only an exhausted target. */
+  exhausted?: boolean;
   /** Location slots: the earlier slot that holds the unit being moved, and which locations are allowed. */
   forSlot?: number;
   dest?: 'ANY' | 'BATTLEFIELD' | 'OPEN' | 'CONTROLLED' | 'ENEMY_OCCUPIED' | 'TO_OR_FROM_BASE';
@@ -193,6 +195,7 @@ function specOf(e: TargetedEffect): Spec {
   if (e.op === 'RETURN_TARGET' && e.notSubtype) spec.notSubtype = e.notSubtype;
   if ('here' in e && e.here) spec.here = true;
   if ('domain' in e && e.domain) spec.domain = e.domain;
+  if ('exhausted' in e && e.exhausted) spec.exhausted = true;
   if ('another' in e && e.another) spec.another = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergy !== undefined) spec.maxEnergy = e.maxEnergy;
   if ((e.op === 'KILL_TARGET' || e.op === 'RETURN_TARGET') && e.maxMight !== undefined) {
@@ -426,6 +429,7 @@ function legalForSpec(
     }
     if (spec.another && u.id === sourceId) return false;
     if (spec.domain && !(cards[u.cardId]?.domains ?? []).includes(spec.domain)) return false;
+    if (spec.exhausted && u.ready) return false;
   }
   if (spec.side === 'friendly') return u.controller === controller;
   if (spec.side === 'enemy') return u.controller !== controller;

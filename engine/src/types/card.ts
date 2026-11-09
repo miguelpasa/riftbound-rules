@@ -138,6 +138,8 @@ export interface TargetScope {
   another?: boolean;
   /** "an enemy Calm unit": only a target of this domain. */
   domain?: Domain;
+  /** "an exhausted friendly unit": only an exhausted target. */
+  exhausted?: boolean;
 }
 
 /** R96: which card a Look-at-the-top effect may take (the first match from the top is taken). */

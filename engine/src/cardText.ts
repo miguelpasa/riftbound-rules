@@ -2437,13 +2437,14 @@ const DOMAIN_OPS: ReadonlySet<string> = new Set([
   'RETURN_TARGET',
   'STUN_TARGET',
   'READY_TARGET',
+  'MOVE_BASE_TARGET',
   'GRANT_KEYWORD_TARGET',
 ]);
 
 function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
-  const doms: (Domain | undefined)[] = [];
+  const filters: { dom?: Domain; exhausted?: boolean }[] = [];
   const list = sens
     .flatMap((x) =>
       /^Banish an? [a-z ]*unit, then its owner plays it/i.test(x) ||
@@ -2476,26 +2477,38 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
         .replace(/^if I am at a battlefield, /i, '')
         .trim(),
     )
-    // "an enemy Calm unit": the domain word becomes a filter on the effect that targets it (`doms`, by sentence).
+    // "an enemy Calm unit" / "an exhausted friendly unit": the word becomes a filter on the effect that targets it
+    // (`filters`, by sentence).
     .map((x) => {
       const dm = /\b(Fury|Calm|Mind|Body|Chaos|Order)\s+(units?)\b/.exec(x);
-      doms.push(dm ? (dm[1] as Domain) : undefined);
-      return dm ? x.replace(dm[0], dm[2] as string).replace(/\s+/g, ' ') : x;
+      const ex = /\b(an?|another) exhausted\s+((?:friendly |enemy )?units?)\b/.exec(x);
+      filters.push({
+        ...(dm ? { dom: dm[1] as Domain } : {}),
+        ...(ex ? { exhausted: true } : {}),
+      });
+      let y = x;
+      if (dm) y = y.replace(dm[0], dm[2] as string);
+      if (ex) y = y.replace(ex[0], `${ex[1]} ${ex[2]}`);
+      return y.replace(/\s+/g, ' ');
     });
   let lastGate: Condition | null = null;
-  let pend: { from: number; dom: Domain } | null = null;
+  let pend: { from: number; dom?: Domain; exhausted?: boolean } | null = null;
   const flushDomain = (): void => {
     if (!pend || out.length <= pend.from) return;
     for (let k = pend.from; k < out.length; k++) {
       const ef = out[k] as CardEffect;
-      if (DOMAIN_OPS.has(ef.op)) (ef as { domain?: Domain }).domain = pend.dom;
+      if (!DOMAIN_OPS.has(ef.op)) continue;
+      if (pend.dom) (ef as { domain?: Domain }).domain = pend.dom;
+      if (pend.exhausted) (ef as { exhausted?: boolean }).exhausted = true;
     }
     pend = null;
   };
   for (let i = 0; i < list.length; i++) {
     flushDomain();
-    const dom = doms[i];
-    if (dom && !pend) pend = { from: out.length, dom };
+    const flt = filters[i];
+    if (flt && (flt.dom || flt.exhausted) && !pend) {
+      pend = { from: out.length, ...(flt.dom ? { dom: flt.dom } : {}), ...(flt.exhausted ? { exhausted: true } : {}) };
+    }
     // "Stun a unit. If it's already stunned, return it to its owner's hand instead" (Existential Dread).
     if (
       /^If it['’]s already stunned, return it to its owner['’]s hand instead$/i.test(

@@ -569,3 +569,30 @@ describe('scenario: "you may spend N XP to ..." (Kha\'Zix)', () => {
     expect(sc.state.players[0]?.hand.length).toBe(hand + 1);
   });
 });
+
+describe('scenario: exhausted-unit targets (Arena Bar)', () => {
+  it('only offers exhausted units', () => {
+    // Tests Rule 355.10: targets must be legal
+    const e = parseSpellText('Buff an exhausted friendly unit.') as CardEffect[];
+    expect(e[0]).toMatchObject({ op: 'BUFF_TARGET', side: 'friendly', exhausted: true });
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects: e },
+    };
+    const sc = Scenario.start({}, cards);
+    const u = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const tryIt = () =>
+      reduce(sc.state, cards, {
+        type: 'PLAY_CARD',
+        playerId: 'p0',
+        cardInstanceId: flare,
+        payment: sc.exhaustPlan('p0', 1),
+        targets: [{ kind: 'object', id: u }],
+      }).ok;
+    sc.setReady(u, true);
+    expect(tryIt()).toBe(false);
+    sc.setReady(u, false);
+    expect(tryIt()).toBe(true);
+  });
+});
