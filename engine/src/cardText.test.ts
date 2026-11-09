@@ -870,3 +870,13 @@ describe('additional costs to play (R47)', () => {
     ]);
   });
 });
+
+describe('parseSpellText: two keyword actions in one sentence', () => {
+  it('splits "[Buff] a friendly unit and [Stun] an enemy unit" into two choices (One-Two Punch)', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    expect(parseSpellText('[Buff] a friendly unit and [Stun] an enemy unit.')).toEqual([
+      { op: 'BUFF_TARGET', amount: 1, buff: true, side: 'friendly' },
+      { op: 'STUN_TARGET', side: 'enemy', slot: 1 },
+    ]);
+  });
+});

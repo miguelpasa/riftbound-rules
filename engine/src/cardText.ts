@@ -2562,6 +2562,10 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       // R65: "Ready a unit and give it [Assault 3] this turn" = two sentences about the same unit.
       const m = /^(Ready an? (?:friendly |enemy )?unit) and (give it .+)$/i.exec(x);
       if (m) return [m[1] as string, m[2] as string];
+      // "[Buff] a friendly unit and [Stun] an enemy unit": two keyword actions, each choosing its own unit.
+      const kw =
+        /^(\[?(?:Buff|Stun|Ready)\]? an? [a-z ]+?) and (\[?(?:Buff|Stun|Ready)\]? an? [a-z ]+)$/i.exec(x);
+      if (kw) return [kw[1] as string, kw[2] as string];
       // R82: "Return a friendly unit and an enemy unit to their owners' hands" = two separate choices.
       const two =
         /^Return (another |a )friendly unit and an enemy unit to their owners['’] hands$/i.exec(x);
