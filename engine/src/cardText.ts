@@ -3968,6 +3968,7 @@ export function parseBattlefieldAbilities(text: string): CardTrigger[] | null {
       'At the start of your Beginning Phase',
     )
     .replace(/\ba unit you control here\b/gi, 'a friendly unit here')
+    .replace(/\bWhen you hide a card here\b/gi, 'When you hide a card')
     .replace(/\bthat player channels\b/gi, 'channel')
     .replace(/\bthat player gains (\d+) points?\b/gi, 'score $1 point')
     .replace(
@@ -3979,11 +3980,22 @@ export function parseBattlefieldAbilities(text: string): CardTrigger[] | null {
   if (r.abilities.length > 0 || r.entersReady || r.entersReadyWhen || r.entersExhausted)
     return null;
   if (r.legionCostReduction !== undefined || r.triggers.some((t) => t.condition)) return null;
-  if (r.triggers.some((t) => !['HOLD', 'CONQUER', 'DEFEND', 'ATTACK', 'TURN_START'].includes(t.on)))
+  if (
+    r.triggers.some(
+      (t) => !['HOLD', 'CONQUER', 'DEFEND', 'ATTACK', 'TURN_START', 'YOU_HIDE'].includes(t.on),
+    )
+  )
     return null;
-  return firstTurn
-    ? r.triggers.map((t) => (t.on === 'TURN_START' ? { ...t, firstTurn: true } : t))
-    : r.triggers;
+  const hideHere = /When you hide a card here\b/i.test(text);
+  // A battlefield hide trigger is always "here" (it only sees cards hidden at that battlefield).
+  if (!hideHere && r.triggers.some((t) => t.on === 'YOU_HIDE')) return null;
+  return r.triggers.map((t) =>
+    t.on === 'YOU_HIDE' && hideHere
+      ? { ...t, hiddenHere: true as const }
+      : t.on === 'TURN_START' && firstTurn
+        ? { ...t, firstTurn: true }
+        : t,
+  );
 }
 
 /** Triggered abilities only (kept for callers and tests): null unless the text has a trigger. */

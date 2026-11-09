@@ -383,6 +383,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         if (src.controller !== e.player || !onBoard(src)) continue;
         add(src, 'YOU_HIDE', src.controller);
       }
+      // "When you hide a card here": the battlefield the card was hidden at.
+      addBattlefield(e.battlefieldId, 'YOU_HIDE', e.player);
     } else if (e.type === 'TOKEN_PLAYED') {
       // R99: "When you play a token unit" fires for the player's permanents.
       const tokenDef = cards[e.cardId];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
+import { SCENARIO_CARDS, SC_LURKER_A, Scenario } from '../testing/scenario.js';
 import {
   parseBattlefieldAbilities,
   parseCardAbilities,
@@ -10,6 +10,7 @@ import { scoreBattlefield } from '../scoring.js';
 import { endCombatGrants, expireTurnEffects, runEffects } from '../effects.js';
 import { effectiveMight } from '../combat.js';
 import { reduce } from '../reducer.js';
+import { TOKEN_CARDS } from '../tokens.js';
 import type { CardDatabase, CardDef, CardEffect } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
@@ -677,5 +678,46 @@ describe('scenario: "this turn" triggers (Rally the Troops, Fanfare, Imperial De
     expect(['trash', 'banishment']).toContain(sc.obj(victim).zone.kind);
     const next = expireTurnEffects(sc.state, cards).state;
     expect(next.delayed).toBeUndefined();
+  });
+});
+
+describe('scenario: "When you hide a card here" (Bandle Scouts\' Academy)', () => {
+  const text =
+    'When you hide a card here, play a Gold gear token exhausted. (It has "[Reaction][>] Kill this, [E]: [Add] [A].")';
+
+  it('reads as a battlefield trigger on hiding, limited to this battlefield', () => {
+    // Tests Rule 811: a Hidden card is placed facedown, not played
+    expect(parseBattlefieldAbilities(text)?.[0]).toMatchObject({
+      on: 'YOU_HIDE',
+      hiddenHere: true,
+      effects: [{ op: 'PLAY_TOKEN', token: 'tok-gold' }],
+    });
+  });
+
+  it('plays a Gold token when a card is hidden at this battlefield, not at the other one', () => {
+    // Tests Rule 811: a Hidden card is placed facedown, not played
+    const triggers = parseBattlefieldAbilities(text) ?? [];
+    const probe = Scenario.start({}, SCENARIO_CARDS);
+    const bf0 = probe.state.battlefields.find((b) => b.id === 'bf0');
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      ...TOKEN_CARDS,
+      [bf0?.cardId ?? '']: { ...base(bf0?.cardId ?? ''), triggers },
+    };
+    const gold = (sc: Scenario): number =>
+      Object.values(sc.state.objects).filter((o) => o.cardId === 'tok-gold').length;
+    const hideAt = (bfId: string): number => {
+      const sc = Scenario.start({}, cards);
+      sc.setBattlefield('bf0', { controller: 'p0' });
+      sc.setBattlefield('bf1', { controller: 'p0' });
+      const lurker = sc.putInHand('p0', SC_LURKER_A);
+      sc.do({ type: 'HIDE_CARD', playerId: 'p0', cardInstanceId: lurker, battlefieldId: bfId });
+      for (let i = 0; i < 10 && sc.state.flow.chain.length > 0; i++) {
+        sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+      }
+      return gold(sc);
+    };
+    expect(hideAt('bf0')).toBe(1);
+    expect(hideAt('bf1')).toBe(0);
   });
 });

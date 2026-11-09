@@ -1142,6 +1142,8 @@ export interface CardTrigger {
   buffed?: 'self' | 'friendly';
   /** "When you conquer / hold" on a unit or gear: fires when its controller scores at ANY battlefield. */
   youScore?: boolean;
+  /** Battlefield `YOU_HIDE`: only a card hidden at this battlefield ("When you hide a card here"). */
+  hiddenHere?: true;
   /** "The third time I move in a turn": fires only on the unit's n-th move to a battlefield this turn. */
   moveNth?: number;
   /** "When I die in combat": only a death while a combat was being fought at the unit's battlefield. */
