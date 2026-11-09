@@ -76,6 +76,7 @@ export function optionalPlan(
 ): PaymentPlan | null {
   if ((cost.burn ?? 0) > state.players[playerIndex(player)].mainDeck.length) return null;
   if (cost.exhaustSelf && !(state.objects[sourceId]?.ready === true)) return null;
+  if (cost.killSelf && !state.objects[sourceId]) return null;
   if (cost.xp && (state.players[playerIndex(player)].xp ?? 0) < cost.xp) return null;
   if (cost.card && !costCardsPayable(state, cards, player, sourceId, cost.card)) return null;
   const total = optionalTotalCost(cards, sourceCardId, cost);
@@ -145,6 +146,10 @@ export function decideOptional(
     if (cost.exhaustSelf) {
       const me = work.objects[sourceId];
       if (me) me.ready = false;
+    }
+    if (cost.killSelf) {
+      const me = work.objects[sourceId];
+      if (me) me.damage = Math.max(me.damage, 9999);
     }
     if (cost.xp) {
       const seat = work.players[playerIndex(pc.player)] as GameState['players'][number];

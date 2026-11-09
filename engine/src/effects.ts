@@ -188,7 +188,7 @@ function specOf(e: TargetedEffect): Spec {
   }
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
   if ((e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET') && e.inBase) spec.inBase = true;
-  if (e.op === 'STUN_TARGET' && e.attacking) spec.attacking = true;
+  if ((e.op === 'STUN_TARGET' || e.op === 'MOVE_BASE_TARGET') && e.attacking) spec.attacking = true;
   if (e.op === 'DAMAGE_TARGET' && e.sameBattlefield) spec.sameBattlefield = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
   if (e.op === 'READY_TARGET' && e.subtype) spec.subtype = e.subtype;

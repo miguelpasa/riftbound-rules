@@ -181,3 +181,17 @@ describe('scenario: "When you buff me" (Simian Ancestor)', () => {
     expect(sc.obj(u).ready).toBe(true);
   });
 });
+
+describe('scenario: "you may kill me to ..." (Overzealous Fan)', () => {
+  it('reads the kill-me cost and the attacking-unit move', () => {
+    // Tests Rule 583: optional costs of a triggered ability
+    const t = parseCardAbilities(
+      'When I defend, you may kill me to move an attacking unit to its base.',
+    );
+    expect(t?.triggers[0]).toMatchObject({
+      on: 'DEFEND',
+      optional: { killSelf: true },
+      effects: [{ op: 'MOVE_BASE_TARGET', attacking: true }],
+    });
+  });
+});

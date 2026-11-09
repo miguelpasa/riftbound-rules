@@ -32,7 +32,9 @@ export function describeOptionalCost(cost: OptionalCost, domains: readonly strin
     : '';
   const card = cost.card ? costCardText(cost.card) : '';
   const xp = cost.xp ? `Spend ${cost.xp} XP` : '';
-  const exhaust = cost.exhaustSelf ? 'Exhaust this' : '';
+  const exhaust = [cost.exhaustSelf ? 'Exhaust this' : '', cost.killSelf ? 'Kill this' : '']
+    .filter(Boolean)
+    .join(', ');
   return [exhaust, pay, burn, xp, card].filter(Boolean).join(', ') || 'Free';
 }
 

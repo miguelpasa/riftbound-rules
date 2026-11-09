@@ -518,6 +518,8 @@ type CardEffectCore =
   /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
   | ({
       op: 'MOVE_BASE_TARGET';
+      /** "an attacking unit": only a unit attacking in the current combat. */
+      attacking?: boolean;
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;
@@ -943,6 +945,8 @@ export interface OptionalCost {
   exhaustSelf?: boolean;
   /** "you may spend N XP to ...". */
   xp?: number;
+  /** "you may kill me to ...": the source unit takes lethal damage as the cost. */
+  killSelf?: boolean;
   /** R46: cards the controller picks and pays (discard / kill / exhaust / return / recycle). */
   card?: CostCardChoice;
   /**

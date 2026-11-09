@@ -1255,6 +1255,13 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  m = new RegExp(`^Move an attacking unit to (?:its |their )?base$`, 'i').exec(sen);
+  if (m) {
+    return {
+      effect: { op: 'MOVE_BASE_TARGET', attacking: true, side: 'enemy' },
+      decl: { side: 'enemy' },
+    };
+  }
   m = new RegExp(`^Move up to ${TWO} ${SIDE}units to (?:their )?base$`, 'i').exec(sen);
   if (m) {
     const s = side(m[1]);
@@ -3204,7 +3211,11 @@ function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest:
     const burn = /^\[Burn (\d+)\]/i.exec(s);
     const spendXp = /^spend (\d+) XP(?= to | and |$)/i.exec(s);
     const exSelf = /^exhaust (?:me|this)(?= to | and |$)/i.exec(s);
-    if (spendXp) {
+    const killMe = /^kill (?:me|this)(?= to | and |$)/i.exec(s);
+    if (killMe) {
+      optional.killSelf = true;
+      used = killMe[0].length;
+    } else if (spendXp) {
       optional.xp = (optional.xp ?? 0) + Number(spendXp[1]);
       used = spendXp[0].length;
     } else if (exSelf) {
