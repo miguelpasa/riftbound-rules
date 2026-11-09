@@ -986,6 +986,18 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  m = new RegExp(`^Take control of an? ${SIDE}unit( at a battlefield)?$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: {
+        op: 'TAKE_CONTROL',
+        ...sideProp(s),
+        ...(m[2] ? { atBattlefield: true } : {}),
+      },
+      decl: { side: s ?? 'any' },
+    };
+  }
   m = new RegExp(`^Kill an? ${SIDE}unit or gear$`, 'i').exec(sen);
   if (m) {
     // R46: either kind of permanent; "an enemy unit or gear" limits it to the opponent's.
@@ -1293,6 +1305,8 @@ function parseItSentence(sen0: string, d: SlotDecl, slot: number): CardEffect | 
     return { op: 'DEATH_REPLACE_TARGET', mode: 'BANISH', ...sd, ...bf, ...at };
   if (/^Give it \[Temporary\]$/i.test(sen)) return { op: 'GRANT_TEMPORARY_TARGET', ...sd, ...at };
   if (/^Ready it$/i.test(sen)) return { op: 'READY_TARGET', ...sd, ...at };
+  const tc = /^Take control of it( and recall it)?$/i.exec(sen);
+  if (tc) return { op: 'TAKE_CONTROL', ...(tc[1] ? { recall: true } : {}), ...sd, ...bf, ...at };
   if (/^It can['’]t move this turn$/i.test(sen)) return { op: 'LOCK_MOVE_TARGET', ...sd, ...at };
   if (/^Stun it$/i.test(sen)) return { op: 'STUN_TARGET', ...sd, ...bf, ...at };
   if (/^Kill it$/i.test(sen)) return { op: 'KILL_TARGET', ...sd, ...bf, ...at };
@@ -1342,6 +1356,13 @@ function giveEffect(
 }
 
 function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boolean {
+  // Hostile Takeover: "Lose control of that unit and recall it at end of turn".
+  if (/^Lose control of that unit and recall it at end of turn$/i.test(sen)) {
+    const tcEff = [...out].reverse().find((x) => x.op === 'TAKE_CONTROL');
+    if (!tcEff || tcEff.op !== 'TAKE_CONTROL') return false;
+    tcEff.untilEnd = true;
+    return true;
+  }
   // A spell's own "Discard N" (Lunar Boon): the caster chooses cards from their hand.
   const selfDiscard = /^Discard (\d+)$/.exec(sen);
   if (selfDiscard) {

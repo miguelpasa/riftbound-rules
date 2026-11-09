@@ -131,6 +131,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'RETURN_FROM_TRASH' ||
   e.op === 'PLAY_FROM_TRASH' ||
   e.op === 'MOVE_BASE_TARGET' ||
+  e.op === 'TAKE_CONTROL' ||
   e.op === 'BLINK_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
@@ -782,6 +783,32 @@ function moveToBase(state: GameState, o: CardInstance, out: GameEventInput[]): v
   out.push({ type: 'UNIT_MOVED', unitId: o.id, from, to: 'base' });
 }
 
+/** Take control of `u` for `controller` (mutates); `recall` also sends it to the new controller's Base. */
+function takeControl(
+  state: GameState,
+  u: CardInstance,
+  controller: PlayerId,
+  recall: boolean,
+  untilEnd: boolean,
+  out: GameEventInput[],
+): void {
+  const prev = u.controller;
+  if (prev === controller) return;
+  const from = u.zone.kind === 'battlefield' ? u.zone.battlefieldId : 'base';
+  const old = state.players[playerIndex(prev)];
+  old.base = old.base.filter((x) => x !== u.id);
+  u.controller = controller;
+  if (untilEnd && u.controlRevert === undefined) u.controlRevert = prev;
+  if (u.zone.kind === 'battlefield' && !recall) {
+    u.zone = { kind: 'battlefield', player: controller, battlefieldId: u.zone.battlefieldId };
+  } else {
+    u.zone = { kind: 'base', player: controller };
+    state.players[playerIndex(controller)].base.push(u.id);
+    if (from !== 'base') out.push({ type: 'UNIT_MOVED', unitId: u.id, from, to: 'base' });
+  }
+  out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
+}
+
 /** R79: move a unit from wherever it stands to battlefield `dest` (an effect move, not a standard move). Mutates. */
 function moveHere(
   state: GameState,
@@ -1428,6 +1455,7 @@ export function runEffects(
       case 'RETURN_FROM_TRASH':
       case 'PLAY_FROM_TRASH':
       case 'MOVE_BASE_TARGET':
+      case 'TAKE_CONTROL':
       case 'BLINK_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
@@ -1584,6 +1612,8 @@ export function runEffects(
             });
           } else if (e.op === 'MOVE_BASE_TARGET') {
             moveToBase(state, u, out);
+          } else if (e.op === 'TAKE_CONTROL') {
+            takeControl(state, u, controller, e.recall === true, e.untilEnd === true, out);
           } else if (e.op === 'GRANT_KEYWORD_TARGET') {
             const given = e.valueFromMight
               ? e.keywords.map((k) => ({ ...k, value: Math.max(1, mightOf(u)) }))
@@ -2223,6 +2253,18 @@ export function expireTurnEffects(
     if (o.cantMove) delete o.cantMove;
     if (o.tempKeywords) delete o.tempKeywords;
     if (o.combatGrant) delete o.combatGrant;
+    if (o.controlRevert !== undefined) {
+      // Hostile Takeover: it goes back to its previous controller's Base.
+      const prevOwner = o.controlRevert;
+      delete o.controlRevert;
+      if (o.zone.kind === 'base' || o.zone.kind === 'battlefield') {
+        const cur = s.players[playerIndex(o.controller)];
+        cur.base = cur.base.filter((x) => x !== o.id);
+        o.controller = prevOwner;
+        o.zone = { kind: 'base', player: prevOwner };
+        s.players[playerIndex(prevOwner)].base.push(o.id);
+      }
+    }
   }
   return { state: s, events: [] };
 }

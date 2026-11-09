@@ -489,6 +489,19 @@ type CardEffectCore =
   | { op: 'KILL_SELF' }
   /** X5: "Banish this." - the spell is banished instead of going to the Trash. */
   | { op: 'BANISH_THIS_SPELL' }
+  /**
+   * "Take control of it [and recall it]" (Possession, Hostile Takeover): the target enemy unit comes under the
+   * controller's control (recalled to their Base when `recall`); `untilEnd`: it goes back to its previous controller's
+   * Base at the end of the turn.
+   */
+  | ({
+      op: 'TAKE_CONTROL';
+      recall?: boolean;
+      untilEnd?: boolean;
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
   /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
   | ({
       op: 'MOVE_BASE_TARGET';
@@ -673,6 +686,7 @@ export type TargetedEffect = Extract<
       | 'RETURN_FROM_TRASH'
       | 'PLAY_FROM_TRASH'
       | 'MOVE_BASE_TARGET'
+      | 'TAKE_CONTROL'
       | 'BLINK_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'

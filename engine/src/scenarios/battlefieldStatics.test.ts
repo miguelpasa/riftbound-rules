@@ -7,7 +7,7 @@ import {
   parseStaticLines,
 } from '../cardText.js';
 import { scoreBattlefield } from '../scoring.js';
-import { endCombatGrants, runEffects } from '../effects.js';
+import { endCombatGrants, expireTurnEffects, runEffects } from '../effects.js';
 import { effectiveMight } from '../combat.js';
 import { reduce } from '../reducer.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
@@ -231,11 +231,49 @@ describe('scenario: "Disempower this" as an ability cost (Questionable Tome)', (
         payment: sc.exhaustPlan('p0', 1),
       });
     expect(use().ok).toBe(false); // not Empowered yet
-    sc.edit((s) => {
-      (s.objects[g] as { empowered?: boolean }).empowered = true;
-    });
+    (sc.state.objects[g] as { empowered?: boolean }).empowered = true;
     const r = use();
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.state.objects[g]?.empowered).toBeUndefined();
+  });
+});
+
+describe('scenario: taking control of a unit (Possession, Hostile Takeover)', () => {
+  const run = (text: string, endTurn: boolean) => {
+    const effects = parseSpellText(text) ?? [];
+    expect(effects.length).toBeGreaterThan(0);
+    const sc = Scenario.start({});
+    const victim = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const s = structuredClone(sc.state);
+    runEffects(s, 'p0', effects, sc.cards, [{ kind: 'object', id: victim }]);
+    return { s, victim, effects, sc, endTurn };
+  };
+
+  it('Possession: the enemy unit is yours and recalled to your Base', () => {
+    // Tests Rule 146: control of a permanent
+    const { s, victim } = run(
+      'Choose an enemy unit at a battlefield. Take control of it and recall it.',
+      false,
+    );
+    expect(s.objects[victim]?.controller).toBe('p0');
+    expect(s.objects[victim]?.zone).toEqual({ kind: 'base', player: 'p0' });
+    expect(s.players[0]?.base).toContain(victim);
+    expect(s.players[1]?.base).not.toContain(victim);
+  });
+
+  it('Hostile Takeover: ready, then back to its owner at the end of the turn', () => {
+    // Tests Rule 146: control of a permanent
+    const { s, victim, effects } = run(
+      'Take control of an enemy unit at a battlefield. Ready it. Lose control of that unit and recall it at end of turn.',
+      true,
+    );
+    expect(effects.map((e) => e.op)).toEqual(['TAKE_CONTROL', 'READY_TARGET']);
+    expect(s.objects[victim]?.controller).toBe('p0');
+    expect(s.objects[victim]?.ready).toBe(true);
+    expect(s.objects[victim]?.zone.kind).toBe('battlefield');
+    const after = expireTurnEffects(s, SCENARIO_CARDS).state;
+    expect(after.objects[victim]?.controller).toBe('p1');
+    expect(after.objects[victim]?.zone).toEqual({ kind: 'base', player: 'p1' });
+    expect(after.players[1]?.base).toContain(victim);
   });
 });
