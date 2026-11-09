@@ -546,7 +546,7 @@ export function killLethalUnits(state: GameState, cards: CardDatabase): GameEven
     if (standing) {
       const src = state.objects[standing.sourceId];
       if (standing.killSource && src && cards[src.cardId]?.type === 'GEAR') {
-        killGear(state, src);
+        killGear(state, src, cards);
         events.push({ type: 'GEAR_KILLED', gearId: src.id });
       }
       o.deathReplace = 'RECALL';

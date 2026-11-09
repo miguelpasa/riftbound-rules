@@ -19,7 +19,7 @@ import { allocObjectId } from './setup.js';
 import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
 import { bonusDamageTo, defWithGrants, staticBonus } from './statics.js';
-import { evalCondition } from './conditions.js';
+import { evalCondition, recordDeath } from './conditions.js';
 import { playerIndex } from './types/constants.js';
 import type {
   HandAction,
@@ -734,7 +734,8 @@ function counterSpell(state: GameState, spell: CardInstance): void {
 }
 
 /** Kill a gear: to its owner's Trash, Equipment detached (mutates). */
-export function killGear(state: GameState, g: CardInstance): void {
+export function killGear(state: GameState, g: CardInstance, cards?: CardDatabase): void {
+  if (cards) recordDeath(state, cards, g.controller, true); // "a friendly unit or gear died this turn"
   const ps = state.players[playerIndex(g.controller)];
   ps.base = ps.base.filter((x) => x !== g.id);
   if (isTokenInstance(g)) {
@@ -923,7 +924,7 @@ export function takeChosen(
     } else if (isUnitDef(cards[o.cardId])) {
       o.damage = Math.max(o.damage, 9999); // lethal: the next Cleanup kills it
     } else {
-      killGear(state, o);
+      killGear(state, o, cards);
       out.push({ type: 'GEAR_KILLED', gearId: o.id });
     }
   }
@@ -1340,7 +1341,7 @@ export function runEffects(
         if (isUnitDef(cards[me.cardId])) {
           me.damage = Math.max(me.damage, 9999); // lethal: the next Cleanup kills it
         } else {
-          killGear(state, me);
+          killGear(state, me, cards);
           out.push({ type: 'GEAR_KILLED', gearId: me.id });
         }
         break;
@@ -1502,7 +1503,7 @@ export function runEffects(
           } else if (e.op === 'KILL_TARGET' && isGearDef(cards[u.cardId])) {
             // R46: "kill a unit or gear" chose a gear.
             doneSlots.set(slot, u.controller);
-            killGear(state, u);
+            killGear(state, u, cards);
             out.push({ type: 'GEAR_KILLED', gearId: u.id });
           } else if (e.op === 'KILL_TARGET') {
             // Lethal damage: Cleanup (323) then moves it to the Trash.
@@ -1562,7 +1563,7 @@ export function runEffects(
             if (cut > 0) addTemp(u, -cut, true);
           } else if (e.op === 'KILL_GEAR') {
             doneSlots.set(slot, u.controller);
-            killGear(state, u);
+            killGear(state, u, cards);
             out.push({ type: 'GEAR_KILLED', gearId: u.id });
           } else if (e.op === 'RETURN_FROM_TRASH') {
             // R75: the Trash card goes to its owner's hand.
@@ -1954,7 +1955,7 @@ export function runEffects(
           )
           .sort((a, b) => num(a.id) - num(b.id));
         for (const g of gear) {
-          killGear(state, g);
+          killGear(state, g, cards);
           out.push({ type: 'GEAR_KILLED', gearId: g.id });
         }
         break;
@@ -1968,7 +1969,7 @@ export function runEffects(
           )
           .sort((a, b) => num(a.id) - num(b.id));
         for (const g of gear) {
-          killGear(state, g);
+          killGear(state, g, cards);
           out.push({ type: 'GEAR_KILLED', gearId: g.id });
         }
         break;

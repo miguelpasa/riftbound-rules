@@ -253,7 +253,7 @@ export function payCostCards(
         break;
       case 'KILL':
         if (isGearDef(cards[o.cardId])) {
-          killGear(state, o);
+          killGear(state, o, cards);
           out.push({ type: 'GEAR_KILLED', gearId: id });
         } else {
           // Lethal damage; the Cleanup (323) then moves it to the Trash, with its Deathknell.

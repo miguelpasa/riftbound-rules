@@ -126,14 +126,18 @@ export function tracksMighty(cards: CardDatabase): boolean {
 }
 
 /** R56: note that a unit controlled by `controller` died (mutates; no-op unless a card needs it). */
-export function recordDeath(state: GameState, cards: CardDatabase, controller: PlayerId): void {
+export function recordDeath(
+  state: GameState,
+  cards: CardDatabase,
+  controller: PlayerId,
+  gear = false,
+): void {
   if (!tracksDeaths(cards)) return;
   const ps = state.players[playerIndex(controller)] as GameState['players'][number];
-  const rec = ps.diedThisTurn;
-  ps.diedThisTurn =
-    rec && rec.turn === state.turn.number
-      ? { turn: rec.turn, count: rec.count + 1 }
-      : { turn: state.turn.number, count: 1 };
+  const rec = ps.diedThisTurn?.turn === state.turn.number ? ps.diedThisTurn : undefined;
+  const count = (rec?.count ?? 0) + (gear ? 0 : 1);
+  const g = (rec?.gear ?? 0) + (gear ? 1 : 0);
+  ps.diedThisTurn = { turn: state.turn.number, count, ...(g > 0 ? { gear: g } : {}) };
 }
 
 export function evalCondition(
@@ -151,7 +155,7 @@ export function evalCondition(
     case 'DIED_THIS_TURN': {
       const died = (p: PlayerId): number => {
         const rec = state.players[playerIndex(p)]?.diedThisTurn;
-        return rec && rec.turn === state.turn.number ? rec.count : 0;
+        return rec && rec.turn === state.turn.number ? rec.count + (cond.orGear ? (rec.gear ?? 0) : 0) : 0;
       };
       const other: PlayerId = controller === 'p0' ? 'p1' : 'p0';
       const n =

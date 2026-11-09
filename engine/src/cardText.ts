@@ -3053,12 +3053,13 @@ export function parseCondition(raw: string): Condition | null {
     if (fd) return { kind: 'FACEDOWN', ...(fd[1] ? { here: true } : {}) };
   }
   if (/^I (?:didn['’]t|did not) die alone$/i.test(text)) return { kind: 'DIED_ALONE', not: true };
-  const m0 = /^(?:an? )?(friendly|enemy)? ?unit (?:has )?died this turn$/i.exec(text);
+  const m0 = /^(?:an? )?(friendly|enemy)? ?unit( or gear)? (?:has )?died this turn$/i.exec(text);
   if (m0) {
     const who = (m0[1] ?? '').toLowerCase();
     return {
       kind: 'DIED_THIS_TURN',
       who: who === 'friendly' ? 'friendly' : who === 'enemy' ? 'enemy' : 'any',
+      ...(m0[2] ? { orGear: true as const } : {}),
     };
   }
   if (

@@ -148,7 +148,7 @@ export interface PlayerState {
    * R56: units of this player that died during turn `turn` ("a unit died this turn"). Only recorded when a
    * card in the database asks (see conditions.ts `recordDeath`), so games without such cards are unchanged.
    */
-  diedThisTurn?: { turn: number; count: number };
+  diedThisTurn?: { turn: number; count: number; gear?: number };
   /**
    * Cards this player played (PLAY_CARD, Hidden plays included) during turn `turn` (Legion, 812).
    * A record from an earlier turn counts as nothing, so the counter resets at the start of each turn

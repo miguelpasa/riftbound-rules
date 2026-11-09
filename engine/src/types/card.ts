@@ -928,7 +928,7 @@ export type Condition =
   /** R87: the controller assigned at least `n` excess combat damage to enemy units this turn. */
   | { kind: 'EXCESS_DAMAGE'; n: number }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
-  | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any' }
+  | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any'; orGear?: true }
   /** R53: Level N: the controller has at least `n` XP. */
   | { kind: 'XP'; n: number };
 

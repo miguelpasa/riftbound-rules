@@ -73,3 +73,39 @@ describe('parser: died this turn', () => {
     });
   });
 });
+
+describe('scenario: "a friendly unit or gear died this turn" (Lingering Animus)', () => {
+  const orGear: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-ash-tank': {
+      ...(SCENARIO_CARDS['fx-ash-tank'] as CardDef),
+      entersReadyWhen: { kind: 'DIED_THIS_TURN', who: 'friendly', orGear: true },
+    },
+  };
+  const cond = { kind: 'DIED_THIS_TURN', who: 'friendly', orGear: true } as const;
+
+  it('reads the printed sentence', () => {
+    // Tests Rule 323: units with lethal damage die in Cleanup
+    expect(parseCondition('a friendly unit or gear died this turn')).toEqual(cond);
+    expect(parseCardAbilities('I enter ready if a friendly unit or gear died this turn.')).toMatchObject({
+      entersReadyWhen: cond,
+    });
+  });
+
+  it('counts a friendly gear dying, but a plain "unit died" condition does not', () => {
+    // Tests Rule 323.4: a killed permanent goes to its owner's Trash
+    const sc = Scenario.start({}, orGear);
+    const mine = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const gear = sc.putUnit('p1', 'fx-tide-totem', 'base');
+    expect(evalCondition(sc.state, sc.cards, cond, 'p1', mine)).toBe(false);
+    const s = structuredClone(sc.state);
+    runEffects(s, 'p1', [{ op: 'KILL_GEAR', side: 'friendly' }], sc.cards, [
+      { kind: 'object', id: gear },
+    ]);
+    sc.state = s;
+    expect(evalCondition(sc.state, sc.cards, cond, 'p1', mine)).toBe(true);
+    expect(
+      evalCondition(sc.state, sc.cards, { kind: 'DIED_THIS_TURN', who: 'friendly' }, 'p1', mine),
+    ).toBe(false);
+  });
+});

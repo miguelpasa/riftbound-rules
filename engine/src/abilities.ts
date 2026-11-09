@@ -168,7 +168,7 @@ export function activateAbility(
     events.push(...payCostCards(work, cards, pid, src.id, ability.cost.card, intent.costCards));
   }
   if (ability.cost.killSelf) {
-    killGear(work, obj);
+    killGear(work, obj, cards);
     events.push({ type: 'GEAR_KILLED', gearId: src.id });
   }
   if (add) {
