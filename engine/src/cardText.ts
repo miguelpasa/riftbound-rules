@@ -2653,6 +2653,14 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
         continue;
       }
     }
+    // "... If this kills it, <effect>": the effect runs only when the previous damage left its target dead.
+    const ifKill = /^If this kills (?:it|them), (?:do this: )?(.+)$/i.exec(list[i] as string);
+    if (ifKill && out.length > 0 && out[out.length - 1]?.op === 'DAMAGE_TARGET') {
+      const before = out.length;
+      if (!parseSpellSentence(ifKill[1] as string, st, out)) return null;
+      for (let k = before; k < out.length; k++) (out[k] as CardEffect).ifKilled = true;
+      continue;
+    }
     // "... If you do, <effect>": the effect runs only when the previous effect actually did something.
     const ifDo = /^If you do, (.+)$/i.exec(list[i] as string);
     if (ifDo) {

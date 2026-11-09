@@ -154,6 +154,8 @@ export interface LookTake {
 /** `ifDid`: "If you do, ...": runs only when the previous effect changed the game. */
 export type CardEffect = CardEffectCore & {
   ifDid?: true;
+  /** "If this kills it, ...": runs only when the previous damage left its target dead. */
+  ifKilled?: true;
   /** "... If <condition>, <effect>": the effect runs only while the condition holds when it resolves. */
   when?: Condition;
 };

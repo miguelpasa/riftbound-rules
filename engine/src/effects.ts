@@ -1169,9 +1169,11 @@ export function runEffects(
   };
 
   let lastDid = true;
+  let lastKilled = false;
   for (const e of effects) {
     if (state.gameStatus !== 'IN_PROGRESS') break;
     if (e.ifDid && !lastDid) continue;
+    if (e.ifKilled && !lastKilled) continue;
     if (e.when && !evalCondition(state, cards, e.when, controller, sourceObjectId)) {
       lastDid = false;
       continue;
@@ -2240,6 +2242,18 @@ export function runEffects(
         break;
     }
     lastDid = out.slice(mark).some((ev) => ev.type !== 'EFFECT_FIZZLED');
+    if (e.op === 'DAMAGE_TARGET') {
+      // Lethal damage (Rule 573) is only applied in Cleanup, so "this kills it" compares damage with Might here.
+      const slot = e.slot ?? 0;
+      const hit = ('count' in e && e.count ? ids.slice(slot) : ids.slice(slot, slot + 1))
+        .map((id) => state.objects[id])
+        .filter((u): u is CardInstance => u !== undefined);
+      lastKilled = hit.some(
+        (u) => (u.zone.kind !== 'base' && u.zone.kind !== 'battlefield') || u.damage >= mightOf(u),
+      );
+    } else {
+      lastKilled = false;
+    }
   }
   return out;
 }

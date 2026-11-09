@@ -205,3 +205,41 @@ describe("scenario: [Unique] next to a trigger (Shurelya's Requiem)", () => {
     expect(t?.triggers[0]).toMatchObject({ on: 'PLAY', effects: [{ op: 'READY_ALL' }] });
   });
 });
+
+describe('scenario: "If this kills it" (Disintegrate)', () => {
+  const text = 'Deal 3 to a unit at a battlefield. If this kills it, do this: draw 1.';
+  const run = (target: string, bonus = 0): { drew: number } => {
+    const effects = parseSpellText(text);
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects: effects ?? [] },
+    };
+    const sc = Scenario.start({}, cards);
+    const t = sc.putUnit('p1', target, 'bf1');
+    sc.state.objects[t]!.mightBonus = bonus;
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const before = sc.state.players[0]?.hand.length ?? 0;
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: t }],
+    });
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    return { drew: (sc.state.players[0]?.hand.length ?? 0) - (before - 1) };
+  };
+
+  it('parses to a damage effect followed by a draw that needs the kill', () => {
+    // Tests Rule 573: damage dealt by an effect
+    expect(parseSpellText(text)?.map((e) => [e.op, e.ifKilled ?? false])).toEqual([
+      ['DAMAGE_TARGET', false],
+      ['DRAW', true],
+    ]);
+  });
+
+  it('draws only when the damage kills the unit', () => {
+    // Tests Rule 573: damage dealt by an effect
+    expect(run('fx-tide-grunt', 0).drew).toBe(1); // 2 Might, killed by 3
+    expect(run('fx-tide-grunt', 4).drew).toBe(0); // 7 Might, survives
+  });
+});

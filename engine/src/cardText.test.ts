@@ -42,7 +42,7 @@ describe('parseSpellText', () => {
 
   it('refuses anything it only partly understands', () => {
     // Tests Rule 359.3: never half-execute a spell
-    expect(parseSpellText('Deal 3 to a unit. If this kills it, draw 1.')).toBeNull();
+    expect(parseSpellText('Deal 3 to a unit. If this kills it, juggle 5.')).toBeNull();
     expect(parseSpellText('Kill all gear. Draw 1. Banish a unit.')).toBeNull();
     expect(parseSpellText('Deal 1 to a unit. Deal 2 to a unit.')).toBeNull();
     expect(parseSpellText('')).toBeNull();
