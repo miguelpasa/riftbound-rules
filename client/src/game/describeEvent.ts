@@ -222,9 +222,11 @@ export function describeEvent(
     }
     case 'TRIGGER_NO_TARGET':
       return `${objectName(event.sourceId, view, cards, 'An ability')} had no legal target and did nothing.`;
-    case 'BECAME_EXHAUSTED':
+    case 'UNIT_CHOSEN':
+      return `${objectName(event.objectId, view, cards, 'A unit')} was chosen.`;
     case 'BECAME_MIGHTY':
       return `${objectName(event.objectId, view, cards, 'A unit')} became Mighty.`;
+    case 'BECAME_EXHAUSTED':
     case 'BECAME_READY':
       return `${objectName(event.objectId, view, cards, 'A permanent')} became ${event.type === 'BECAME_READY' ? 'ready' : 'exhausted'}.`;
     case 'COMBAT_ENDED':

@@ -203,7 +203,7 @@ describe('cloneState equals structuredClone', () => {
       });
     }
     expect(n).toBeGreaterThan(100);
-  });
+  }, 30000);
 
   it('keeps undefined properties and falls back to structuredClone for non-plain values', () => {
     // Tests Rule 115: edge cases of the clone

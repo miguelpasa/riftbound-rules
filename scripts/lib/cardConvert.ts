@@ -399,6 +399,7 @@ export function convertRow(row: RawRow): ConvertResult {
           'YOU_STUN_ENEMY',
           'YOU_DISCARD',
           'UNIT_BECOMES_MIGHTY',
+          'UNIT_CHOSEN',
         ].includes(t.on),
       ) &&
       !parsed.entersReady &&

@@ -89,6 +89,18 @@ export function tracksReadiness(cards: CardDatabase): boolean {
   return v ?? false;
 }
 
+const chosenDb = new WeakMap<CardDatabase, boolean>();
+
+/** True when some card reacts to a unit being chosen (the chain diff runs only then). */
+export function tracksChosen(cards: CardDatabase): boolean {
+  let v = chosenDb.get(cards);
+  if (v === undefined) {
+    v = Object.values(cards).some((d) => d.triggers?.some((t) => t.on === 'UNIT_CHOSEN'));
+    chosenDb.set(cards, v);
+  }
+  return v;
+}
+
 const mightyDb = new WeakMap<CardDatabase, boolean>();
 
 /** X9: true when some card reacts to a unit becoming Mighty (the Might diff is computed only then). */

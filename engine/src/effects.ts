@@ -85,6 +85,8 @@ interface Spec {
   counterMaxPower?: number;
   /** R75: a card in the controller's Trash: which kind(s) and subtype(s) qualify. */
   trashWhat?: 'unit' | 'gear' | 'unitOrGear' | 'spell';
+  /** The chosen card is played (not just returned): a spell must then have a legal set of targets. */
+  trashPlay?: boolean;
   trashSubtypes?: string[];
   /** X5: printed-cost limits of a Trash card played by an effect. */
   trashMaxEnergy?: number;
@@ -170,6 +172,7 @@ function specOf(e: TargetedEffect): Spec {
   if (e.op === 'PLAY_FROM_TRASH') {
     spec.side = 'friendly';
     spec.trashWhat = e.what ?? 'unit';
+    spec.trashPlay = true;
     if (e.energyBelowPoints) spec.trashEnergyBelowPoints = true;
     if (e.from === 'hand') spec.trashFromHand = true;
     if (e.subtypes) spec.trashSubtypes = e.subtypes;
@@ -331,7 +334,7 @@ function legalForSpec(
       return false;
     }
     // A spell played by an effect needs a legal set of targets (modal spells are not modelled).
-    if (spec.trashWhat === 'spell') {
+    if (spec.trashPlay && spec.trashWhat === 'spell') {
       if (d.modes) return false;
       const eff = spellEffects(d);
       if (!eff || enumerateSpellTargets(state, cards, controller, eff, u.id)?.length === 0) {

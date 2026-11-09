@@ -70,6 +70,8 @@ export type GameEvent = EventBase &
     | { type: 'BECAME_READY'; objectId: string }
     /** X9 (709): a unit's Might went from below 5 to 5 or more. */
     | { type: 'BECAME_MIGHTY'; objectId: string }
+    /** A spell or ability on the Chain now has this unit among its chosen targets (emitted only when a card reacts to it). */
+    | { type: 'UNIT_CHOSEN'; objectId: string; chooser: PlayerId; spell: boolean }
     /** R71: a combat ended; `participants` are the units still standing at the battlefield (both sides). */
     | {
         type: 'COMBAT_ENDED';

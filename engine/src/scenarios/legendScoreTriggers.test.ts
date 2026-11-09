@@ -67,6 +67,10 @@ describe('parser: Legend player triggers (R101)', () => {
     expect(parseCardAbilities('When you hold, gain 1 XP.', { legend: true })?.triggers[0]?.on).toBe(
       'HOLD',
     );
-    expect(parseCardAbilities('When you hold, gain 1 XP.')).toBeNull();
+    // on a unit or gear the same words are a youScore trigger (fires at any battlefield)
+    expect(parseCardAbilities('When you hold, gain 1 XP.')?.triggers[0]).toMatchObject({
+      on: 'HOLD',
+      youScore: true,
+    });
   });
 });

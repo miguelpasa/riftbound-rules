@@ -53,7 +53,7 @@ import { activateAbility } from './abilities.js';
 import { activateRune } from './resources.js';
 import { holdScoringStep } from './scoring.js';
 import { stampEvents } from './setup.js';
-import { tracksMighty, tracksReadiness } from './conditions.js';
+import { tracksChosen, tracksMighty, tracksReadiness } from './conditions.js';
 import { effectiveMight } from './combat.js';
 import { MIGHTY_MIGHT_COST } from './costReduction.js';
 import { isUnitDef } from './tokens.js';
@@ -420,6 +420,34 @@ function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent):
       if (extra.length > 0) all.push(...stampEvents(c.state, extra));
     }
     const t = fireTriggers(c.state, cards, all);
+    if (tracksChosen(cards)) {
+      // "When you choose a unit": a chain item that gained unit targets (its own spell / ability) this step.
+      const chosen: GameEventInput[] = [];
+      for (const it of t.state.flow.chain) {
+        if (it.targets.length === 0) continue;
+        const prev = state.flow.chain.find((x) => x.id === it.id);
+        for (const tg of it.targets) {
+          if (tg.kind !== 'object') continue;
+          if (prev?.targets.some((x) => x.kind === 'object' && x.id === tg.id)) continue;
+          if (!isUnitDef(cards[t.state.objects[tg.id]?.cardId ?? ''])) continue;
+          chosen.push({
+            type: 'UNIT_CHOSEN',
+            objectId: tg.id,
+            chooser: it.controller,
+            spell: it.kind === 'CARD',
+          });
+        }
+      }
+      if (chosen.length > 0) {
+        const stamped = stampEvents(t.state, chosen);
+        const t2 = fireTriggers(t.state, cards, stamped);
+        return {
+          ok: true,
+          state: trackTargetGens(state, t2.state),
+          events: [...all, ...t.events, ...stamped, ...t2.events],
+        };
+      }
+    }
     return { ok: true, state: trackTargetGens(state, t.state), events: [...all, ...t.events] };
   } catch (e) {
     return ruleError(

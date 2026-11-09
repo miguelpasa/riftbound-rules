@@ -294,6 +294,28 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           });
         }
       }
+    } else if (e.type === 'UNIT_CHOSEN') {
+      const u = state.objects[e.objectId];
+      if (u) {
+        for (const src of Object.values(state.objects)) {
+          if (!onBoard(src) && src.zone.kind !== 'legend') continue;
+          if (src.controller !== e.chooser && src.id !== u.id) continue;
+          add(
+            src,
+            'UNIT_CHOSEN',
+            src.controller,
+            (t) => {
+              const c = t.chosen;
+              if (!c) return false;
+              if (c.spellOnly && !e.spell) return false;
+              return c.target === 'self'
+                ? src.id === u.id
+                : u.controller === src.controller && e.chooser === src.controller;
+            },
+            u.id,
+          );
+        }
+      }
     } else if (e.type === 'BECAME_MIGHTY') {
       // X9: "When a unit you control becomes Mighty" fires for the controller's permanents.
       const m = state.objects[e.objectId];

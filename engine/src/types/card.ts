@@ -976,7 +976,9 @@ export type TriggerKind =
   /** "When this is killed / leaves the board" for a gear: fires for the gear itself, now in its owner's Trash. */
   | 'GEAR_LEAVES'
   /** "When a friendly unit attacks or defends alone" / "When an enemy unit attacks a battlefield you control" (see `CardTrigger.unitFilter`); the unit is the ability's target ("give it"). */
-  | 'UNIT_ATTACKS';
+  | 'UNIT_ATTACKS'
+  /** "When you choose a friendly unit" / "When you choose me with a spell": a spell or ability chose a unit. */
+  | 'UNIT_CHOSEN';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {
@@ -1040,6 +1042,8 @@ export interface CardTrigger {
   dies?: DeathFilter;
   /** `on: 'UNIT_ATTACKS'`: which unit in a combat triggers it. */
   unitFilter?: { side: 'friendly' | 'enemy'; alone?: boolean; attacking?: boolean; atMine?: boolean };
+  /** `on: 'UNIT_CHOSEN'`: `friendly` = any friendly unit you choose (the ability's target is that unit); `self` = this unit is chosen. */
+  chosen?: { target: 'friendly' | 'self'; spellOnly?: boolean };
   /** "When you conquer / hold" on a unit or gear: fires when its controller scores at ANY battlefield. */
   youScore?: boolean;
   /** "The third time I move in a turn": fires only on the unit's n-th move to a battlefield this turn. */
