@@ -1360,6 +1360,21 @@ function giveEffect(
 }
 
 function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boolean {
+  // "Give the friendly unit +N [M] this turn" after "Choose a friendly unit and an enemy unit" (Rampage).
+  const sideRef = /^Give the (friendly|enemy) unit \+(\d+) \[M\] this turn$/i.exec(sen);
+  if (sideRef && st.slots.length === 2) {
+    const wanted = (sideRef[1] ?? '').toLowerCase();
+    const idx = st.slots.findIndex((d) => d.side === wanted);
+    if (idx < 0) return false;
+    out.push({
+      op: 'BUFF_TARGET',
+      amount: Number(sideRef[2]),
+      duration: 'TURN',
+      side: wanted as TargetSide,
+      ...(idx > 0 ? { slot: idx } : {}),
+    });
+    return true;
+  }
   // Hostile Takeover: "Lose control of that unit and recall it at end of turn".
   if (/^Lose control of that unit and recall it at end of turn$/i.test(sen)) {
     const tcEff = [...out].reverse().find((x) => x.op === 'TAKE_CONTROL');
@@ -2504,7 +2519,9 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     // "... If <condition>, <effect>": the effect carries its own condition (checked as it resolves).
     const cw = /^If (.+?), (.+)$/i.exec(list[i] as string);
     if (cw && !/^you do$/i.test(cw[1] as string) && !/ instead$/i.test(list[i] as string)) {
-      const cond = parseCondition(cw[1] as string);
+      const parsedCond = parseCondition(cw[1] as string);
+      const cond =
+        parsedCond?.kind === 'PAID_ADDITIONAL' ? { ...parsedCond, spell: true as const } : parsedCond;
       if (cond) {
         const before = out.length;
         if (!parseSpellSentence(cw[2] as string, st, out)) return null;

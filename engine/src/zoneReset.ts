@@ -19,4 +19,5 @@ export function clearBoardState(o: CardInstance): void {
   delete o.buffed;
   delete o.attachedTo;
   delete o.showedOff;
+  delete o.paidExtra;
 }

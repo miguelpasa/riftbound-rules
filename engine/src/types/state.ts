@@ -91,6 +91,8 @@ export interface CardInstance {
    * still matches, so a card that left and came back is no longer Temporary.
    */
   temporaryOf?: number;
+  /** The optional additional cost was paid when this card was played ("if you paid the additional cost"). */
+  paidExtra?: boolean;
   /** Show Off: the hand card revealed as this card was played. */
   showedOff?: string;
   /** How a spell was played when not from the hand ("if you played this from your hand"); absent = from the hand. */

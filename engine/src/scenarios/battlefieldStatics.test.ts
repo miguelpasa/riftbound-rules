@@ -470,3 +470,38 @@ describe("scenario: Equip with an XP cost (Shepherd's Heirloom)", () => {
     if (r.ok) expect(r.state.players[0]?.xp).toBe(1);
   });
 });
+
+describe('scenario: "If you paid the additional cost" in a spell (Rampage)', () => {
+  const effects = parseSpellText(
+    'Choose a friendly unit and an enemy unit. If you paid the additional cost, give the friendly unit +2 [M] this turn. They deal damage equal to their Mights to each other.',
+  ) as CardEffect[];
+
+  it('reads the buff as conditional on the paid extra and aimed at the friendly slot', () => {
+    // Tests Rule 357: additional costs
+    expect(effects.map((e) => e.op)).toEqual(['BUFF_TARGET', 'MUTUAL_DAMAGE']);
+    expect(effects[0]).toMatchObject({
+      side: 'friendly',
+      when: { kind: 'PAID_ADDITIONAL', spell: true },
+    });
+  });
+
+  it('buffs only when the played card remembers paying it', () => {
+    // Tests Rule 357: additional costs
+    const sc = Scenario.start({});
+    const mine = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const theirs = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const spell = sc.putInHand('p0', 'fx-flare');
+    const targets = [
+      { kind: 'object' as const, id: mine },
+      { kind: 'object' as const, id: theirs },
+    ];
+    const run = (paid: boolean) => {
+      const s = structuredClone(sc.state);
+      if (paid) (s.objects[spell] as { paidExtra?: boolean }).paidExtra = true;
+      runEffects(s, 'p0', effects, sc.cards, targets, 'fx-flare', spell);
+      return s.objects[mine]?.mightBonus ?? 0;
+    };
+    expect(run(true)).toBe(2);
+    expect(run(false)).toBe(0);
+  });
+});

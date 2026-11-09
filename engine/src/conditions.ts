@@ -275,6 +275,7 @@ export function evalCondition(
     case 'DIED_ALONE':
       return true; // decided by the triggering UNIT_KILLED event (triggers.ts)
     case 'PAID_ADDITIONAL':
+      if (cond.spell) return state.objects[sourceId]?.paidExtra === true;
       return true; // decided by the triggering CARD_PLAYED event (triggers.ts); not re-checked later
     case 'CONTROLS_BATTLEFIELD': {
       const side: PlayerId =

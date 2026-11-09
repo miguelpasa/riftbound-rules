@@ -857,7 +857,7 @@ export type Condition =
   /** R62: `who`'s score is within 3 points of the Victory Score (`not` negates). */
   | { kind: 'SCORE_NEAR'; who: 'friendly' | 'enemy'; not?: boolean }
   /** R58: "if you paid the additional cost" (play triggers; read from the CARD_PLAYED event). */
-  | { kind: 'PAID_ADDITIONAL' }
+  | { kind: 'PAID_ADDITIONAL'; spell?: true }
   /** R71: a Deathknell's "if I died alone" (no other friendly unit at its location); `not` = "didn't die alone". */
   | { kind: 'DIED_ALONE'; not?: boolean }
   /** R72: the controller has fewer / more runes in play than an opponent. */
