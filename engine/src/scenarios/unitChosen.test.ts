@@ -133,3 +133,16 @@ describe('scenario: Battlefield cards with turn-start abilities', () => {
     expect(r.state.objects[theirs]?.damage).toBe(1);
   });
 });
+
+describe('scenario: kill a gear, then play a Gold token (Pickpocket)', () => {
+  it('reads "no more than [N]" and chains the follow-up', () => {
+    // Tests Rule 583: effects of a triggered ability resolve in order
+    const t = parseCardAbilities(
+      'When you play me, you may kill a gear with Energy cost no more than [1]. If you do, play a Gold gear token exhausted.',
+    );
+    expect(t?.triggers[0]?.effects).toMatchObject([
+      { op: 'KILL_GEAR', maxEnergy: 1 },
+      { op: 'PLAY_TOKEN', ifDid: true },
+    ]);
+  });
+});

@@ -1009,13 +1009,15 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
-  m = new RegExp(`^Kill an? ${SIDE}gear(?: with Energy cost \\[?(\\d+)\\]? or less)?$`, 'i').exec(
-    sen,
-  );
+  m = new RegExp(
+    `^Kill an? ${SIDE}gear(?: with Energy cost (?:\\[?(\\d+)\\]? or less|no more than \\[?(\\d+)\\]?))?$`,
+    'i',
+  ).exec(sen);
   if (m) {
     const s = side(m[1]);
+    const cap = m[2] ?? m[3];
     return {
-      effect: { op: 'KILL_GEAR', ...sideProp(s), ...(m[2] ? { maxEnergy: Number(m[2]) } : {}) },
+      effect: { op: 'KILL_GEAR', ...sideProp(s), ...(cap ? { maxEnergy: Number(cap) } : {}) },
       decl: { side: s ?? 'any' },
     };
   }
