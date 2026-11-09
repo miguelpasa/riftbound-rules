@@ -1,7 +1,7 @@
 /** X-hand: answering a pending HAND_CHOICE (see handChoiceStart.ts). */
 import { fork } from './workingCopy.js';
-import { runEffects } from './effects.js';
-import { startHandChoice, takeFromHand } from './handChoiceStart.js';
+import { runEffects, takeChosen } from './effects.js';
+import { startHandChoice } from './handChoiceStart.js';
 import { stampEvents } from './setup.js';
 import { ruleError } from './types/index.js';
 import type {
@@ -27,7 +27,7 @@ export function chooseHandCards(
   const offered = new Set(pc.options.map((o) => o.id));
   if (
     !Array.isArray(ids) ||
-    ids.length !== pc.count ||
+    (ids.length !== pc.count && !(pc.optional === true && ids.length === 0)) ||
     new Set(ids).size !== ids.length ||
     ids.some((id) => !offered.has(id))
   ) {
@@ -36,13 +36,16 @@ export function chooseHandCards(
   const s = fork(state);
   delete s.flow.pendingChoice;
   const out: GameEventInput[] = [];
-  takeFromHand(s, cards, pc.handOf, ids, pc.action, pc.sourceObjectId, out);
+  takeChosen(s, cards, pc.handOf, ids, pc.action, pc.sourceObjectId, out);
   // The next player who has to discard, if any; otherwise the rest of the effect list.
   const more = startHandChoice(
     s,
     cards,
     {
       mode: pc.mode,
+      take: takeChosen,
+      ...(pc.board ? { board: pc.board } : {}),
+      ...(pc.optional ? { optional: true } : {}),
       players: pc.later,
       count: pc.count,
       action: pc.action,

@@ -124,6 +124,22 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   if (/^Banish this$/i.test(sen)) return [{ op: 'BANISH_THIS_SPELL' }];
   if (/^Kill this$/i.test(sen)) return [{ op: 'KILL_SELF' }];
   if (/^Take a turn after this one$/i.test(sen)) return [{ op: 'EXTRA_TURN' }];
+  m =
+    /^(Starting with the next player, )?[Ee]ach player (?:must |may )?(kill|return)s? (?:one of their (units|gear)|an? (unit|gear)(?: to its owner['’]s hand)?)$/.exec(
+      sen,
+    );
+  if (m) {
+    const kill = /^kill$/i.test(m[2] ?? '');
+    return [
+      {
+        op: 'EACH_CHOOSE',
+        board: /gear/i.test(m[3] ?? m[4] ?? '') ? 'gear' : 'unit',
+        action: kill ? 'KILL' : 'RETURN',
+        ...(/ may /.test(sen) ? { optional: true } : {}),
+        ...(m[1] ? { startWithOpponent: true } : {}),
+      },
+    ];
+  }
   m = /^(Each player|They) discards? (\d+)$/i.exec(sen);
   if (m) {
     return [

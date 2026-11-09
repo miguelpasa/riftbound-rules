@@ -124,3 +124,53 @@ describe('scenario: reveal the opponent hand and pick a card (Sabotage, Mindspli
     expect(r.ok).toBe(false);
   });
 });
+
+describe('scenario: each player kills or returns one of their own (Cull the Weak, Whirlwind)', () => {
+  it('asks each player to pick one of their units; the kill happens in the next Cleanup', () => {
+    // Tests Rule 598: each player chooses one of their own permanents
+    const sc = Scenario.start();
+    const a1 = sc.putUnit('p0', 'fx-grunt', 'base');
+    const a2 = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const b1 = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const b2 = sc.putUnit('p1', 'fx-order-tank', 'base');
+    sc.state = run(sc, [{ op: 'EACH_CHOOSE', board: 'unit', action: 'KILL' }]);
+    const pc = sc.state.flow.pendingChoice;
+    expect(pc).toMatchObject({ kind: 'HAND_CHOICE', player: 'p0', board: 'unit' });
+    expect(pc?.kind === 'HAND_CHOICE' && pc.options.map((o) => o.id).sort()).toEqual(
+      [a1, a2].sort(),
+    );
+    choose(sc, 'p0', [a1]);
+    expect(sc.state.flow.pendingChoice).toMatchObject({ player: 'p1' });
+    choose(sc, 'p1', [b2]);
+    expect(sc.obj(a1).zone.kind).toBe('trash');
+    expect(sc.obj(b2).zone.kind).toBe('trash');
+    expect(sc.obj(a2).zone.kind).toBe('base');
+    expect(sc.obj(b1).zone.kind).toBe('base');
+  });
+
+  it('"may return" can be declined, and starts with the next player', () => {
+    // Tests Rule 598: each player chooses one of their own permanents
+    const sc = Scenario.start();
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const theirs = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    sc.putUnit('p1', 'fx-order-tank', 'base');
+    sc.state = run(sc, [
+      {
+        op: 'EACH_CHOOSE',
+        board: 'unit',
+        action: 'RETURN',
+        optional: true,
+        startWithOpponent: true,
+      },
+    ]);
+    expect(sc.state.flow.pendingChoice).toMatchObject({ player: 'p1', optional: true });
+    const legal = getLegalActions(sc.state, sc.cards, 'p1');
+    expect(legal[0]).toMatchObject({ type: 'CHOOSE_HAND_CARDS', cardIds: [] });
+    choose(sc, 'p1', [theirs]);
+    expect(sc.obj(theirs).zone.kind).toBe('hand');
+    choose(sc, 'p0', []);
+    expect(sc.obj(mine).zone.kind).toBe('base');
+    expect(sc.state.flow.pendingChoice).toBeUndefined();
+  });
+});

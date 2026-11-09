@@ -163,6 +163,8 @@ export interface TriggerOrderChoice {
 }
 
 /** Which cards of a hand a HAND_CHOICE may offer ("a non-unit card", "a Mind card"). */
+export type HandAction = 'DISCARD' | 'RECYCLE' | 'KILL' | 'RETURN';
+
 export interface HandPickFilter {
   notUnit?: boolean;
   domain?: string;
@@ -181,7 +183,11 @@ export interface HandChoice {
   handOf: PlayerId;
   count: number;
   options: { id: string; cardId: string }[];
-  action: 'DISCARD' | 'RECYCLE';
+  action: HandAction;
+  /** The options are the holder's units / gear in play instead of hand cards. */
+  board?: 'unit' | 'gear';
+  /** The chooser may choose nothing ("each player may return a unit"). */
+  optional?: boolean;
   /** The hand is revealed to everybody. */
   reveal: boolean;
   mode: 'SELF' | 'PICK';

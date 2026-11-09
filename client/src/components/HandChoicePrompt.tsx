@@ -23,9 +23,11 @@ export function HandChoicePrompt() {
         data-testid="hand-choice-waiting"
         className="pointer-events-none fixed inset-x-0 top-24 z-40 mx-auto w-fit max-w-md rounded-lg border border-slate-600 bg-slate-900/95 px-4 py-2 text-sm text-slate-200 shadow-lg"
       >
-        {choice.action === 'DISCARD' && choice.mode === 'SELF'
-          ? 'Your opponent is choosing cards to discard.'
-          : 'Your opponent is choosing a card from your revealed hand.'}
+        {choice.board
+          ? `Your opponent is choosing one of their ${choice.board === 'unit' ? 'units' : 'gear'}.`
+          : choice.action === 'DISCARD' && choice.mode === 'SELF'
+            ? 'Your opponent is choosing cards to discard.'
+            : 'Your opponent is choosing a card from your revealed hand.'}
       </div>
     );
   }
@@ -34,9 +36,10 @@ export function HandChoicePrompt() {
   const answer = legal.find(
     (i) => i.cardIds.length === picked.length && i.cardIds.every((id) => picked.includes(id)),
   );
-  const verb = choice.action === 'DISCARD' ? 'discard' : 'recycle';
-  const title =
-    choice.mode === 'SELF'
+  const verb = choice.action.toLowerCase();
+  const title = choice.board
+    ? `${choice.optional ? 'You may choose' : 'Choose'} one of your ${choice.board === 'unit' ? 'units' : 'gear'} to ${verb}`
+    : choice.mode === 'SELF'
       ? `Choose ${choice.count} card${choice.count === 1 ? '' : 's'} to discard`
       : `Choose ${choice.count} card from the opponent's hand to ${verb}`;
   const toggle = (id: string): void =>

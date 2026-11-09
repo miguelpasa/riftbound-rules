@@ -535,6 +535,7 @@ export function getLegalActions(
         }
       };
       rec(0, []);
+      if (pc.optional) combos.unshift([]); // "may": choosing nothing is listed first (the timeout default)
       return keep(
         combos.map((cardIds): Intent => ({ type: 'CHOOSE_HAND_CARDS', playerId, cardIds })),
       ).slice(0, max);

@@ -13,7 +13,7 @@ import { fork } from './workingCopy.js';
 import { burnOutIfEmpty, drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
 import { equipTotalCost, hasKeyword, removeTokenFromGame } from './keywords.js';
-import { startHandChoice } from './handChoiceStart.js';
+import { startHandChoice, takeFromHand } from './handChoiceStart.js';
 import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import { allocObjectId } from './setup.js';
 import { hereOfSource } from './sources.js';
@@ -22,6 +22,7 @@ import { bonusDamageTo, defWithGrants, staticBonus } from './statics.js';
 import { evalCondition } from './conditions.js';
 import { playerIndex } from './types/constants.js';
 import type {
+  HandAction,
   LookTake,
   AltAmount,
   CardDatabase,
@@ -842,6 +843,34 @@ function lookAtTop(
   return out;
 }
 
+/** X-hand: take the chosen cards out of a hand (discard / recycle) or off the board (kill / return). Mutates. */
+export function takeChosen(
+  state: GameState,
+  cards: CardDatabase,
+  holder: PlayerId,
+  ids: readonly string[],
+  action: HandAction,
+  sourceId: string,
+  out: GameEventInput[],
+): void {
+  if (action === 'DISCARD' || action === 'RECYCLE') {
+    takeFromHand(state, cards, holder, ids, action, sourceId, out);
+    return;
+  }
+  for (const id of ids) {
+    const o = state.objects[id];
+    if (!o) continue;
+    if (action === 'RETURN') {
+      returnToHand(state, o, out);
+    } else if (isUnitDef(cards[o.cardId])) {
+      o.damage = Math.max(o.damage, 9999); // lethal: the next Cleanup kills it
+    } else {
+      killGear(state, o);
+      out.push({ type: 'GEAR_KILLED', gearId: o.id });
+    }
+  }
+}
+
 /** Play `count` tokens for `controller` (Base, or the source's battlefield with `here`). Mutates. */
 function playTokens(
   state: GameState,
@@ -1625,6 +1654,30 @@ export function runEffects(
         }
         break;
       }
+      case 'EACH_CHOOSE': {
+        const opp: PlayerId = controller === 'p0' ? 'p1' : 'p0';
+        const rest = effects.slice(effects.indexOf(e) + 1);
+        const waiting = startHandChoice(
+          state,
+          cards,
+          {
+            mode: 'SELF',
+            board: e.board,
+            ...(e.optional ? { optional: true } : {}),
+            take: takeChosen,
+            players: e.startWithOpponent ? [opp, controller] : [controller, opp],
+            count: 1,
+            action: e.action,
+            controller,
+            sourceObjectId,
+            sourceCardId,
+            rest,
+          },
+          out,
+        );
+        if (waiting) return out;
+        break;
+      }
       case 'HAND_DISCARD':
       case 'HAND_PICK': {
         const opp: PlayerId = controller === 'p0' ? 'p1' : 'p0';
@@ -1635,6 +1688,7 @@ export function runEffects(
           state,
           cards,
           {
+            take: takeChosen,
             mode: e.op === 'HAND_DISCARD' ? 'SELF' : 'PICK',
             players: e.op === 'HAND_PICK' ? [opp] : e.who === 'EACH' ? turnFirst : [opp],
             count: e.op === 'HAND_DISCARD' ? e.count : 1,

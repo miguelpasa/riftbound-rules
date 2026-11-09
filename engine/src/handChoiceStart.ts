@@ -10,12 +10,14 @@
  * CHOOSE_HAND_CARDS answers it. Nobody else may act meanwhile.
  */
 import { playerIndex } from './types/index.js';
+import { isGearDef, isUnitDef } from './tokens.js';
 import type {
   CardDatabase,
   CardEffect,
   CardInstance,
   GameEventInput,
   GameState,
+  HandAction,
   HandChoice,
   HandPickFilter,
   PlayerId,
@@ -69,12 +71,28 @@ export function takeFromHand(
   }
 }
 
+/** Takes the chosen cards out of play for `holder`: discard / recycle from the hand, or kill / return from the board. */
+export type TakeFn = (
+  state: GameState,
+  cards: CardDatabase,
+  holder: PlayerId,
+  ids: readonly string[],
+  action: HandAction,
+  sourceId: string,
+  out: GameEventInput[],
+) => void;
+
 export interface HandChoiceRequest {
+  /** 'BOARD': the options are the holder's units / gear in play ("Each player kills one of their units"). */
+  board?: 'unit' | 'gear';
+  /** "may": the chooser may also choose nothing. */
+  optional?: boolean;
+  take: TakeFn;
   /** Players who discard from their own hand, in order (self discards), or the opponent whose hand is picked from. */
   mode: 'SELF' | 'PICK';
   players: PlayerId[];
   count: number;
-  action: 'DISCARD' | 'RECYCLE';
+  action: HandAction;
   filter?: HandPickFilter;
   controller: PlayerId;
   sourceObjectId: string;
@@ -96,13 +114,21 @@ export function startHandChoice(
   while (queue.length > 0) {
     const holder = queue.shift() as PlayerId;
     const chooser = req.mode === 'SELF' ? holder : req.controller;
-    const hand = state.players[playerIndex(holder)].hand;
-    const options = hand
-      .map((id) => state.objects[id] as CardInstance)
-      .filter((o) => matches(cards, o, req.filter));
+    const options = req.board
+      ? Object.values(state.objects)
+          .filter((o) => {
+            if (o.controller !== holder) return false;
+            if (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') return false;
+            const def = cards[o.cardId];
+            return req.board === 'unit' ? isUnitDef(def) : isGearDef(def);
+          })
+          .sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)))
+      : state.players[playerIndex(holder)].hand
+          .map((id) => state.objects[id] as CardInstance)
+          .filter((o) => matches(cards, o, req.filter));
     if (options.length === 0) continue;
-    if (options.length <= req.count) {
-      takeFromHand(
+    if (options.length <= req.count && req.optional !== true) {
+      req.take(
         state,
         cards,
         holder,
@@ -127,6 +153,8 @@ export function startHandChoice(
       sourceCardId: req.sourceCardId,
       mode: req.mode,
       rest: req.rest,
+      ...(req.board ? { board: req.board } : {}),
+      ...(req.optional ? { optional: true } : {}),
       ...(req.filter ? { filter: req.filter } : {}),
     };
     state.flow.pendingChoice = choice;

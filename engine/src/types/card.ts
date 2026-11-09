@@ -516,6 +516,17 @@ export type CardEffect =
    */
   | { op: 'HAND_DISCARD'; who: 'EACH' | 'OPPONENT'; count: number }
   /**
+   * X-hand: "Each player kills one of their units / gear", "each player may return a unit to its owner's hand":
+   * every player chooses one of their own permanents (`optional`: or nothing); `startWithOpponent`: "starting with the next player".
+   */
+  | {
+      op: 'EACH_CHOOSE';
+      board: 'unit' | 'gear';
+      action: 'KILL' | 'RETURN';
+      optional?: boolean;
+      startWithOpponent?: boolean;
+    }
+  /**
    * X-hand: "They reveal their hand. Choose a non-unit card from it, and recycle / discard that card": the controller
    * picks one card of the opponent's revealed hand.
    */
