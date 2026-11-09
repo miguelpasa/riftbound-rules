@@ -622,3 +622,60 @@ describe('scenario: damage equal to the damage already marked (Morgana)', () => 
     });
   });
 });
+
+describe('scenario: "this turn" triggers (Rally the Troops, Fanfare, Imperial Decree)', () => {
+  const delayedOf = (text: string): CardEffect[] => parseSpellText(text) as CardEffect[];
+  const arm = (sc: Scenario, text: string): void => {
+    runEffects(sc.state, 'p0', delayedOf(text), sc.cards, [], 'fx-flare', '');
+  };
+  const resolve = (sc: Scenario): void => {
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+  };
+
+  it('buffs every friendly unit played afterwards, once it is on the board', () => {
+    // Tests Rule 583: triggered effects
+    const sc = Scenario.start({});
+    arm(sc, 'When a friendly unit is played this turn, buff it.');
+    const grunt = sc.putInHand('p0', 'fx-grunt');
+    sc.play('p0', grunt, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+    resolve(sc);
+    expect(sc.obj(grunt).zone.kind).toBe('base');
+    expect(sc.obj(grunt).buffed).toBe(true);
+  });
+
+  it('draws for the next N units only', () => {
+    // Tests Rule 583: triggered effects
+    const sc = Scenario.start({});
+    arm(sc, 'The next two times you play a unit this turn, draw 1.');
+    expect(sc.state.delayed?.[0]).toMatchObject({ times: 2 });
+    const one = sc.putInHand('p0', 'fx-grunt');
+    const before = sc.state.players[0]?.hand.length ?? 0;
+    sc.play('p0', one, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+    resolve(sc);
+    expect(sc.state.players[0]?.hand.length).toBe(before); // one played, one drawn
+    expect(sc.state.delayed?.[0]?.times).toBe(1);
+  });
+
+  it('kills a unit that takes damage, and lasts only this turn', () => {
+    // Tests Rule 583: triggered effects
+    const effects = parseSpellText('Deal 1 to an enemy unit.') as CardEffect[];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects },
+    };
+    const sc = Scenario.start({}, cards);
+    arm(sc, 'When any unit takes damage this turn, kill it.');
+    const victim = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: victim }],
+    });
+    resolve(sc);
+    expect(['trash', 'banishment']).toContain(sc.obj(victim).zone.kind);
+    const next = expireTurnEffects(sc.state, cards).state;
+    expect(next.delayed).toBeUndefined();
+  });
+});

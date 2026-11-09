@@ -61,6 +61,7 @@ import { chooseStaged, showdownAfterPass } from './showdown.js';
 import type { ShowdownDeps } from './showdown.js';
 import { standardMove } from './movement.js';
 import { trackTargetGens } from './targetGens.js';
+import { runDelayed } from './delayed.js';
 import { opponentOf, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -419,7 +420,21 @@ function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent):
       }
       if (extra.length > 0) all.push(...stampEvents(c.state, extra));
     }
-    const t = fireTriggers(c.state, cards, all);
+    // "This turn" triggers created earlier (delayed.ts) react to the events first.
+    let reacted = c.state;
+    if (reacted.delayed && reacted.delayed.length > 0) {
+      const dl = runDelayed(reacted, cards, all);
+      reacted = dl.state;
+      if (dl.events.length > 0) {
+        all.push(...stampEvents(reacted, dl.events));
+        // What the delayed effects did (damage, kills) is settled by another Cleanup.
+        const c2 = runCleanup(reacted, cards, ENGINE_HOOKS.showdown);
+        if (!c2.ok) return c2;
+        reacted = c2.state;
+        all.push(...c2.events);
+      }
+    }
+    const t = fireTriggers(reacted, cards, all);
     if (tracksChosen(cards)) {
       // "When you choose a unit": a chain item that gained unit targets (its own spell / ability) this step.
       const chosen: GameEventInput[] = [];

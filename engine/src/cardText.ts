@@ -1401,7 +1401,64 @@ function giveEffect(
     : { op: 'BUFF_TARGET', amount: n, duration: 'TURN', ...sideProp(s), ...at };
 }
 
+/**
+ * The body of a "this turn" trigger: clauses joined by " and ", where "buff it" / "ready it" / "kill it" mean the unit
+ * the trigger is about (effect slot 0) and any other clause is a plain effect ("draw 1", "gain 2 XP").
+ */
+function parseDelayedBody(body: string, friendly: boolean): CardEffect[] | null {
+  const out: CardEffect[] = [];
+  for (const raw of body.split(/ and /i)) {
+    const clause = raw.trim();
+    const it = /^(\[?Buff\]?|ready|kill) it$/i.exec(clause);
+    const sentence = it
+      ? `${(it[1] ?? '').replace(/[[\]]/g, '')} a${friendly ? ' friendly' : ''} unit`
+      : clause;
+    const eff = parseSpellText(sentence);
+    if (!eff || eff.some((e) => e.op === 'DELAYED')) return null;
+    out.push(...eff);
+  }
+  return targetRequirements(out).length <= 1 ? out : null;
+}
+
+/** "When a friendly unit is played this turn, ..." and the other "this turn" trigger sentences (see delayed.ts). */
+function parseDelayedSentence(sen: string, st: ParseState): CardEffect | null {
+  const numberWord = (w: string | undefined): number | undefined =>
+    w === undefined ? undefined : (NUMBER_WORDS[w.toLowerCase()] ?? Number(w));
+  let m = /^When a friendly unit is played this turn, (.+)$/i.exec(sen);
+  if (m) {
+    const effects = parseDelayedBody(m[1] as string, true);
+    return effects ? { op: 'DELAYED', on: 'UNIT_PLAYED', effects } : null;
+  }
+  m = /^(?:The )?next (?:(\w+) times|time) you play a unit this turn, (.+)$/i.exec(sen);
+  if (m) {
+    const times = m[1] === undefined ? 1 : numberWord(m[1]);
+    const effects = parseDelayedBody(m[2] as string, true);
+    return effects && times && times >= 1
+      ? { op: 'DELAYED', on: 'UNIT_PLAYED', times, effects }
+      : null;
+  }
+  m = /^When any unit takes damage this turn, (.+)$/i.exec(sen);
+  if (m) {
+    const effects = parseDelayedBody(m[1] as string, false);
+    return effects ? { op: 'DELAYED', on: 'UNIT_DAMAGED', effects } : null;
+  }
+  m = /^When it dies this turn, (.+)$/i.exec(sen);
+  if (m && st.it !== undefined) {
+    const effects = parseDelayedBody(m[1] as string, false);
+    return effects && targetRequirements(effects).length === 0
+      ? { op: 'DELAYED', on: 'SUBJECT_DIES', subjectSlot: st.it, times: 1, effects }
+      : null;
+  }
+  return null;
+}
+
 function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boolean {
+  // "This turn" triggers (Rally the Troops, Fanfare, Deadly Flourish, Imperial Decree).
+  const delayed = parseDelayedSentence(sen, st);
+  if (delayed) {
+    out.push(delayed);
+    return true;
+  }
   // "Give the friendly unit +N [M] this turn" after "Choose a friendly unit and an enemy unit" (Rampage).
   const sideRef = /^Give the (friendly|enemy) unit \+(\d+) \[M\] this turn$/i.exec(sen);
   if (sideRef && st.slots.length === 2) {

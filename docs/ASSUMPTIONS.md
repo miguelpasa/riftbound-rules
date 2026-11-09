@@ -570,3 +570,17 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Order:** "Each player discards" is asked turn player first. "Choose a player" is read as the opponent (choosing yourself to discard is never useful).
 - **Reveal:** the opponent's revealed hand is shown to both players in the pending choice only; afterwards it is hidden again.
 - **Fewer cards than asked:** the whole hand (or all matching cards) is taken without a question.
+
+## X-delayed: "this turn" triggers (A-X-delayed)
+
+- **No Chain:** the delayed triggers Rally the Troops, Fanfare, Nami, Deadly Flourish and Imperial Decree watch the events of the turn (`GameState.delayed`) and run their effects at once, not as Chain items, like the turn-structure triggers. The opponent therefore cannot respond to them.
+- **Timing of "buff it":** an effect that needs the played unit waits until the unit is on the board; an effect that does not (draw) fires when the unit is played, even if the spell is later countered.
+- **Counting:** "the next three times you play a unit" counts card plays of units; tokens played by effects are not counted.
+- **Expiry:** everything is removed at the Ending step.
+
+## X-chosen / X-showoff / X-paid: small readings
+
+- **Chosen units:** "When you choose a unit" fires when a spell or ability on the Chain gains a unit among its targets (at play time or when a trigger's target is picked), once per newly chosen unit.
+- **Show Off:** the reveal is an optional additional cost that leaves the card in hand and is public (`COST_CARDS_PAID` names it). "If you showed off" reads the playing card's `showedOff`.
+- **Paid additional cost in spells:** read from `CardInstance.paidExtra` of the playing card (set when the optional additional cost is paid).
+- **Take control:** the unit keeps its battlefield unless "recall it" is part of the text; Hostile Takeover's "at end of turn" returns it to its previous controller's Base in the Ending step.

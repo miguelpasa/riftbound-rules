@@ -641,6 +641,18 @@ type CardEffectCore =
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
+  /**
+   * "When a friendly unit is played this turn, buff it" / "The next three times you play a unit this turn, draw 1" /
+   * "When it dies this turn, ..." / "When any unit takes damage this turn, kill it": a trigger for the rest of the turn.
+   */
+  | {
+      op: 'DELAYED';
+      on: 'UNIT_PLAYED' | 'UNIT_DAMAGED' | 'SUBJECT_DIES';
+      times?: number;
+      /** SUBJECT_DIES: the target slot holding the unit it watches. */
+      subjectSlot?: number;
+      effects: CardEffect[];
+    }
   /** "Move me to your base" (Ezreal): the source unit moves from a battlefield to its controller's Base. */
   | { op: 'MOVE_SELF_BASE' }
   /** "Double my Might this combat" (Fiora). */

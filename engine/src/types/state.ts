@@ -1,4 +1,4 @@
-import type { Domain, KeywordInstance, OptionalCost } from './card.js';
+import type { CardEffect, Domain, KeywordInstance, OptionalCost } from './card.js';
 import type { FlowState, MulliganState, TurnState } from './chain.js';
 
 /** Bump on any breaking change to GameState shape or rules behavior. */
@@ -216,4 +216,21 @@ export interface GameState {
    * where it stood and who controlled it. Stored only for such tokens.
    */
   lki?: Record<string, { cardId: string; controller: PlayerId; at: string | null }>;
+  /** "This turn" triggers created by effects (delayed.ts); stored only when a card makes one. */
+  delayed?: DelayedTrigger[];
+}
+
+/** A trigger that lasts for the rest of the turn (Rally the Troops, Fanfare, Deadly Flourish, Imperial Decree). */
+export interface DelayedTrigger {
+  controller: PlayerId;
+  turn: number;
+  on: 'UNIT_PLAYED' | 'UNIT_DAMAGED' | 'SUBJECT_DIES';
+  /** How many more times it fires ("the next three times"); absent = every time this turn. */
+  times?: number;
+  /** SUBJECT_DIES: the unit it watches ("when it dies this turn"). */
+  subject?: string;
+  effects: CardEffect[];
+  sourceCardId: string;
+  /** UNIT_PLAYED with effects that need the unit: played but not yet on the board. */
+  waiting?: string[];
 }

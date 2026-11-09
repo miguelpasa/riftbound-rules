@@ -2199,6 +2199,20 @@ export function runEffects(
       case 'LOOK_TOP':
         out.push(...lookAtTop(state, controller, e.count, e.take, cards, e.rest));
         break;
+      case 'DELAYED': {
+        const subject = e.subjectSlot === undefined ? undefined : ids[e.subjectSlot];
+        if (e.on === 'SUBJECT_DIES' && !subject) break;
+        (state.delayed ??= []).push({
+          controller,
+          turn: state.turn.number,
+          on: e.on,
+          ...(e.times !== undefined ? { times: e.times } : {}),
+          ...(subject ? { subject } : {}),
+          effects: e.effects,
+          sourceCardId,
+        });
+        break;
+      }
       case 'MOVE_SELF_BASE': {
         const me = state.objects[sourceObjectId];
         if (me) moveToBase(state, me, out);
@@ -2260,6 +2274,7 @@ export function expireTurnEffects(
 ): { state: GameState; events: GameEventInput[] } {
   void _cards;
   const s = fork(state);
+  if (s.delayed) delete s.delayed; // "this turn" triggers end with the turn
   for (const o of Object.values(s.objects)) {
     if (o.tempMight) {
       o.mightBonus -= o.tempMight;
