@@ -825,6 +825,8 @@ export interface StaticAbility {
   minMight?: number;
   /** R88: the affected units (or tokens) enter ready ("Your tokens enter ready"). */
   entersReady?: boolean;
+  /** Only a unit standing at a battlefield its controller controls (The Exile). */
+  onlyAtControlled?: boolean;
   /** R74: the restriction (or grant) does NOT apply while this condition holds ("... unless <condition>"). */
   unless?: Condition;
   /**

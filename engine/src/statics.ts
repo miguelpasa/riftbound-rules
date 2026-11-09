@@ -221,6 +221,11 @@ export function staticBonus(
         : undefined;
       if (!applies(s, sourceId, controller, here, target, targetDef, mights)) continue;
       if (s.onlyDefendingAlone && !isDefendingAlone(state, cards, target)) continue;
+      if (s.onlyAtControlled) {
+        const at = targetBattlefield(target);
+        const bf = at === null ? undefined : state.battlefields.find((b) => b.id === at);
+        if (!bf || bf.controller !== target.controller) continue;
+      }
       if (s.when && !when(s.when)) continue;
       if (s.unless && when(s.unless)) continue;
       if (s.per) {

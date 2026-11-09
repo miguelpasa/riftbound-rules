@@ -84,6 +84,6 @@ describe.skipIf(real === null)('per-card coverage (real card data)', () => {
     // Tests Rule 354: playing a card puts it on the Chain and resolves it
     const partial = Object.values(real as CardDatabase).filter((d) => d.supportLevel !== 'full');
     // Ratchet: this number may only go down. Lower it when more cards become fully supported.
-    expect(partial.length).toBeLessThanOrEqual(381);
+    expect(partial.length).toBeLessThanOrEqual(380);
   });
 });

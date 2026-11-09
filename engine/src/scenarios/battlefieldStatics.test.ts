@@ -800,3 +800,38 @@ describe('scenario: "I can\'t be played on your first, second, or third turns" (
     expect(tryPlay(7)).toBe(true); // p0's fourth turn
   });
 });
+
+describe('scenario: "Units you play to battlefields you control enter ready" (The Exile)', () => {
+  const text = 'Units you play to battlefields you control enter ready.';
+
+  it('reads as a static for friendly units at a battlefield they control', () => {
+    // Tests Rule 107: a unit enters exhausted unless an effect says otherwise
+    expect(parseStaticLines(text)?.statics).toEqual([
+      { affects: 'FRIENDLY_UNITS', entersReady: true, onlyAtControlled: true },
+    ]);
+  });
+
+  it('readies a unit played to a controlled battlefield, not one played to the Base', () => {
+    // Tests Rule 107: a unit enters exhausted unless an effect says otherwise
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ash-tank': { ...base('fx-ash-tank'), statics: parseStaticLines(text)?.statics ?? [] },
+    };
+    const readyAfter = (where: 'base' | 'bf1'): boolean => {
+      const sc = Scenario.start({}, cards);
+      sc.putUnit('p0', 'fx-ash-tank', 'base');
+      sc.setBattlefield('bf1', { controller: 'p0' });
+      const grunt = sc.putInHand('p0', 'fx-grunt');
+      sc.play('p0', grunt, {
+        payment: sc.exhaustPlan('p0', 2),
+        location: where === 'base' ? { kind: 'base' } : { kind: 'battlefield', battlefieldId: 'bf1' },
+      });
+      for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+        sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+      }
+      return sc.obj(grunt).ready;
+    };
+    expect(readyAfter('bf1')).toBe(true);
+    expect(readyAfter('base')).toBe(false);
+  });
+});

@@ -2225,6 +2225,15 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       statics.push({ ...pcm, ...(gateWhen ? { when: gateWhen } : {}) });
       continue;
     }
+    if (/^Units you play to battlefields you control enter ready$/i.test(body)) {
+      statics.push({
+        affects: 'FRIENDLY_UNITS',
+        entersReady: true,
+        onlyAtControlled: true,
+        ...(gateWhen ? { when: gateWhen } : {}),
+      });
+      continue;
+    }
     // R88: "Your tokens enter ready" / "Other friendly units enter ready".
     const er = /^(Your tokens|Your units|Other friendly units) enter ready$/i.exec(body);
     if (er) {
