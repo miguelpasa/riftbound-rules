@@ -290,6 +290,7 @@ export function evalCondition(
         if (o.controller !== side || (cond.other === true && o.id === sourceId)) continue;
         const def = cards[o.cardId];
         if (!def) continue;
+        if (cond.ready && !o.ready) continue;
         const kindOk =
           cond.what === 'unit'
             ? isUnitDef(def)

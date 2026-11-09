@@ -183,11 +183,17 @@ export function staticBonus(
   target: CardInstance | undefined,
 ): StaticBonus {
   if (!target) return NONE;
+  // Stand United: "Buffs give an additional +N [M] to friendly units this turn".
+  const turnBuff =
+    target.buffed === true
+      ? state.players[target.controller === 'p0' ? 0 : 1]?.buffBonus
+      : undefined;
+  const tb = turnBuff && turnBuff.turn === state.turn.number ? turnBuff.amount : 0;
   const ids = staticIds(cards);
-  if (ids.size === 0) return NONE;
+  if (ids.size === 0) return tb > 0 ? { might: tb, keywords: [] } : NONE;
   const targetDef = cards[target.cardId];
   if (!targetDef) return NONE;
-  let might = 0;
+  let might = tb;
   const keywords: KeywordInstance[] = [];
   let noMoveToBase = false;
   let noCombatDamage = false;
@@ -335,4 +341,38 @@ export function defWithGrants(
   const extra = staticBonus(state, cards, obj).keywords;
   if (!def || extra.length === 0) return def;
   return { ...def, keywords: [...def.keywords, ...extra] };
+}
+
+const bonusDamageDb = new WeakMap<CardDatabase, boolean>();
+
+/** Bonus Damage: extra damage dealt to `target` by `controller`'s spells and abilities (Annie, Void Gate). */
+export function bonusDamageTo(
+  state: GameState,
+  cards: CardDatabase,
+  controller: PlayerId,
+  target: CardInstance,
+): number {
+  let any = bonusDamageDb.get(cards);
+  if (any === undefined) {
+    any = Object.values(cards).some((d) => d.statics?.some((s) => s.bonusDamage !== undefined));
+    bonusDamageDb.set(cards, any);
+  }
+  if (!any) return 0;
+  let n = 0;
+  for (const o of Object.values(state.objects)) {
+    if (o.controller !== controller) continue;
+    const z = o.zone.kind;
+    if (z !== 'base' && z !== 'battlefield' && z !== 'legend') continue;
+    for (const s of cards[o.cardId]?.statics ?? []) {
+      if (s.bonusDamage?.scope === 'YOURS') n += s.bonusDamage.amount;
+    }
+  }
+  const at = targetBattlefield(target);
+  for (const bf of state.battlefields) {
+    if (bf.id !== at) continue;
+    for (const s of cards[bf.cardId]?.statics ?? []) {
+      if (s.bonusDamage?.scope === 'HERE') n += s.bonusDamage.amount;
+    }
+  }
+  return n;
 }

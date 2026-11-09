@@ -18,7 +18,7 @@ import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import { allocObjectId } from './setup.js';
 import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
-import { defWithGrants, staticBonus } from './statics.js';
+import { bonusDamageTo, defWithGrants, staticBonus } from './statics.js';
 import { evalCondition } from './conditions.js';
 import { playerIndex } from './types/constants.js';
 import type {
@@ -905,7 +905,8 @@ export function runEffects(
   const fizzle = (): void => {
     out.push({ type: 'EFFECT_FIZZLED', cardId: sourceCardId });
   };
-  const damage = (u: CardInstance, amount: number): void => {
+  const damage = (u: CardInstance, base: number): void => {
+    const amount = base > 0 ? base + bonusDamageTo(state, cards, controller, u) : base;
     const dealt = applyDamageMods(state, cards, u, amount, { kind: 'EFFECT', controller });
     if (dealt < amount)
       out.push({ type: 'DAMAGE_PREVENTED', unitId: u.id, amount: amount - dealt });
@@ -1816,6 +1817,15 @@ export function runEffects(
       case 'ENTER_READY_THIS_TURN':
         state.players[playerIndex(controller)].enterReadyTurn = state.turn.number;
         break;
+      case 'BUFF_BONUS_TURN': {
+        const ps = state.players[playerIndex(controller)];
+        const same = ps.buffBonus?.turn === state.turn.number;
+        ps.buffBonus = {
+          turn: state.turn.number,
+          amount: (same ? (ps.buffBonus?.amount ?? 0) : 0) + e.amount,
+        };
+        break;
+      }
       case 'ENTER_READY_NEXT':
         state.players[playerIndex(controller)].enterReadyNext = state.turn.number;
         break;

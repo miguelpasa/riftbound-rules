@@ -168,6 +168,8 @@ export type CardEffect =
   | { op: 'ENTER_READY_THIS_TURN' }
   /** "The next unit you play this turn enters ready" (Sun Disc): consumed by the next unit card played. */
   | { op: 'ENTER_READY_NEXT' }
+  /** Stand United: this turn, every buffed friendly unit has +amount [M] more. */
+  | { op: 'BUFF_BONUS_TURN'; amount: number }
   | {
       op: 'LOCK_PLAYS';
       who: 'OPPONENTS' | 'TARGET_CONTROLLER';
@@ -707,6 +709,11 @@ export interface StaticAbility {
   playCostMod?: { energy: number; min: number; spellsOnly?: boolean; subtype?: string };
   /** R88: only token units are affected ("Your token units have +1 [M]"). */
   onlyToken?: boolean;
+  /**
+   * Bonus Damage: `YOURS` = the controller's spells and abilities deal this much more damage (Annie); `HERE` = every
+   * spell and ability deals this much more to units at this battlefield (Void Gate, a Battlefield card).
+   */
+  bonusDamage?: { amount: number; scope: 'YOURS' | 'HERE' };
   /** Karthus: the controller's Deathknell triggers happen an additional time. */
   doubleDeathknell?: boolean;
   /** Only buffed units are affected ("Friendly buffed units have [Deflect]"). */
@@ -756,6 +763,8 @@ export type Condition =
       where: 'here' | 'base' | 'board' | 'hand' | 'runeDeck';
       who: 'friendly' | 'enemy';
       other?: boolean;
+      /** Only ready units count ("a ready enemy unit here"). */
+      ready?: boolean;
       cmp: CountCmp;
       n: number;
     }

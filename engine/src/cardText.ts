@@ -1359,6 +1359,11 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
       out.push({ op: 'ENTER_READY_THIS_TURN' });
       return true;
     }
+    const bb = /^Buffs give an additional \+(\d+) \[M\] to friendly units this turn$/i.exec(sen);
+    if (bb) {
+      out.push({ op: 'BUFF_BONUS_TURN', amount: Number(bb[1]) });
+      return true;
+    }
     if (/^The next unit you play this turn enters ready$/i.test(sen)) {
       out.push({ op: 'ENTER_READY_NEXT' });
       return true;
@@ -1683,6 +1688,19 @@ function parseDeathReplaceStatic(body: string): StaticAbility | null {
   if (pd) {
     const when = parseCondition(pd[1] ?? '');
     return when ? { affects: 'SELF', restrict: 'NO_ENEMY_EFFECT_DAMAGE', when } : null;
+  }
+  const bd =
+    /^(Your spells and abilities|Spells and abilities) deal (\d+) Bonus Damage(?: to units here)?$/i.exec(
+      body,
+    );
+  if (bd) {
+    return {
+      affects: 'SELF',
+      bonusDamage: {
+        amount: Number(bd[2]),
+        scope: /^your/i.test(bd[1] ?? '') ? 'YOURS' : 'HERE',
+      },
+    };
   }
   if (/^Your \[Deathknell\] effects trigger an additional time$/i.test(body)) {
     return { affects: 'SELF', doubleDeathknell: true };
@@ -2570,6 +2588,17 @@ export function parseCondition(raw: string): Condition | null {
       n,
     };
   }
+  if (/^there is an? (ready )?enemy unit here$/i.test(text)) {
+    return {
+      kind: 'COUNT',
+      what: 'unit',
+      where: 'here',
+      who: 'enemy',
+      ...(/ready/i.test(text) ? { ready: true } : {}),
+      cmp: 'GTE',
+      n: 1,
+    };
+  }
   if (/^you (?:have|control) another unit here$/i.test(text)) {
     return {
       kind: 'COUNT',
@@ -2807,6 +2836,19 @@ function extractModal(text: string): { text: string; blocks: ModalBlock[] } {
   const blocks: ModalBlock[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
+    // "..., draw 1 or channel 1 rune exhausted." (Qiyana) is a "choose one" written on one line.
+    const inline = /^((?:When|At) .+?),\s*draw (\d+) or channel (\d+) runes? exhausted\.?$/i.exec(
+      line.trim(),
+    );
+    if (inline) {
+      out.push(`${inline[1]}, MODAL${blocks.length}.`);
+      blocks.push({
+        modes: [`Draw ${inline[2]}.`, `Channel ${inline[3]} rune exhausted.`],
+        once: false,
+        giveMe: false,
+      });
+      continue;
+    }
     const m =
       /^((?:When|At) .+?),\s*choose one( that hasn['’]t been chosen this turn| to give me this turn)?\s*[—–-]\s*$/i.exec(
         line.trim(),
