@@ -20,6 +20,7 @@ import type {
   CardInstance,
   Condition,
   CountCmp,
+  GameEventInput,
   GameState,
   PlayerId,
 } from './types/index.js';
@@ -44,6 +45,51 @@ function tracksDeaths(cards: CardDatabase): boolean {
     trackedDb.set(cards, v);
   }
   return v;
+}
+
+const flagsDb = new WeakMap<CardDatabase, boolean>();
+
+/** True when some card in the database reads a per-turn flag (discarded a card / gained XP this turn). */
+export function tracksTurnFlags(cards: CardDatabase): boolean {
+  let v = flagsDb.get(cards);
+  if (v === undefined) {
+    v = Object.values(cards).some((d) =>
+      JSON.stringify([d.entersReadyWhen, d.triggers, d.statics, d.costReduction]).includes(
+        'TURN_FLAG',
+      ),
+    );
+    flagsDb.set(cards, v);
+  }
+  return v;
+}
+
+/** Note, from the events of one step, who discarded a card or gained XP this turn (mutates; opt-in). */
+export function noteTurnFlags(
+  state: GameState,
+  cards: CardDatabase,
+  events: readonly GameEventInput[],
+): void {
+  if (!tracksTurnFlags(cards)) return;
+  for (const e of events) {
+    let who: PlayerId;
+    let flag: 'xpGained' | 'discarded';
+    if (e.type === 'XP_GAINED') {
+      who = e.player;
+      flag = 'xpGained';
+    } else if (
+      e.type === 'HAND_DISCARDED' ||
+      (e.type === 'COST_CARDS_PAID' && e.kind === 'DISCARD')
+    ) {
+      who = e.player;
+      flag = 'discarded';
+    } else {
+      continue;
+    }
+    const ps = state.players[playerIndex(who)] as GameState['players'][number];
+    const rec =
+      ps.turnFlags?.turn === state.turn.number ? ps.turnFlags : { turn: state.turn.number };
+    ps.turnFlags = { ...rec, [flag]: true };
+  }
 }
 
 const excessDb = new WeakMap<CardDatabase, boolean>();
@@ -155,7 +201,9 @@ export function evalCondition(
     case 'DIED_THIS_TURN': {
       const died = (p: PlayerId): number => {
         const rec = state.players[playerIndex(p)]?.diedThisTurn;
-        return rec && rec.turn === state.turn.number ? rec.count + (cond.orGear ? (rec.gear ?? 0) : 0) : 0;
+        return rec && rec.turn === state.turn.number
+          ? rec.count + (cond.orGear ? (rec.gear ?? 0) : 0)
+          : 0;
       };
       const other: PlayerId = controller === 'p0' ? 'p1' : 'p0';
       const n =
@@ -253,6 +301,10 @@ export function evalCondition(
       return Object.values(state.objects).some(
         (o) => o.controller === controller && onBoard(o) && o.empowered === true,
       );
+    case 'TURN_FLAG': {
+      const rec = state.players[playerIndex(controller)]?.turnFlags;
+      return rec !== undefined && rec.turn === state.turn.number && rec[cond.flag] === true;
+    }
     case 'TARGET_STUNNED':
       return false; // read from the chosen targets by runEffects
     case 'ENEMY_STUNNED':
@@ -357,11 +409,11 @@ export function evalCondition(
             ? isUnitDef(def)
             : cond.what === 'unitOrGear'
               ? def.type === 'GEAR' || isUnitDef(def)
-            : cond.what === 'gear'
-              ? def.type === 'GEAR'
-              : cond.what === 'rune'
-                ? def.type === 'RUNE'
-                : false;
+              : cond.what === 'gear'
+                ? def.type === 'GEAR'
+                : cond.what === 'rune'
+                  ? def.type === 'RUNE'
+                  : false;
         if (!kindOk) continue;
         const z = o.zone;
         const placed =

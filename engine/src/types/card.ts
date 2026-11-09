@@ -943,6 +943,8 @@ export type Condition =
   | { kind: 'EXCESS_DAMAGE'; n: number }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any'; orGear?: true }
+  /** "If you've discarded a card / gained XP this turn" (recorded per player and turn, only when a card asks). */
+  | { kind: 'TURN_FLAG'; flag: 'discarded' | 'xpGained' }
   /** R53: Level N: the controller has at least `n` XP. */
   | { kind: 'XP'; n: number };
 

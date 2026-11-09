@@ -53,7 +53,13 @@ import { activateAbility } from './abilities.js';
 import { activateRune } from './resources.js';
 import { holdScoringStep } from './scoring.js';
 import { stampEvents } from './setup.js';
-import { tracksBuffed, tracksChosen, tracksMighty, tracksReadiness } from './conditions.js';
+import {
+  noteTurnFlags,
+  tracksBuffed,
+  tracksChosen,
+  tracksMighty,
+  tracksReadiness,
+} from './conditions.js';
 import { effectiveMight } from './combat.js';
 import { MIGHTY_MIGHT_COST } from './costReduction.js';
 import { isUnitDef } from './tokens.js';
@@ -389,6 +395,7 @@ function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent):
     const c = runCleanup(r.state, cards, ENGINE_HOOKS.showdown);
     if (!c.ok) return c;
     const all = [...r.events, ...c.events];
+    noteTurnFlags(c.state, cards, all);
     // R78: "When I become exhausted / ready": diff the readiness of the board before and after this step.
     if (tracksReadiness(cards)) {
       const extra: GameEventInput[] = [];

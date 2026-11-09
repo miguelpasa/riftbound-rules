@@ -2260,7 +2260,7 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       continue;
     }
     const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(body);
-    const f2 = new RegExp(`^While (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(
+    const f2 = new RegExp(`^(?:While|If) (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(
       body,
     );
     const f3 = new RegExp(`^I have ${STATIC_GRANT} while (.+)$`, 'i').exec(body);
@@ -3065,6 +3065,10 @@ export function parseCondition(raw: string): Condition | null {
   if (/^I['’]m attacking or defending alone$/i.test(text)) {
     return { kind: 'COMBAT_ROLE', role: 'EITHER', alone: true };
   }
+  if (/^you['’]ve discarded a card this turn$/i.test(text)) {
+    return { kind: 'TURN_FLAG', flag: 'discarded' };
+  }
+  if (/^you['’]ve gained XP this turn$/i.test(text)) return { kind: 'TURN_FLAG', flag: 'xpGained' };
   if (/^I['’]m attacking with another unit$/i.test(text)) {
     return { kind: 'COMBAT_ROLE', role: 'ATTACKING', withOther: true };
   }

@@ -149,6 +149,8 @@ export interface PlayerState {
    * card in the database asks (see conditions.ts `recordDeath`), so games without such cards are unchanged.
    */
   diedThisTurn?: { turn: number; count: number; gear?: number };
+  /** What this player did during turn `turn` (discarded a card, gained XP); only recorded when a card asks. */
+  turnFlags?: { turn: number; discarded?: true; xpGained?: true };
   /**
    * Cards this player played (PLAY_CARD, Hidden plays included) during turn `turn` (Legion, 812).
    * A record from an earlier turn counts as nothing, so the counter resets at the start of each turn
