@@ -157,6 +157,8 @@ export interface PlayerState {
     /** Most Energy paid for one spell, and the total Power paid, this turn. */
     spellEnergy?: number;
     power?: number;
+    /** Battlefields this player conquered this turn (a cost reduction counts them). */
+    conquered?: number;
   };
   /**
    * Cards this player played (PLAY_CARD, Hidden plays included) during turn `turn` (Legion, 812).

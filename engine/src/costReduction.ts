@@ -47,6 +47,10 @@ function countFor(
       }
       return best;
     }
+    case 'CONQUERED_THIS_TURN': {
+      const rec = ps?.turnFlags;
+      return rec && rec.turn === state.turn.number ? (rec.conquered ?? 0) : 0;
+    }
     case 'PET_TAGS':
       return petTagCount(state, cards, pid, sourceId);
     case 'TRASH':

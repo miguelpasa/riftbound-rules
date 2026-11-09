@@ -860,6 +860,7 @@ export type CostCount =
   | 'MIGHTY_UNIT' // each of your [Mighty] units (Might 5+)
   | 'CARDS_PLAYED' // each card you have played this turn
   | 'RUNE' // R91: each rune you control
+  | 'CONQUERED_THIS_TURN' // each battlefield you've conquered this turn
   | 'PET_TAGS' // each of the tags Bird, Cat, Dog, Poro among your units (distinct, Daisy!)
   | 'HIGHEST_MIGHT'; // R91: the highest Might among units you control (counted as that many)
 

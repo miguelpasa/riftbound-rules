@@ -2494,6 +2494,7 @@ const COST_PER: [RegExp, CostCount][] = [
   [/^of your \[Mighty\] units$/i, 'MIGHTY_UNIT'],
   [/^cards? you['’]ve played this turn$/i, 'CARDS_PLAYED'],
   [/^runes? you control$/i, 'RUNE'],
+  [/^battlefield you['’]ve conquered this turn$/i, 'CONQUERED_THIS_TURN'],
 ];
 
 /**

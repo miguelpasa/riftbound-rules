@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { parseCondition, parseStaticLines } from '../cardText.js';
-import { evalCondition } from '../conditions.js';
+import { parseCondition, parseSelfCostReduction, parseStaticLines } from '../cardText.js';
+import { evalCondition, noteTurnFlags } from '../conditions.js';
+import { selfEnergyDiscount } from '../costReduction.js';
 import { autoPlan, computeTotalCost } from '../resources.js';
 import type { CardDatabase, CardDef, CardEffect, Condition } from '../types/index.js';
 
@@ -137,5 +138,51 @@ describe('scenario: "you\'ve spent [4] or more to play a spell / at least [A][A]
     expect(evalCondition(sc.state, sc.cards, BIG, 'p0', me)).toBe(true);
     expect(evalCondition(sc.state, sc.cards, BIG, 'p1', me)).toBe(false);
     expect(evalCondition(sc.state, sc.cards, POWER, 'p0', me)).toBe(false); // one Power only
+  });
+});
+
+describe('scenario: "I cost [2] less for each battlefield you\'ve conquered this turn" (Bloodscent Swarm)', () => {
+  const text = "I cost [2] less for each battlefield you've conquered this turn.";
+  const conquer = (bf: string, who: 'p0' | 'p1' = 'p0') =>
+    ({ type: 'BATTLEFIELD_SCORED', player: who, battlefieldId: bf, method: 'CONQUER' }) as const;
+  const swarm = (): CardDatabase => {
+    const red = parseSelfCostReduction(text)?.reduction;
+    return {
+      ...SCENARIO_CARDS,
+      'fx-grunt': { ...base('fx-grunt'), cost: { energy: 5, domain: [] }, costReduction: red },
+    };
+  };
+
+  it('reads as a per-conquered-battlefield reduction', () => {
+    // Tests Rule 560.4: a cost reduction counts what it names
+    expect(parseSelfCostReduction(text)).toMatchObject({
+      reduction: { energy: 2, per: 'CONQUERED_THIS_TURN' },
+    });
+  });
+
+  it('is [2] cheaper for each battlefield conquered by its controller this turn', () => {
+    // Tests Rule 560.4: a cost reduction counts what it names
+    const cards = swarm();
+    const sc = Scenario.start({}, cards);
+    const def = cards['fx-grunt'] as CardDef;
+    const id = sc.putInHand('p0', 'fx-grunt');
+    const disc = () => selfEnergyDiscount(sc.state, cards, 'p0', def, id);
+    expect(disc()).toBe(0);
+    noteTurnFlags(sc.state, cards, [conquer('bf1')]);
+    expect(disc()).toBe(2);
+    noteTurnFlags(sc.state, cards, [conquer('bf2'), conquer('bf1', 'p1')]);
+    expect(disc()).toBe(4);
+  });
+
+  it("forgets last turn's conquests", () => {
+    // Tests Rule 560.4: "this turn" counts only the current turn
+    const cards = swarm();
+    const sc = Scenario.start({}, cards);
+    const def = cards['fx-grunt'] as CardDef;
+    const id = sc.putInHand('p0', 'fx-grunt');
+    noteTurnFlags(sc.state, cards, [conquer('bf1')]);
+    sc.endTurn('p0');
+    sc.endTurn('p1');
+    expect(selfEnergyDiscount(sc.state, cards, 'p0', def, id)).toBe(0);
   });
 });
