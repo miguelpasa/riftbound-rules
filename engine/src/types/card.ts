@@ -636,6 +636,8 @@ export interface StaticAbility {
   playCostMod?: { energy: number; min: number; spellsOnly?: boolean; subtype?: string };
   /** R88: only token units are affected ("Your token units have +1 [M]"). */
   onlyToken?: boolean;
+  /** Karthus: the controller's Deathknell triggers happen an additional time. */
+  doubleDeathknell?: boolean;
   /** Only buffed units are affected ("Friendly buffed units have [Deflect]"). */
   onlyBuffed?: boolean;
   /** R88: the affected units (or tokens) enter ready ("Your tokens enter ready"). */
@@ -849,7 +851,9 @@ export type TriggerKind =
   /** X9 (709): "When a unit you control becomes [Mighty]". */
   | 'UNIT_BECOMES_MIGHTY'
   /** "When this is killed / leaves the board" for a gear: fires for the gear itself, now in its owner's Trash. */
-  | 'GEAR_LEAVES';
+  | 'GEAR_LEAVES'
+  /** "When a friendly unit attacks or defends alone" / "When an enemy unit attacks a battlefield you control" (see `CardTrigger.unitFilter`); the unit is the ability's target ("give it"). */
+  | 'UNIT_ATTACKS';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {
@@ -899,6 +903,8 @@ export interface CardTrigger {
   playFilter?: PlayFilter;
   /** R71: only for `on: 'UNIT_DIES'`. */
   dies?: DeathFilter;
+  /** `on: 'UNIT_ATTACKS'`: which unit in a combat triggers it. */
+  unitFilter?: { side: 'friendly' | 'enemy'; alone?: boolean; attacking?: boolean; atMine?: boolean };
   /** "The third time I move in a turn": fires only on the unit's n-th move to a battlefield this turn. */
   moveNth?: number;
   /** "When I die in combat": only a death while a combat was being fought at the unit's battlefield. */

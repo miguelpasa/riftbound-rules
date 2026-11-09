@@ -283,3 +283,101 @@ describe('scenario: gear "When this leaves the board" (Treasure Trove, Scrapheap
     expect(sc.player('p0').hand.length).toBe(before + 1);
   });
 });
+
+describe('scenario: "When a friendly unit attacks alone, give it +1 [M]" (Mask of Foresight)', () => {
+  const mask = parseCardAbilities(
+    'When a friendly unit attacks or defends alone, give it +1 [M] this turn.',
+    { gearLike: true },
+  );
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    ...TOKEN_CARDS,
+    'fx-ember-totem': { ...base('fx-ember-totem'), triggers: mask?.triggers ?? [] },
+  };
+  const attack = (withMate: boolean): { buffed: number; chain: number } => {
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const u = sc.putUnit('p0', 'fx-grunt', 'base');
+    if (withMate) sc.putUnit('p0', 'fx-ash-tank', 'base');
+    sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const ids = withMate
+      ? [
+          u,
+          Object.keys(sc.state.objects).find(
+            (k) => sc.state.objects[k]?.cardId === 'fx-ash-tank',
+          ) as string,
+        ]
+      : [u];
+    sc.do({
+      type: 'STANDARD_MOVE',
+      playerId: 'p0',
+      unitIds: ids,
+      destination: { kind: 'battlefield', battlefieldId: 'bf1' },
+    });
+    const chain = sc.state.flow.chain.length;
+    for (let k = 0; k < 8 && sc.state.flow.chain.length > 0; k++) {
+      sc.pass(sc.state.flow.priority as PlayerId);
+    }
+    return { buffed: sc.obj(u).mightBonus ?? 0, chain };
+  };
+
+  it('parses the head with its unit filter', () => {
+    // Tests Rule 583.3: a triggered ability on a unit attacking
+    expect(mask?.triggers[0]).toMatchObject({
+      on: 'UNIT_ATTACKS',
+      unitFilter: { side: 'friendly', alone: true },
+      effects: [{ op: 'BUFF_TARGET', amount: 1, side: 'friendly' }],
+    });
+  });
+
+  it('buffs a unit that attacks alone, but not one that attacks with a mate', () => {
+    // Tests Rule 583.3: "alone" means no other friendly unit in the combat
+    const alone = attack(false);
+    expect(alone.chain).toBeGreaterThan(0);
+    expect(alone.buffed).toBe(1);
+    expect(attack(true).buffed).toBe(0);
+  });
+});
+
+describe('scenario: "Your [Deathknell] effects trigger an additional time" (Karthus)', () => {
+  const kar = parseStaticLines('Your [Deathknell] effects trigger an additional time.');
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-ember-totem': { ...base('fx-ember-totem'), statics: kar?.statics ?? [] },
+    'fx-grunt': {
+      ...base('fx-grunt'),
+      triggers: [{ on: 'DEATH', effects: [{ op: 'DRAW', amount: 1 }] }],
+    },
+  };
+  const chainAfterDeath = (withKarthus: boolean): number => {
+    const sc = Scenario.start({}, cards);
+    if (withKarthus) sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const g = sc.putUnit('p0', 'fx-grunt', 'base');
+    const s = structuredClone(sc.state);
+    const o = s.objects[g] as CardInstance;
+    s.players[0].base = s.players[0].base.filter((x) => x !== g);
+    s.players[0].trash.push(g);
+    o.zone = { kind: 'trash', player: 'p0' };
+    const ev = {
+      seq: 1,
+      type: 'UNIT_KILLED',
+      unitId: g,
+      controller: 'p0',
+      cardId: 'fx-grunt',
+      at: 'base',
+      alone: true,
+    } as GameEvent;
+    return fireTriggers(s, sc.cards, [ev]).state.flow.chain.length;
+  };
+
+  it('parses as a static marker', () => {
+    // Tests Rule 726: Deathknell triggers when the unit dies
+    expect(kar?.statics[0]).toMatchObject({ affects: 'SELF', doubleDeathknell: true });
+  });
+
+  it('a Deathknell triggers twice while the card is on the board, once otherwise', () => {
+    // Tests Rule 726: an additional trigger of a Deathknell
+    expect(chainAfterDeath(false)).toBe(1);
+    expect(chainAfterDeath(true)).toBe(2);
+  });
+});

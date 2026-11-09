@@ -61,6 +61,8 @@ interface Pending {
   battlefield: boolean;
   index: number;
   controller: PlayerId;
+  /** The unit the event is about ("When a friendly unit attacks alone, give IT ..."): preset as the ability's target. */
+  subject?: string;
 }
 
 const onBoard = (o: CardInstance): boolean =>
@@ -105,6 +107,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     kind: TriggerKind,
     controller: PlayerId,
     pick?: (t: CardTrigger) => boolean,
+    subject?: string,
   ): void => {
     const triggers = obj ? cards[obj.cardId]?.triggers : undefined;
     triggers?.forEach((t, index) => {
@@ -126,7 +129,14 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       } else if (t.when?.kind === 'DIED_ALONE') {
         if ((diedAlone === true) === (t.when.not === true)) return;
       } else if (t.when && !evalCondition(state, cards, t.when, controller, obj.id)) return;
-      out.push({ sourceId: obj.id, cardId: obj.cardId, battlefield: false, index, controller });
+      out.push({
+        sourceId: obj.id,
+        cardId: obj.cardId,
+        battlefield: false,
+        index,
+        controller,
+        ...(subject !== undefined ? { subject } : {}),
+      });
     });
   };
   /**
@@ -222,6 +232,14 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       if (o && o.zone.kind === 'trash') {
         diedAlone = e.alone === true;
         add(o, 'DEATH', o.owner, (t) => !t.inCombat || e.inCombat === true);
+        // Karthus: "Your [Deathknell] effects trigger an additional time" (not the "die in combat" form).
+        const doubles = Object.values(state.objects).some(
+          (k) =>
+            onBoard(k) &&
+            k.controller === o.owner &&
+            cards[k.cardId]?.statics?.some((st) => st.doubleDeathknell === true),
+        );
+        if (doubles) add(o, 'DEATH', o.owner, (t) => !t.inCombat);
         diedAlone = undefined;
       }
       // R71: "When a friendly / an enemy unit dies" fires for the permanents on the board.
@@ -373,6 +391,37 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           else if (o.controller === c.defender) add(o, 'DEFEND', o.controller);
         }
       }
+      // "When a friendly unit attacks or defends alone" / "When an enemy unit attacks a battlefield you control".
+      const here = Object.values(state.objects).filter(
+        (u) =>
+          u.zone.kind === 'battlefield' &&
+          u.zone.battlefieldId === e.battlefieldId &&
+          cards[u.cardId]?.type === 'UNIT',
+      );
+      for (const src of Object.values(state.objects)) {
+        if (!onBoard(src) && src.zone.kind !== 'legend') continue;
+        const mine = here.filter((u) => u.controller === src.controller);
+        const theirs = here.filter((u) => u.controller !== src.controller);
+        const bfOwner = state.battlefields.find((b) => b.id === e.battlefieldId)?.controller;
+        for (const u of [...mine, ...theirs]) {
+          add(
+            src,
+            'UNIT_ATTACKS',
+            src.controller,
+            (t) => {
+              const f = t.unitFilter;
+              if (!f) return false;
+              const friendly = u.controller === src.controller;
+              if ((f.side === 'friendly') !== friendly) return false;
+              if (f.alone && mine.length !== 1) return false;
+              if (f.attacking && u.controller !== c.attacker) return false;
+              if (f.atMine && bfOwner !== src.controller) return false;
+              return true;
+            },
+            u.id,
+          );
+        }
+      }
     }
   }
   return out;
@@ -403,7 +452,19 @@ export function fireTriggers(
       raw.push({ type: 'TRIGGER_NO_TARGET', player: p.controller, sourceId: p.sourceId });
       continue;
     }
-    const auto = choices !== null && choices.length === 1 ? (choices[0] as Target[]) : undefined;
+    let auto = choices !== null && choices.length === 1 ? (choices[0] as Target[]) : undefined;
+    if (p.subject !== undefined && choices !== null) {
+      // The event's unit is the target ("give it ..."): legal only if it is among the allowed choices.
+      const subjectId = p.subject;
+      const pick = choices.find(
+        (ch) => ch.length === 1 && ch[0]?.kind === 'object' && ch[0].id === subjectId,
+      );
+      if (!pick) {
+        raw.push({ type: 'TRIGGER_NO_TARGET', player: p.controller, sourceId: p.sourceId });
+        continue;
+      }
+      auto = pick as Target[];
+    }
     const item: ChainItem = {
       id: allocObjectId(s),
       kind: 'ABILITY',
