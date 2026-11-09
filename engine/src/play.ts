@@ -39,6 +39,7 @@ import type {
   CardDatabase,
   CardDef,
   CardInstance,
+  CardEffect,
   CardTrigger,
   ChainItem,
   GameEventInput,
@@ -259,7 +260,7 @@ function runTrigger(
   sourceId: string,
   events: GameEventInput[],
 ): void {
-  let optional = trig.optional;
+  let optional = trig.modes ? (trig.modeOptional?.[item.mode ?? 0] ?? undefined) : trig.optional;
   // R77: a mandatory discard asks for min(N, hand size) cards; with an empty hand there is nothing to ask.
   if (
     optional?.mandatory &&
@@ -273,7 +274,7 @@ function runTrigger(
         ...runEffects(
           s,
           item.controller,
-          trig.effects,
+          triggerEffectsOf(trig, item),
           cards,
           liveTargets(s, item),
           cardId,
@@ -305,8 +306,21 @@ function runTrigger(
     if (!accepted) return;
   }
   events.push(
-    ...runEffects(s, item.controller, trig.effects, cards, liveTargets(s, item), cardId, sourceId),
+    ...runEffects(
+      s,
+      item.controller,
+      triggerEffectsOf(trig, item),
+      cards,
+      liveTargets(s, item),
+      cardId,
+      sourceId,
+    ),
   );
+}
+
+/** The effects a triggered ability runs: its chosen mode ("choose one —"), else its plain effects. */
+export function triggerEffectsOf(trig: CardTrigger, item: ChainItem): readonly CardEffect[] {
+  return trig.modes ? (trig.modes[item.mode ?? 0] ?? []) : trig.effects;
 }
 
 export const playResolver: ChainResolver = (state, item, cards) => {

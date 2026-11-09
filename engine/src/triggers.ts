@@ -460,15 +460,37 @@ export function fireTriggers(
   const raw: GameEventInput[] = [];
   let added = 0;
   for (const p of ordered) {
-    const effects = cards[p.cardId]?.triggers?.[p.index]?.effects;
-    const choices = enumerateSpellTargets(s, cards, p.controller, effects, p.sourceId, {
-      allowNone: true,
-    });
+    const tdef = cards[p.cardId]?.triggers?.[p.index];
+    const effects = tdef?.effects;
+    // X-modes: a "choose one —" ability always asks for its mode (and that mode's targets) when put on the Chain.
+    const modal = tdef?.modes !== undefined;
+    if (modal) {
+      const pseudo: ChainItem = {
+        id: '',
+        kind: 'ABILITY',
+        sourceObjectId: p.sourceId,
+        controller: p.controller,
+        status: 'PENDING',
+        targets: [],
+        choices: {},
+        triggered: true,
+        triggerIndex: p.index,
+        sourceCardId: p.cardId,
+      };
+      if (allowedModes(s, cards, pseudo).length === 0) {
+        raw.push({ type: 'TRIGGER_NO_TARGET', player: p.controller, sourceId: p.sourceId });
+        continue;
+      }
+    }
+    const choices = modal
+      ? ([[]] as Target[][])
+      : enumerateSpellTargets(s, cards, p.controller, effects, p.sourceId, { allowNone: true });
     if (choices !== null && choices.length === 0) {
       raw.push({ type: 'TRIGGER_NO_TARGET', player: p.controller, sourceId: p.sourceId });
       continue;
     }
-    let auto = choices !== null && choices.length === 1 ? (choices[0] as Target[]) : undefined;
+    let auto =
+      choices !== null && choices.length === 1 && !modal ? (choices[0] as Target[]) : undefined;
     if (p.subject !== undefined && choices !== null) {
       // The event's unit is the target ("give it ..."): legal only if it is among the allowed choices.
       const subjectId = p.subject;
@@ -530,6 +552,29 @@ export function triggerSourceCardId(state: GameState, item: ChainItem): string |
   return state.objects[item.sourceObjectId]?.cardId ?? item.sourceCardId;
 }
 
+/** The trigger definition behind a triggered ability's Chain item. */
+export function triggerDefOf(
+  state: GameState,
+  cards: CardDatabase,
+  item: ChainItem,
+): CardTrigger | undefined {
+  if (item.triggerIndex === undefined) return undefined;
+  const cardId = triggerSourceCardId(state, item);
+  return cardId === undefined ? undefined : cards[cardId]?.triggers?.[item.triggerIndex];
+}
+
+/** X-modes: the modes of a "choose one —" trigger that its source may still choose now. */
+export function allowedModes(state: GameState, cards: CardDatabase, item: ChainItem): number[] {
+  const trig = triggerDefOf(state, cards, item);
+  if (!trig?.modes) return [];
+  const src = state.objects[item.sourceObjectId];
+  const used =
+    trig.modeOnce && src?.modesUsed?.turn === state.turn.number
+      ? (src.modesUsed.used[item.triggerIndex ?? 0] ?? [])
+      : [];
+  return trig.modes.map((_, k) => k).filter((k) => !used.includes(k));
+}
+
 /** The effects of the triggered or activated ability behind a Chain item (undefined for others). */
 export function abilityItemEffects(
   state: GameState,
@@ -539,8 +584,9 @@ export function abilityItemEffects(
   if (item.kind !== 'ABILITY') return undefined;
   const obj = state.objects[item.sourceObjectId];
   if (item.triggerIndex !== undefined) {
-    const cardId = triggerSourceCardId(state, item);
-    return cardId === undefined ? undefined : cards[cardId]?.triggers?.[item.triggerIndex]?.effects;
+    const trig = triggerDefOf(state, cards, item);
+    if (trig?.modes) return item.mode === undefined ? undefined : trig.modes[item.mode];
+    return trig?.effects;
   }
   if (item.activatedIndex !== undefined) {
     const cardId = item.sourceCardId ?? obj?.cardId ?? '';
@@ -613,7 +659,18 @@ export function chooseTriggerTarget(
   }
   const item = state.flow.chain.find((i) => i.id === pc.chainItemId);
   if (!item || item.status !== 'PENDING') return ruleError('NOT_FOUND', 'the trigger is gone');
-  const effects = abilityItemEffects(state, cards, item);
+  // X-modes: a "choose one —" ability needs a mode that is still allowed; its targets are checked against that mode.
+  const tdef = triggerDefOf(state, cards, item);
+  let mode: number | undefined;
+  if (tdef?.modes) {
+    mode = intent.mode;
+    if (mode === undefined || !allowedModes(state, cards, item).includes(mode)) {
+      return ruleError('ILLEGAL_TARGET', 'choose one of the modes that can still be chosen');
+    }
+  } else if (intent.mode !== undefined) {
+    return ruleError('ILLEGAL_TARGET', 'this ability has no modes');
+  }
+  const effects = tdef?.modes ? tdef.modes[mode as number] : abilityItemEffects(state, cards, item);
   if (
     !Array.isArray(intent.targets) ||
     !abilityTargetsLegal(state, cards, item.controller, effects, intent.targets, itemSourceId(item))
@@ -625,6 +682,17 @@ export function chooseTriggerTarget(
   const live = s.flow.chain.find((i) => i.id === pc.chainItemId) as ChainItem;
   live.targets = targets;
   live.status = 'FINALIZED';
+  if (mode !== undefined) {
+    live.mode = mode;
+    const src = s.objects[live.sourceObjectId];
+    if (tdef?.modeOnce && src) {
+      const same = src.modesUsed?.turn === s.turn.number;
+      const used = { ...(same ? (src.modesUsed?.used ?? {}) : {}) };
+      const idx = live.triggerIndex ?? 0;
+      used[idx] = [...(used[idx] ?? []), mode];
+      src.modesUsed = { turn: s.turn.number, used };
+    }
+  }
   delete s.flow.pendingChoice;
   askNextTrigger(s);
   const events = stampEvents(s, [

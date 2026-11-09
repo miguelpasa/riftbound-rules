@@ -60,7 +60,7 @@ import type {
  * Temporary keyword grants (R43): "{Tank}", "{Assault 2} and {Ganking}" after "Give ... " in a
  * sentence. The brackets of a grant become braces before the keyword tokens of a card are stripped.
  */
-const GRANT_KW = '(?:Tank|Ganking|(?:Assault|Shield)(?: \\d+)?)';
+const GRANT_KW = '(?:Tank|Ganking|(?:Assault|Shield|Deflect)(?: \\d+)?)';
 const KW_LIST = `((?:\\{${GRANT_KW}\\}(?: and )?)+)`;
 export function protectGrants(text: string): string {
   return text.replace(
@@ -71,7 +71,7 @@ export function protectGrants(text: string): string {
 function parseKwList(list: string | undefined): KeywordInstance[] | null {
   if (!list) return null;
   const out: KeywordInstance[] = [];
-  for (const m of list.matchAll(/\{(Tank|Ganking|Assault|Shield)(?: (\d+))?\}/gi)) {
+  for (const m of list.matchAll(/\{(Tank|Ganking|Assault|Shield|Deflect)(?: (\d+))?\}/gi)) {
     const raw = (m[1] ?? '').toLowerCase();
     const name = (raw.charAt(0).toUpperCase() + raw.slice(1)) as KeywordInstance['name'];
     out.push(m[2] ? { name, value: Number(m[2]) } : { name });
@@ -239,7 +239,7 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
     ];
   }
   // R86: "Deal N to all enemy units here" / "Deal damage equal to my Might to all enemy units here".
-  m = /^Deal (\d+) to all (friendly |enemy )?units (?:here|at my battlefield)$/i.exec(sen);
+  m = /^Deal (\d+) to (?:all )?(friendly |enemy )?units (?:here|at my battlefield)$/i.exec(sen);
   if (m) {
     return [
       {
@@ -2649,10 +2649,81 @@ const TRIGGER_HEAD =
  * implemented keywords plus these forms (all-or-nothing) and there is at least one of them.
  * `gearLike`: the card may use "Kill this" as a cost (gear and gear-like tokens).
  */
+/** X-modes: a "..., choose one —" head followed by bullet lines, found in a card's raw text. */
+interface ModalBlock {
+  modes: string[];
+  /** "choose one that hasn't been chosen this turn" / "you've not chosen this turn". */
+  once: boolean;
+  /** "choose one to give me this turn": each bullet is a keyword list, "Give me <bullet> this turn". */
+  giveMe: boolean;
+}
+
+/**
+ * Replace each "<trigger head>, choose one —" plus its bullet lines by "<trigger head>, MODAL<k>" so the
+ * trigger parser sees one ordinary sentence; the bullets come back through `ModalBlock`.
+ */
+function extractModal(text: string): { text: string; blocks: ModalBlock[] } {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  const blocks: ModalBlock[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    const m =
+      /^((?:When|At) .+?),\s*choose one( that hasn['’]t been chosen this turn| to give me this turn)?\s*[—–-]\s*$/i.exec(
+        line.trim(),
+      );
+    if (m) {
+      const modes: string[] = [];
+      let j = i + 1;
+      while (j < lines.length && /^[-*•–]\s+/.test((lines[j] ?? '').trim())) {
+        modes.push((lines[j] ?? '').trim().replace(/^[-*•–]\s+/, ''));
+        j++;
+      }
+      if (modes.length >= 2) {
+        const tail = (m[2] ?? '').toLowerCase();
+        out.push(`${m[1]}, MODAL${blocks.length}.`);
+        blocks.push({ modes, once: tail.includes('hasn'), giveMe: tail.includes('give me') });
+        i = j - 1;
+        continue;
+      }
+    }
+    out.push(line);
+  }
+  return { text: out.join('\n'), blocks };
+}
+
+/** The effect lists of a modal block (and the cost of each "pay ... to ..." mode), or null when any bullet is not understood. */
+function parseModes(
+  block: ModalBlock,
+): { modes: CardEffect[][]; optional: (OptionalCost | undefined)[] } | null {
+  const modes: CardEffect[][] = [];
+  const optional: (OptionalCost | undefined)[] = [];
+  for (const raw of block.modes) {
+    const text = protectGrants(block.giveMe ? `Give me ${raw.replace(/\.$/, '')} this turn.` : raw)
+      .replace(/\[Stun\]/gi, 'Stun')
+      .replace(/\([^)]*\)/g, ' ');
+    const sens = sentences(text);
+    let eff = parseEffectSentences(sens);
+    let cost: OptionalCost | undefined;
+    if (!eff) {
+      // "Pay [C] to draw 1" = "you may pay [C] to draw 1".
+      const pay = /^pay (.+)$/i.exec(sens[0] ?? '');
+      const opt = pay ? splitOptional([`you may pay ${pay[1] as string}`, ...sens.slice(1)]) : null;
+      eff = opt ? parseEffectSentences(opt.rest) : null;
+      cost = opt?.optional;
+    }
+    if (!eff || eff.length === 0) return null;
+    modes.push(eff);
+    optional.push(cost);
+  }
+  return { modes, optional };
+}
+
 export function parseCardAbilities(
-  text: string,
+  text0: string,
   opts: { gearLike?: boolean; legend?: boolean } = {},
 ): ParsedAbilities | null {
+  const { text, blocks: modalBlocks } = extractModal(text0);
   const kwTriggers = keywordTriggers(text);
   const cleaned = protectGrants(text)
     .replace(/(?:^|\n)\s*\[(?:Disarm(?: \d+)?|Weaponmaster|Hunt(?: \d+)?|Vision)\]/gi, '\n')
@@ -3022,6 +3093,31 @@ export function parseCardAbilities(
     cur.sens.push(sen);
   }
   for (const g of groups) {
+    // X-modes: "..., choose one —" followed by bullets.
+    const mm =
+      g.kind === 'trigger' && g.sens.length === 1 ? /^MODAL(\d+)$/.exec(g.sens[0] ?? '') : null;
+    if (mm && g.kind === 'trigger') {
+      const block = modalBlocks[Number(mm[1])];
+      const parsedModes = block ? parseModes(block) : null;
+      if (!block || !parsedModes) return null;
+      const { modes, optional: modeCosts } = parsedModes;
+      if (g.ons.some((o) => o === 'TURN_START' || o === 'TURN_END')) return null;
+      for (const on of g.ons) {
+        out.triggers.push({
+          on,
+          effects: [],
+          modes,
+          ...(modeCosts.some((c) => c !== undefined) ? { modeOptional: modeCosts } : {}),
+          modeTexts: block.modes.map((x) => x.replace(/\([^)]*\)/g, '').trim()),
+          ...(block.once ? { modeOnce: true } : {}),
+          ...(g.legion ? { condition: 'LEGION' as const } : {}),
+          ...(g.when ? { when: g.when } : {}),
+          ...(g.once ? { oncePerTurn: true } : {}),
+          ...(g.inCombat ? { inCombat: true } : {}),
+        });
+      }
+      continue;
+    }
     // R41: bodies may choose targets ("give a unit +2 [M] this turn"), like a spell's sentences.
     let effects = parseEffectSentences(g.sens);
     let optional: OptionalCost | undefined;

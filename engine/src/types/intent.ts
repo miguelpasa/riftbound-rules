@@ -92,6 +92,8 @@ export interface ChooseTriggerTargetIntent extends IntentBase {
   type: 'CHOOSE_TRIGGER_TARGET';
   chainItemId: string;
   targets: Target[];
+  /** X-modes: which mode of a "choose one —" ability (required for those, absent otherwise). */
+  mode?: number;
 }
 /**
  * Answer to a flow.pendingChoice of kind OPTIONAL_EFFECT (R45): accept or decline a "you may [pay

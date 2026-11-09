@@ -31,7 +31,7 @@ import { autoAssign } from './combat.js';
 import { MAX_TARGET_COMBOS, enumerateSpellTargets, spellEffects } from './effects.js';
 import { hasUnitAt, playToAllowed } from './play.js';
 import { applyIntent, reduce } from './reducer.js';
-import { abilityItemEffects, triggerSourceCardId } from './triggers.js';
+import { abilityItemEffects, allowedModes, triggerDefOf, triggerSourceCardId } from './triggers.js';
 import { optionalPlan } from './optional.js';
 import { costCardCombos, playCostCard } from './costCards.js';
 import { itemSourceId } from './sources.js';
@@ -386,6 +386,31 @@ export function getLegalActions(
     if (pc.player !== playerId) return [];
     if (pc.kind === 'TRIGGER_TARGET') {
       const item = flow.chain.find((i) => i.id === pc.chainItemId);
+      const tdef = item ? triggerDefOf(state, cards, item) : undefined;
+      if (item && tdef?.modes) {
+        // X-modes: one answer per (mode still allowed x legal targets of that mode).
+        const modal: Intent[] = [];
+        for (const mode of allowedModes(state, cards, item)) {
+          const picks = enumerateSpellTargets(
+            state,
+            cards,
+            item.controller,
+            tdef.modes[mode],
+            itemSourceId(item),
+            {},
+          ) ?? [[]];
+          for (const targets of picks) {
+            modal.push({
+              type: 'CHOOSE_TRIGGER_TARGET',
+              playerId,
+              chainItemId: pc.chainItemId,
+              targets,
+              mode,
+            });
+          }
+        }
+        return keep(modal).slice(0, max);
+      }
       const choices = item
         ? (enumerateSpellTargets(
             state,

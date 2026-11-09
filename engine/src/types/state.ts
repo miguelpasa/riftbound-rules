@@ -78,6 +78,8 @@ export interface CardInstance {
   hidden?: boolean;
   /** Turn number it entered play. */
   enteredTurn?: number;
+  /** X-modes: modes of this object's "choose one that hasn't been chosen this turn" triggers already chosen. */
+  modesUsed?: { turn: number; used: Record<number, number[]> };
   /** Moves to a battlefield this turn (stored only for cards that count them: Yasuo, Kayn). */
   moves?: { turn: number; n: number };
   /**

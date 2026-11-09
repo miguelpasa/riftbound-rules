@@ -170,6 +170,11 @@ function shapeProblem(i: Obj): string | null {
         : 'bad targets';
     case 'CHOOSE_TRIGGER_TARGET':
       if (!isStr(i.chainItemId)) return 'chainItemId must be a string';
+      if (!(
+        i.mode === undefined ||
+        (Number.isInteger(i.mode) && Number(i.mode) >= 0 && Number(i.mode) < 16)
+      ))
+        return 'mode must be a small integer';
       return Array.isArray(i.targets) && i.targets.every(isTarget) ? null : 'bad targets';
     case 'CHOOSE_TRIGGER_ORDER':
       return isIdList(i.order) ? null : 'order must be a list of ids';

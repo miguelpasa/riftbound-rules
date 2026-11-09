@@ -318,7 +318,7 @@ describe('parseSpellText: tokens, "it" sentences, return / move / look (R3 round
     expect(parseSpellText('Give it +2 [M] this turn.')).toBeNull();
     expect(parseSpellText('Choose a unit.')).toBeNull();
     expect(parseSpellText('Choose a friendly unit and an enemy unit. Ready it.')).toBeNull();
-    expect(parseSpellText('Choose a unit. Give it [Deflect] this turn.')).toBeNull();
+    expect(parseSpellText('Choose a unit. Give it [Backline] this turn.')).toBeNull();
   });
 
   it('parses return, move to base and kill-all sentences', () => {

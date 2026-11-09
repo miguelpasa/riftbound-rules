@@ -196,7 +196,10 @@ export function triggerTargetVariants(
   return drivable(
     legal.filter(
       (i): i is ChooseTriggerTargetIntent =>
-        i.type === 'CHOOSE_TRIGGER_TARGET' && i.chainItemId === chainItemId && i.targets.length > 0,
+        i.type === 'CHOOSE_TRIGGER_TARGET' &&
+        i.chainItemId === chainItemId &&
+        i.targets.length > 0 &&
+        i.mode === undefined, // a "choose one —" ability is answered from the list of choices
     ),
     view,
   );

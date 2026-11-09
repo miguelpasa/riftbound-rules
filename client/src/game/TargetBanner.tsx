@@ -1,4 +1,4 @@
-import { itemSourceId } from '@riftbound/engine';
+import { isHiddenCard, itemSourceId } from '@riftbound/engine';
 import { cardNameOf, triggerDeclineIntent } from './interaction';
 import type { BoardUi } from './useBoardUi';
 
@@ -28,6 +28,17 @@ export function TargetBanner({ ui }: { ui: BoardUi }) {
   if (!t && pc?.kind === 'TRIGGER_TARGET' && pc.player === api.seat && !api.gameOver) {
     // The board cannot drive this choice (e.g. a non-board target): offer every legal answer.
     const answers = api.legal.filter((i) => i.type === 'CHOOSE_TRIGGER_TARGET');
+    // X-modes: a "choose one —" ability lists each mode's printed text.
+    const waiting = api.view.flow.chain.find((i) => i.id === pc.chainItemId);
+    const sourceObj = waiting ? api.view.objects[waiting.sourceObjectId] : undefined;
+    const sourceCard = waiting
+      ? (waiting.sourceCardId ??
+        (sourceObj && !isHiddenCard(sourceObj) ? sourceObj.cardId : undefined))
+      : undefined;
+    const modeTexts =
+      sourceCard !== undefined && waiting?.triggerIndex !== undefined
+        ? api.cards[sourceCard]?.triggers?.[waiting.triggerIndex]?.modeTexts
+        : undefined;
     return (
       <section
         aria-label="Targeting"
@@ -44,20 +55,25 @@ export function TargetBanner({ ui }: { ui: BoardUi }) {
             className="rounded-md bg-amber-300 px-3 py-1 font-semibold text-slate-950"
           >
             {a.type === 'CHOOSE_TRIGGER_TARGET'
-              ? a.targets
-                  .map((x) =>
-                    x.kind === 'object'
-                      ? cardNameOf(x.id, api.view, api.cards)
-                      : x.kind === 'battlefield'
-                        ? x.battlefieldId === 'base'
-                          ? 'the Base'
-                          : (api.cards[
-                              api.view.battlefields.find((b) => b.id === x.battlefieldId)?.cardId ??
-                                ''
-                            ]?.name ?? 'a battlefield')
-                        : 'target',
-                  )
-                  .join(' + ') || 'Decline (do nothing)'
+              ? [
+                  a.mode !== undefined ? (modeTexts?.[a.mode] ?? `Mode ${a.mode + 1}`) : '',
+                  a.targets
+                    .map((x) =>
+                      x.kind === 'object'
+                        ? cardNameOf(x.id, api.view, api.cards)
+                        : x.kind === 'battlefield'
+                          ? x.battlefieldId === 'base'
+                            ? 'the Base'
+                            : (api.cards[
+                                api.view.battlefields.find((b) => b.id === x.battlefieldId)
+                                  ?.cardId ?? ''
+                              ]?.name ?? 'a battlefield')
+                          : 'target',
+                    )
+                    .join(' + '),
+                ]
+                  .filter(Boolean)
+                  .join(' → ') || 'Decline (do nothing)'
               : ''}
           </button>
         ))}

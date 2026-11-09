@@ -940,6 +940,16 @@ export interface PlayFilter {
 export interface CardTrigger {
   on: TriggerKind;
   effects: CardEffect[];
+  /**
+   * X-modes: "..., choose one —": the controller picks one of these effect lists as the ability is put on the Chain
+   * (`effects` is then empty). `modeTexts` are the printed bullets, for the client. `modeOnce`: "choose one that
+   * hasn't been chosen this turn" (a mode already chosen this turn for this source cannot be chosen again).
+   */
+  modes?: CardEffect[][];
+  modeTexts?: string[];
+  modeOnce?: boolean;
+  /** A mode that is "pay <cost> to <effect>": the cost is asked as the ability resolves (like `optional`). */
+  modeOptional?: (OptionalCost | undefined)[];
   /** R49: only for `on: 'YOU_PLAY'`. */
   playFilter?: PlayFilter;
   /** R71: only for `on: 'UNIT_DIES'`. */
