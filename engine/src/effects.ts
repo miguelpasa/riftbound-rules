@@ -963,6 +963,17 @@ export function runEffects(
         }
         break;
       }
+      case 'KILL_SELF': {
+        const me = state.objects[sourceObjectId];
+        if (!me || (me.zone.kind !== 'base' && me.zone.kind !== 'battlefield')) break;
+        if (isUnitDef(cards[me.cardId])) {
+          me.damage = Math.max(me.damage, 9999); // lethal: the next Cleanup kills it
+        } else {
+          killGear(state, me);
+          out.push({ type: 'GEAR_KILLED', gearId: me.id });
+        }
+        break;
+      }
       case 'PLAY_SELF': {
         const me = state.objects[sourceObjectId];
         if (!me || me.zone.kind !== 'trash') {
@@ -1510,8 +1521,11 @@ export function runEffects(
         out.push(...lookAtTop(state, controller, e.count, e.take, cards, e.rest));
         break;
       case 'GAIN_POINT':
-        state.players[playerIndex(controller)].points += e.amount;
-        out.push({ type: 'POINT_GAINED', player: controller, amount: e.amount, source: 'EFFECT' });
+        {
+          const who = e.forOpponent ? (controller === 'p0' ? 'p1' : 'p0') : controller;
+          state.players[playerIndex(who)].points += e.amount;
+          out.push({ type: 'POINT_GAINED', player: who, amount: e.amount, source: 'EFFECT' });
+        }
         break;
     }
   }

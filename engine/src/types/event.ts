@@ -61,6 +61,8 @@ export type GameEvent = EventBase &
         cardId?: string;
         at?: string;
         alone?: boolean;
+        /** It died while a combat was being fought at its location ("When I die in combat"). */
+        inCombat?: boolean;
       }
     /** R78: a permanent became exhausted / ready during this step (emitted only when a card reacts to it). */
     | { type: 'BECAME_EXHAUSTED'; objectId: string }

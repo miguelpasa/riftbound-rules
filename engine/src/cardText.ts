@@ -120,6 +120,9 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   let m = /^Draw (\d+)$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]) }];
   if (/^Banish this$/i.test(sen)) return [{ op: 'BANISH_THIS_SPELL' }];
+  if (/^Kill this$/i.test(sen)) return [{ op: 'KILL_SELF' }];
+  m = /^They score (\d+) points?$/i.exec(sen);
+  if (m) return [{ op: 'GAIN_POINT', amount: Number(m[1]), forOpponent: true }];
   if (/^Play me$/i.test(sen)) return [{ op: 'PLAY_SELF' }];
   if (/^Prevent all spell and ability damage this turn$/i.test(sen))
     return [{ op: 'PREVENT_EFFECT_DAMAGE_TURN' }];
@@ -1382,7 +1385,7 @@ const STATIC_RESTRICT = [
   [/^(Units) can['’]t move from here to base$/i, 'UNITS_HERE'],
 ] as const;
 const STATIC_AFF =
-  '(I|Your gear|Your token units|Friendly units here|Friendly units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
+  '(I|Your gear|Your token units|Friendly units here|Friendly units|Your units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
 
 function staticAffects(
   raw: string,
@@ -1399,7 +1402,7 @@ function staticAffects(
   if (w === 'your gear') return { affects: 'FRIENDLY_GEAR' };
   if (w === 'your token units') return { affects: 'FRIENDLY_UNITS', onlyToken: true };
   if (w === 'friendly units here') return { affects: 'FRIENDLY_UNITS_HERE' };
-  if (w === 'friendly units') return { affects: 'FRIENDLY_UNITS' };
+  if (w === 'friendly units' || w === 'your units') return { affects: 'FRIENDLY_UNITS' };
   if (w === 'other friendly units here' || w === 'your other units here')
     return { affects: 'OTHER_FRIENDLY_HERE' };
   if (w === 'units here') return { affects: 'UNITS_HERE' };
@@ -2406,7 +2409,7 @@ const DEATH_HEAD =
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
-  /^(When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -2475,6 +2478,7 @@ export function parseCardAbilities(
         playFilter?: PlayFilter;
         dies?: DeathFilter;
         once?: boolean;
+        inCombat?: boolean;
         sens: string[];
       }
     | {
@@ -2580,55 +2584,58 @@ export function parseCardAbilities(
             ? ['DISCARD_SELF']
             : head.startsWith('when you discard')
               ? ['YOU_DISCARD']
-            : head.startsWith('when i move from a battlefield')
-              ? ['MOVE_FROM']
-              : head.startsWith('when you use an activated ability of a gear')
-                ? ['USE_GEAR_ABILITY']
-                : head.startsWith('when you hide a card')
-                  ? ['YOU_HIDE']
-                  : head.startsWith('when you play me from face down')
-                    ? ['PLAY']
-                    : head.startsWith('when you play me or when i score')
-                      ? ['PLAY', 'HOLD', 'CONQUER']
-                      : head.startsWith('when an opponent scores')
-                        ? ['OPP_SCORES']
-                        : head.startsWith('when you play me or when i become')
-                          ? ['PLAY', 'BECOME_EXHAUSTED']
-                          : head.startsWith('when i become')
-                            ? [
-                                head.endsWith('exhausted')
-                                  ? 'BECOME_EXHAUSTED'
-                                  : head.endsWith('ready')
-                                    ? 'BECOME_READY'
-                                    : 'BECOME_EMPOWERED',
-                              ]
-                            : head.startsWith('when you play me or at')
-                              ? ['PLAY', 'TURN_START']
-                              : head.startsWith('at the end of')
-                                ? ['TURN_END']
-                                : head.startsWith('at ')
-                                  ? ['TURN_START']
-                                  : head.startsWith('when i win a combat')
-                                    ? ['WIN_COMBAT']
-                                    : head.startsWith('when a combat that i was in ends')
-                                      ? ['COMBAT_END']
-                                      : head.startsWith('when you play me or')
-                                        ? ['PLAY', OR_WHEN[m[2]?.toLowerCase() ?? ''] ?? 'CONQUER']
-                                        : head.startsWith('when you play me')
-                                          ? ['PLAY']
-                                          : head.startsWith('when i hold')
-                                            ? ['HOLD']
-                                            : head.startsWith('when i conquer')
-                                              ? ['CONQUER']
-                                              : head.startsWith('when i attack or defend')
-                                                ? ['ATTACK', 'DEFEND']
-                                                : head.startsWith('when i attack')
-                                                  ? ['ATTACK']
-                                                  : head.startsWith('when i defend')
-                                                    ? ['DEFEND']
-                                                    : head.startsWith('when i move')
-                                                      ? ['MOVE']
-                                                      : ['DEATH'];
+              : head.startsWith('when i move from a battlefield')
+                ? ['MOVE_FROM']
+                : head.startsWith('when you use an activated ability of a gear')
+                  ? ['USE_GEAR_ABILITY']
+                  : head.startsWith('when you hide a card')
+                    ? ['YOU_HIDE']
+                    : head.startsWith('when you play me from face down')
+                      ? ['PLAY']
+                      : head.startsWith('when you play me or when i score')
+                        ? ['PLAY', 'HOLD', 'CONQUER']
+                        : head.startsWith('when an opponent scores')
+                          ? ['OPP_SCORES']
+                          : head.startsWith('when you play me or when i become')
+                            ? ['PLAY', 'BECOME_EXHAUSTED']
+                            : head.startsWith('when i become')
+                              ? [
+                                  head.endsWith('exhausted')
+                                    ? 'BECOME_EXHAUSTED'
+                                    : head.endsWith('ready')
+                                      ? 'BECOME_READY'
+                                      : 'BECOME_EMPOWERED',
+                                ]
+                              : head.startsWith('when you play me or at')
+                                ? ['PLAY', 'TURN_START']
+                                : head.startsWith('at the end of')
+                                  ? ['TURN_END']
+                                  : head.startsWith('at ')
+                                    ? ['TURN_START']
+                                    : head.startsWith('when i win a combat')
+                                      ? ['WIN_COMBAT']
+                                      : head.startsWith('when a combat that i was in ends')
+                                        ? ['COMBAT_END']
+                                        : head.startsWith('when you play me or')
+                                          ? [
+                                              'PLAY',
+                                              OR_WHEN[m[2]?.toLowerCase() ?? ''] ?? 'CONQUER',
+                                            ]
+                                          : head.startsWith('when you play me')
+                                            ? ['PLAY']
+                                            : head.startsWith('when i hold')
+                                              ? ['HOLD']
+                                              : head.startsWith('when i conquer')
+                                                ? ['CONQUER']
+                                                : head.startsWith('when i attack or defend')
+                                                  ? ['ATTACK', 'DEFEND']
+                                                  : head.startsWith('when i attack')
+                                                    ? ['ATTACK']
+                                                    : head.startsWith('when i defend')
+                                                      ? ['DEFEND']
+                                                      : head.startsWith('when i move')
+                                                        ? ['MOVE']
+                                                        : ['DEATH'];
       let body = m[3] ?? '';
       let when: Condition | undefined;
       if (body) {
@@ -2656,6 +2663,7 @@ export function parseCardAbilities(
         legion,
         ...(when ? { when } : {}),
         ...(once ? { once: true } : {}),
+        ...(head.startsWith('when i die in combat') ? { inCombat: true } : {}),
         sens: body ? [body] : [],
       };
       groups.push(cur);
@@ -2786,6 +2794,7 @@ export function parseCardAbilities(
           ...(g.playFilter ? { playFilter: g.playFilter } : {}),
           ...(g.dies ? { dies: g.dies } : {}),
           ...(g.once ? { oncePerTurn: true } : {}),
+          ...(g.inCombat ? { inCombat: true } : {}),
         });
       }
     }

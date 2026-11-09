@@ -217,7 +217,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       const o = state.objects[e.unitId];
       if (o && o.zone.kind === 'trash') {
         diedAlone = e.alone === true;
-        add(o, 'DEATH', o.owner);
+        add(o, 'DEATH', o.owner, (t) => !t.inCombat || e.inCombat === true);
         diedAlone = undefined;
       }
       // R71: "When a friendly / an enemy unit dies" fires for the permanents on the board.

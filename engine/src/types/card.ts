@@ -203,7 +203,7 @@ export type CardEffect =
   | { op: 'READY_SELF' }
   /** R45: "ready your legend". */
   | { op: 'READY_LEGEND' }
-  | { op: 'GAIN_POINT'; amount: number }
+  | { op: 'GAIN_POINT'; amount: number; forOpponent?: boolean }
   /** Deal damage to the target unit(s); Cleanup kills a unit if lethal. */
   | ({
       op: 'DAMAGE_TARGET';
@@ -450,6 +450,8 @@ export type CardEffect =
     } & TargetScope)
   /** X9: "play me" - the source card is played from the Trash to its owner's Base (costs already paid by the trigger). */
   | { op: 'PLAY_SELF' }
+  /** "Kill this": the source permanent (a gear is killed; a unit takes lethal damage and dies in the next Cleanup). */
+  | { op: 'KILL_SELF' }
   /** X5: "Banish this." - the spell is banished instead of going to the Trash. */
   | { op: 'BANISH_THIS_SPELL' }
   /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
@@ -868,6 +870,8 @@ export interface CardTrigger {
   playFilter?: PlayFilter;
   /** R71: only for `on: 'UNIT_DIES'`. */
   dies?: DeathFilter;
+  /** "When I die in combat": only a death while a combat was being fought at the unit's battlefield. */
+  inCombat?: boolean;
   /** R71: "Once each turn, when ...": the ability triggers at most once per turn. */
   oncePerTurn?: boolean;
   /**
