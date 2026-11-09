@@ -20,6 +20,7 @@ import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
 import { bonusDamageTo, defWithGrants, staticBonus } from './statics.js';
 import { evalCondition, recordDeath } from './conditions.js';
+import { petTagCount } from './costReduction.js';
 import { playerIndex } from './types/constants.js';
 import type {
   HandAction,
@@ -1692,8 +1693,9 @@ export function runEffects(
               out.push({ type: 'EFFECT_BUFF', unitId: u.id, amount: 1 });
             }
           } else {
-            const times =
-              e.timesEnemiesThere && u.zone.kind === 'battlefield'
+            const times = e.perPetTags
+              ? petTagCount(state, cards, controller)
+              : e.timesEnemiesThere && u.zone.kind === 'battlefield'
                 ? Object.values(state.objects).filter(
                     (o) =>
                       o.controller !== u.controller &&
@@ -1771,7 +1773,13 @@ export function runEffects(
         const a = state.objects[sourceObjectId];
         const b = state.objects[ids[e.slot] ?? ''];
         const okB = legalForSpec(state, cards, controller, { kind: 'unit', side: e.side }, b);
-        if (!a || !b || !okB || a.id === b.id || (a.zone.kind !== 'base' && a.zone.kind !== 'battlefield')) {
+        if (
+          !a ||
+          !b ||
+          !okB ||
+          a.id === b.id ||
+          (a.zone.kind !== 'base' && a.zone.kind !== 'battlefield')
+        ) {
           fizzle();
           break;
         }

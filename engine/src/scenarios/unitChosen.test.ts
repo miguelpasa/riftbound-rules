@@ -3,6 +3,7 @@ import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { parseBattlefieldAbilities, parseCardAbilities, parseSpellText } from '../cardText.js';
 import { runEffects } from '../effects.js';
 import { runTurnTriggers } from '../turnTriggers.js';
+import { effectiveMight } from '../combat.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
@@ -336,5 +337,48 @@ describe('scenario: "We deal damage equal to our Mights to each other" (Carnivor
     runEffects(s, 'p0', trig[0]?.effects ?? [], SCENARIO_CARDS, [{ kind: 'object', id: foe }], 'fx-ash-tank', me);
     expect(s.objects[me]?.damage).toBe(2);
     expect(s.objects[foe]?.damage).toBe(3);
+  });
+});
+
+describe('scenario: "for each of the following tags among your units" (Friendship)', () => {
+  const text =
+    'Choose a unit. Give it +1 [M] this turn for each of the following tags among your units — Bird, Cat, Dog, and Poro.';
+
+  it('reads as a buff multiplied by the distinct pet tags among my units', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    expect(parseSpellText(text)).toEqual([
+      { op: 'BUFF_TARGET', amount: 1, duration: 'TURN', perPetTags: true },
+    ]);
+  });
+
+  it('gives +1 per distinct tag (a second Cat adds nothing)', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    const effects = parseSpellText(text);
+    const tagged = (id: string, tags: string[]): CardDef => ({
+      ...base(id),
+      subtypes: tags,
+    });
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': tagged('fx-grunt', ['Cat']),
+      'fx-archer': tagged('fx-archer', ['Cat', 'Poro']),
+      'fx-ash-tank': tagged('fx-ash-tank', ['Dog']),
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects: effects ?? [] },
+    };
+    const sc = Scenario.start({}, cards);
+    const a = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.putUnit('p0', 'fx-archer', 'base');
+    sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const before = effectiveMight(sc.state, cards, a, { role: null });
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: a }],
+    });
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    // Cat, Poro and Dog are present: three distinct tags.
+    expect(effectiveMight(sc.state, cards, a, { role: null }) - before).toBe(3);
   });
 });

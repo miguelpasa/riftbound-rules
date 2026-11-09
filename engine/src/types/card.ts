@@ -258,6 +258,8 @@ type CardEffectCore =
       buff?: boolean;
       /** R93: the amount is multiplied by the number of enemy units at the target's battlefield. */
       timesEnemiesThere?: boolean;
+      /** "for each of the following tags among your units — Bird, Cat, Dog, and Poro": times the distinct tags (Friendship). */
+      perPetTags?: true;
       atBattlefield?: boolean;
       /** "Buff a friendly unit in your base": the unit stands in a Base. */
       inBase?: boolean;
@@ -850,6 +852,7 @@ export type CostCount =
   | 'MIGHTY_UNIT' // each of your [Mighty] units (Might 5+)
   | 'CARDS_PLAYED' // each card you have played this turn
   | 'RUNE' // R91: each rune you control
+  | 'PET_TAGS' // each of the tags Bird, Cat, Dog, Poro among your units (distinct, Daisy!)
   | 'HIGHEST_MIGHT'; // R91: the highest Might among units you control (counted as that many)
 
 export interface CostReduction {

@@ -1304,6 +1304,21 @@ function parseItSentence(sen0: string, d: SlotDecl, slot: number): CardEffect | 
         }
       : null;
   }
+  m =
+    /^Give it \+(\d+) \[M\] this turn for each of the following tags among your units [—–-] Bird, Cat, Dog, and Poro$/i.exec(
+      sen,
+    );
+  if (m) {
+    return {
+      op: 'BUFF_TARGET',
+      amount: Number(m[1]),
+      duration: 'TURN',
+      perPetTags: true,
+      ...sd,
+      ...bf,
+      ...at,
+    };
+  }
   m = /^Give it \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) {
     return { op: 'BUFF_TARGET', amount: Number(m[1]), duration: 'TURN', ...sd, ...bf, ...at };
@@ -2260,9 +2275,10 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       continue;
     }
     const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(body);
-    const f2 = new RegExp(`^(?:While|If) (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(
-      body,
-    );
+    const f2 = new RegExp(
+      `^(?:While|If) (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`,
+      'i',
+    ).exec(body);
     const f3 = new RegExp(`^I have ${STATIC_GRANT} while (.+)$`, 'i').exec(body);
     let aff: string | undefined;
     let grant: string | undefined;
@@ -2616,7 +2632,9 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       if (m) return [m[1] as string, m[2] as string];
       // "[Buff] a friendly unit and [Stun] an enemy unit": two keyword actions, each choosing its own unit.
       const kw =
-        /^(\[?(?:Buff|Stun|Ready)\]? an? [a-z ]+?) and (\[?(?:Buff|Stun|Ready)\]? an? [a-z ]+)$/i.exec(x);
+        /^(\[?(?:Buff|Stun|Ready)\]? an? [a-z ]+?) and (\[?(?:Buff|Stun|Ready)\]? an? [a-z ]+)$/i.exec(
+          x,
+        );
       if (kw) return [kw[1] as string, kw[2] as string];
       // R82: "Return a friendly unit and an enemy unit to their owners' hands" = two separate choices.
       const two =
@@ -2669,7 +2687,11 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     flushDomain();
     const flt = filters[i];
     if (flt && (flt.dom || flt.exhausted) && !pend) {
-      pend = { from: out.length, ...(flt.dom ? { dom: flt.dom } : {}), ...(flt.exhausted ? { exhausted: true } : {}) };
+      pend = {
+        from: out.length,
+        ...(flt.dom ? { dom: flt.dom } : {}),
+        ...(flt.exhausted ? { exhausted: true } : {}),
+      };
     }
     // "Stun a unit. If it's already stunned, return it to its owner's hand instead" (Existential Dread).
     if (
@@ -2700,7 +2722,9 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
           ? ({ kind: 'TARGET_STUNNED', slot: st.it } as const)
           : parseCondition(cw[1] as string);
       const cond =
-        parsedCond?.kind === 'PAID_ADDITIONAL' ? { ...parsedCond, spell: true as const } : parsedCond;
+        parsedCond?.kind === 'PAID_ADDITIONAL'
+          ? { ...parsedCond, spell: true as const }
+          : parsedCond;
       if (cond) {
         const before = out.length;
         if (!parseSpellSentence(cw[2] as string, st, out)) return null;
@@ -3095,9 +3119,10 @@ export function parseCondition(raw: string): Condition | null {
       };
     }
     // "there are 2 or more other friendly units and/or gear at my battlefield" (Steadfast Outrider).
-    const og = /^there are (\d+) or more other friendly units and\/or gear (?:here|at my battlefield)$/i.exec(
-      text,
-    );
+    const og =
+      /^there are (\d+) or more other friendly units and\/or gear (?:here|at my battlefield)$/i.exec(
+        text,
+      );
     if (og) {
       return {
         kind: 'COUNT',
@@ -3715,79 +3740,79 @@ export function parseCardAbilities(
           ? ['UNIT_ATTACKS']
           : head.startsWith('when you buff')
             ? ['UNIT_BUFFED']
-          : head.startsWith('when you choose or ready me')
-            ? ['UNIT_CHOSEN', 'BECOME_READY']
-            : head.startsWith('when you choose')
-              ? ['UNIT_CHOSEN']
-              : head.startsWith('when this is played, discarded')
-                ? ['PLAY', 'DISCARD_SELF', 'GEAR_LEAVES']
-                : head.startsWith('when this leaves the board')
-                  ? ['GEAR_LEAVES']
-                  : head.includes('becomes')
-                    ? ['UNIT_BECOMES_MIGHTY']
-                    : head.startsWith('when you stun')
-                      ? ['YOU_STUN_ENEMY']
-                      : head.startsWith('when you discard me')
-                        ? ['DISCARD_SELF']
-                        : head.startsWith('when you discard')
-                          ? ['YOU_DISCARD']
-                          : head.startsWith('when i move from a battlefield')
-                            ? ['MOVE_FROM']
-                            : head.startsWith('when you use an activated ability of a gear')
-                              ? ['USE_GEAR_ABILITY']
-                              : head.startsWith('when you hide a card')
-                                ? ['YOU_HIDE']
-                                : head.startsWith('when you play me from face down')
-                                  ? ['PLAY']
-                                  : head.startsWith('when you play me or when i score')
-                                    ? ['PLAY', 'HOLD', 'CONQUER']
-                                    : head.startsWith('when an opponent scores')
-                                      ? ['OPP_SCORES']
-                                      : head.startsWith('when you play me or when i become')
-                                        ? ['PLAY', 'BECOME_EXHAUSTED']
-                                        : head.startsWith('when i become')
-                                          ? [
-                                              head.endsWith('exhausted')
-                                                ? 'BECOME_EXHAUSTED'
-                                                : head.endsWith('ready')
-                                                  ? 'BECOME_READY'
-                                                  : 'BECOME_EMPOWERED',
-                                            ]
-                                          : head.startsWith('when you play me or at')
-                                            ? ['PLAY', 'TURN_START']
-                                            : head.startsWith('at the end of')
-                                              ? ['TURN_END']
-                                              : head.startsWith('at ')
-                                                ? ['TURN_START']
-                                                : head.startsWith('when i win a combat')
-                                                  ? ['WIN_COMBAT']
-                                                  : head.startsWith(
-                                                        'when a combat that i was in ends',
-                                                      )
-                                                    ? ['COMBAT_END']
-                                                    : head.startsWith('when you play me or')
-                                                      ? [
-                                                          'PLAY',
-                                                          OR_WHEN[m[2]?.toLowerCase() ?? ''] ??
-                                                            'CONQUER',
-                                                        ]
-                                                      : head.startsWith('when you play me')
-                                                        ? ['PLAY']
-                                                        : head.startsWith('when i hold')
-                                                          ? ['HOLD']
-                                                          : head.startsWith('when i conquer')
-                                                            ? ['CONQUER']
-                                                            : head.startsWith(
-                                                                  'when i attack or defend',
-                                                                )
-                                                              ? ['ATTACK', 'DEFEND']
-                                                              : head.startsWith('when i attack')
-                                                                ? ['ATTACK']
-                                                                : head.startsWith('when i defend')
-                                                                  ? ['DEFEND']
-                                                                  : head.startsWith('when i move')
-                                                                    ? ['MOVE']
-                                                                    : ['DEATH'];
+            : head.startsWith('when you choose or ready me')
+              ? ['UNIT_CHOSEN', 'BECOME_READY']
+              : head.startsWith('when you choose')
+                ? ['UNIT_CHOSEN']
+                : head.startsWith('when this is played, discarded')
+                  ? ['PLAY', 'DISCARD_SELF', 'GEAR_LEAVES']
+                  : head.startsWith('when this leaves the board')
+                    ? ['GEAR_LEAVES']
+                    : head.includes('becomes')
+                      ? ['UNIT_BECOMES_MIGHTY']
+                      : head.startsWith('when you stun')
+                        ? ['YOU_STUN_ENEMY']
+                        : head.startsWith('when you discard me')
+                          ? ['DISCARD_SELF']
+                          : head.startsWith('when you discard')
+                            ? ['YOU_DISCARD']
+                            : head.startsWith('when i move from a battlefield')
+                              ? ['MOVE_FROM']
+                              : head.startsWith('when you use an activated ability of a gear')
+                                ? ['USE_GEAR_ABILITY']
+                                : head.startsWith('when you hide a card')
+                                  ? ['YOU_HIDE']
+                                  : head.startsWith('when you play me from face down')
+                                    ? ['PLAY']
+                                    : head.startsWith('when you play me or when i score')
+                                      ? ['PLAY', 'HOLD', 'CONQUER']
+                                      : head.startsWith('when an opponent scores')
+                                        ? ['OPP_SCORES']
+                                        : head.startsWith('when you play me or when i become')
+                                          ? ['PLAY', 'BECOME_EXHAUSTED']
+                                          : head.startsWith('when i become')
+                                            ? [
+                                                head.endsWith('exhausted')
+                                                  ? 'BECOME_EXHAUSTED'
+                                                  : head.endsWith('ready')
+                                                    ? 'BECOME_READY'
+                                                    : 'BECOME_EMPOWERED',
+                                              ]
+                                            : head.startsWith('when you play me or at')
+                                              ? ['PLAY', 'TURN_START']
+                                              : head.startsWith('at the end of')
+                                                ? ['TURN_END']
+                                                : head.startsWith('at ')
+                                                  ? ['TURN_START']
+                                                  : head.startsWith('when i win a combat')
+                                                    ? ['WIN_COMBAT']
+                                                    : head.startsWith(
+                                                          'when a combat that i was in ends',
+                                                        )
+                                                      ? ['COMBAT_END']
+                                                      : head.startsWith('when you play me or')
+                                                        ? [
+                                                            'PLAY',
+                                                            OR_WHEN[m[2]?.toLowerCase() ?? ''] ??
+                                                              'CONQUER',
+                                                          ]
+                                                        : head.startsWith('when you play me')
+                                                          ? ['PLAY']
+                                                          : head.startsWith('when i hold')
+                                                            ? ['HOLD']
+                                                            : head.startsWith('when i conquer')
+                                                              ? ['CONQUER']
+                                                              : head.startsWith(
+                                                                    'when i attack or defend',
+                                                                  )
+                                                                ? ['ATTACK', 'DEFEND']
+                                                                : head.startsWith('when i attack')
+                                                                  ? ['ATTACK']
+                                                                  : head.startsWith('when i defend')
+                                                                    ? ['DEFEND']
+                                                                    : head.startsWith('when i move')
+                                                                      ? ['MOVE']
+                                                                      : ['DEATH'];
       let body = m[3] ?? '';
       // "give it ..." targets the unit that attacked: written as a friendly / enemy unit, preset as the target.
       let unitFilter: CardTrigger['unitFilter'] | undefined;
