@@ -348,6 +348,7 @@ export function evalCondition(
       return (cond.what === 'spellEnergy' ? (rec.spellEnergy ?? 0) : (rec.power ?? 0)) >= cond.n;
     }
     case 'TARGET_STUNNED':
+    case 'TARGET_MIGHT':
       return false; // read from the chosen targets by runEffects
     case 'ENEMY_STUNNED':
       return Object.values(state.objects).some(

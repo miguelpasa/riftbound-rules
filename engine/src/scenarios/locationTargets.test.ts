@@ -290,3 +290,41 @@ describe('scenario: "Move an enemy unit that moved this turn" (Siren\'s Song)', 
     expect(spellTargetsLegal(sc.state, cards, 'p1', effects, [obj(idle), bf('bf1')])).toBe(false);
   });
 });
+
+describe('scenario: "If it has 3 [M] or less, banish it. Otherwise, return it" (Wind and Ghosts)', () => {
+  const text =
+    "Choose a unit at a battlefield. If it has 3 [M] or less, banish it. Otherwise, return it to its owner's hand.";
+  const effects = parseSpellText(text) ?? [];
+
+  it("reads a banish gated on the chosen unit's Might and the opposite return", () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      {
+        op: 'BANISH_TARGET',
+        atBattlefield: true,
+        when: { kind: 'TARGET_MIGHT', slot: 0, max: 3 },
+      },
+      {
+        op: 'RETURN_TARGET',
+        when: { kind: 'NOT', cond: { kind: 'TARGET_MIGHT', slot: 0, max: 3 } },
+      },
+    ]);
+  });
+
+  it("banishes a small unit and returns a big one to its owner's hand", () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen unit
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const small = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+    expect(effectiveMight(sc.state, cards, small, { role: null })).toBeLessThanOrEqual(3);
+    cast(sc, [obj(small)]);
+    expect(sc.obj(small).zone).toMatchObject({ kind: 'banishment', player: 'p1' });
+    expect(sc.state.players[1]?.banishment).toContain(small);
+
+    const sc2 = Scenario.start({}, cards);
+    const big = sc2.putUnit('p0', 'fx-titan', 'bf0');
+    expect(effectiveMight(sc2.state, cards, big, { role: null })).toBeGreaterThan(3);
+    cast(sc2, [obj(big)]);
+    expect(sc2.obj(big).zone).toMatchObject({ kind: 'hand', player: 'p0' });
+  });
+});

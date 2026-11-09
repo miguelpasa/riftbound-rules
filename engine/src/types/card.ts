@@ -506,6 +506,13 @@ type CardEffectCore =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** "Banish it": the chosen unit goes to its owner's banishment (a token ceases to exist). */
+  | ({
+      op: 'BANISH_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
   /** X9: "play me" - the source card is played from the Trash to its owner's Base (costs already paid by the trigger). */
   | { op: 'PLAY_SELF' }
   /** Each player discards their whole hand (Invert Timelines); no choice is needed. */
@@ -739,6 +746,7 @@ export type TargetedEffect = Extract<
       | 'MOVE_BASE_TARGET'
       | 'TAKE_CONTROL'
       | 'BLINK_TARGET'
+      | 'BANISH_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'
       | 'WEAPONMASTER_EQUIP'
@@ -934,6 +942,8 @@ export type Condition =
   | { kind: 'ENEMY_STUNNED' }
   /** "If it is stunned": the unit chosen into target `slot` is stunned as the effect resolves. */
   | { kind: 'TARGET_STUNNED'; slot: number }
+  /** "If it has N [M] or less": the unit chosen into target `slot` has at most `max` Might as the effect resolves. */
+  | { kind: 'TARGET_MIGHT'; slot: number; max: number }
   /** R73: the controller's Trash holds a card with the source's name ("a card with my name"). */
   | { kind: 'NAME_IN_TRASH' }
   /** R74: the source is in the combat that is being fought. */

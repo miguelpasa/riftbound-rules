@@ -140,6 +140,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'MOVE_BASE_TARGET' ||
   e.op === 'TAKE_CONTROL' ||
   e.op === 'BLINK_TARGET' ||
+  e.op === 'BANISH_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
   e.op === 'WEAPONMASTER_EQUIP' ||
@@ -814,6 +815,22 @@ export function returnToHand(state: GameState, o: CardInstance, out: GameEventIn
   state.players[playerIndex(player)].hand.push(o.id);
 }
 
+/** "Banish it": a unit leaves the Board for its owner's banishment (a token ceases to exist, 186.1). Mutates. */
+function banishUnit(state: GameState, o: CardInstance): void {
+  const ps = state.players[playerIndex(o.controller)];
+  ps.base = ps.base.filter((x) => x !== o.id);
+  for (const g of Object.values(state.objects)) if (g.attachedTo === o.id) delete g.attachedTo;
+  if (isTokenInstance(o)) {
+    removeTokenFromGame(state, o.id);
+    return;
+  }
+  clearBoardState(o);
+  o.controller = o.owner;
+  o.ready = false;
+  o.zone = { kind: 'banishment', player: o.owner };
+  state.players[playerIndex(o.owner)].banishment.push(o.id);
+}
+
 /** Tokens are the only objects whose card id is in the built-in token table (tokens.ts). */
 const isTokenInstance = (o: CardInstance): boolean => o.cardId.startsWith('tok-');
 
@@ -1213,7 +1230,10 @@ export function runEffects(
       ? !holds(c.cond)
       : c.kind === 'TARGET_STUNNED'
         ? state.objects[ids[c.slot] ?? '']?.stunned === true
-        : evalCondition(state, cards, c, controller, sourceObjectId);
+        : c.kind === 'TARGET_MIGHT'
+          ? state.objects[ids[c.slot] ?? ''] !== undefined &&
+            mightOf(state.objects[ids[c.slot] ?? ''] as CardInstance) <= c.max
+          : evalCondition(state, cards, c, controller, sourceObjectId);
   let lastDid = true;
   let lastKilled = false;
   for (const e of effects) {
@@ -1520,6 +1540,7 @@ export function runEffects(
       case 'MOVE_BASE_TARGET':
       case 'TAKE_CONTROL':
       case 'BLINK_TARGET':
+      case 'BANISH_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
       case 'GRANT_KEYWORD_TARGET': {
@@ -1646,6 +1667,9 @@ export function runEffects(
               break;
             }
             moveHere(state, cards, u, dest, out);
+          } else if (e.op === 'BANISH_TARGET') {
+            doneSlots.set(slot, u.owner);
+            banishUnit(state, u);
           } else if (e.op === 'BLINK_TARGET') {
             doneSlots.set(slot, u.owner);
             const was = u.zone;

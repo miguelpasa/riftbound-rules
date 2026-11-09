@@ -1430,6 +1430,7 @@ function parseItSentence(sen0: string, d: SlotDecl, slot: number): CardEffect | 
   if (/^It can['’]t move this turn$/i.test(sen)) return { op: 'LOCK_MOVE_TARGET', ...sd, ...at };
   if (/^Stun it$/i.test(sen)) return { op: 'STUN_TARGET', ...sd, ...bf, ...at };
   if (/^Kill it$/i.test(sen)) return { op: 'KILL_TARGET', ...sd, ...bf, ...at };
+  if (/^Banish it$/i.test(sen)) return { op: 'BANISH_TARGET', ...sd, ...bf, ...at };
   if (/^Return it to its owner's hand$/i.test(sen)) {
     return { op: 'RETURN_TARGET', ...sd, ...bf, ...at };
   }
@@ -2825,7 +2826,13 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       const parsedCond =
         /^it is stunned$/i.test(cw[1] as string) && st.it !== undefined
           ? ({ kind: 'TARGET_STUNNED', slot: st.it } as const)
-          : parseCondition(cw[1] as string);
+          : /^it has \d+ \[M\] or less$/i.test(cw[1] as string) && st.it !== undefined
+            ? ({
+                kind: 'TARGET_MIGHT',
+                slot: st.it,
+                max: Number(/\d+/.exec(cw[1] as string)?.[0]),
+              } as const)
+            : parseCondition(cw[1] as string);
       const cond =
         parsedCond?.kind === 'PAID_ADDITIONAL'
           ? { ...parsedCond, spell: true as const }
@@ -2834,7 +2841,7 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
         const before = out.length;
         if (!parseSpellSentence(cw[2] as string, st, out)) return null;
         for (let k = before; k < out.length; k++) (out[k] as CardEffect).when = cond;
-        if (cond.kind === 'TARGET_STUNNED') lastGate = cond;
+        if (cond.kind === 'TARGET_STUNNED' || cond.kind === 'TARGET_MIGHT') lastGate = cond;
         continue;
       }
     }
