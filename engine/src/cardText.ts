@@ -3149,6 +3149,18 @@ export function parseCondition(raw: string): Condition | null {
         n: Number(og[1]),
       };
     }
+    // "you have a [Mighty] unit here" (Sunken Temple: "... with one or more [Mighty] units").
+    if (/^you have a \[Mighty\] unit here$/i.test(text)) {
+      return {
+        kind: 'COUNT',
+        what: 'unit',
+        where: 'here',
+        who: 'friendly',
+        mighty: true,
+        cmp: 'GTE',
+        n: 1,
+      };
+    }
     // "there's a friendly gear with [Deploy] at my battlefield" (Overloaded Traveler, Jarvan IV).
     if (/^there['’]s an? friendly gear with \[Deploy\] (?:here|at my battlefield)$/i.test(text)) {
       return {
@@ -4107,6 +4119,10 @@ export function parseBattlefieldAbilities(text: string): CardTrigger[] | null {
     )
     .replace(/\ba unit you control here\b/gi, 'a friendly unit here')
     .replace(/\bWhen you hide a card here\b/gi, 'When you hide a card')
+    .replace(
+      /\bWhen you (conquer|hold) here with one or more \[Mighty\] units,/gi,
+      'When you $1 here, if you have a [Mighty] unit here,',
+    )
     .replace(/\bthat player channels\b/gi, 'channel')
     .replace(/\bthat player gains (\d+) points?\b/gi, 'score $1 point')
     .replace(

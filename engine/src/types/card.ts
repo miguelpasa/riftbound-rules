@@ -877,6 +877,8 @@ export type Condition =
       ready?: boolean;
       /** Only gear with [Deploy] counts ("a friendly gear with [Deploy] here"). */
       withDeploy?: true;
+      /** Only [Mighty] units count (5 or more Might). */
+      mighty?: true;
       cmp: CountCmp;
       n: number;
     }

@@ -9,6 +9,7 @@ import {
 import { scoreBattlefield } from '../scoring.js';
 import { endCombatGrants, expireTurnEffects, runEffects } from '../effects.js';
 import { effectiveMight } from '../combat.js';
+import { evalCondition } from '../conditions.js';
 import { reduce } from '../reducer.js';
 import { TOKEN_CARDS } from '../tokens.js';
 import type { CardDatabase, CardDef, CardEffect } from '../types/index.js';
@@ -917,5 +918,49 @@ describe("scenario: \"a friendly gear with [Deploy] at my battlefield\" (Overloa
     };
     expect(mightWith(false)).toBe(0);
     expect(mightWith(true)).toBe(1);
+  });
+});
+
+describe('scenario: "When you conquer here with one or more [Mighty] units" (Sunken Temple)', () => {
+  const text =
+    'When you conquer here with one or more [Mighty] units, you may pay [1] to draw 1. (A unit is Mighty if it has 5 or more [M].)';
+
+  it('reads as an optional paid draw gated on a Mighty unit here', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseBattlefieldAbilities(text)).toEqual([
+      {
+        on: 'CONQUER',
+        effects: [{ op: 'DRAW', amount: 1 }],
+        optional: { energy: 1 },
+        when: {
+          kind: 'COUNT',
+          what: 'unit',
+          where: 'here',
+          who: 'friendly',
+          mighty: true,
+          cmp: 'GTE',
+          n: 1,
+        },
+      },
+    ]);
+  });
+
+  it('counts only Mighty (5 or more Might) friendly units at the battlefield', () => {
+    // Tests Rule 709: a unit is Mighty with 5 or more Might
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const cond = {
+      kind: 'COUNT',
+      what: 'unit',
+      where: 'here',
+      who: 'friendly',
+      mighty: true,
+      cmp: 'GTE',
+      n: 1,
+    } as const;
+    const me = sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+    const small = evalCondition(sc.state, sc.cards, cond, 'p0', me);
+    expect(small).toBe(false);
+    sc.state.objects[me]!.mightBonus = 3; // 2 + 3 = 5
+    expect(evalCondition(sc.state, sc.cards, cond, 'p0', me)).toBe(true);
   });
 });

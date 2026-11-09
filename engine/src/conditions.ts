@@ -430,6 +430,7 @@ export function evalCondition(
         if (!def) continue;
         if (cond.ready && !o.ready) continue;
         if (cond.withDeploy && !isDeployGear(def)) continue;
+        if (cond.mighty && effectiveMight(state, cards, o.id, { role: null }) < 5) continue; // 709
         const kindOk =
           cond.what === 'unit'
             ? isUnitDef(def)
