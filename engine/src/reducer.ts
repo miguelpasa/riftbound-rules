@@ -67,7 +67,7 @@ import { chooseStaged, showdownAfterPass } from './showdown.js';
 import type { ShowdownDeps } from './showdown.js';
 import { standardMove } from './movement.js';
 import { trackTargetGens } from './targetGens.js';
-import { runDelayed } from './delayed.js';
+import { runDelayed, runEndOfTurnDelayed } from './delayed.js';
 import { opponentOf, ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -113,7 +113,9 @@ function beginningHook(state: GameState, cards: CardDatabase) {
 
 /** R72: "At the end of your turn" abilities (then a Cleanup, so lethal damage kills before healing). */
 function endingHook(state: GameState, cards: CardDatabase) {
-  const a = runTurnTriggers(state, cards, 'TURN_END');
+  const d = runEndOfTurnDelayed(state, cards); // "... at the end of this turn"
+  const t = runTurnTriggers(d.state, cards, 'TURN_END');
+  const a = { state: t.state, events: [...d.events, ...t.events] };
   if (a.events.length === 0) return expireTurnEffects(a.state, cards);
   const c = phaseCleanup(a.state, cards);
   const b = expireTurnEffects(c.state, cards);

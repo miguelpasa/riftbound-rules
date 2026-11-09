@@ -233,7 +233,7 @@ export interface GameState {
 export interface DelayedTrigger {
   controller: PlayerId;
   turn: number;
-  on: 'UNIT_PLAYED' | 'UNIT_DAMAGED' | 'SUBJECT_DIES';
+  on: 'UNIT_PLAYED' | 'UNIT_DAMAGED' | 'SUBJECT_DIES' | 'END_OF_TURN';
   /** How many more times it fires ("the next three times"); absent = every time this turn. */
   times?: number;
   /** SUBJECT_DIES: the unit it watches ("when it dies this turn"). */

@@ -12,7 +12,7 @@ import { effectiveMight } from '../combat.js';
 import { evalCondition } from '../conditions.js';
 import { reduce } from '../reducer.js';
 import { TOKEN_CARDS } from '../tokens.js';
-import type { CardDatabase, CardDef, CardEffect } from '../types/index.js';
+import type { CardDatabase, CardDef, CardEffect, CardInstance } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
 const statics = (text: string) => parseStaticLines(text)?.statics ?? [];
@@ -724,8 +724,7 @@ describe('scenario: "When you hide a card here" (Bandle Scouts\' Academy)', () =
 });
 
 describe('scenario: "Choose an occupied enemy battlefield" (Rally for War)', () => {
-  const text =
-    'Choose an occupied enemy battlefield. Play three 1 [M] Recruit unit tokens there.';
+  const text = 'Choose an occupied enemy battlefield. Play three 1 [M] Recruit unit tokens there.';
 
   it('reads as a battlefield choice followed by tokens played to it', () => {
     // Tests Rule 359.3: a spell's effects resolve in printed order
@@ -765,7 +764,9 @@ describe('scenario: "Choose an occupied enemy battlefield" (Rally for War)', () 
       (o) => o.cardId === 'tok-recruit' && o.controller === 'p0',
     );
     expect(recruits).toHaveLength(3);
-    expect(recruits.every((o) => o.zone.kind === 'battlefield' && o.zone.battlefieldId === 'bf1')).toBe(true);
+    expect(
+      recruits.every((o) => o.zone.kind === 'battlefield' && o.zone.battlefieldId === 'bf1'),
+    ).toBe(true);
   });
 });
 
@@ -774,7 +775,9 @@ describe('scenario: "I can\'t be played on your first, second, or third turns" (
 
   it('reads as a self restriction', () => {
     // Tests Rule 355: a card can only be played when its restrictions allow it
-    expect(parseStaticLines(text)?.statics).toEqual([{ affects: 'SELF', restrict: 'NO_PLAY_EARLY' }]);
+    expect(parseStaticLines(text)?.statics).toEqual([
+      { affects: 'SELF', restrict: 'NO_PLAY_EARLY' },
+    ]);
   });
 
   it('refuses the play on the first three turns of its player and allows the fourth', () => {
@@ -825,7 +828,8 @@ describe('scenario: "Units you play to battlefields you control enter ready" (Th
       const grunt = sc.putInHand('p0', 'fx-grunt');
       sc.play('p0', grunt, {
         payment: sc.exhaustPlan('p0', 2),
-        location: where === 'base' ? { kind: 'base' } : { kind: 'battlefield', battlefieldId: 'bf1' },
+        location:
+          where === 'base' ? { kind: 'base' } : { kind: 'battlefield', battlefieldId: 'bf1' },
       });
       for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
         sc.pass(sc.state.flow.priority as 'p0' | 'p1');
@@ -877,7 +881,7 @@ describe('scenario: "2 or more other friendly units and/or gear at my battlefiel
   });
 });
 
-describe("scenario: \"a friendly gear with [Deploy] at my battlefield\" (Overloaded Traveler)", () => {
+describe('scenario: "a friendly gear with [Deploy] at my battlefield" (Overloaded Traveler)', () => {
   const text = "While there's a friendly gear with [Deploy] at my battlefield, I have +1 [M].";
 
   it('reads as a might static gated on a friendly Deploy gear here', () => {
@@ -904,7 +908,10 @@ describe("scenario: \"a friendly gear with [Deploy] at my battlefield\" (Overloa
     const mightWith = (deploy: boolean): number => {
       const cards: CardDatabase = {
         ...SCENARIO_CARDS,
-        'fx-tide-grunt': { ...base('fx-tide-grunt'), statics: parseStaticLines(text)?.statics ?? [] },
+        'fx-tide-grunt': {
+          ...base('fx-tide-grunt'),
+          statics: parseStaticLines(text)?.statics ?? [],
+        },
         'fx-tide-totem': {
           ...base('fx-tide-totem'),
           keywords: deploy ? [{ name: 'Deploy' }] : [],
@@ -962,5 +969,39 @@ describe('scenario: "When you conquer here with one or more [Mighty] units" (Sun
     expect(small).toBe(false);
     sc.state.objects[me]!.mightBonus = 3; // 2 + 3 = 5
     expect(evalCondition(sc.state, sc.cards, cond, 'p0', me)).toBe(true);
+  });
+});
+
+describe('scenario: "ready up to 2 runes at the end of this turn" (Targon\'s Peak)', () => {
+  const text = 'When you conquer here, ready up to 2 runes at the end of this turn.';
+
+  it('reads as a conquer trigger that sets up an end-of-turn delayed effect', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseBattlefieldAbilities(text)).toEqual([
+      {
+        on: 'CONQUER',
+        effects: [{ op: 'DELAYED', on: 'END_OF_TURN', effects: [{ op: 'READY_RUNES', count: 2 }] }],
+      },
+    ]);
+  });
+
+  it('readies the runes when the turn ends, not before', () => {
+    // Tests Rule 316: the Ending Phase
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const runes = sc.runes('p0');
+    const s = structuredClone(sc.state);
+    for (const r of runes) (s.objects[r.id] as CardInstance).ready = false;
+    runEffects(
+      s,
+      'p0',
+      [{ op: 'DELAYED', on: 'END_OF_TURN', effects: [{ op: 'READY_RUNES', count: 2 }] }],
+      SCENARIO_CARDS,
+    );
+    sc.state = s;
+    const readyCount = (): number => sc.runes('p0').filter((r) => r.ready).length;
+    expect(readyCount()).toBe(0);
+    sc.endTurn('p0');
+    // p1 is now in its turn: p0's own Awaken has not happened, so only the delayed effect can have readied runes.
+    expect(readyCount()).toBe(Math.min(2, runes.length));
   });
 });

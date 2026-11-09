@@ -1462,6 +1462,14 @@ function parseDelayedSentence(sen: string, st: ParseState): CardEffect | null {
       ? { op: 'DELAYED', on: 'UNIT_PLAYED', times, effects }
       : null;
   }
+  // "... at the end of this turn": the body is target-free (it runs in the Ending step).
+  m = /^(.+?) at the end of this turn$/i.exec(sen);
+  if (m) {
+    const effects = parseDelayedBody(m[1] as string, false);
+    return effects && effects.length > 0 && targetRequirements(effects).length === 0
+      ? { op: 'DELAYED', on: 'END_OF_TURN', effects }
+      : null;
+  }
   m = /^When any unit takes damage this turn, (.+)$/i.exec(sen);
   if (m) {
     const effects = parseDelayedBody(m[1] as string, false);

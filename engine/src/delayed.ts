@@ -69,6 +69,27 @@ export function runDelayed(
     }
     d.waiting = keep;
   }
-  s.delayed = list.filter((d) => d.turn === s.turn.number && (d.times === undefined || d.times > 0 || (d.waiting?.length ?? 0) > 0));
+  s.delayed = list.filter(
+    (d) =>
+      d.turn === s.turn.number &&
+      (d.times === undefined || d.times > 0 || (d.waiting?.length ?? 0) > 0),
+  );
+  return { state: s, events: out };
+}
+
+/** "... at the end of this turn": the delayed effects set for the Ending step run now, before the turn's effects expire. */
+export function runEndOfTurnDelayed(
+  state: GameState,
+  cards: CardDatabase,
+): { state: GameState; events: GameEventInput[] } {
+  const due = (state.delayed ?? []).filter(
+    (d) => d.on === 'END_OF_TURN' && d.turn === state.turn.number,
+  );
+  if (due.length === 0) return { state, events: [] };
+  const s = fork(state);
+  const out: GameEventInput[] = [];
+  for (const d of due) {
+    out.push(...runEffects(s, d.controller, d.effects, cards, [], d.sourceCardId, ''));
+  }
   return { state: s, events: out };
 }

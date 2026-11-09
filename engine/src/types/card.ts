@@ -657,7 +657,7 @@ type CardEffectCore =
    */
   | {
       op: 'DELAYED';
-      on: 'UNIT_PLAYED' | 'UNIT_DAMAGED' | 'SUBJECT_DIES';
+      on: 'UNIT_PLAYED' | 'UNIT_DAMAGED' | 'SUBJECT_DIES' | 'END_OF_TURN';
       times?: number;
       /** SUBJECT_DIES: the target slot holding the unit it watches. */
       subjectSlot?: number;
