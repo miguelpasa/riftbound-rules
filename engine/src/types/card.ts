@@ -920,6 +920,8 @@ export interface OptionalCost {
   burn?: number;
   /** "you may exhaust me to ...": the source must be ready and is exhausted as the cost is paid. */
   exhaustSelf?: boolean;
+  /** "you may spend N XP to ...". */
+  xp?: number;
   /** R46: cards the controller picks and pays (discard / kill / exhaust / return / recycle). */
   card?: CostCardChoice;
   /**

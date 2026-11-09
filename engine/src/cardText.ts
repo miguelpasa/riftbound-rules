@@ -2930,7 +2930,11 @@ export function parseCondition(raw: string): Condition | null {
       who: who === 'friendly' ? 'friendly' : who === 'enemy' ? 'enemy' : 'any',
     };
   }
-  if (/^there['’]?s? (?:is )?an enemy unit alone (?:here|at that battlefield)$/i.test(text)) {
+  if (
+    /^(?:there['’]?s? (?:is )?)?an enemy unit (?:is )?alone (?:here|there|at that battlefield)$/i.test(
+      text,
+    )
+  ) {
     return { kind: 'COUNT', what: 'unit', where: 'here', who: 'enemy', cmp: 'EQ', n: 1 };
   }
   let m = new RegExp(
@@ -3086,8 +3090,12 @@ function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest:
     let used = 0;
     const pay = /^pay ((?:\[(?:\d+|C|A)\]\s*)+)/i.exec(s);
     const burn = /^\[Burn (\d+)\]/i.exec(s);
+    const spendXp = /^spend (\d+) XP(?= to | and |$)/i.exec(s);
     const exSelf = /^exhaust (?:me|this)(?= to | and |$)/i.exec(s);
-    if (exSelf) {
+    if (spendXp) {
+      optional.xp = (optional.xp ?? 0) + Number(spendXp[1]);
+      used = spendXp[0].length;
+    } else if (exSelf) {
       optional.exhaustSelf = true;
       used = exSelf[0].length;
     } else if (pay) {

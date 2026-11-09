@@ -31,7 +31,9 @@ export function describeOptionalCost(cost: OptionalCost, domains: readonly strin
     ? `Burn ${cost.burn} card${cost.burn === 1 ? '' : 's'} (top of your Main Deck to your Trash)`
     : '';
   const card = cost.card ? costCardText(cost.card) : '';
-  return [pay, burn, card].filter(Boolean).join(', ') || 'Free';
+  const xp = cost.xp ? `Spend ${cost.xp} XP` : '';
+  const exhaust = cost.exhaustSelf ? 'Exhaust this' : '';
+  return [exhaust, pay, burn, xp, card].filter(Boolean).join(', ') || 'Free';
 }
 
 /** What the automatic payment plan will do to the player's runes. */

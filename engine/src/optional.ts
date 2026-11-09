@@ -76,6 +76,7 @@ export function optionalPlan(
 ): PaymentPlan | null {
   if ((cost.burn ?? 0) > state.players[playerIndex(player)].mainDeck.length) return null;
   if (cost.exhaustSelf && !(state.objects[sourceId]?.ready === true)) return null;
+  if (cost.xp && (state.players[playerIndex(player)].xp ?? 0) < cost.xp) return null;
   if (cost.card && !costCardsPayable(state, cards, player, sourceId, cost.card)) return null;
   const total = optionalTotalCost(cards, sourceCardId, cost);
   return isFree(total) ? [] : autoPlan(state, cards, player, total);
@@ -144,6 +145,14 @@ export function decideOptional(
     if (cost.exhaustSelf) {
       const me = work.objects[sourceId];
       if (me) me.ready = false;
+    }
+    if (cost.xp) {
+      const seat = work.players[playerIndex(pc.player)] as GameState['players'][number];
+      if ((seat.xp ?? 0) < cost.xp) {
+        return ruleError('INSUFFICIENT_RESOURCES', `not enough XP (need ${cost.xp})`);
+      }
+      seat.xp = (seat.xp ?? 0) - cost.xp;
+      own.push({ type: 'XP_SPENT', player: pc.player, amount: cost.xp });
     }
     if (cost.burn) {
       const deck = work.players[playerIndex(pc.player)];

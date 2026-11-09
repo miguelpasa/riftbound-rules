@@ -123,6 +123,7 @@
               "anyPower": { "type": "integer", "minimum": 1 },
               "burn": { "type": "integer", "minimum": 1 },
               "exhaustSelf": { "type": "boolean" },
+              "xp": { "type": "integer", "minimum": 1 },
               "mandatory": { "type": "boolean" },
               "card": { "$ref": "#/definitions/costCardChoice" }
             }

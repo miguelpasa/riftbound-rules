@@ -543,3 +543,29 @@ describe('scenario: Legends with turn and attack triggers', () => {
     expect(fox?.triggers[0]).toMatchObject({ on: 'UNIT_ATTACKS', unitFilter: { atMine: true } });
   });
 });
+
+describe('scenario: "you may spend N XP to ..." (Kha\'Zix)', () => {
+  it('asks for the XP and takes it when the player accepts', () => {
+    // Tests Rule 583: optional costs of a triggered ability
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': {
+        ...base('fx-grunt'),
+        triggers: [{ on: 'PLAY', effects: [{ op: 'DRAW', amount: 1 }], optional: { xp: 2 } }],
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    (sc.state.players[0] as { xp?: number }).xp = 3;
+    const grunt = sc.putInHand('p0', 'fx-grunt');
+    sc.play('p0', grunt, { payment: sc.exhaustPlan('p0', 2), location: { kind: 'base' } });
+    sc.pass('p1');
+    sc.pass('p0');
+    const pc = sc.state.flow.pendingChoice;
+    expect(pc).toMatchObject({ kind: 'OPTIONAL_EFFECT', cost: { xp: 2 } });
+    if (pc?.kind !== 'OPTIONAL_EFFECT') return;
+    const hand = sc.state.players[0]?.hand.length ?? 0;
+    sc.do({ type: 'DECIDE_OPTIONAL', playerId: 'p0', chainItemId: pc.chainItemId, accept: true });
+    expect(sc.state.players[0]?.xp).toBe(1);
+    expect(sc.state.players[0]?.hand.length).toBe(hand + 1);
+  });
+});
