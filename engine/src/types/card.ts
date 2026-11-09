@@ -1020,6 +1020,8 @@ export interface CardTrigger {
   dies?: DeathFilter;
   /** `on: 'UNIT_ATTACKS'`: which unit in a combat triggers it. */
   unitFilter?: { side: 'friendly' | 'enemy'; alone?: boolean; attacking?: boolean; atMine?: boolean };
+  /** "When you conquer / hold" on a unit or gear: fires when its controller scores at ANY battlefield. */
+  youScore?: boolean;
   /** "The third time I move in a turn": fires only on the unit's n-th move to a battlefield this turn. */
   moveNth?: number;
   /** "When I die in combat": only a death while a combat was being fought at the unit's battlefield. */

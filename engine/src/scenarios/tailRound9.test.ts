@@ -10,7 +10,8 @@ import {
   parseSpellText,
   parseStaticLines,
 } from '../cardText.js';
-import type { CardDatabase, CardDef, CardInstance } from '../types/index.js';
+import { fireTriggers } from '../triggers.js';
+import type { CardDatabase, CardDef, CardInstance, GameEvent } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
 
@@ -243,5 +244,29 @@ describe('scenario: "you may exhaust me to ..." (Relentless Storm, Titanic Shrin
     expect(optionalPlan(sc.state, sc.cards, 'p0', 'fx-grunt', cost, me)).toEqual([]);
     (sc.state.objects[me] as CardInstance).ready = false;
     expect(optionalPlan(sc.state, sc.cards, 'p0', 'fx-grunt', cost, me)).toBeNull();
+  });
+});
+
+describe('scenario: "When you conquer" on a unit anywhere (Blade Dancer)', () => {
+  it('fires for a unit at the base when its controller conquers elsewhere, not for the opponent', () => {
+    // Tests Rule 473.2: conquer triggers
+    const tr = parseCardAbilities('When you conquer, draw 1.')?.triggers ?? [];
+    expect(tr[0]).toMatchObject({ on: 'CONQUER', youScore: true });
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': { ...base('fx-grunt'), triggers: tr },
+    };
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p0', 'fx-grunt', 'base');
+    const ev = (player: 'p0' | 'p1'): GameEvent =>
+      ({
+        seq: 1,
+        type: 'BATTLEFIELD_SCORED',
+        player,
+        battlefieldId: 'bf1',
+        method: 'CONQUER',
+      }) as GameEvent;
+    expect(fireTriggers(sc.state, cards, [ev('p0')]).state.flow.chain).toHaveLength(1);
+    expect(fireTriggers(sc.state, cards, [ev('p1')]).state.flow.chain).toHaveLength(0);
   });
 });

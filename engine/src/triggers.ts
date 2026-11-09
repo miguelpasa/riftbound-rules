@@ -196,8 +196,13 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           o.zone.battlefieldId === e.battlefieldId &&
           (cards[o.cardId]?.type === 'UNIT' || isDeployGear(cards[o.cardId]))
         ) {
-          add(o, e.method, e.player);
+          add(o, e.method, e.player, (t) => !t.youScore);
         }
+      }
+      // "When you conquer / hold": a permanent anywhere on the board (not just at the scored battlefield).
+      for (const o of Object.values(state.objects)) {
+        if (o.controller !== e.player || !onBoard(o)) continue;
+        add(o, e.method, e.player, (t) => t.youScore === true);
       }
       // R101: the scorer's Legend ("When you hold, ...").
       for (const l of Object.values(state.objects)) {
