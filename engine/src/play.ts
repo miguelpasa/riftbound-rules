@@ -28,7 +28,7 @@ import { computeTotalCost, payCost } from './resources.js';
 import type { CostMod } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { selfEnergyDiscount } from './costReduction.js';
-import { evalCondition } from './conditions.js';
+import { evalCondition, noteSpent } from './conditions.js';
 import { optionalPlan } from './optional.js';
 import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
 import { isDeployGear, isUnitDef } from './tokens.js';
@@ -489,7 +489,10 @@ export function playCard(
   if (def.statics?.some((s) => s.restrict === 'NO_PLAY_EARLY')) {
     const n = state.turn.number;
     if ((pid === 'p0' ? Math.ceil(n / 2) : Math.floor(n / 2)) <= 3) {
-      return ruleError('KEYWORD_RESTRICTION', `${def.name} cannot be played on your first three turns`);
+      return ruleError(
+        'KEYWORD_RESTRICTION',
+        `${def.name} cannot be played on your first three turns`,
+      );
     }
   }
   let location: NonNullable<ChainItem['location']> = { kind: 'base' };
@@ -630,6 +633,14 @@ export function playCard(
   // 6. Pay (357). Failure = the whole play is undone (358.5): the caller's state is untouched.
   const paid = payCost(state, cards, pid, cost, intent.payment);
   if (!paid.ok) return paid;
+  noteSpent(
+    paid.state,
+    cards,
+    pid,
+    cost.energy,
+    cost.power.reduce((n, p) => n + p.amount, 0),
+    def.type === 'SPELL',
+  );
 
   // 3. Move to the Chain (354), now on the paid working state.
   const work = paid.state;

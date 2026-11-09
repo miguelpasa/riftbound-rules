@@ -3069,6 +3069,12 @@ export function parseCondition(raw: string): Condition | null {
     return { kind: 'TURN_FLAG', flag: 'discarded' };
   }
   if (/^you['’]ve gained XP this turn$/i.test(text)) return { kind: 'TURN_FLAG', flag: 'xpGained' };
+  {
+    const sp = /^you['’]ve spent \[(\d+)\] or more to play a spell this turn$/i.exec(text);
+    if (sp) return { kind: 'TURN_SPENT', what: 'spellEnergy', n: Number(sp[1]) };
+    const pw = /^you['’]ve spent at least ((?:\[A\])+) this turn$/i.exec(text);
+    if (pw) return { kind: 'TURN_SPENT', what: 'power', n: (pw[1]?.match(/A/g) ?? []).length };
+  }
   if (/^I['’]m attacking with another unit$/i.test(text)) {
     return { kind: 'COMBAT_ROLE', role: 'ATTACKING', withOther: true };
   }

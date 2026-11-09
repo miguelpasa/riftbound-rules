@@ -49,15 +49,14 @@ function tracksDeaths(cards: CardDatabase): boolean {
 
 const flagsDb = new WeakMap<CardDatabase, boolean>();
 
-/** True when some card in the database reads a per-turn flag (discarded a card / gained XP this turn). */
+/** True when some card in the database reads a per-turn flag (discarded, gained XP, spent) this turn. */
 export function tracksTurnFlags(cards: CardDatabase): boolean {
   let v = flagsDb.get(cards);
   if (v === undefined) {
-    v = Object.values(cards).some((d) =>
-      JSON.stringify([d.entersReadyWhen, d.triggers, d.statics, d.costReduction]).includes(
-        'TURN_FLAG',
-      ),
-    );
+    v = Object.values(cards).some((d) => {
+      const j = JSON.stringify([d.entersReadyWhen, d.triggers, d.statics, d.costReduction]);
+      return j.includes('TURN_FLAG') || j.includes('TURN_SPENT');
+    });
     flagsDb.set(cards, v);
   }
   return v;
@@ -90,6 +89,25 @@ export function noteTurnFlags(
       ps.turnFlags?.turn === state.turn.number ? ps.turnFlags : { turn: state.turn.number };
     ps.turnFlags = { ...rec, [flag]: true };
   }
+}
+
+/** Note what a play cost this turn (mutates the working state; opt-in like the other turn flags). */
+export function noteSpent(
+  state: GameState,
+  cards: CardDatabase,
+  player: PlayerId,
+  energy: number,
+  power: number,
+  isSpell: boolean,
+): void {
+  if (!tracksTurnFlags(cards)) return;
+  const ps = state.players[playerIndex(player)] as GameState['players'][number];
+  const rec = ps.turnFlags?.turn === state.turn.number ? ps.turnFlags : { turn: state.turn.number };
+  ps.turnFlags = {
+    ...rec,
+    ...(isSpell ? { spellEnergy: Math.max(rec.spellEnergy ?? 0, energy) } : {}),
+    power: (rec.power ?? 0) + power,
+  };
 }
 
 const excessDb = new WeakMap<CardDatabase, boolean>();
@@ -304,6 +322,11 @@ export function evalCondition(
     case 'TURN_FLAG': {
       const rec = state.players[playerIndex(controller)]?.turnFlags;
       return rec !== undefined && rec.turn === state.turn.number && rec[cond.flag] === true;
+    }
+    case 'TURN_SPENT': {
+      const rec = state.players[playerIndex(controller)]?.turnFlags;
+      if (!rec || rec.turn !== state.turn.number) return false;
+      return (cond.what === 'spellEnergy' ? (rec.spellEnergy ?? 0) : (rec.power ?? 0)) >= cond.n;
     }
     case 'TARGET_STUNNED':
       return false; // read from the chosen targets by runEffects

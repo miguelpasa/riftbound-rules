@@ -150,7 +150,14 @@ export interface PlayerState {
    */
   diedThisTurn?: { turn: number; count: number; gear?: number };
   /** What this player did during turn `turn` (discarded a card, gained XP); only recorded when a card asks. */
-  turnFlags?: { turn: number; discarded?: true; xpGained?: true };
+  turnFlags?: {
+    turn: number;
+    discarded?: true;
+    xpGained?: true;
+    /** Most Energy paid for one spell, and the total Power paid, this turn. */
+    spellEnergy?: number;
+    power?: number;
+  };
   /**
    * Cards this player played (PLAY_CARD, Hidden plays included) during turn `turn` (Legion, 812).
    * A record from an earlier turn counts as nothing, so the counter resets at the start of each turn

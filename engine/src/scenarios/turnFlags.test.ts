@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { parseCondition, parseStaticLines } from '../cardText.js';
 import { evalCondition } from '../conditions.js';
+import { autoPlan, computeTotalCost } from '../resources.js';
 import type { CardDatabase, CardDef, CardEffect, Condition } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
@@ -96,5 +97,45 @@ describe('scenario: per-turn flags (discarded a card, gained XP)', () => {
     );
     cast(sc);
     expect(JSON.stringify(sc.state.players)).not.toContain('turnFlags');
+  });
+});
+
+describe('scenario: "you\'ve spent [4] or more to play a spell / at least [A][A] this turn" (Prepared Neophyte, Sivir)', () => {
+  const BIG: Condition = { kind: 'TURN_SPENT', what: 'spellEnergy', n: 4 };
+  const POWER: Condition = { kind: 'TURN_SPENT', what: 'power', n: 2 };
+
+  it('reads both phrases and their static forms', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    expect(parseCondition("you've spent [4] or more to play a spell this turn")).toEqual(BIG);
+    expect(parseCondition("you've spent at least [A][A] this turn")).toEqual(POWER);
+    expect(
+      parseStaticLines("If you've spent [4] or more to play a spell this turn, I have +4 [M].")
+        ?.statics,
+    ).toEqual([{ affects: 'SELF', might: 4, when: BIG }]);
+  });
+
+  it('counts the Energy of one spell and the Power spent over the turn', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': { ...base('fx-grunt'), statics: [{ affects: 'SELF', might: 4, when: BIG }] },
+      'fx-flare': {
+        ...base('fx-flare'),
+        cost: { energy: 4, power: 1, domain: [{ element: 'Fury', amount: 1 }] },
+        statics: [],
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const me = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.giveRunes('p0', 3, 'Fury');
+    sc.giveRunes('p0', 3, 'Calm');
+    expect(evalCondition(sc.state, sc.cards, BIG, 'p0', me)).toBe(false);
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const def = cards['fx-flare'] as CardDef;
+    const plan = autoPlan(sc.state, cards, 'p0', computeTotalCost(def)) ?? [];
+    sc.play('p0', flare, { payment: plan });
+    expect(evalCondition(sc.state, sc.cards, BIG, 'p0', me)).toBe(true);
+    expect(evalCondition(sc.state, sc.cards, BIG, 'p1', me)).toBe(false);
+    expect(evalCondition(sc.state, sc.cards, POWER, 'p0', me)).toBe(false); // one Power only
   });
 });

@@ -945,6 +945,8 @@ export type Condition =
   | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any'; orGear?: true }
   /** "If you've discarded a card / gained XP this turn" (recorded per player and turn, only when a card asks). */
   | { kind: 'TURN_FLAG'; flag: 'discarded' | 'xpGained' }
+  /** "If you've spent [4] or more to play a spell / at least [A][A] this turn": the most Energy paid for one spell, or the total Power paid. */
+  | { kind: 'TURN_SPENT'; what: 'spellEnergy' | 'power'; n: number }
   /** R53: Level N: the controller has at least `n` XP. */
   | { kind: 'XP'; n: number };
 
