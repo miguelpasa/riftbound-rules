@@ -31,6 +31,8 @@ export interface ChainItem {
   /** PENDING while being played (Rule 328); FINALIZED once costs paid. */
   status: 'PENDING' | 'FINALIZED';
   targets: Target[];
+  /** X6: this triggered ability still waits for its controller to order it among simultaneous ones. */
+  unordered?: boolean;
   /** X3: the generation of each targeted object when the targets were chosen (see targetGens.ts). */
   targetGens?: Record<string, number>;
   choices: Record<string, ChoiceValue>;
@@ -149,11 +151,23 @@ export interface DeathReplaceChoice {
   offers: DeathReplaceOffer[];
 }
 
+/**
+ * X6 (583.3.b): one player's simultaneous triggered abilities are on the Chain in a default order; that
+ * player chooses the order (CHOOSE_TRIGGER_ORDER). `chainItemIds` are those items, in the order they would
+ * resolve (first to resolve first).
+ */
+export interface TriggerOrderChoice {
+  kind: 'TRIGGER_ORDER';
+  player: PlayerId;
+  chainItemIds: string[];
+}
+
 export type PendingChoice =
   | StagedOrderChoice
   | TriggerTargetChoice
   | OptionalEffectChoice
-  | DeathReplaceChoice;
+  | DeathReplaceChoice
+  | TriggerOrderChoice;
 
 /** Everything about who may act and what is on the chain. */
 export interface FlowState {

@@ -8,6 +8,7 @@ import { ChoicePrompt } from '../components/ChoicePrompt';
 import { AbilityCostPrompt } from '../components/AbilityCostPrompt';
 import { OptionalPrompt } from '../components/OptionalPrompt';
 import { DeathReplacePrompt } from '../components/DeathReplacePrompt';
+import { TriggerOrderPrompt } from '../components/TriggerOrderPrompt';
 import { CombatDialog } from '../components/CombatDialog';
 import { HostAwayOverlay } from '../components/HostAwayOverlay';
 import { MulliganDialog } from '../components/MulliganDialog';
@@ -426,6 +427,7 @@ export function GameScreen({
       <ChoicePrompt />
       <OptionalPrompt />
       <DeathReplacePrompt />
+      <TriggerOrderPrompt />
       <AbilityCostPrompt ui={ui} />
 
       <div aria-live="polite" role="status" className="sr-only" data-testid="announcer">

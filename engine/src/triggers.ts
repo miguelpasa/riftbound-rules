@@ -45,6 +45,7 @@ import type {
   GameState,
   CardEffect,
   CardTrigger,
+  ChooseTriggerOrderIntent,
   ChooseTriggerTargetIntent,
   PlayFilter,
   PlayerId,
@@ -428,6 +429,7 @@ export function fireTriggers(
   s.flow.priority = top ? (top.controller === 'p0' ? 'p1' : 'p0') : active;
   if (s.flow.showdown) s.flow.showdown.passesInRow = 0;
   s.turnState = deriveTurnState(s);
+  markUnordered(s, added);
   askNextTrigger(s);
   return { state: s, events: stampEvents(s, raw) };
 }
@@ -459,9 +461,38 @@ export function abilityItemEffects(
   return undefined;
 }
 
+/**
+ * X6 (583.3.b): flag the last `added` Chain items of any controller with two or more DIFFERENT simultaneous
+ * triggers; their controller chooses the order. Identical abilities (same card and ability) need no choice.
+ */
+function markUnordered(s: GameState, added: number): void {
+  const fresh = s.flow.chain.slice(s.flow.chain.length - added);
+  for (const p of ['p0', 'p1'] as const) {
+    const mine = fresh.filter((i) => i.controller === p && i.triggered);
+    const sigs = new Set(mine.map((i) => `${triggerSourceCardId(s, i) ?? ''}:${i.triggerIndex}`));
+    if (mine.length >= 2 && sigs.size >= 2) for (const i of mine) i.unordered = true;
+  }
+}
+
+/** The ids of the flagged items of the first player (turn player first) that still has to order them. */
+function nextOrderChoice(s: GameState): { player: PlayerId; ids: string[] } | null {
+  for (const p of [s.turn.activePlayer, s.turn.activePlayer === 'p0' ? 'p1' : 'p0'] as const) {
+    const ids = s.flow.chain.filter((i) => i.unordered && i.controller === p).map((i) => i.id);
+    if (ids.length >= 2) return { player: p, ids: ids.reverse() }; // top of the Chain resolves first
+  }
+  return null;
+}
+
 /** Set flow.pendingChoice for the oldest PENDING triggered item on the Chain (mutates `s`). */
 function askNextTrigger(s: GameState): void {
-  if (s.flow.pendingChoice?.kind === 'OPTIONAL_EFFECT') return; // R45: the resolving optional ability asks first
+  if (s.flow.pendingChoice?.kind === 'OPTIONAL_EFFECT') return;
+  if (s.flow.pendingChoice?.kind === 'DEATH_REPLACE') return;
+  const order = nextOrderChoice(s);
+  if (order) {
+    s.flow.pendingChoice = { kind: 'TRIGGER_ORDER', player: order.player, chainItemIds: order.ids };
+    return;
+  }
+  if (s.flow.pendingChoice?.kind === 'TRIGGER_ORDER') delete s.flow.pendingChoice; // R45: the resolving optional ability asks first
   const next = s.flow.chain.find(
     (i) => i.kind === 'ABILITY' && i.triggered && i.status === 'PENDING',
   );
@@ -512,4 +543,44 @@ export function chooseTriggerTarget(
     { type: 'TRIGGER_TARGETED', player: live.controller, sourceId: itemSourceId(live), targets },
   ]);
   return { ok: true, state: s, events };
+}
+
+/**
+ * CHOOSE_TRIGGER_ORDER (X6, 583.3.b): the controller puts their simultaneous triggers on the Chain in the order
+ * they choose. `order` must be a permutation of the waiting items, first to resolve first.
+ */
+export function chooseTriggerOrder(
+  state: GameState,
+  _cards: CardDatabase,
+  intent: ChooseTriggerOrderIntent,
+): ReduceResult {
+  const pc = state.flow.pendingChoice;
+  if (!pc || pc.kind !== 'TRIGGER_ORDER') {
+    return ruleError('WRONG_PHASE', 'no triggered abilities are waiting to be ordered');
+  }
+  if (intent.playerId !== pc.player) return ruleError('NOT_YOUR_PRIORITY', 'not your choice');
+  const want = [...pc.chainItemIds].sort();
+  if (
+    !Array.isArray(intent.order) ||
+    intent.order.length !== want.length ||
+    [...intent.order].sort().some((id, k) => id !== want[k])
+  ) {
+    return ruleError('ILLEGAL_TARGET', 'order must list each waiting trigger exactly once');
+  }
+  const s = fork(state);
+  // The flagged items occupy some Chain slots; refill those slots so intent.order[0] is on top.
+  const slots = s.flow.chain.flatMap((i, k) => (pc.chainItemIds.includes(i.id) ? [k] : []));
+  const byId = new Map(s.flow.chain.map((i) => [i.id, i] as const));
+  const bottomFirst = [...intent.order].reverse();
+  slots.forEach((slot, k) => {
+    const item = byId.get(bottomFirst[k] as string) as ChainItem;
+    delete item.unordered;
+    s.flow.chain[slot] = item;
+  });
+  delete s.flow.pendingChoice;
+  askNextTrigger(s);
+  const top = s.flow.chain[s.flow.chain.length - 1];
+  if (top) s.flow.priority = top.controller === 'p0' ? 'p1' : 'p0';
+  s.turnState = deriveTurnState(s);
+  return { ok: true, state: s, events: [] };
 }

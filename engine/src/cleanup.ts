@@ -219,7 +219,9 @@ export function runCleanup(
     // (A TRIGGER_TARGET choice belongs to fireTriggers and survives: the Chain is not empty then.)
     // (Likewise an OPTIONAL_EFFECT choice, R45, belongs to the resolving optional ability.)
     const pcKind = s.flow.pendingChoice?.kind;
-    if (pcKind !== 'TRIGGER_TARGET' && pcKind !== 'OPTIONAL_EFFECT') delete s.flow.pendingChoice;
+    if (pcKind !== 'TRIGGER_TARGET' && pcKind !== 'OPTIONAL_EFFECT' && pcKind !== 'TRIGGER_ORDER') {
+      delete s.flow.pendingChoice;
+    }
     if (isNeutralOpen(s)) {
       const order = (id: string): number => s.battlefields.findIndex((b) => b.id === id);
       const sds = s.flow.stagedShowdowns

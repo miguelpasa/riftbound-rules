@@ -29,7 +29,7 @@
  */
 import { fork, runSession } from './workingCopy.js';
 import { passPriority } from './chain.js';
-import { chooseTriggerTarget, fireTriggers } from './triggers.js';
+import { chooseTriggerOrder, chooseTriggerTarget, fireTriggers } from './triggers.js';
 import { decideOptional } from './optional.js';
 import { decideReplacement } from './deathOffer.js';
 import { expireTurnEffects } from './effects.js';
@@ -171,6 +171,8 @@ function shapeProblem(i: Obj): string | null {
     case 'CHOOSE_TRIGGER_TARGET':
       if (!isStr(i.chainItemId)) return 'chainItemId must be a string';
       return Array.isArray(i.targets) && i.targets.every(isTarget) ? null : 'bad targets';
+    case 'CHOOSE_TRIGGER_ORDER':
+      return isIdList(i.order) ? null : 'order must be a list of ids';
     case 'DECIDE_REPLACEMENT':
       if (!isStr(i.unitId)) return 'unitId must be a string';
       if (typeof i.accept !== 'boolean') return 'accept must be a boolean';
@@ -279,6 +281,8 @@ function dispatch(state: GameState, cards: CardDatabase, intent: Intent): Reduce
       if (!s.ok) return s;
       return { ok: true, state: s.state, events: [...r.events, ...s.events] };
     }
+    case 'CHOOSE_TRIGGER_ORDER':
+      return chooseTriggerOrder(state, cards, intent);
     case 'DECIDE_REPLACEMENT':
       return decideReplacement(state, cards, intent);
     case 'ACTIVATE_ABILITY':
@@ -325,7 +329,9 @@ function applyIntentInSession(state: GameState, cards: CardDatabase, intent: Int
           ? 'DECIDE_OPTIONAL'
           : pending?.kind === 'DEATH_REPLACE'
             ? 'DECIDE_REPLACEMENT'
-            : 'CHOOSE_STAGED';
+            : pending?.kind === 'TRIGGER_ORDER'
+              ? 'CHOOSE_TRIGGER_ORDER'
+              : 'CHOOSE_STAGED';
     if (pending && intent.type !== answers && intent.type !== 'CONCEDE') {
       return ruleError(
         'WRONG_PHASE',
@@ -335,7 +341,9 @@ function applyIntentInSession(state: GameState, cards: CardDatabase, intent: Int
             ? `waiting for ${pending.player} to accept or decline an optional ability`
             : pending.kind === 'DEATH_REPLACE'
               ? `waiting for ${pending.player} to decide whether to save a unit from dying`
-              : `waiting for ${pending.player} to choose which battlefield resolves first`,
+              : pending.kind === 'TRIGGER_ORDER'
+                ? `waiting for ${pending.player} to order their triggered abilities`
+                : `waiting for ${pending.player} to choose which battlefield resolves first`,
       );
     }
     return dispatch(state, cards, intent);

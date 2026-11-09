@@ -440,6 +440,22 @@ export function getLegalActions(
         max,
       );
     }
+    if (pc.kind === 'TRIGGER_ORDER') {
+      // X6: every order of the waiting triggers; the default order comes first (the timeout / bot fallback).
+      const perms = (ids: string[]): string[][] =>
+        ids.length <= 1
+          ? [ids]
+          : ids.flatMap((id, k) =>
+              perms([...ids.slice(0, k), ...ids.slice(k + 1)]).map((rest) => [id, ...rest]),
+            );
+      return keep(
+        perms(pc.chainItemIds).map((order): Intent => ({
+          type: 'CHOOSE_TRIGGER_ORDER',
+          playerId,
+          order,
+        })),
+      ).slice(0, max);
+    }
     if (pc.kind === 'DEATH_REPLACE') {
       // X7: decline is listed FIRST (every "take legal[0]" fallback and the timeout decline); then one accept
       // per offer (and per choice of cards for a card cost), with the automatic payment plan spelled out.
@@ -451,7 +467,14 @@ export function getLegalActions(
       };
       const accepts: Intent[] = [];
       for (const offer of pc.offers) {
-        const plan = optionalPlan(state, cards, pc.player, offer.cardId, offer.cost, offer.sourceId);
+        const plan = optionalPlan(
+          state,
+          cards,
+          pc.player,
+          offer.cardId,
+          offer.cost,
+          offer.sourceId,
+        );
         if (plan === null) continue;
         const picks: (string[] | undefined)[] = offer.cost.card
           ? costCardCombos(state, cards, pc.player, offer.sourceId, offer.cost.card)

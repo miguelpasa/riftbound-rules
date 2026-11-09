@@ -119,6 +119,11 @@ export interface DecideReplacementIntent extends IntentBase {
   payment?: PaymentPlan;
   costCards?: string[];
 }
+/** Answer to a flow.pendingChoice of kind TRIGGER_ORDER (X6): `order` lists the chain item ids in resolution order. */
+export interface ChooseTriggerOrderIntent extends IntentBase {
+  type: 'CHOOSE_TRIGGER_ORDER';
+  order: string[];
+}
 export interface ConcedeIntent extends IntentBase {
   type: 'CONCEDE';
 }
@@ -138,6 +143,7 @@ export type Intent =
   | ChooseTriggerTargetIntent
   | DecideOptionalIntent
   | DecideReplacementIntent
+  | ChooseTriggerOrderIntent
   | ConcedeIntent;
 
 export type IntentType = Intent['type'];

@@ -138,7 +138,12 @@ export class HostTimers {
       );
       const fb =
         decline ??
-        legal.find((i) => i.type === 'CHOOSE_STAGED' || i.type === 'CHOOSE_TRIGGER_TARGET') ?? // lowest index (R11 / R41 timeout default)
+        legal.find(
+          (i) =>
+            i.type === 'CHOOSE_STAGED' ||
+            i.type === 'CHOOSE_TRIGGER_TARGET' ||
+            i.type === 'CHOOSE_TRIGGER_ORDER',
+        ) ?? // lowest index (R11 / R41 timeout default)
         legal.find((i) => i.type === 'PASS_PRIORITY' || i.type === 'END_TURN') ??
         legal.find((i) => i.type === 'MULLIGAN' && i.cardIds.length === 0) ??
         // R77: a mandatory cost has no decline: the first listed answer (the lowest cards) is used.
