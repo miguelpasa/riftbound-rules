@@ -1076,6 +1076,10 @@ export type TriggerKind =
   | 'YOU_HIDE'
   /** R108: "When I move from a battlefield". */
   | 'MOVE_FROM'
+  /** Battlefield: "When a unit moves from here" (the moved unit is the ability's target). */
+  | 'UNIT_LEAVES_HERE'
+  /** Battlefield: "When you ready a friendly unit" (the readied unit is the ability's target). */
+  | 'FRIENDLY_READIED'
   /** R108: "When you use an activated ability of a gear". */
   | 'USE_GEAR_ABILITY'
   /** X9: "When you stun an enemy unit" (a unit that was already stunned is not stunned again, 599.1.a.1). */

@@ -147,12 +147,24 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
    * controller is the player the moment is about (the scorer, the defender, the attacker); a
    * condition's "here" is the battlefield itself.
    */
-  const addBattlefield = (battlefieldId: string, kind: TriggerKind, controller: PlayerId): void => {
+  const addBattlefield = (
+    battlefieldId: string,
+    kind: TriggerKind,
+    controller: PlayerId,
+    subject?: string,
+  ): void => {
     const bf = state.battlefields.find((b) => b.id === battlefieldId);
     cards[bf?.cardId ?? '']?.triggers?.forEach((t, index) => {
       if (!bf || t.on !== kind) return;
       if (t.when && !evalCondition(state, cards, t.when, controller, bf.id)) return;
-      out.push({ sourceId: bf.id, cardId: bf.cardId, battlefield: true, index, controller });
+      out.push({
+        sourceId: bf.id,
+        cardId: bf.cardId,
+        battlefield: true,
+        index,
+        controller,
+        ...(subject !== undefined ? { subject } : {}),
+      });
     });
   };
   for (const e of events) {
@@ -230,6 +242,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         cards[o.cardId]?.type === 'UNIT'
       ) {
         add(o, 'MOVE_FROM', o.controller);
+        // Battlefield "When a unit moves from here": the moved unit is the target.
+        addBattlefield(e.from, 'UNIT_LEAVES_HERE', o.controller, o.id);
       }
     } else if (e.type === 'GEAR_KILLED' && !state.objects[e.gearId] && state.lki?.[e.gearId]) {
       // A token gear that ceased to exist (Bomb): its "when it dies" ability uses the last known information.
@@ -299,7 +313,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       const u = state.objects[e.objectId];
       if (u) {
         for (const src of Object.values(state.objects)) {
-          if (src.controller !== u.controller || (!onBoard(src) && src.zone.kind !== 'legend')) continue;
+          if (src.controller !== u.controller || (!onBoard(src) && src.zone.kind !== 'legend'))
+            continue;
           add(
             src,
             'UNIT_BUFFED',
@@ -345,6 +360,14 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       const o = state.objects[e.objectId];
       if (o && onBoard(o)) {
         add(o, e.type === 'BECAME_EXHAUSTED' ? 'BECOME_EXHAUSTED' : 'BECOME_READY', o.controller);
+        // Battlefield "When you ready a friendly unit": every battlefield its controller controls.
+        if (e.type === 'BECAME_READY' && cards[o.cardId]?.type === 'UNIT') {
+          for (const bf of state.battlefields) {
+            if (bf.controller === o.controller) {
+              addBattlefield(bf.id, 'FRIENDLY_READIED', o.controller, o.id);
+            }
+          }
+        }
       }
     } else if (e.type === 'EFFECT_EMPOWERED') {
       const o = state.objects[e.unitId];

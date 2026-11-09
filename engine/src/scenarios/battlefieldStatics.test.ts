@@ -1005,3 +1005,71 @@ describe('scenario: "ready up to 2 runes at the end of this turn" (Targon\'s Pea
     expect(readyCount()).toBe(Math.min(2, runes.length));
   });
 });
+
+describe("scenario: battlefield triggers on a unit (Back-Alley Bar, Pirate's Haven)", () => {
+  const barText = 'When a unit moves from here, give it +1 [M] this turn.';
+  const havenText = 'When you ready a friendly unit, give it +1 [M] this turn.';
+
+  it('reads both as battlefield triggers whose buff targets the unit of the event', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseBattlefieldAbilities(barText)?.[0]).toMatchObject({
+      on: 'UNIT_LEAVES_HERE',
+      effects: [{ op: 'BUFF_TARGET', amount: 1, duration: 'TURN' }],
+    });
+    expect(parseBattlefieldAbilities(havenText)?.[0]).toMatchObject({
+      on: 'FRIENDLY_READIED',
+      effects: [{ op: 'BUFF_TARGET', amount: 1, duration: 'TURN', side: 'friendly' }],
+    });
+  });
+
+  const withBattlefield = (text: string): { sc: Scenario; cards: CardDatabase } => {
+    const triggers = parseBattlefieldAbilities(text) ?? [];
+    const probe = Scenario.start({}, SCENARIO_CARDS);
+    const bf1 = probe.state.battlefields.find((b) => b.id === 'bf1');
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      [bf1?.cardId ?? '']: { ...base(bf1?.cardId ?? ''), triggers },
+    };
+    return { sc: Scenario.start({}, cards), cards };
+  };
+  const settle = (sc: Scenario): void => {
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+  };
+
+  it('buffs a unit that moves away from the battlefield', () => {
+    // Tests Rule 583: a triggered ability fires on its event
+    const { sc, cards } = withBattlefield(barText);
+    const u = sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+    const before = effectiveMight(sc.state, cards, u, { role: null });
+    sc.do({ type: 'STANDARD_MOVE', playerId: 'p0', unitIds: [u], destination: { kind: 'base' } });
+    settle(sc);
+    expect(effectiveMight(sc.state, cards, u, { role: null })).toBe(before + 1);
+  });
+
+  it('buffs a friendly unit when a spell readies it', () => {
+    // Tests Rule 583: a triggered ability fires on its event
+    const triggers = parseBattlefieldAbilities(havenText) ?? [];
+    const probe = Scenario.start({}, SCENARIO_CARDS);
+    const bf1 = probe.state.battlefields.find((b) => b.id === 'bf1');
+    const effects = parseSpellText('Ready a friendly unit.') as CardEffect[];
+    const db: CardDatabase = {
+      ...SCENARIO_CARDS,
+      [bf1?.cardId ?? '']: { ...base(bf1?.cardId ?? ''), triggers },
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects },
+    };
+    const sc = Scenario.start({}, db);
+    sc.putUnit('p0', 'fx-archer', 'bf1', { control: true }); // holds the battlefield
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.state.objects[mine]!.ready = false;
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const before = effectiveMight(sc.state, db, mine, { role: null });
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: mine }],
+    });
+    settle(sc);
+    expect(effectiveMight(sc.state, db, mine, { role: null })).toBe(before + 1);
+  });
+});

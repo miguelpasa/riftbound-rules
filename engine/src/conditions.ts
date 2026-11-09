@@ -147,7 +147,10 @@ export function tracksReadiness(cards: CardDatabase): boolean {
   let v = readinessDb.get(cards);
   if (v === undefined) {
     v = Object.values(cards).some((d) =>
-      d.triggers?.some((t) => t.on === 'BECOME_EXHAUSTED' || t.on === 'BECOME_READY'),
+      d.triggers?.some(
+        (t) =>
+          t.on === 'BECOME_EXHAUSTED' || t.on === 'BECOME_READY' || t.on === 'FRIENDLY_READIED',
+      ),
     );
     readinessDb.set(cards, v ?? false);
   }
