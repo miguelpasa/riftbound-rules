@@ -217,7 +217,11 @@ export function endTurn(
   emptyPools(c.s); // 317.2.e
   if (over(c)) return finish(c);
   // 317.3 next turn
-  c.s.turn.activePlayer = nextPlayerInTurnOrder(c.s.turn.activePlayer);
+  if (c.s.extraTurnFor === c.s.turn.activePlayer) {
+    delete c.s.extraTurnFor; // "Take a turn after this one": the same player goes again
+  } else {
+    c.s.turn.activePlayer = nextPlayerInTurnOrder(c.s.turn.activePlayer);
+  }
   c.s.turn.number += 1;
   startOfTurn(c);
   return finish(c);

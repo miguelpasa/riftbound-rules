@@ -39,6 +39,7 @@ export type GameEvent = EventBase &
     | { type: 'XP_SPENT'; player: PlayerId; amount: number }
     | { type: 'EFFECT_FIZZLED'; cardId: string }
     | { type: 'EFFECT_STUNNED'; unitId: string; by?: PlayerId }
+    | { type: 'HAND_DISCARDED'; player: PlayerId; cardIds: string[]; cardNames: string[] }
     | { type: 'DAMAGE_PREVENTED'; unitId: string; amount: number }
     | { type: 'UNIT_DEATH_REPLACED'; unitId: string; cardId: string; mode: 'RECALL' | 'BANISH' }
     | { type: 'EFFECT_KEYWORD_GRANTED'; unitId: string }

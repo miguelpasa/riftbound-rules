@@ -189,6 +189,8 @@ export interface GameState {
   /** Counters for deterministic id / event-seq generation. */
   nextObjectId: number;
   nextEventSeq: number;
+  /** "Take a turn after this one": this player takes the turn after the current one. */
+  extraTurnFor?: PlayerId;
   /** X7: all spell and ability damage is prevented during this turn number (Unyielding Spirit). */
   noEffectDamageTurn?: number;
 }

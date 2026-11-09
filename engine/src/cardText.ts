@@ -121,6 +121,14 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   if (m) return [{ op: 'DRAW', amount: Number(m[1]) }];
   if (/^Banish this$/i.test(sen)) return [{ op: 'BANISH_THIS_SPELL' }];
   if (/^Kill this$/i.test(sen)) return [{ op: 'KILL_SELF' }];
+  if (/^Take a turn after this one$/i.test(sen)) return [{ op: 'EXTRA_TURN' }];
+  m = /^Each player discards their hand, then draws (\d+)$/i.exec(sen);
+  if (m) {
+    return [
+      { op: 'DISCARD_HAND', eachPlayer: true },
+      { op: 'DRAW', amount: Number(m[1]), eachPlayer: true },
+    ];
+  }
   m = /^They score (\d+) points?$/i.exec(sen);
   if (m) return [{ op: 'GAIN_POINT', amount: Number(m[1]), forOpponent: true }];
   if (/^Play me$/i.test(sen)) return [{ op: 'PLAY_SELF' }];
@@ -1874,7 +1882,10 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
   const out: CardEffect[] = [];
   const list = sens
     .flatMap((x) =>
-      /^Banish an? [a-z ]*unit, then its owner plays it/i.test(x) ? [x] : x.split(/, then /i),
+      /^Banish an? [a-z ]*unit, then its owner plays it/i.test(x) ||
+      /^Each player discards their hand, then draws \d+$/i.test(x)
+        ? [x]
+        : x.split(/, then /i),
     )
     .flatMap((x) => {
       // R65: "Ready a unit and give it [Assault 3] this turn" = two sentences about the same unit.

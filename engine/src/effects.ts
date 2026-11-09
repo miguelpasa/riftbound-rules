@@ -963,6 +963,30 @@ export function runEffects(
         }
         break;
       }
+      case 'EXTRA_TURN':
+        state.extraTurnFor = controller;
+        break;
+      case 'DISCARD_HAND': {
+        for (const p of e.eachPlayer ? (['p0', 'p1'] as const) : [controller]) {
+          const ps = state.players[playerIndex(p)];
+          const ids = [...ps.hand];
+          for (const id of ids) {
+            const o = state.objects[id];
+            if (o) o.zone = { kind: 'trash', player: o.owner };
+            ps.trash.push(id);
+          }
+          ps.hand = [];
+          if (ids.length > 0) {
+            out.push({
+              type: 'HAND_DISCARDED',
+              player: p,
+              cardIds: ids,
+              cardNames: ids.map((id) => cards[state.objects[id]?.cardId ?? '']?.name ?? 'a card'),
+            });
+          }
+        }
+        break;
+      }
       case 'KILL_SELF': {
         const me = state.objects[sourceObjectId];
         if (!me || (me.zone.kind !== 'base' && me.zone.kind !== 'battlefield')) break;

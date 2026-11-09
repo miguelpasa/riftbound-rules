@@ -115,6 +115,8 @@ export function describeEvent(
       return event.amount < 0
         ? `A unit got ${event.amount} Might.`
         : `A unit got +${event.amount} Might.`;
+    case 'HAND_DISCARDED':
+      return `${event.player === view.viewer ? 'You' : 'Your opponent'} discarded ${event.cardNames.length} card${event.cardNames.length === 1 ? '' : 's'}: ${event.cardNames.join(', ')}.`;
     case 'DAMAGE_PREVENTED':
       return `${event.amount} damage to ${objectName(event.unitId, view, cards, 'a unit')} was prevented.`;
     case 'UNIT_DEATH_REPLACED':

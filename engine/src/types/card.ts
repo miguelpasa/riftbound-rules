@@ -454,6 +454,10 @@ export type CardEffect =
     } & TargetScope)
   /** X9: "play me" - the source card is played from the Trash to its owner's Base (costs already paid by the trigger). */
   | { op: 'PLAY_SELF' }
+  /** Each player discards their whole hand (Invert Timelines); no choice is needed. */
+  | { op: 'DISCARD_HAND'; eachPlayer?: boolean }
+  /** "Take a turn after this one" (Time Warp): the controller's next turn is followed by another of theirs. */
+  | { op: 'EXTRA_TURN' }
   /** "Kill this": the source permanent (a gear is killed; a unit takes lethal damage and dies in the next Cleanup). */
   | { op: 'KILL_SELF' }
   /** X5: "Banish this." - the spell is banished instead of going to the Trash. */
