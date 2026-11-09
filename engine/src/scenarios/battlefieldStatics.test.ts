@@ -523,3 +523,23 @@ describe('scenario: "If you do ... Otherwise ..." after an optional cost (Medita
     expect(draws(false)).toBe(1);
   });
 });
+
+describe('scenario: Legends with turn and attack triggers', () => {
+  it('reads Loose Cannon, Dark Child and Nine-Tailed Fox', () => {
+    // Tests Rule 101: Legends have abilities
+    const start = parseCardAbilities(
+      'At start of your Beginning Phase, draw 1 if you have one or fewer cards in your hand.',
+      { legend: true },
+    );
+    expect(start?.triggers[0]).toMatchObject({ on: 'TURN_START', when: { kind: 'COUNT' } });
+    const end = parseCardAbilities('At the end of your turn, ready up to 2 runes.', {
+      legend: true,
+    });
+    expect(end?.triggers[0]).toMatchObject({ on: 'TURN_END' });
+    const fox = parseCardAbilities(
+      'When an enemy unit attacks a battlefield you control, give it -1 [M] this turn, to a minimum of 1 [M].',
+      { legend: true },
+    );
+    expect(fox?.triggers[0]).toMatchObject({ on: 'UNIT_ATTACKS', unitFilter: { atMine: true } });
+  });
+});
