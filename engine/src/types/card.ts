@@ -661,6 +661,8 @@ type CardEffectCore =
   | { op: 'MOVE_SELF_BASE' }
   /** "Double my Might this combat" (Fiora). */
   | { op: 'DOUBLE_MIGHT_SELF'; duration?: 'COMBAT' }
+  /** "Give me [Temporary]" (Momentary Companion). */
+  | { op: 'GRANT_TEMPORARY_SELF' }
   /** "Give me [Ganking] this turn" / "Give your other units here [Shield] this turn" (R43). */
   | { op: 'GRANT_KEYWORDS'; keywords: KeywordInstance[]; to: 'SELF' | 'OTHERS_HERE' }
   /**

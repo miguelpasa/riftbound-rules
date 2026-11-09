@@ -2221,6 +2221,14 @@ export function runEffects(
         if (me) moveToBase(state, me, out);
         break;
       }
+      case 'GRANT_TEMPORARY_SELF': {
+        const me = state.objects[sourceObjectId];
+        if (!me) break;
+        me.temporaryOf = me.enteredTurn ?? state.turn.number;
+        if (me.enteredTurn === undefined) me.enteredTurn = state.turn.number;
+        out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: me.id });
+        break;
+      }
       case 'DOUBLE_MIGHT_SELF': {
         const me = state.objects[sourceObjectId];
         if (!me) break;

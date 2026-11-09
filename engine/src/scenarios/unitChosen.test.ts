@@ -243,3 +243,30 @@ describe('scenario: "If this kills it" (Disintegrate)', () => {
     expect(run('fx-tide-grunt', 4).drew).toBe(0); // 7 Might, survives
   });
 });
+
+describe('scenario: "give me [Temporary]" when played off-turn (Momentary Companion)', () => {
+  const text = "When you play me, if it's not your turn, give me [Temporary].";
+
+  it("reads as a play trigger gated on it not being your turn", () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
+      on: 'PLAY',
+      effects: [{ op: 'GRANT_TEMPORARY_SELF' }],
+      when: { kind: 'YOUR_TURN', not: true },
+    });
+  });
+
+  it('marks the unit Temporary, so it is killed at the start of its next Beginning Phase', () => {
+    // Tests Rule 583: a triggered ability resolves its effects
+    const trig = parseCardAbilities(text)?.triggers ?? [];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': { ...base('fx-grunt'), triggers: trig },
+    };
+    const sc = Scenario.start({}, cards);
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    const s = structuredClone(sc.state);
+    runEffects(s, 'p0', trig[0]?.effects ?? [], cards, [], 'fx-grunt', mine);
+    expect(s.objects[mine]?.temporaryOf).toBeDefined();
+  });
+});

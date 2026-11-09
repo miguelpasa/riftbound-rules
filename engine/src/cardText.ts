@@ -234,6 +234,7 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
     return [{ op: 'DOUBLE_MIGHT_SELF', duration: 'COMBAT' }];
   }
   if (/^Double my Might this turn$/i.test(sen)) return [{ op: 'DOUBLE_MIGHT_SELF' }];
+  if (/^Give me (?:\[Temporary\]|Temporary)$/i.test(sen)) return [{ op: 'GRANT_TEMPORARY_SELF' }];
   if (/^Move me to your base$/i.test(sen)) return [{ op: 'MOVE_SELF_BASE' }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
@@ -3458,6 +3459,8 @@ export function parseCardAbilities(
     // R71: gear says "When you play this" where units say "When you play me".
     .replace(/\bWhen you play this\b/gi, 'When you play me')
     .replace(/\[Stun\]/gi, 'Stun')
+    // "give me [Temporary]" is an effect, not the keyword line (it would be stripped below).
+    .replace(/\bgive me \[Temporary\]/gi, 'give me Temporary')
     .replace(/\[Reaction\],\s*(?=\[Legion\])/gi, 'REACTION ')
     .replace(
       /\[(Reaction|Action)\]\s*(?:\[>\]|[—–-])\s*/gi,
