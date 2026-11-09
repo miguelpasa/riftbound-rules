@@ -74,3 +74,39 @@ describe('parser: Legend player triggers (R101)', () => {
     });
   });
 });
+
+describe('scenario: Legend "When you conquer, if you have 4+ units at that battlefield" (Might of Demacia)', () => {
+  const text = 'When you conquer, if you have 4+ units at that battlefield, draw 2.';
+
+  it('reads the condition as a count at the scored battlefield', () => {
+    // Tests Rule 303: parsed text
+    expect(parseCardAbilities(text, { legend: true })?.triggers[0]).toMatchObject({
+      on: 'CONQUER',
+      effects: [{ op: 'DRAW', amount: 2 }],
+      when: { kind: 'COUNT', what: 'unit', where: 'scored', who: 'friendly', cmp: 'GTE', n: 4 },
+    });
+  });
+
+  it("counts the units at the battlefield that was scored, not the Legend's own location", () => {
+    // Tests Rule 473: a Hold scores one battlefield; the count is of the units standing there
+    const trig: CardTrigger = {
+      on: 'HOLD',
+      effects: [{ op: 'DRAW', amount: 1 }],
+      when: { kind: 'COUNT', what: 'unit', where: 'scored', who: 'friendly', cmp: 'GTE', n: 2 },
+    };
+    const run = (units: number, inBase = 0): number => {
+      const sc = Scenario.start({}, legendWith(trig));
+      sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+      for (let i = 1; i < units; i++) sc.putUnit('p0', 'fx-archer', 'bf1');
+      for (let i = 0; i < inBase; i++) sc.putUnit('p0', 'fx-ash-tank', 'base');
+      const hand = sc.player('p0').hand.length;
+      sc.endTurn('p0');
+      sc.endTurn('p1');
+      settle(sc);
+      return sc.player('p0').hand.length - hand;
+    };
+    const lone = run(1);
+    expect(run(2)).toBe(lone + 1);
+    expect(run(1, 3)).toBe(lone); // units in the Base do not count
+  });
+});

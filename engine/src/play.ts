@@ -370,7 +370,10 @@ export const playResolver: ChainResolver = (state, item, cards) => {
   if (obj && item.kind === 'ABILITY' && item.triggerIndex !== undefined) {
     const trig = cards[obj.cardId]?.triggers?.[item.triggerIndex];
     // R43: the general condition is checked again as the ability resolves.
-    if (trig && (!trig.when || evalCondition(s, cards, trig.when, item.controller, obj.id))) {
+    if (
+      trig &&
+      (!trig.when || evalCondition(s, cards, trig.when, item.controller, obj.id, item.triggerAt))
+    ) {
       runTrigger(s, cards, item, trig, obj.cardId, obj.id, events);
     }
     return { state: s, events };

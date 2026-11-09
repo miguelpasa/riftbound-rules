@@ -42,6 +42,8 @@ export interface ChainItem {
   triggered?: boolean;
   /** For triggered ABILITY items: index into the source card's `triggers`. */
   triggerIndex?: number;
+  /** The battlefield a scoring trigger is about, kept for a condition that reads "at that battlefield" (set only then). */
+  triggerAt?: string;
   /** For ABILITY items: index into the source's abilities. */
   abilityIndex?: number;
   /** For ABILITY items from ACTIVATE_ABILITY: index into the source card's `abilities`. */

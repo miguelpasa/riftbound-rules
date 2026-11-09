@@ -225,6 +225,8 @@ export function evalCondition(
   cond: Condition,
   controller: PlayerId,
   sourceId: string,
+  /** The battlefield a scoring trigger is about (read by `where: 'scored'`). */
+  at?: string,
 ): boolean {
   switch (cond.kind) {
     case 'AT_BATTLEFIELD':
@@ -436,8 +438,8 @@ export function evalCondition(
       if (cond.where === 'runeDeck') {
         return compare(state.players[playerIndex(side)].runeDeck.length, cond.cmp, cond.n);
       }
-      const here = hereOfSource(state, sourceId);
-      if (cond.where === 'here' && here === null) return false;
+      const here = cond.where === 'scored' ? (at ?? null) : hereOfSource(state, sourceId);
+      if ((cond.where === 'here' || cond.where === 'scored') && here === null) return false;
       let count = 0;
       for (const o of Object.values(state.objects)) {
         if (o.controller !== side || (cond.other === true && o.id === sourceId)) continue;
@@ -459,7 +461,7 @@ export function evalCondition(
         if (!kindOk) continue;
         const z = o.zone;
         const placed =
-          cond.where === 'here'
+          cond.where === 'here' || cond.where === 'scored'
             ? z.kind === 'battlefield' && z.battlefieldId === here
             : cond.where === 'base'
               ? z.kind === 'base'

@@ -63,6 +63,8 @@ interface Pending {
   controller: PlayerId;
   /** The unit the event is about ("When a friendly unit attacks alone, give IT ..."): preset as the ability's target. */
   subject?: string;
+  /** The scored battlefield, kept only for a condition that reads it ("at that battlefield"). */
+  at?: string;
   /** The source token has left the game (Bomb): its card id is read from the Chain item's `sourceCardId`. */
   ghost?: boolean;
 }
@@ -103,6 +105,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
   let facedownPlay = false;
   let diedAlone: boolean | undefined;
   let diedMighty = false;
+  /** The battlefield of the BATTLEFIELD_SCORED event being collected ("at that battlefield"). */
+  let scoredAt: string | undefined;
   const batchSeen = new Set<string>();
   /** R71: "once each turn" triggers already collected in this pass (object id + index). */
   const onceSeen = new Set<string>();
@@ -134,7 +138,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         if (!diedMighty) return;
       } else if (t.when?.kind === 'DIED_ALONE') {
         if ((diedAlone === true) === (t.when.not === true)) return;
-      } else if (t.when && !evalCondition(state, cards, t.when, controller, obj.id)) return;
+      } else if (t.when && !evalCondition(state, cards, t.when, controller, obj.id, scoredAt))
+        return;
       out.push({
         sourceId: obj.id,
         cardId: obj.cardId,
@@ -142,6 +147,9 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         index,
         controller,
         ...(subject !== undefined ? { subject } : {}),
+        ...(scoredAt !== undefined && t.when?.kind === 'COUNT' && t.when.where === 'scored'
+          ? { at: scoredAt }
+          : {}),
       });
     });
   };
@@ -204,6 +212,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       }
     } else if (e.type === 'BATTLEFIELD_SCORED') {
       addBattlefield(e.battlefieldId, e.method, e.player);
+      scoredAt = e.battlefieldId;
       for (const o of Object.values(state.objects)) {
         if (
           o.controller === e.player &&
@@ -223,6 +232,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       for (const l of Object.values(state.objects)) {
         if (l.controller === e.player && l.zone.kind === 'legend') add(l, e.method, e.player);
       }
+      scoredAt = undefined;
     } else if (e.type === 'UNIT_MOVED') {
       // MOVE (R43): "When I move" fires for a unit that arrived at a battlefield. Moves to the Base
       // are not reported as moves here because recall and combat retreats share the event (UNCLEAR).
@@ -588,6 +598,7 @@ export function fireTriggers(
       triggered: true,
       triggerIndex: p.index,
       ...(p.ghost ? { sourceCardId: p.cardId } : {}),
+      ...(p.at !== undefined ? { triggerAt: p.at } : {}),
     };
     s.flow.chain.push(item);
     added++;

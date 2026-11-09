@@ -3275,6 +3275,18 @@ export function parseCondition(raw: string): Condition | null {
   ) {
     return { kind: 'COUNT', what: 'unit', where: 'here', who: 'enemy', cmp: 'EQ', n: 1 };
   }
+  // "you have 4+ units at that battlefield" (Might of Demacia): the battlefield that was scored.
+  const sc = /^you (?:have|control) (\d+)(?:\+| or more) units? at that battlefield$/i.exec(text);
+  if (sc) {
+    return {
+      kind: 'COUNT',
+      what: 'unit',
+      where: 'scored',
+      who: 'friendly',
+      cmp: 'GTE',
+      n: Number(sc[1]),
+    };
+  }
   let m = new RegExp(
     `^there is (exactly|at least) ${NUM} (other )?(units?|gear) you control here$`,
     'i',

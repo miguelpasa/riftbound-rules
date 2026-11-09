@@ -879,7 +879,8 @@ export type Condition =
   | {
       kind: 'COUNT';
       what: 'unit' | 'gear' | 'unitOrGear' | 'rune' | 'card';
-      where: 'here' | 'base' | 'board' | 'hand' | 'runeDeck';
+      /** `scored`: the battlefield a conquer / hold trigger is about ("at that battlefield"). */
+      where: 'here' | 'scored' | 'base' | 'board' | 'hand' | 'runeDeck';
       who: 'friendly' | 'enemy';
       other?: boolean;
       /** Only ready units count ("a ready enemy unit here"). */
