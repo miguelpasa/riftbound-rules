@@ -138,14 +138,19 @@ export function effectiveMight(
   if (!o) return 0;
   const def = defWithGrants(state, cards, o);
   const role = ctx && 'role' in ctx ? (ctx.role ?? null) : roleOf(state, o);
-  return (
+  const sb = staticBonus(state, cards, o);
+  const total =
     baseMight(def, o) +
     o.mightBonus +
     keywordBonus(def, role) +
-    staticBonus(state, cards, o).might +
+    sb.might +
     (o.buffed ? 1 : 0) +
-    attachedMightBonus(state, cards, unitId)
-  );
+    attachedMightBonus(state, cards, unitId);
+  // "... to a minimum of N [M]": a static reduction never takes the unit below N (or below where it already was).
+  if (sb.minMight !== undefined && sb.might < 0) {
+    return Math.max(total, Math.min(total - sb.might, sb.minMight));
+  }
+  return total;
 }
 
 function sideTotal(state: GameState, cards: CardDatabase, bfId: string, player: PlayerId): number {

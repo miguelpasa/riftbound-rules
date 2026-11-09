@@ -11,6 +11,7 @@
  * the permanent enters.
  */
 import { playerIndex } from './types/constants.js';
+import { baseMight } from './baseMight.js';
 import { isUnitDef } from './tokens.js';
 import { hereOfSource } from './sources.js';
 import { effectiveMight } from './combat.js';
@@ -256,6 +257,13 @@ export function evalCondition(
     case 'MOVES_AT_LEAST': {
       const mv = state.objects[sourceId]?.moves;
       return mv !== undefined && mv.turn === state.turn.number && mv.n >= cond.n;
+    }
+    case 'MIGHTY': {
+      const me = state.objects[sourceId];
+      return (
+        me !== undefined &&
+        baseMight(cards[me.cardId], me) + me.mightBonus + (me.buffed ? 1 : 0) >= 5
+      );
     }
     case 'NOT_IN_HAND':
       return state.objects[sourceId]?.zone.kind !== 'hand';

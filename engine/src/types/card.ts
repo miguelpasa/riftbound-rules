@@ -729,6 +729,12 @@ export interface StaticAbility {
   doubleDeathknell?: boolean;
   /** Only buffed units are affected ("Friendly buffed units have [Deflect]"). */
   onlyBuffed?: boolean;
+  /** Only stunned units are affected (Leona). */
+  onlyStunned?: boolean;
+  /** Only a unit that is defending alone in the current combat (Wuju Bladesman). */
+  onlyDefendingAlone?: boolean;
+  /** "... to a minimum of N [M]": the affected unit's Might is not reduced below this by the static. */
+  minMight?: number;
   /** R88: the affected units (or tokens) enter ready ("Your tokens enter ready"). */
   entersReady?: boolean;
   /** R74: the restriction (or grant) does NOT apply while this condition holds ("... unless <condition>"). */
@@ -785,6 +791,8 @@ export type Condition =
   | { kind: 'EMPOWERED' }
   /** R54: the source carries a Buff ("While I'm buffed"). */
   | { kind: 'BUFFED' }
+  /** "While I'm [Mighty]": the source has Might 5 or more (its own bonuses, not other statics, to stay finite). */
+  | { kind: 'MIGHTY' }
   /** "I cost [N] less to play from anywhere other than your hand": the source is being played from another zone. */
   | { kind: 'NOT_IN_HAND' }
   /** "If I have moved twice this turn": the source has moved to a battlefield at least `n` times this turn. */

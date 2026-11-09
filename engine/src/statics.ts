@@ -120,6 +120,7 @@ function applies(
   }
   if (s.onlyToken && targetDef.type !== 'TOKEN') return false;
   if (s.onlyBuffed && target.buffed !== true) return false;
+  if (s.onlyStunned && target.stunned !== true) return false;
   if (s.lessMight && (!mights || mights.target >= mights.source)) return false;
   switch (s.affects) {
     case 'OTHER_FRIENDLY_UNITS':
@@ -170,6 +171,8 @@ export interface StaticBonus {
   noEnemyEffectDamage?: boolean;
   /** The unit takes no damage at all (Kayn after two moves). */
   noDamage?: boolean;
+  /** The lowest Might that a negative static Might (Leona) may leave the unit with. */
+  minMight?: number;
   /** X7: a standing death replacement applies to the unit (first applicable source). */
   replaceDeath?: { sourceId: string; killSource: boolean };
 }
@@ -200,6 +203,7 @@ export function staticBonus(
   let noEnemyChoose = false;
   let noEnemyEffectDamage = false;
   let noDamage = false;
+  let minMight: number | undefined;
   let entersReady = false;
   let replaceDeath: StaticBonus['replaceDeath'];
   const mightOfObj = (o: CardInstance | undefined): number =>
@@ -216,6 +220,7 @@ export function staticBonus(
         ? { source: mightOfObj(state.objects[sourceId]), target: mightOfObj(target) }
         : undefined;
       if (!applies(s, sourceId, controller, here, target, targetDef, mights)) continue;
+      if (s.onlyDefendingAlone && !isDefendingAlone(state, cards, target)) continue;
       if (s.when && !when(s.when)) continue;
       if (s.unless && when(s.unless)) continue;
       if (s.per) {
@@ -231,6 +236,7 @@ export function staticBonus(
       if (s.restrict === 'NO_ENEMY_CHOOSE') noEnemyChoose = true;
       if (s.restrict === 'NO_ENEMY_EFFECT_DAMAGE') noEnemyEffectDamage = true;
       if (s.restrict === 'NO_DAMAGE') noDamage = true;
+      if (s.minMight !== undefined) minMight = Math.max(minMight ?? 0, s.minMight);
       if (s.entersReady) entersReady = true;
       if (s.replaceDeath && !s.replaceDeath.offer && !replaceDeath) {
         replaceDeath = { sourceId, killSource: s.replaceDeath.killSource === true };
@@ -259,6 +265,7 @@ export function staticBonus(
     !noEnemyChoose &&
     !noEnemyEffectDamage &&
     !noDamage &&
+    minMight === undefined &&
     !entersReady &&
     !replaceDeath
     ? NONE
@@ -270,6 +277,7 @@ export function staticBonus(
         ...(noEnemyChoose ? { noEnemyChoose } : {}),
         ...(noEnemyEffectDamage ? { noEnemyEffectDamage } : {}),
         ...(noDamage ? { noDamage } : {}),
+        ...(minMight !== undefined ? { minMight } : {}),
         ...(entersReady ? { entersReady } : {}),
         ...(replaceDeath ? { replaceDeath } : {}),
       };
@@ -375,4 +383,19 @@ export function bonusDamageTo(
     }
   }
   return n;
+}
+
+/** Wuju Bladesman: is `target` the only unit its controller has in the combat it is defending? */
+function isDefendingAlone(state: GameState, cards: CardDatabase, target: CardInstance): boolean {
+  const c = state.flow.combat;
+  const at = targetBattlefield(target);
+  if (!c || c.defender !== target.controller || at !== c.battlefieldId) return false;
+  return (
+    Object.values(state.objects).filter(
+      (o) =>
+        o.controller === target.controller &&
+        targetBattlefield(o) === at &&
+        isUnit(cards[o.cardId] as CardDef),
+    ).length === 1
+  );
 }

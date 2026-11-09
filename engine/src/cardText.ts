@@ -1705,6 +1705,19 @@ function parseDeathReplaceStatic(body: string): StaticAbility | null {
     const when = parseCondition(pd[1] ?? '');
     return when ? { affects: 'SELF', restrict: 'NO_ENEMY_EFFECT_DAMAGE', when } : null;
   }
+  const lc = /^Stunned enemy units here have -(\d+) \[M\], to a minimum of (\d+) \[M\]$/i.exec(
+    body,
+  );
+  if (lc) {
+    return {
+      affects: 'ENEMY_UNITS_HERE',
+      onlyStunned: true,
+      might: -Number(lc[1]),
+      minMight: Number(lc[2]),
+    };
+  }
+  const wj = /^While a friendly unit defends alone, it gets \+(\d+) \[M\]$/i.exec(body);
+  if (wj) return { affects: 'FRIENDLY_UNITS', onlyDefendingAlone: true, might: Number(wj[1]) };
   const bd =
     /^(Your spells and abilities|Spells and abilities) deal (\d+) Bonus Damage(?: to units here)?$/i.exec(
       body,
@@ -1749,7 +1762,7 @@ const STATIC_RESTRICT = [
   [/^(Units) can['’]t move from here to base$/i, 'UNITS_HERE'],
 ] as const;
 const STATIC_AFF =
-  '(I|Your gear|Your token units|Friendly units here|Friendly buffed units|Other friendly units|Friendly units|Your units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
+  '(I|Other buffed friendly units at my battlefield|Your gear|Your token units|Friendly units here|Friendly buffed units|Other friendly units|Friendly units|Your units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
 
 function staticAffects(
   raw: string,
@@ -1769,6 +1782,8 @@ function staticAffects(
   if (w === 'your gear') return { affects: 'FRIENDLY_GEAR' };
   if (w === 'your token units') return { affects: 'FRIENDLY_UNITS', onlyToken: true };
   if (w === 'friendly units here') return { affects: 'FRIENDLY_UNITS_HERE' };
+  if (w === 'other buffed friendly units at my battlefield')
+    return { affects: 'OTHER_FRIENDLY_HERE', onlyBuffed: true };
   if (w === 'friendly buffed units') return { affects: 'FRIENDLY_UNITS', onlyBuffed: true };
   if (w === 'other friendly units') return { affects: 'OTHER_FRIENDLY_UNITS' };
   if (w === 'friendly units' || w === 'your units') return { affects: 'FRIENDLY_UNITS' };
@@ -2499,6 +2514,7 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
+  if (/^I['’]m \[Mighty\]$/i.test(text)) return { kind: 'MIGHTY' };
   if (/^I am not in your hand$/i.test(text)) return { kind: 'NOT_IN_HAND' };
   if (/^I have moved twice this turn$/i.test(text)) return { kind: 'MOVES_AT_LEAST', n: 2 };
   if (/^an opponent controls a battlefield$/i.test(text)) {
