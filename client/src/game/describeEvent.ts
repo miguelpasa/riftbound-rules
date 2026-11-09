@@ -216,6 +216,7 @@ export function describeEvent(
         RETURN: 'returned to hand',
         RECYCLE: 'recycled from their Trash:',
         SPEND_BUFF: 'spent the buff of',
+        REVEAL: 'showed off',
       }[event.kind];
       const names = event.cardNames.join(' and ') || 'cards';
       return `${who(event.player, view)} ${verb} ${names} to pay for ${objectName(event.sourceId, view, cards, 'an ability')}.`;

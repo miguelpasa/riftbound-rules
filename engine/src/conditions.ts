@@ -193,6 +193,10 @@ export function evalCondition(
     }
     case 'FROM_FACEDOWN':
       return true; // decided by the triggering CARD_PLAYED event (triggers.ts)
+    case 'SHOWED_OFF':
+      return state.objects[sourceId]?.showedOff !== undefined;
+    case 'NOT':
+      return !evalCondition(state, cards, cond.cond, controller, sourceId);
     case 'PLAYED_FROM': {
       const how = state.objects[sourceId]?.playedHow;
       return cond.from === 'FACEDOWN' ? how === 'FACEDOWN' : how === undefined;

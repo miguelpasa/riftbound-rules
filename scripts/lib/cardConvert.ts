@@ -22,6 +22,7 @@ import { DOMAINS, MVP_KEYWORDS } from '../../engine/src/types/card';
 import type {
   CardDef,
   CardType,
+  CostCardChoice,
   Domain,
   EquipCost,
   KeywordInstance,
@@ -148,6 +149,30 @@ function takeSpellFlags(text: string): {
     ignoreDeflect,
     rest: text.replace(counter, '').replace(deflect, '').replace(/^\n+/, ''),
   };
+}
+
+/** "[Show Off] a Mech." / "a card with [Hidden]" / "a card with Energy cost [7] or more": the reveal as an optional additional cost. */
+function takeShowOff(text: string): { cost: CostCardChoice; rest: string } | null {
+  const re = /(?:^|\n)[ \t]*\[Show Off\][ \t]+an? ([^.\n(]+?)\.?[ \t]*(?:\([^)\n]*\)[ \t]*)?(?=\n|$)/i;
+  const m = re.exec(text);
+  if (!m) return null;
+  const what = (m[1] ?? '').trim();
+  const cost: CostCardChoice = { kind: 'REVEAL' };
+  const energy = /^card with Energy cost \[(\d+)\] or more$/i.exec(what);
+  if (/^card$/i.test(what)) {
+    // any card
+  } else if (/^card with \[Hidden\]$/i.test(what)) {
+    cost.hidden = true;
+  } else if (energy) {
+    cost.minEnergy = Number(energy[1]);
+  } else if (/^(unit|gear|spell)$/i.test(what)) {
+    cost.what = what.toLowerCase() as 'unit' | 'gear' | 'spell';
+  } else if (/^[A-Za-z]+$/.test(what)) {
+    cost.subtype = what;
+  } else {
+    return null;
+  }
+  return { cost, rest: text.replace(re, '\n').replace(/^\n+/, '') };
 }
 
 export function normalizeText(raw: string | null | undefined): string {
@@ -292,7 +317,9 @@ export function convertRow(row: RawRow): ConvertResult {
   // on the card (only when the rest of the card turns out fully supported, see below).
   // "This can't be countered." / "Ignore [Deflect] while paying this spell's cost." are flags of the card.
   const spellFlags = type === 'SPELL' ? takeSpellFlags(fullText) : null;
-  const baseText = spellFlags ? spellFlags.rest : fullText;
+  const flagged = spellFlags ? spellFlags.rest : fullText;
+  const showOff = type === 'UNIT' || type === 'SPELL' ? takeShowOff(flagged) : null;
+  const baseText = showOff ? showOff.rest : flagged;
   const additional =
     type === 'UNIT' || type === 'SPELL' || type === 'GEAR' ? parseAdditionalCost(baseText) : null;
   const afterAdditionalCost = additional ? additional.rest : baseText;
@@ -448,6 +475,9 @@ export function convertRow(row: RawRow): ConvertResult {
   if (playToLine && card.supportLevel === 'full') card.playTo = playToLine.playTo;
   // R61: likewise the Flow cost.
   if (flowLine && card.supportLevel === 'full') card.flowCost = flowLine.cost;
+  if (showOff && card.supportLevel === 'full') {
+    card.optionalAdditionalCost = { energy: 0, card: showOff.cost };
+  }
   if (spellFlags && card.supportLevel === 'full') {
     if (spellFlags.uncounterable) card.uncounterable = true;
     if (spellFlags.ignoreDeflect) card.ignoreDeflect = true;

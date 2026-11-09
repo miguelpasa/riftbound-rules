@@ -12,12 +12,15 @@
       "required": ["kind"],
       "additionalProperties": false,
       "properties": {
-        "kind": { "enum": ["DISCARD", "KILL", "EXHAUST", "RETURN", "RECYCLE", "SPEND_BUFF"] },
+        "kind": { "enum": ["DISCARD", "KILL", "EXHAUST", "RETURN", "RECYCLE", "SPEND_BUFF", "REVEAL"] },
         "count": { "type": "integer", "minimum": 2 },
         "what": { "enum": ["unit", "gear", "unitOrGear", "spell"] },
         "here": { "type": "boolean" },
         "another": { "type": "boolean" },
-        "mighty": { "type": "boolean" }
+        "mighty": { "type": "boolean" },
+        "hidden": { "type": "boolean" },
+        "minEnergy": { "type": "integer", "minimum": 0 },
+        "subtype": { "type": "string" }
       }
     }
   },

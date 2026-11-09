@@ -406,6 +406,7 @@ export const playResolver: ChainResolver = (state, item, cards) => {
           cards,
           liveTargets(s, item),
           obj.cardId,
+          obj.id,
         ),
       );
     }
@@ -627,6 +628,7 @@ export function playCard(
   const work = paid.state;
   const events: GameEventInput[] = [];
   const obj = work.objects[src.id] as CardInstance;
+  delete obj.showedOff; // a new play starts without a Show Off from an earlier one
   // The additional cost is paid with the rest of the cost (357), before the card moves to the Chain.
   if (costCard && intent.costCards) {
     events.push(...payCostCards(work, cards, pid, src.id, costCard, intent.costCards));

@@ -68,6 +68,10 @@ export function costCardText(cc: CostCardChoice): string {
       return `Recycle ${n} ${noun(what)} from your Trash`;
     case 'SPEND_BUFF':
       return n === 1 ? 'Spend a buff' : `Spend ${n} buffs`;
+    case 'REVEAL':
+      return `Show off ${lead} ${cc.subtype ?? ''}${cc.hidden ? ' card with Hidden' : ' ' + noun(what)}`
+        .replace(/\s+/g, ' ')
+        .trim();
   }
 }
 
@@ -92,12 +96,17 @@ function qualifies(
 ): boolean {
   const def = cards[o.cardId];
   if (!def) return false;
-  if (cc.kind === 'DISCARD' || cc.kind === 'RECYCLE') {
+  if (cc.kind === 'DISCARD' || cc.kind === 'RECYCLE' || cc.kind === 'REVEAL') {
     const want = typeOfWhat(cc.what);
-    const zone = cc.kind === 'DISCARD' ? 'hand' : 'trash';
+    const zone = cc.kind === 'RECYCLE' ? 'trash' : 'hand';
     if (o.zone.kind !== zone || o.owner !== player) return false;
     // R47: the card being played (still in hand) cannot pay its own additional cost.
     if (o.id === sourceId) return false;
+    if (cc.hidden && !def.keywords.some((k) => k.name === 'Hidden')) return false;
+    if (cc.minEnergy !== undefined && def.cost.energy < cc.minEnergy) return false;
+    if (cc.subtype && !def.subtypes.some((s) => s.toLowerCase() === cc.subtype?.toLowerCase())) {
+      return false;
+    }
     return want === undefined || def.type === want;
   }
   if ((o.zone.kind !== 'base' && o.zone.kind !== 'battlefield') || o.controller !== player) {
@@ -234,6 +243,11 @@ export function payCostCards(
       case 'SPEND_BUFF':
         delete o.buffed;
         break;
+      case 'REVEAL': {
+        const played = state.objects[sourceId];
+        if (played) played.showedOff = id;
+        break;
+      }
       case 'RETURN':
         returnToHand(state, o, out);
         break;

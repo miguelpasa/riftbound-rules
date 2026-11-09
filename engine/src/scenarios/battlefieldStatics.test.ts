@@ -10,7 +10,7 @@ import { scoreBattlefield } from '../scoring.js';
 import { endCombatGrants, expireTurnEffects, runEffects } from '../effects.js';
 import { effectiveMight } from '../combat.js';
 import { reduce } from '../reducer.js';
-import type { CardDatabase, CardDef } from '../types/index.js';
+import type { CardDatabase, CardDef, CardEffect } from '../types/index.js';
 
 const base = (id: string): CardDef => SCENARIO_CARDS[id] as CardDef;
 const statics = (text: string) => parseStaticLines(text)?.statics ?? [];
@@ -318,5 +318,63 @@ describe('scenario: a sentence with its own condition (Back Off)', () => {
     const mine = t.players[0]?.hand.length ?? 0;
     runEffects(t, 'p0', effects, sc.cards); // p0's own turn: nothing
     expect(t.players[0]?.hand.length).toBe(mine);
+  });
+});
+
+describe('scenario: Show Off (Battle Preparations)', () => {
+  const effects = parseSpellText(
+    'Give a unit +2 [M] this turn. If you showed off, ready up to 2 runes.',
+  ) as CardEffect[];
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-flare': {
+      ...base('fx-flare'),
+      supportLevel: 'full',
+      effects,
+      optionalAdditionalCost: { energy: 0, card: { kind: 'REVEAL', what: 'gear' } },
+    },
+  };
+
+  const play = (reveal: boolean) => {
+    // Tests Rule 357: additional costs are paid as the card is played
+    const sc = Scenario.start({}, cards);
+    const unit = sc.putUnit('p0', 'fx-ash-tank', 'bf1');
+    const gear = sc.putInHand('p0', 'fx-blade');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const r = reduce(sc.state, cards, {
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: flare,
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: unit }],
+      ...(reveal ? { additionalCosts: { extra: true }, costCards: [gear] } : {}),
+    });
+    return { sc, r, gear, flare };
+  };
+
+  it('keeps the revealed card in hand and remembers that you showed off', () => {
+    // Tests Rule 357: additional costs are paid as the card is played
+    const { r, gear, flare } = play(true);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.objects[gear]?.zone.kind).toBe('hand');
+    expect(r.state.objects[flare]?.showedOff).toBe(gear);
+  });
+
+  it('readies runes only when you showed off', () => {
+    // Tests Rule 357: additional costs are paid as the card is played
+    const settle = (sc: Scenario, st: Scenario['state']) => {
+      sc.state = st;
+      for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+        sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+      }
+      return sc.runes('p0').filter((x) => x.ready).length;
+    };
+    const a = play(true);
+    const b = play(false);
+    if (!a.r.ok || !b.r.ok) throw new Error('play rejected');
+    const ra = settle(a.sc, a.r.state);
+    const rb = settle(b.sc, b.r.state);
+    expect(ra).toBeGreaterThan(rb);
   });
 });

@@ -878,6 +878,10 @@ export type Condition =
   | { kind: 'OTHER_UNITS_MIGHT'; n: number }
   /** R100: this card was just played from face down (read from the triggering CARD_PLAYED event). */
   | { kind: 'FROM_FACEDOWN' }
+  /** "If you showed off": a Show Off card was revealed as this card was played. */
+  | { kind: 'SHOWED_OFF' }
+  /** The condition does NOT hold. */
+  | { kind: 'NOT'; cond: Condition }
   /** "If you played this from your hand / from face down": read from the spell's own Chain item. */
   | { kind: 'PLAYED_FROM'; from: 'HAND' | 'FACEDOWN' }
   /** "If it's [not] your turn": the controller is [not] the turn player. */
@@ -936,7 +940,15 @@ export interface OptionalCost {
  *  - RETURN: friendly units / gear return to their owner's hand (tokens cease to exist).
  *  - RECYCLE: cards from the payer's Trash go to the bottom of their Main Deck.
  */
-export type CostCardKind = 'DISCARD' | 'KILL' | 'EXHAUST' | 'RETURN' | 'RECYCLE' | 'SPEND_BUFF';
+export type CostCardKind =
+  | 'DISCARD'
+  | 'KILL'
+  | 'EXHAUST'
+  | 'RETURN'
+  | 'RECYCLE'
+  | 'SPEND_BUFF'
+  /** Show Off: reveal a card from your hand (it stays there); the played card remembers that you showed off. */
+  | 'REVEAL';
 
 /**
  * X7 (575): an optional standing replacement for the death of an affected unit ("you may pay [C] ... to heal it,
@@ -969,6 +981,12 @@ export interface CostCardChoice {
   another?: boolean;
   /** R47: only [Mighty] units qualify ("kill a friendly [Mighty] unit": Might 5 or more). */
   mighty?: boolean;
+  /** REVEAL: only a card with [Hidden]. */
+  hidden?: boolean;
+  /** REVEAL: only a card with this Energy cost or more. */
+  minEnergy?: number;
+  /** REVEAL: only a card with this subtype / tag ("a Mech"). */
+  subtype?: string;
 }
 
 /** When a triggered ability fires (R5). */

@@ -2506,6 +2506,24 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       continue;
     }
     if (attachInstead(list[i] as string, out)) continue;
+    // "If <condition>, <effect> instead": replaces the effect just before it (both carry the condition or its negation).
+    const ins = /^If (.+?), (.+) instead$/i.exec(list[i] as string);
+    const insCond = ins ? parseCondition(ins[1] as string) : null;
+    const insPrev = out[out.length - 1];
+    if (ins && insCond && insPrev && !insPrev.when) {
+      const tmp: CardEffect[] = [];
+      const slotsBefore = st.slots.length;
+      if (parseSpellSentence(ins[2] as string, st, tmp) && tmp.length === 1) {
+        const rep = tmp[0] as CardEffect;
+        if (rep.op === insPrev.op) {
+          insPrev.when = { kind: 'NOT', cond: insCond };
+          rep.when = insCond;
+          out.push(rep);
+          continue;
+        }
+      }
+      st.slots.length = slotsBefore;
+    }
     const look = parseLookSequence(list, i);
     if (look) {
       out.push(look.effect);
@@ -2759,6 +2777,7 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/[.\s]+$/, '')
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
+  if (/^you showed off$/i.test(text)) return { kind: 'SHOWED_OFF' };
   if (/^you played this from your hand$/i.test(text)) return { kind: 'PLAYED_FROM', from: 'HAND' };
   if (/^you played this from face down$/i.test(text)) {
     return { kind: 'PLAYED_FROM', from: 'FACEDOWN' };

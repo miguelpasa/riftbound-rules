@@ -91,6 +91,8 @@ export interface CardInstance {
    * still matches, so a card that left and came back is no longer Temporary.
    */
   temporaryOf?: number;
+  /** Show Off: the hand card revealed as this card was played. */
+  showedOff?: string;
   /** How a spell was played when not from the hand ("if you played this from your hand"); absent = from the hand. */
   playedHow?: 'FACEDOWN' | 'ELSEWHERE';
   /** R100: set while a facedown Hidden card is being played, so its CARD_PLAYED says "from face down". */
