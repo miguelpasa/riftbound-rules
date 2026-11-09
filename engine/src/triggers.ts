@@ -201,7 +201,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         o.zone.battlefieldId === e.to &&
         cards[o.cardId]?.type === 'UNIT'
       ) {
-        add(o, 'MOVE', o.controller);
+        add(o, 'MOVE', o.controller, (t) => t.moveNth === undefined || o.moves?.n === t.moveNth);
       }
       // R108: leaving a battlefield (to the Base or another battlefield).
       if (
@@ -213,6 +213,10 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       ) {
         add(o, 'MOVE_FROM', o.controller);
       }
+    } else if (e.type === 'GEAR_KILLED') {
+      // "When this leaves the board" / "... or killed": a killed gear (not a token, which ceases to exist).
+      const o = state.objects[e.gearId];
+      if (o && o.zone.kind === 'trash') add(o, 'GEAR_LEAVES', o.owner);
     } else if (e.type === 'UNIT_KILLED') {
       const o = state.objects[e.unitId];
       if (o && o.zone.kind === 'trash') {

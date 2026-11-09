@@ -7,6 +7,7 @@
  * them. `targetRequirements` derives the slots a spell needs, `spellTargetsLegal` validates a
  * choice (play.ts) and `enumerateSpellTargets` lists choices for `getLegalActions` (capped).
  */
+import { countMove } from './moveCount.js';
 import { applyDamageMods } from './damageMod.js';
 import { fork } from './workingCopy.js';
 import { burnOutIfEmpty, drawWithBurnOut } from './burnout.js';
@@ -623,12 +624,19 @@ function moveToBase(state: GameState, o: CardInstance, out: GameEventInput[]): v
 }
 
 /** R79: move a unit from wherever it stands to battlefield `dest` (an effect move, not a standard move). Mutates. */
-function moveHere(state: GameState, o: CardInstance, dest: string, out: GameEventInput[]): void {
+function moveHere(
+  state: GameState,
+  cards: CardDatabase,
+  o: CardInstance,
+  dest: string,
+  out: GameEventInput[],
+): void {
   if (o.zone.kind === 'battlefield' && o.zone.battlefieldId === dest) return;
   const from = o.zone.kind === 'battlefield' ? o.zone.battlefieldId : 'base';
   const ps = state.players[playerIndex(o.controller)];
   ps.base = ps.base.filter((x) => x !== o.id);
   o.zone = { kind: 'battlefield', player: o.controller, battlefieldId: dest };
+  countMove(state, cards, o);
   out.push({ type: 'UNIT_MOVED', unitId: o.id, from, to: dest });
 }
 
@@ -1182,7 +1190,7 @@ export function runEffects(
               fizzle();
               break;
             }
-            moveHere(state, u, dest, out);
+            moveHere(state, cards, u, dest, out);
           } else if (e.op === 'BLINK_TARGET') {
             doneSlots.set(slot, u.owner);
             const was = u.zone;

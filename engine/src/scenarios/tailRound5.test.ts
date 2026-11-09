@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { Scenario, SCENARIO_CARDS } from '../testing/scenario.js';
 import { TOKEN_CARDS } from '../tokens.js';
 import { fireTriggers } from '../triggers.js';
+import { countMove } from '../moveCount.js';
+import { applyDamageMods } from '../damageMod.js';
 import { runEffects } from '../effects.js';
 import { staticBonus } from '../statics.js';
 import { parseCardAbilities, parseStaticLines } from '../cardText.js';
@@ -173,5 +175,111 @@ describe('scenario: "Deal N to all units at my battlefield" (Kog\'Maw Deathknell
       on: 'DEATH',
       effects: [{ op: 'DAMAGE_ALL', amount: 2, scope: 'here' }],
     });
+  });
+});
+
+describe('scenario: counting moves in a turn (Yasuo, Kayn)', () => {
+  const yasuo = parseCardAbilities('The third time I move in a turn, you score 1 point.');
+  const kayn = parseStaticLines("If I have moved twice this turn, I don't take damage.");
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-ganker': {
+      ...base('fx-ganker'),
+      triggers: yasuo?.triggers ?? [],
+      statics: kayn?.statics ?? [],
+    },
+  };
+
+  it('parses both cards', () => {
+    // Tests Rule 583.3: a triggered ability that fires on the n-th event of a turn
+    expect(yasuo?.triggers[0]).toMatchObject({ on: 'MOVE', moveNth: 3 });
+    expect(kayn?.statics[0]).toMatchObject({
+      restrict: 'NO_DAMAGE',
+      when: { kind: 'MOVES_AT_LEAST', n: 2 },
+    });
+  });
+
+  it('a standard move to a battlefield is counted on the unit', () => {
+    // Tests Rule 144: a standard move
+    const sc = Scenario.start({}, cards);
+    const u = sc.putUnit('p0', 'fx-ganker', 'base');
+    sc.do({
+      type: 'STANDARD_MOVE',
+      playerId: 'p0',
+      unitIds: [u],
+      destination: { kind: 'battlefield', battlefieldId: 'bf0' },
+    });
+    expect(sc.obj(u).moves).toEqual({ turn: sc.state.turn.number, n: 1 });
+  });
+
+  it('only the third move scores, and the count starts over each turn', () => {
+    // Tests Rule 583.3: "the third time I move in a turn"
+    const sc = Scenario.start({}, cards);
+    const u = sc.putUnit('p0', 'fx-ganker', 'bf0');
+    const moveEvent = (): GameEvent =>
+      ({ seq: 1, type: 'UNIT_MOVED', unitId: u, from: 'base', to: 'bf0' }) as GameEvent;
+    const fire = (): number => {
+      const s = structuredClone(sc.state);
+      countMove(s, sc.cards, s.objects[u] as CardInstance);
+      return fireTriggers(s, sc.cards, [moveEvent()]).state.flow.chain.length;
+    };
+    const s1 = structuredClone(sc.state);
+    countMove(s1, sc.cards, s1.objects[u] as CardInstance);
+    countMove(s1, sc.cards, s1.objects[u] as CardInstance);
+    expect(fireTriggers(s1, sc.cards, [moveEvent()]).state.flow.chain).toHaveLength(0);
+    countMove(s1, sc.cards, s1.objects[u] as CardInstance);
+    expect(fireTriggers(s1, sc.cards, [moveEvent()]).state.flow.chain).toHaveLength(1);
+    expect(fire()).toBe(0); // a single move this turn is not the third
+  });
+
+  it('takes no damage after two moves this turn, and normal damage before', () => {
+    // Tests Rule 583.3: a static ability with a "moved twice this turn" condition
+    const sc = Scenario.start({}, cards);
+    const u = sc.putUnit('p0', 'fx-ganker', 'bf0');
+    const s = structuredClone(sc.state);
+    const o = s.objects[u] as CardInstance;
+    expect(applyDamageMods(s, sc.cards, o, 2, { kind: 'COMBAT' })).toBe(2);
+    countMove(s, sc.cards, o);
+    expect(applyDamageMods(s, sc.cards, o, 2, { kind: 'COMBAT' })).toBe(2);
+    countMove(s, sc.cards, o);
+    expect(applyDamageMods(s, sc.cards, o, 2, { kind: 'COMBAT' })).toBe(0);
+    expect(applyDamageMods(s, sc.cards, o, 2, { kind: 'EFFECT', controller: 'p1' })).toBe(0);
+  });
+});
+
+describe('scenario: gear "When this leaves the board" (Treasure Trove, Scrapheap)', () => {
+  it('parses both heads', () => {
+    // Tests Rule 583.3: triggered abilities on a gear leaving the board
+    const tt = parseCardAbilities(
+      'When this leaves the board, draw 1 and channel 1 rune exhausted.',
+      { gearLike: true },
+    );
+    expect(tt?.triggers[0]).toMatchObject({ on: 'GEAR_LEAVES' });
+    const sp = parseCardAbilities('When this is played, discarded, or killed, draw 1.', {
+      gearLike: true,
+    });
+    expect(sp?.triggers.map((t) => t.on)).toEqual(['PLAY', 'DISCARD_SELF', 'GEAR_LEAVES']);
+  });
+
+  it('a killed gear draws its controller a card', () => {
+    // Tests Rule 583.3: the gear triggers from the Trash after being killed
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ember-totem': {
+        ...base('fx-ember-totem'),
+        triggers: [{ on: 'GEAR_LEAVES', effects: [{ op: 'DRAW', amount: 1 }] }],
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const before = sc.player('p0').hand.length;
+    const s = structuredClone(sc.state);
+    const out = runEffects(s, 'p0', [{ op: 'KILL_ALL_GEAR' }], sc.cards);
+    const events = out.map((e, i) => ({ ...e, seq: i + 1 }) as GameEvent);
+    sc.state = fireTriggers(s, sc.cards, events).state;
+    for (let k = 0; k < 6 && sc.state.flow.chain.length > 0; k++) {
+      sc.pass(sc.state.flow.priority as PlayerId);
+    }
+    expect(sc.player('p0').hand.length).toBe(before + 1);
   });
 });

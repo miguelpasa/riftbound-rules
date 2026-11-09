@@ -78,6 +78,8 @@ export interface CardInstance {
   hidden?: boolean;
   /** Turn number it entered play. */
   enteredTurn?: number;
+  /** Moves to a battlefield this turn (stored only for cards that count them: Yasuo, Kayn). */
+  moves?: { turn: number; n: number };
   /**
    * R98: "Give it [Temporary]": the `enteredTurn` of this stay on the board. It counts only while `enteredTurn`
    * still matches, so a card that left and came back is no longer Temporary.

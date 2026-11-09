@@ -1417,6 +1417,11 @@ function parseDeathReplaceStatic(body: string): StaticAbility | null {
     const when = parseCondition(pd[1] ?? '');
     return when ? { affects: 'SELF', restrict: 'NO_ENEMY_EFFECT_DAMAGE', when } : null;
   }
+  const nd = /^If (.+?), I don['’]t take damage$/i.exec(body);
+  if (nd) {
+    const when = parseCondition(nd[1] ?? '');
+    return when ? { affects: 'SELF', restrict: 'NO_DAMAGE', when } : null;
+  }
   if (
     /^If a friendly unit would die, kill this instead\. Heal that unit, exhaust it, and recall it$/i.test(
       body,
@@ -2173,6 +2178,7 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
+  if (/^I have moved twice this turn$/i.test(text)) return { kind: 'MOVES_AT_LEAST', n: 2 };
   if (/^an opponent controls a battlefield$/i.test(text)) {
     return { kind: 'CONTROLS_BATTLEFIELD', who: 'enemy' };
   }
@@ -2484,7 +2490,7 @@ const DEATH_HEAD =
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
-  /^(When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -2554,6 +2560,7 @@ export function parseCardAbilities(
         playFilter?: PlayFilter;
         dies?: DeathFilter;
         once?: boolean;
+        moveNth?: number;
         inCombat?: boolean;
         sens: string[];
       }
@@ -2601,6 +2608,13 @@ export function parseCardAbilities(
     const iat = /^If (.+?) at the start of your Beginning Phase,\s*(.+)$/i.exec(sen);
     if (iat) sen = `At the start of your Beginning Phase, if ${iat[1]}, ${iat[2]}`;
     // R88: "The first time I conquer / a friendly unit dies each turn, ..." = "Once each turn, when ...".
+    // Yasuo: "The third time I move in a turn, ..." fires on the unit's third move to a battlefield.
+    let moveNth: number | undefined;
+    const mn = /^The third time I move in a turn,s*(.*)$/i.exec(sen);
+    if (mn) {
+      moveNth = 3;
+      sen = 'When I move, ' + mn[1];
+    }
     const ft = /^The first time (I|a friendly unit) ([a-z ]+?) each turn,\s*(.*)$/i.exec(sen);
     if (ft) {
       once = true;
@@ -2660,7 +2674,11 @@ export function parseCardAbilities(
     const m = TRIGGER_HEAD.exec(sen);
     if (m) {
       const head = (m[1] ?? '').toLowerCase();
-      const ons: TriggerKind[] = head.includes('becomes')
+      const ons: TriggerKind[] = head.startsWith('when this is played, discarded')
+        ? ['PLAY', 'DISCARD_SELF', 'GEAR_LEAVES']
+        : head.startsWith('when this leaves the board')
+          ? ['GEAR_LEAVES']
+          : head.includes('becomes')
         ? ['UNIT_BECOMES_MIGHTY']
         : head.startsWith('when you stun')
           ? ['YOU_STUN_ENEMY']
@@ -2747,6 +2765,7 @@ export function parseCardAbilities(
         legion,
         ...(when ? { when } : {}),
         ...(once ? { once: true } : {}),
+        ...(moveNth ? { moveNth } : {}),
         ...(head.startsWith('when i die in combat') ? { inCombat: true } : {}),
         sens: body ? [body] : [],
       };
@@ -2894,6 +2913,7 @@ export function parseCardAbilities(
           ...(g.playFilter ? { playFilter: g.playFilter } : {}),
           ...(g.dies ? { dies: g.dies } : {}),
           ...(g.once ? { oncePerTurn: true } : {}),
+          ...(g.moveNth ? { moveNth: g.moveNth } : {}),
           ...(g.inCombat ? { inCombat: true } : {}),
         });
       }

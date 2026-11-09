@@ -20,6 +20,7 @@ import { defWithGrants, staticBonus } from './statics.js';
 import { ruleError } from './types/errors.js';
 import { playerIndex } from './types/constants.js';
 import { stampEvents } from './setup.js';
+import { countMove } from './moveCount.js';
 import { isUnitDef } from './tokens.js';
 import type {
   CardDatabase,
@@ -130,6 +131,7 @@ export function standardMove(
       o.zone = { kind: 'base', player: mover };
       ps.base.push(id);
     }
+    if (to !== 'base') countMove(next, cards, o);
     inputs.push({ type: 'UNIT_MOVED', unitId: id, from, to });
   }
 

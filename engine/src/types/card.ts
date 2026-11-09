@@ -623,7 +623,12 @@ export interface StaticAbility {
   onlyKeyword?: string;
   onlySubtype?: string;
   /** R57: a movement restriction instead of / besides a grant: units it affects cannot move to the Base. */
-  restrict?: 'NO_MOVE_TO_BASE' | 'NO_COMBAT_DAMAGE' | 'NO_ENEMY_CHOOSE' | 'NO_ENEMY_EFFECT_DAMAGE';
+  restrict?:
+    | 'NO_MOVE_TO_BASE'
+    | 'NO_COMBAT_DAMAGE'
+    | 'NO_ENEMY_CHOOSE'
+    | 'NO_ENEMY_EFFECT_DAMAGE'
+    | 'NO_DAMAGE';
   /**
    * R104: a cost modifier for the cards its controller plays: "the Energy costs for spells you play are reduced by [1],
    * to a minimum of [1]" / "Your Dragons' Energy costs are reduced by [2], to a minimum of [1]".
@@ -687,6 +692,8 @@ export type Condition =
   | { kind: 'EMPOWERED' }
   /** R54: the source carries a Buff ("While I'm buffed"). */
   | { kind: 'BUFFED' }
+  /** "If I have moved twice this turn": the source has moved to a battlefield at least `n` times this turn. */
+  | { kind: 'MOVES_AT_LEAST'; n: number }
   /** R62: `who` controls at least one battlefield. */
   | { kind: 'CONTROLS_BATTLEFIELD'; who: 'friendly' | 'enemy' }
   /** R62: `who`'s score is within 3 points of the Victory Score (`not` negates). */
@@ -840,7 +847,9 @@ export type TriggerKind =
   /** X9: "When you discard me": fires for the discarded card itself (now in its owner's Trash). */
   | 'DISCARD_SELF'
   /** X9 (709): "When a unit you control becomes [Mighty]". */
-  | 'UNIT_BECOMES_MIGHTY';
+  | 'UNIT_BECOMES_MIGHTY'
+  /** "When this is killed / leaves the board" for a gear: fires for the gear itself, now in its owner's Trash. */
+  | 'GEAR_LEAVES';
 
 /** R71: which deaths a UNIT_DIES trigger reacts to. */
 export interface DeathFilter {
@@ -890,6 +899,8 @@ export interface CardTrigger {
   playFilter?: PlayFilter;
   /** R71: only for `on: 'UNIT_DIES'`. */
   dies?: DeathFilter;
+  /** "The third time I move in a turn": fires only on the unit's n-th move to a battlefield this turn. */
+  moveNth?: number;
   /** "When I die in combat": only a death while a combat was being fought at the unit's battlefield. */
   inCombat?: boolean;
   /** R71: "Once each turn, when ...": the ability triggers at most once per turn. */

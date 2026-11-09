@@ -253,6 +253,10 @@ export function evalCondition(
       const near = (state.players[playerIndex(side)]?.points ?? 0) >= state.victoryScore - 3;
       return cond.not ? !near : near;
     }
+    case 'MOVES_AT_LEAST': {
+      const mv = state.objects[sourceId]?.moves;
+      return mv !== undefined && mv.turn === state.turn.number && mv.n >= cond.n;
+    }
     case 'BUFFED':
       return state.objects[sourceId]?.buffed === true;
     case 'EMPOWERED':

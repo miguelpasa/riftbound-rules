@@ -168,6 +168,8 @@ export interface StaticBonus {
   entersReady?: boolean;
   /** X7: enemy spells and abilities deal no damage to the unit. */
   noEnemyEffectDamage?: boolean;
+  /** The unit takes no damage at all (Kayn after two moves). */
+  noDamage?: boolean;
   /** X7: a standing death replacement applies to the unit (first applicable source). */
   replaceDeath?: { sourceId: string; killSource: boolean };
 }
@@ -191,6 +193,7 @@ export function staticBonus(
   let noCombatDamage = false;
   let noEnemyChoose = false;
   let noEnemyEffectDamage = false;
+  let noDamage = false;
   let entersReady = false;
   let replaceDeath: StaticBonus['replaceDeath'];
   const mightOfObj = (o: CardInstance | undefined): number =>
@@ -221,6 +224,7 @@ export function staticBonus(
       if (s.restrict === 'NO_COMBAT_DAMAGE') noCombatDamage = true;
       if (s.restrict === 'NO_ENEMY_CHOOSE') noEnemyChoose = true;
       if (s.restrict === 'NO_ENEMY_EFFECT_DAMAGE') noEnemyEffectDamage = true;
+      if (s.restrict === 'NO_DAMAGE') noDamage = true;
       if (s.entersReady) entersReady = true;
       if (s.replaceDeath && !s.replaceDeath.offer && !replaceDeath) {
         replaceDeath = { sourceId, killSource: s.replaceDeath.killSource === true };
@@ -248,6 +252,7 @@ export function staticBonus(
     !noCombatDamage &&
     !noEnemyChoose &&
     !noEnemyEffectDamage &&
+    !noDamage &&
     !entersReady &&
     !replaceDeath
     ? NONE
@@ -258,6 +263,7 @@ export function staticBonus(
         ...(noCombatDamage ? { noCombatDamage } : {}),
         ...(noEnemyChoose ? { noEnemyChoose } : {}),
         ...(noEnemyEffectDamage ? { noEnemyEffectDamage } : {}),
+        ...(noDamage ? { noDamage } : {}),
         ...(entersReady ? { entersReady } : {}),
         ...(replaceDeath ? { replaceDeath } : {}),
       };

@@ -22,6 +22,7 @@ export function applyDamageMods(
   source: DamageSource,
 ): number {
   if (amount <= 0) return amount;
+  if (staticBonus(state, cards, o).noDamage === true) return 0;
   let n = amount;
   if (source.kind === 'EFFECT') {
     if (state.noEffectDamageTurn === state.turn.number) return 0;
