@@ -258,8 +258,12 @@ export function parseEquipCost(text: string): EquipCost | undefined {
     else if (tok === 'A') cost.anyPower += 1;
   }
   const rest = (m[2] ?? '').replace(/^[\s,.]+/, '').trim();
+  const spendXp = /^Spend (\d+) XP$/i.exec(rest.replace(/[.\s]+$/, ''));
   if (/reduced by the Might/i.test(rest)) {
     cost.energyReducedByMight = true;
+  } else if (spendXp) {
+    cost.xp = Number(spendXp[1]);
+    any = true;
   } else if (rest && !/^Pay the cost/i.test(rest)) {
     cost.nonResource = rest.replace(/[.\s]+$/, '');
   }
@@ -413,7 +417,11 @@ export function convertRow(row: RawRow): ConvertResult {
     card.supportLevel === 'partial' &&
     keywords.every((k) => MVP_SET.has(k.name) || PARSED_KEYWORDS.has(k.name))
   ) {
-    const parsed = parseCardAbilities(text, { gearLike: type === 'GEAR' });
+    // An Equip line whose cost is plain Energy / Power is stored as `equipCost`; the rest of the text is parsed alone.
+    const eq = type === 'GEAR' ? parseEquipCost(text) : undefined;
+    const forParse =
+      eq && !eq.nonResource ? text.replace(/(?:^|\n)[ \t]*\[Equip\][^\n]*/i, '\n').trim() : text;
+    const parsed = parseCardAbilities(forParse, { gearLike: type === 'GEAR' });
     if (parsed) {
       if (parsed.triggers.length > 0) card.triggers = parsed.triggers;
       if (parsed.abilities.length > 0) card.abilities = parsed.abilities;

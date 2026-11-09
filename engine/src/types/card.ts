@@ -1181,6 +1181,8 @@ export interface EquipCost {
   anyPower: number;
   /** "[3][A]. This ability's Energy cost is reduced by the Might of the unit you choose." */
   energyReducedByMight?: boolean;
+  /** "[Equip] — Spend N XP". */
+  xp?: number;
   /** Printed non-resource cost part (kill a unit, recycle, spend XP, ...); NOT enforced yet. */
   nonResource?: string;
 }

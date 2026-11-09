@@ -419,6 +419,10 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   if (!unit) return ruleError('EQUIP_ILLEGAL', 'target is not a unit on the board');
   if (unit.controller !== pid) return ruleError('EQUIP_ILLEGAL', 'you do not control that unit');
 
+  const xpCost = eqDef.equipCost?.xp ?? 0;
+  if (xpCost > 0 && (state.players[playerIndex(pid)]?.xp ?? 0) < xpCost) {
+    return ruleError('INSUFFICIENT_RESOURCES', `not enough XP (need ${xpCost})`);
+  }
   const cost = equipTotalCost(state, cards, eqDef, unit);
   const plan = autoPlan(state, cards, pid, cost);
   if (!plan) return ruleError('INSUFFICIENT_RESOURCES', 'cannot pay Equip');
@@ -427,6 +431,10 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   // 151.2.a / 402.1: activating puts the ability on the Chain; the opponent may respond with a
   // Reaction. The attachment happens when it resolves (see `playResolver`).
   const work = paid.state;
+  if (xpCost > 0) {
+    const seat = work.players[playerIndex(pid)] as GameState['players'][number];
+    seat.xp = (seat.xp ?? 0) - xpCost;
+  }
   const item: ChainItem = {
     id: allocObjectId(work),
     kind: 'ABILITY',

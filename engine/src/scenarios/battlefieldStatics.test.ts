@@ -450,3 +450,23 @@ describe('scenario: small self effects (Vi, Ezreal, Jhin)', () => {
     ]);
   });
 });
+
+describe("scenario: Equip with an XP cost (Shepherd's Heirloom)", () => {
+  it('needs the XP and spends it', () => {
+    // Tests Rule 818: Equip costs
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-blade': { ...base('fx-blade'), equipCost: { energy: 0, power: 0, anyPower: 0, xp: 1 } },
+    };
+    const sc = Scenario.start({}, cards);
+    const g = sc.putUnit('p0', 'fx-blade', 'base');
+    const u = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const equip = () =>
+      reduce(sc.state, cards, { type: 'EQUIP', playerId: 'p0', equipmentId: g, unitId: u });
+    expect(equip().ok).toBe(false);
+    (sc.state.players[0] as { xp?: number }).xp = 2;
+    const r = equip();
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.players[0]?.xp).toBe(1);
+  });
+});
