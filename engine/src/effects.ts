@@ -1536,6 +1536,56 @@ export function runEffects(
         out.push(...drawWithBurnOut(state, who, e.amount, cards));
         break;
       }
+      case 'REVEAL_TOP': {
+        out.push(...burnOutIfEmpty(state, controller, cards));
+        if (state.gameStatus !== 'IN_PROGRESS') break;
+        const ps = state.players[playerIndex(controller)];
+        const topId = ps.mainDeck[0];
+        const top = topId === undefined ? undefined : state.objects[topId];
+        const def = top === undefined ? undefined : cards[top.cardId];
+        if (!top || !def) break;
+        out.push({
+          type: 'CARD_REVEALED',
+          player: controller,
+          cardInstanceId: top.id,
+          cardId: top.cardId,
+        });
+        const isUnit = def.type === 'UNIT';
+        const hit =
+          e.filter === undefined ||
+          (e.filter === 'unit' && isUnit) ||
+          (e.filter === 'gear' && def.type === 'GEAR') ||
+          (e.filter === 'spell' && def.type === 'SPELL') ||
+          (e.filter === 'mighty' && isUnit && (def.stats.might ?? 0) >= 5);
+        if (hit) {
+          if (e.hit === 'DRAW') {
+            out.push(...drawWithBurnOut(state, controller, 1, cards));
+          } else {
+            ps.mainDeck.shift();
+            top.zone = { kind: 'hand', player: controller };
+            ps.hand.push(top.id);
+            out.push({
+              type: 'CARD_DRAWN',
+              player: controller,
+              cardInstanceId: top.id,
+              visibleTo: [controller],
+            });
+          }
+        } else if (e.miss === 'RECYCLE') {
+          ps.mainDeck.shift();
+          ps.mainDeck.push(top.id);
+          out.push({ type: 'CARDS_RECYCLED', player: controller, count: 1 });
+        } else if (e.miss === 'TRASH') {
+          ps.mainDeck.shift();
+          ps.trash.push(top.id);
+          top.zone = { kind: 'trash', player: controller };
+          const src = state.objects[sourceObjectId];
+          if (e.missBuff && src && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
+            addTemp(src, e.missBuff, true);
+          }
+        }
+        break;
+      }
       case 'KILL_GEARS_HERE': {
         const here = hereOfSource(state, sourceObjectId);
         if (here === null) break;

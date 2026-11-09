@@ -490,6 +490,18 @@ export type CardEffect =
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
+  /**
+   * X-reveal: reveal the top card of your Main Deck. If it matches `filter` (any card when absent) it is `hit` (drawn, or
+   * put into your hand without drawing); otherwise `miss` (recycled, put into your Trash with an optional +N [M] to the
+   * source this turn, or left on top). "[Mighty]" means a unit with Might 5 or more.
+   */
+  | {
+      op: 'REVEAL_TOP';
+      filter?: 'unit' | 'gear' | 'spell' | 'mighty';
+      hit: 'DRAW' | 'HAND';
+      miss: 'RECYCLE' | 'TRASH' | 'STAY';
+      missBuff?: number;
+    }
   /** Kill every unit on the board. */
   | {
       op: 'KILL_ALL_UNITS';

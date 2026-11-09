@@ -436,6 +436,46 @@ export function parseLookSequence(
   return null;
 }
 
+/**
+ * X-reveal: "Reveal the top card of your Main Deck. If it's a gear, draw it. Otherwise, recycle it." (Apprentice Smith,
+ * Raving Witness with [Mighty], Pakaa Protector with "put it in your trash and give me +2 [M] this turn", Ravenbloom
+ * Conservatory with "put it in your hand"). `used` is how many sentences were consumed.
+ */
+export function parseRevealSequence(
+  sens: readonly string[],
+  i: number,
+): { effect: CardEffect; used: number } | null {
+  if (!/^(?:Then,? )?Reveal the top card of your Main Deck$/i.test(sens[i] ?? '')) return null;
+  const hit =
+    /^If it['’]s (?:an? )?(\[Mighty\]|unit|gear|spell), (draw it|put it in your hand)$/i.exec(
+      sens[i + 1] ?? '',
+    );
+  if (!hit) return null;
+  const word = (hit[1] ?? '').toLowerCase();
+  const filter = word === '[mighty]' ? 'mighty' : (word as 'unit' | 'gear' | 'spell');
+  const take: 'DRAW' | 'HAND' = /draw it/i.test(hit[2] ?? '') ? 'DRAW' : 'HAND';
+  const other = /^Otherwise,? (.+)$/i.exec(sens[i + 2] ?? '');
+  if (!other) return null;
+  const rest = (other[1] ?? '').trim();
+  if (/^recycle it$/i.test(rest)) {
+    return { effect: { op: 'REVEAL_TOP', filter, hit: take, miss: 'RECYCLE' }, used: 3 };
+  }
+  const trash = /^put it in your trash(?: and give me \+(\d+) \[M\] this turn)?$/i.exec(rest);
+  if (trash) {
+    return {
+      effect: {
+        op: 'REVEAL_TOP',
+        filter,
+        hit: take,
+        miss: 'TRASH',
+        ...(trash[1] ? { missBuff: Number(trash[1]) } : {}),
+      },
+      used: 3,
+    };
+  }
+  return null;
+}
+
 /** A sentence that chooses one unit / gear / spell, or several units. */
 interface Chooser {
   effect: CardEffect;
@@ -2104,6 +2144,12 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     if (look) {
       out.push(look.effect);
       i += look.used - 1;
+      continue;
+    }
+    const reveal = parseRevealSequence(list, i);
+    if (reveal) {
+      out.push(reveal.effect);
+      i += reveal.used - 1;
       continue;
     }
     if (!parseSpellSentence(list[i] as string, st, out)) return null;
