@@ -872,6 +872,8 @@ export type Condition =
       other?: boolean;
       /** Only ready units count ("a ready enemy unit here"). */
       ready?: boolean;
+      /** Only gear with [Deploy] counts ("a friendly gear with [Deploy] here"). */
+      withDeploy?: true;
       cmp: CountCmp;
       n: number;
     }

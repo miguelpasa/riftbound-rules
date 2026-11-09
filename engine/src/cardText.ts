@@ -3099,6 +3099,18 @@ export function parseCondition(raw: string): Condition | null {
         n: Number(og[1]),
       };
     }
+    // "there's a friendly gear with [Deploy] at my battlefield" (Overloaded Traveler, Jarvan IV).
+    if (/^there['’]s an? friendly gear with \[Deploy\] (?:here|at my battlefield)$/i.test(text)) {
+      return {
+        kind: 'COUNT',
+        what: 'gear',
+        where: 'here',
+        who: 'friendly',
+        withDeploy: true,
+        cmp: 'GTE',
+        n: 1,
+      };
+    }
     const a = /^I['’]m at a battlefield with exactly one other unit you control$/i.test(text);
     if (a) {
       return {

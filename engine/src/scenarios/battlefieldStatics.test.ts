@@ -875,3 +875,47 @@ describe('scenario: "2 or more other friendly units and/or gear at my battlefiel
     expect(might()).toBe(5); // two others
   });
 });
+
+describe("scenario: \"a friendly gear with [Deploy] at my battlefield\" (Overloaded Traveler)", () => {
+  const text = "While there's a friendly gear with [Deploy] at my battlefield, I have +1 [M].";
+
+  it('reads as a might static gated on a friendly Deploy gear here', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    expect(parseStaticLines(text)?.statics).toEqual([
+      {
+        affects: 'SELF',
+        might: 1,
+        when: {
+          kind: 'COUNT',
+          what: 'gear',
+          where: 'here',
+          who: 'friendly',
+          withDeploy: true,
+          cmp: 'GTE',
+          n: 1,
+        },
+      },
+    ]);
+  });
+
+  it('gives +1 Might only while a Deploy gear stands at my battlefield, not a plain gear', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    const mightWith = (deploy: boolean): number => {
+      const cards: CardDatabase = {
+        ...SCENARIO_CARDS,
+        'fx-tide-grunt': { ...base('fx-tide-grunt'), statics: parseStaticLines(text)?.statics ?? [] },
+        'fx-tide-totem': {
+          ...base('fx-tide-totem'),
+          keywords: deploy ? [{ name: 'Deploy' }] : [],
+        },
+      };
+      const sc = Scenario.start({}, cards);
+      const me = sc.putUnit('p1', 'fx-tide-grunt', 'bf1', { control: true });
+      const before = effectiveMight(sc.state, cards, me, { role: null });
+      sc.putUnit('p1', 'fx-tide-totem', 'bf1');
+      return effectiveMight(sc.state, cards, me, { role: null }) - before;
+    };
+    expect(mightWith(false)).toBe(0);
+    expect(mightWith(true)).toBe(1);
+  });
+});

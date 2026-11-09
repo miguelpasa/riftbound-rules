@@ -12,7 +12,7 @@
  */
 import { playerIndex } from './types/constants.js';
 import { baseMight } from './baseMight.js';
-import { isUnitDef } from './tokens.js';
+import { isDeployGear, isUnitDef } from './tokens.js';
 import { hereOfSource } from './sources.js';
 import { effectiveMight } from './combat.js';
 import type {
@@ -351,6 +351,7 @@ export function evalCondition(
         const def = cards[o.cardId];
         if (!def) continue;
         if (cond.ready && !o.ready) continue;
+        if (cond.withDeploy && !isDeployGear(def)) continue;
         const kindOk =
           cond.what === 'unit'
             ? isUnitDef(def)
