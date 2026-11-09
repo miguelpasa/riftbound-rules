@@ -505,3 +505,21 @@ describe('scenario: "If you paid the additional cost" in a spell (Rampage)', () 
     expect(run(false)).toBe(0);
   });
 });
+
+describe('scenario: "If you do ... Otherwise ..." after an optional cost (Meditation)', () => {
+  it('draws 2 when the extra cost was paid and 1 when it was not', () => {
+    // Tests Rule 357: additional costs
+    const effects = parseSpellText('If you do, draw 2. Otherwise, draw 1.') as CardEffect[];
+    const sc = Scenario.start({});
+    const spell = sc.putInHand('p0', 'fx-flare');
+    const draws = (paid: boolean): number => {
+      const s = structuredClone(sc.state);
+      if (paid) (s.objects[spell] as { paidExtra?: boolean }).paidExtra = true;
+      const before = s.players[0]?.hand.length ?? 0;
+      runEffects(s, 'p0', effects, sc.cards, [], 'fx-flare', spell);
+      return (s.players[0]?.hand.length ?? 0) - before;
+    };
+    expect(draws(true)).toBe(2);
+    expect(draws(false)).toBe(1);
+  });
+});

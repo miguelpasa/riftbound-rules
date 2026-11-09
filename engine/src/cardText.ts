@@ -2171,7 +2171,7 @@ export function parseOptionalAdditionalCost(text: string): {
   rest: string;
 } | null {
   const re =
-    /(?:^|\n)[ \t]*(?:You may ([^.\n]+?) as an additional cost to play (?:me|this)|As an additional cost to play (?:me|this), you may ([^.\n]+?)|As you play (?:me|this), you may ([^.\n]+?) as an additional cost)\.?(?:[ \t]*If you do, (?:I cost \[(\d+)\] less|reduce my cost by \[(\d+)\]|(ignore this spell['’]s cost))\.?)?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
+    /(?:^|\n)[ \t]*(?:You may ([^.\n]+?) as an additional cost to play (?:me|this)|As an additional cost to play (?:me|this), you may ([^.\n]+?)|As you play (?:me|this), you may ([^.\n]+?) as an additional cost)\.?(?:[ \t]*If you do, (?:I cost \[(\d+)\] less|reduce my cost by \[(\d+)\]|(ignore this spell['’]s cost))\.?)?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$|If you do,)/i;
   const m = re.exec(text);
   if (!m) return null;
   const phrase = (m[1] ?? m[2] ?? m[3] ?? '').trim();
@@ -2482,6 +2482,7 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       doms.push(dm ? (dm[1] as Domain) : undefined);
       return dm ? x.replace(dm[0], dm[2] as string).replace(/\s+/g, ' ') : x;
     });
+  let lastGate: Condition | null = null;
   let pend: { from: number; dom: Domain } | null = null;
   const flushDomain = (): void => {
     if (!pend || out.length <= pend.from) return;
@@ -2533,8 +2534,25 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     const ifDo = /^If you do, (.+)$/i.exec(list[i] as string);
     if (ifDo) {
       const before = out.length;
-      if (before === 0 || !parseSpellSentence(ifDo[1] as string, st, out)) return null;
-      for (let k = before; k < out.length; k++) (out[k] as CardEffect).ifDid = true;
+      // As the first sentence it refers to the optional additional cost ("you may exhaust a unit. If you do, draw 2").
+      const paid: Condition = { kind: 'PAID_ADDITIONAL', spell: true };
+      if (!parseSpellSentence(ifDo[1] as string, st, out)) return null;
+      for (let k = before; k < out.length; k++) {
+        if (before === 0) (out[k] as CardEffect).when = paid;
+        else (out[k] as CardEffect).ifDid = true;
+      }
+      lastGate = before === 0 ? paid : null;
+      continue;
+    }
+    // "Otherwise, <effect>": the opposite of the condition the sentence before was gated on.
+    const otherwise = /^Otherwise, (.+)$/i.exec(list[i] as string);
+    if (otherwise && lastGate) {
+      const before = out.length;
+      if (!parseSpellSentence(otherwise[1] as string, st, out)) return null;
+      for (let k = before; k < out.length; k++) {
+        (out[k] as CardEffect).when = { kind: 'NOT', cond: lastGate };
+      }
+      lastGate = null;
       continue;
     }
     if (attachInstead(list[i] as string, out)) continue;
