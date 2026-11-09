@@ -2060,13 +2060,13 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       continue;
     }
     // R88: "Your tokens enter ready" / "Other friendly units enter ready".
-    const er = /^(Your tokens|Other friendly units) enter ready$/i.exec(body);
+    const er = /^(Your tokens|Your units|Other friendly units) enter ready$/i.exec(body);
     if (er) {
       statics.push(
         /^your/i.test(er[1] ?? '')
           ? {
               affects: 'FRIENDLY_UNITS',
-              onlyToken: true,
+              ...(/tokens/i.test(er[1] ?? '') ? { onlyToken: true } : {}),
               entersReady: true,
               ...(gateWhen ? { when: gateWhen } : {}),
             }
@@ -2487,6 +2487,16 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       const last = out[out.length - 1];
       if (last?.op !== 'STUN_TARGET' || last.orReturn) return null;
       last.orReturn = true;
+      continue;
+    }
+    // "[Level N][>] <effect>": the effect works only while its controller has N or more XP.
+    const lvl = /^LEVEL(\d+) (.+)$/.exec(list[i] as string);
+    if (lvl && !/ instead$/i.test(list[i] as string)) {
+      const before = out.length;
+      if (!parseSpellSentence(lvl[2] as string, st, out)) return null;
+      for (let k = before; k < out.length; k++) {
+        (out[k] as CardEffect).when = { kind: 'XP', n: Number(lvl[1]) };
+      }
       continue;
     }
     // "... If <condition>, <effect>": the effect carries its own condition (checked as it resolves).
