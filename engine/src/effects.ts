@@ -286,7 +286,7 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
     if (ef.op === 'DAMAGE_TARGET' && ef.amountSlot !== undefined && !reqs.has(ef.amountSlot)) {
       reqs.set(ef.amountSlot, {
         slot: ef.amountSlot,
-        kind: 'unit',
+        kind: ef.amountFrom === 'SLOT_ENERGY' ? 'gear' : 'unit',
         side: ef.amountSlotSide ?? 'any',
       });
     }
@@ -1200,6 +1200,13 @@ export function runEffects(
       const tgt = id ? state.objects[id] : undefined;
       return id && tgt && (tgt.zone.kind === 'base' || tgt.zone.kind === 'battlefield')
         ? Math.max(0, effectiveMight(state, cards, id, { role: null }))
+        : 0;
+    }
+    if (e.amountFrom === 'SLOT_ENERGY') {
+      const id = e.amountSlot === undefined ? undefined : ids[e.amountSlot];
+      const gear = id ? state.objects[id] : undefined;
+      return gear && (gear.zone.kind === 'base' || gear.zone.kind === 'battlefield')
+        ? (cards[gear.cardId]?.cost.energy ?? 0)
         : 0;
     }
     if (e.amountFrom === 'EXCESS') {

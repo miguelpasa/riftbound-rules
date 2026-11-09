@@ -109,7 +109,7 @@ interface SlotDecl {
   /** R42: "... unit here" / "another ... unit" (relative to the ability's source). */
   here?: boolean;
   /** X-loc: a chosen battlefield, or the location a moved unit goes to (not a unit). */
-  kind?: 'battlefield' | 'location';
+  kind?: 'battlefield' | 'location' | 'gear';
 }
 
 interface ParseState {
@@ -1727,6 +1727,35 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     if (!canAdd(st, adds)) return false;
     st.slots.push(...adds);
     delete st.it;
+    return true;
+  }
+  // "Choose a friendly gear": a gear is chosen only to read from it (Improvised Projectile).
+  if (/^Choose a friendly gear$/i.test(sen)) {
+    const gear: SlotDecl = { side: 'friendly', kind: 'gear' };
+    if (!canAdd(st, [gear])) return false;
+    st.slots.push(gear);
+    st.it = st.slots.length - 1;
+    return true;
+  }
+  // "Deal damage equal to its Energy cost to <unit>": the gear chosen just before names the amount.
+  m = /^Deal damage equal to its Energy cost to (.+)$/i.exec(sen);
+  if (m) {
+    const k = st.it;
+    if (k === undefined || st.locked || (st.slots[k] as SlotDecl).kind !== 'gear') return false;
+    const ch = parseChooser('Deal 1 to ' + (m[1] ?? ''));
+    if (!ch || ch.effect.op !== 'DAMAGE_TARGET' || ch.multi) return false;
+    if (!canAdd(st, [ch.decl])) return false;
+    const slot = st.slots.length;
+    st.slots.push(ch.decl);
+    st.it = slot;
+    out.push({
+      ...ch.effect,
+      slot,
+      amount: 0,
+      amountFrom: 'SLOT_ENERGY',
+      amountSlot: k,
+      amountSlotSide: 'friendly',
+    });
     return true;
   }
   m = CHOOSE.exec(sen);

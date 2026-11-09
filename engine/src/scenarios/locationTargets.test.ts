@@ -328,3 +328,43 @@ describe('scenario: "If it has 3 [M] or less, banish it. Otherwise, return it" (
     expect(sc2.obj(big).zone).toMatchObject({ kind: 'hand', player: 'p0' });
   });
 });
+
+describe("scenario: damage equal to a chosen friendly gear's Energy cost (Improvised Projectile)", () => {
+  const text =
+    'Choose a friendly gear. Deal damage equal to its Energy cost to a unit at a battlefield.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads the gear choice and the damage read from it', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      {
+        op: 'DAMAGE_TARGET',
+        amount: 0,
+        amountFrom: 'SLOT_ENERGY',
+        amountSlot: 0,
+        slot: 1,
+        atBattlefield: true,
+      },
+    ]);
+  });
+
+  it("deals the gear's Energy cost to the chosen unit", () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const totem = sc.putUnit('p0', 'fx-ember-totem', 'base'); // Energy cost 2
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+    sc.state.objects[foe]!.mightBonus = 9; // survives
+    cast(sc, [obj(totem), obj(foe)]);
+    expect(sc.obj(foe).damage).toBe(2);
+  });
+
+  it('needs a friendly gear, not a unit', () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(mine), obj(foe)])).toBe(false);
+  });
+});
