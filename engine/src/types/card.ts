@@ -436,6 +436,20 @@ export type CardEffect =
       slot?: number;
       count?: TargetCount;
     }
+  /**
+   * X5: "Banish a friendly unit, then its owner plays it [to their base | to the same location], ignoring its
+   * cost": the unit leaves the Board and is played again (a new object that enters exhausted and fires its
+   * "when you play me" triggers; a token ceases to exist).
+   */
+  | ({
+      op: 'BLINK_TARGET';
+      to: 'BASE' | 'SAME';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
+  /** X5: "Banish this." - the spell is banished instead of going to the Trash. */
+  | { op: 'BANISH_THIS_SPELL' }
   /** Move the target unit(s) to their controller's Base (an effect move, not a standard move). */
   | ({
       op: 'MOVE_BASE_TARGET';
@@ -526,6 +540,7 @@ export type TargetedEffect = Extract<
       | 'RETURN_FROM_TRASH'
       | 'PLAY_FROM_TRASH'
       | 'MOVE_BASE_TARGET'
+      | 'BLINK_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'
       | 'WEAPONMASTER_EQUIP'

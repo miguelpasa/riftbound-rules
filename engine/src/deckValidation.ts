@@ -107,12 +107,14 @@ export function validateDeck(cards: CardDatabase, deck: DeckList): DeckValidatio
   if (sigs.length > 3) {
     errors.push(`At most 3 Signature cards allowed; has ${sigs.length} (Rule 103.3.d).`);
   }
-  if (champion) {
-    const champTags = tagsOf(champion);
+  // X14 (103.2.d.2): every Signature card carries the Champion tag of the Champion Legend (the Chosen Champion
+  // must share that tag, so either one's tags are accepted when the Legend is unusable).
+  const sigTags = legend && legendOk ? tagsOf(legend) : champion ? tagsOf(champion) : null;
+  if (sigTags) {
     for (const s of sigs) {
-      if (!tagsOf(s).some((t) => champTags.includes(t))) {
+      if (!tagsOf(s).some((t) => sigTags.includes(t))) {
         errors.push(
-          `Signature card "${s.name}" does not match the Chosen Champion's tag (Rule 103.3.d).`,
+          `Signature card "${s.name}" does not match the Champion Legend's tag (Rule 103.3.d).`,
         );
       }
     }

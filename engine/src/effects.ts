@@ -100,6 +100,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'RETURN_FROM_TRASH' ||
   e.op === 'PLAY_FROM_TRASH' ||
   e.op === 'MOVE_BASE_TARGET' ||
+  e.op === 'BLINK_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
   e.op === 'WEAPONMASTER_EQUIP' ||
@@ -961,6 +962,8 @@ export function runEffects(
         }
         break;
       }
+      case 'BANISH_THIS_SPELL':
+        break; // applied when the spell finishes resolving (play.ts)
       case 'PREVENT_EFFECT_DAMAGE_TURN':
         state.noEffectDamageTurn = state.turn.number;
         break;
@@ -986,6 +989,7 @@ export function runEffects(
       case 'RETURN_FROM_TRASH':
       case 'PLAY_FROM_TRASH':
       case 'MOVE_BASE_TARGET':
+      case 'BLINK_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
       case 'GRANT_KEYWORD_TARGET': {
@@ -1109,6 +1113,39 @@ export function runEffects(
               break;
             }
             moveHere(state, u, dest, out);
+          } else if (e.op === 'BLINK_TARGET') {
+            doneSlots.set(slot, u.owner);
+            const was = u.zone;
+            const holder = state.players[playerIndex(u.controller)];
+            holder.base = holder.base.filter((x) => x !== u.id);
+            for (const g of Object.values(state.objects)) if (g.attachedTo === u.id) delete g.attachedTo;
+            if (isTokenInstance(u)) {
+              removeTokenFromGame(state, u.id); // 186.1: a token is not a card; it ceases to exist
+              continue;
+            }
+            clearBoardState(u);
+            u.controller = u.owner;
+            const ps = state.players[playerIndex(u.owner)];
+            u.zone =
+              e.to === 'SAME' && was.kind === 'battlefield'
+                ? { kind: 'battlefield', player: u.owner, battlefieldId: was.battlefieldId }
+                : { kind: 'base', player: u.owner };
+            if (u.zone.kind === 'base') ps.base.push(u.id);
+            u.enteredTurn = state.turn.number;
+            u.ready =
+              staticBonus(state, cards, u).entersReady === true ||
+              ps.enterReadyTurn === state.turn.number;
+            const sameTurn = ps.playedThisTurn?.turn === state.turn.number;
+            ps.playedThisTurn = {
+              turn: state.turn.number,
+              objectIds: [...(sameTurn ? (ps.playedThisTurn?.objectIds ?? []) : []), u.id],
+            };
+            out.push({
+              type: 'CARD_PLAYED',
+              player: u.owner,
+              cardInstanceId: u.id,
+              cardId: u.cardId,
+            });
           } else if (e.op === 'MOVE_BASE_TARGET') {
             moveToBase(state, u, out);
           } else if (e.op === 'GRANT_KEYWORD_TARGET') {

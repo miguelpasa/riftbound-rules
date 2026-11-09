@@ -119,6 +119,7 @@ function parseClauseNoSplit(sen: string): CardEffect[] | null {
 function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null {
   let m = /^Draw (\d+)$/i.exec(sen);
   if (m) return [{ op: 'DRAW', amount: Number(m[1]) }];
+  if (/^Banish this$/i.test(sen)) return [{ op: 'BANISH_THIS_SPELL' }];
   if (/^Prevent all spell and ability damage this turn$/i.test(sen))
     return [{ op: 'PREVENT_EFFECT_DAMAGE_TURN' }];
   m = /^(?:You and that player each draw|Each player draws) (\d+)$/i.exec(sen);
@@ -851,6 +852,21 @@ function parseChooserBase(sen: string): Chooser | null {
     return { effect: { op: 'MOVE_HERE_TARGET', ...sideProp(s) }, decl: { side: s ?? 'any' } };
   }
   m = new RegExp(
+    `^Banish an? ${SIDE}unit, then its owner plays it(?: to (their base|the same location))?, ignoring its cost$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: {
+        op: 'BLINK_TARGET',
+        to: /same location/i.test(m[2] ?? '') ? 'SAME' : 'BASE',
+        ...sideProp(s),
+      },
+      decl: { side: s ?? 'any' },
+    };
+  }
+  m = new RegExp(
     `^Move an? ${SIDE}unit( (?:from|at) a battlefield)? to (?:its |their |your )?base$`,
     'i',
   ).exec(sen);
@@ -908,7 +924,9 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
   if (m) return { op: 'DAMAGE_TARGET', amount: Number(m[1]), ...sd, ...bf, ...at };
   m = /^Its base Might becomes (\d+) this turn$/i.exec(sen);
   if (m) return { op: 'SET_BASE_MIGHT', amount: Number(m[1]), ...sd, ...at };
-  if (/^The next time it would die this turn, heal it, exhaust it, and recall it instead$/i.test(sen))
+  if (
+    /^The next time it would die this turn, heal it, exhaust it, and recall it instead$/i.test(sen)
+  )
     return { op: 'DEATH_REPLACE_TARGET', mode: 'RECALL', ...sd, ...bf, ...at };
   if (/^The next time (?:that unit|it) would be dealt damage this turn, prevent it$/i.test(sen))
     return { op: 'DAMAGE_MOD_TARGET', mod: 'PREVENT_NEXT', ...sd, ...bf, ...at };
@@ -924,9 +942,10 @@ function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | n
     };
   if (/^Double all damage that would be dealt to it this turn$/i.test(sen))
     return { op: 'DAMAGE_MOD_TARGET', mod: 'DOUBLE', ...sd, ...bf, ...at };
-  m = /^The next time it would die this turn, you may pay ((?:\[(?:\d+|C|A)\])+) to heal it, exhaust it, and recall it instead$/i.exec(
-    sen,
-  );
+  m =
+    /^The next time it would die this turn, you may pay ((?:\[(?:\d+|C|A)\])+) to heal it, exhaust it, and recall it instead$/i.exec(
+      sen,
+    );
   if (m)
     return {
       op: 'DEATH_REPLACE_TARGET',
@@ -1331,9 +1350,10 @@ function parseDeathReplaceStatic(body: string): StaticAbility | null {
       },
     };
   }
-  const pd = /^While (.+?), prevent all damage that enemy spells and abilities would deal to me$/i.exec(
-    body,
-  );
+  const pd =
+    /^While (.+?), prevent all damage that enemy spells and abilities would deal to me$/i.exec(
+      body,
+    );
   if (pd) {
     const when = parseCondition(pd[1] ?? '');
     return when ? { affects: 'SELF', restrict: 'NO_ENEMY_EFFECT_DAMAGE', when } : null;
@@ -1818,7 +1838,9 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
   const list = sens
-    .flatMap((x) => x.split(/, then /i))
+    .flatMap((x) =>
+      /^Banish an? [a-z ]*unit, then its owner plays it/i.test(x) ? [x] : x.split(/, then /i),
+    )
     .flatMap((x) => {
       // R65: "Ready a unit and give it [Assault 3] this turn" = two sentences about the same unit.
       const m = /^(Ready an? (?:friendly |enemy )?unit) and (give it .+)$/i.exec(x);
