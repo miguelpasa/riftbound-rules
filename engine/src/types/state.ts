@@ -62,6 +62,8 @@ export interface CardInstance {
   deathReplace?: 'RECALL' | 'BANISH';
   /** X2: base Might assigned by an effect ("base Might becomes N this turn"); expires in the Ending step. */
   baseMightSet?: number;
+  /** What a "this combat" effect gave this object; removed when the combat ends. */
+  combatGrant?: { keywords: KeywordInstance[]; might: number };
   /** Keywords granted until the end of the turn (R43); see tempKeywords.ts. */
   tempKeywords?: KeywordInstance[];
   /** Stunned this turn: deals no combat damage. Expires in the Ending step. */

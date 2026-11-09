@@ -1583,6 +1583,12 @@ export function runEffects(
               ? e.keywords.map((k) => ({ ...k, value: Math.max(1, mightOf(u)) }))
               : e.keywords.map((k) => ({ ...k }));
             u.tempKeywords = [...(u.tempKeywords ?? []), ...given];
+            if (e.duration === 'COMBAT') {
+              u.combatGrant = {
+                keywords: [...(u.combatGrant?.keywords ?? []), ...given],
+                might: u.combatGrant?.might ?? 0,
+              };
+            }
             out.push({ type: 'EFFECT_KEYWORD_GRANTED', unitId: u.id });
           } else if (e.op === 'COUNTER_SPELL') {
             doneSlots.set(slot, u.controller);
@@ -2134,6 +2140,19 @@ export function runEffects(
       case 'LOOK_TOP':
         out.push(...lookAtTop(state, controller, e.count, e.take, cards, e.rest));
         break;
+      case 'DOUBLE_MIGHT_SELF': {
+        const me = state.objects[sourceObjectId];
+        if (!me) break;
+        const add = Math.max(0, mightOf(me));
+        addTemp(me, add, true);
+        if (e.duration === 'COMBAT') {
+          me.combatGrant = {
+            keywords: me.combatGrant?.keywords ?? [],
+            might: (me.combatGrant?.might ?? 0) + add,
+          };
+        }
+        break;
+      }
       case 'GAIN_POINT':
         {
           const who = e.forOpponent ? (controller === 'p0' ? 'p1' : 'p0') : controller;
@@ -2145,6 +2164,29 @@ export function runEffects(
     lastDid = out.slice(mark).some((ev) => ev.type !== 'EFFECT_FIZZLED');
   }
   return out;
+}
+
+/** The combat ended: "this combat" Might and keywords go away (mutates the working state). */
+export function endCombatGrants(state: GameState): void {
+  for (const o of Object.values(state.objects)) {
+    const g = o.combatGrant;
+    if (!g) continue;
+    if (g.might) {
+      o.mightBonus -= g.might;
+      o.tempMight = Math.max(0, (o.tempMight ?? 0) - g.might);
+      if (!o.tempMight) delete o.tempMight;
+    }
+    if (o.tempKeywords) {
+      const left = [...o.tempKeywords];
+      for (const k of g.keywords) {
+        const i = left.findIndex((x) => x.name === k.name && x.value === k.value);
+        if (i >= 0) left.splice(i, 1);
+      }
+      if (left.length > 0) o.tempKeywords = left;
+      else delete o.tempKeywords;
+    }
+    delete o.combatGrant;
+  }
 }
 
 /** Ending step (317): "this turn" Might bonuses and Stun expire. */
@@ -2167,6 +2209,7 @@ export function expireTurnEffects(
     if (o.stunned) delete o.stunned;
     if (o.cantMove) delete o.cantMove;
     if (o.tempKeywords) delete o.tempKeywords;
+    if (o.combatGrant) delete o.combatGrant;
   }
   return { state: s, events: [] };
 }

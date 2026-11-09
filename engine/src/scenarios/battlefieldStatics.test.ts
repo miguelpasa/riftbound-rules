@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { parseStaticLines } from '../cardText.js';
+import { parseBattlefieldAbilities, parseCardAbilities, parseStaticLines } from '../cardText.js';
 import { scoreBattlefield } from '../scoring.js';
+import { endCombatGrants, runEffects } from '../effects.js';
+import { effectiveMight } from '../combat.js';
 import { reduce } from '../reducer.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
@@ -69,5 +71,59 @@ describe('scenario: Battlefield cards with rule-changing statics', () => {
       location: { kind: 'battlefield', battlefieldId: mine?.id ?? '' },
     });
     expect(r.ok).toBe(false);
+  });
+});
+
+describe('scenario: "this combat" effects (Fiora, Fortified Position, Durand Memorial)', () => {
+  it('reads the keyword grants and the one-on-one doubling', () => {
+    // Tests Rule 468: combat
+    const fort = parseBattlefieldAbilities(
+      'When you defend here, choose a unit. It gains [Shield 2] this combat.',
+    );
+    expect(fort?.[0]?.effects[0]).toMatchObject({ op: 'GRANT_KEYWORD_TARGET', duration: 'COMBAT' });
+    const durand = parseBattlefieldAbilities(
+      'When you defend here, choose a unit you control here. Give it [Tank] this combat.',
+    );
+    expect(durand?.[0]?.effects[0]).toMatchObject({
+      op: 'GRANT_KEYWORD_TARGET',
+      side: 'friendly',
+      here: true,
+      duration: 'COMBAT',
+    });
+    const fiora = parseCardAbilities(
+      'When I attack or defend one on one, double my Might this combat.',
+    );
+    expect(fiora?.triggers.map((t) => t.on)).toEqual(['ATTACK', 'DEFEND']);
+    expect(fiora?.triggers[0]?.when).toMatchObject({ kind: 'COMBAT_ROLE', oneOnOne: true });
+  });
+
+  it('gives Might and keywords that end with the combat but not the turn effects around them', () => {
+    // Tests Rule 468: combat
+    const sc = Scenario.start({});
+    const u = sc.putUnit('p0', 'fx-ash-tank', 'bf1');
+    const s = structuredClone(sc.state);
+    const before = effectiveMight(s, sc.cards, u, { role: null });
+    runEffects(s, 'p0', [{ op: 'BUFF_SELF', amount: 1 }], sc.cards, [], '', u);
+    runEffects(s, 'p0', [{ op: 'DOUBLE_MIGHT_SELF', duration: 'COMBAT' }], sc.cards, [], '', u);
+    runEffects(
+      s,
+      'p0',
+      [
+        {
+          op: 'GRANT_KEYWORD_TARGET',
+          keywords: [{ name: 'Shield', value: 2 }],
+          duration: 'COMBAT',
+        },
+      ],
+      sc.cards,
+      [{ kind: 'object', id: u }],
+      '',
+      u,
+    );
+    expect(effectiveMight(s, sc.cards, u, { role: null })).toBe((before + 1) * 2);
+    endCombatGrants(s);
+    expect(effectiveMight(s, sc.cards, u, { role: null })).toBe(before + 1);
+    expect(s.objects[u]?.tempKeywords).toBeUndefined();
+    expect(s.objects[u]?.combatGrant).toBeUndefined();
   });
 });

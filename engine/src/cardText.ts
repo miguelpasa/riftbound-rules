@@ -64,7 +64,10 @@ const GRANT_KW = '(?:Tank|Ganking|(?:Assault|Shield|Deflect)(?: \\d+)?)';
 const KW_LIST = `((?:\\{${GRANT_KW}\\}(?: and )?)+)`;
 export function protectGrants(text: string): string {
   return text.replace(
-    new RegExp(`(\\bGive [^.\\[\\]{}]*?)((?:\\[${GRANT_KW}\\](?: and )?)+)(?= this turn)`, 'gi'),
+    new RegExp(
+      `(\\b(?:Give|It gains) [^.\\[\\]{}]*?)((?:\\[${GRANT_KW}\\](?: and )?)+)(?= this (?:turn|combat))`,
+      'gi',
+    ),
     (_m, head: string, list: string) => head + list.replace(/\[/g, '{').replace(/\]/g, '}'),
   );
 }
@@ -226,6 +229,9 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   if (/^Recycle all your runes$/i.test(sen)) return [{ op: 'RECYCLE_RUNES' }];
   m = /^Recycle (\d+) from your trash$/i.exec(sen);
   if (m) return [{ op: 'RECYCLE_TRASH', count: Number(m[1]) }];
+  if (/^Double my Might this combat$/i.test(sen)) {
+    return [{ op: 'DOUBLE_MIGHT_SELF', duration: 'COMBAT' }];
+  }
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
     const keywords = parseKwList(m[1]);
@@ -907,13 +913,18 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
-  m = new RegExp(`^Give an? ${SIDE}unit ${KW_LIST} this turn$`, 'i').exec(sen);
+  m = new RegExp(`^Give an? ${SIDE}unit ${KW_LIST} this (turn|combat)$`, 'i').exec(sen);
   if (m) {
     const keywords = parseKwList(m[2]);
     if (!keywords) return null;
     const s = side(m[1]);
     return {
-      effect: { op: 'GRANT_KEYWORD_TARGET', keywords, ...sideProp(s) },
+      effect: {
+        op: 'GRANT_KEYWORD_TARGET',
+        keywords,
+        ...(m[3]?.toLowerCase() === 'combat' ? { duration: 'COMBAT' as const } : {}),
+        ...sideProp(s),
+      },
       decl: { side: s ?? 'any' },
     };
   }
@@ -1196,14 +1207,28 @@ function parseChooserBase(sen: string): Chooser | null {
  * "It" sentences after a chosen unit ("Choose a friendly unit. Give it +2 [M] this turn."): the
  * same targeted ops as above, reading the slot of the unit chosen.
  */
-function parseItSentence(sen: string, d: SlotDecl, slot: number): CardEffect | null {
+function parseItSentence(sen0: string, d: SlotDecl, slot: number): CardEffect | null {
+  const sen = sen0.replace(/^It gains /i, 'Give it ');
   const at = slot > 0 ? { slot } : {};
   const sd = d.side === 'any' ? {} : { side: d.side };
-  const bf = d.atBattlefield ? { atBattlefield: true } : {};
-  let m = new RegExp(`^Give it ${KW_LIST} this turn$`, 'i').exec(sen);
+  const bf = {
+    ...(d.atBattlefield ? { atBattlefield: true } : {}),
+    ...(d.here ? { here: true } : {}),
+  };
+  let m = new RegExp(`^Give it ${KW_LIST} this (turn|combat)$`, 'i').exec(sen);
   if (m) {
     const keywords = parseKwList(m[1]);
-    return keywords ? { op: 'GRANT_KEYWORD_TARGET', keywords, ...sd, ...bf, ...at } : null;
+    const combat = m[2]?.toLowerCase() === 'combat';
+    return keywords
+      ? {
+          op: 'GRANT_KEYWORD_TARGET',
+          keywords,
+          ...(combat ? { duration: 'COMBAT' as const } : {}),
+          ...sd,
+          ...bf,
+          ...at,
+        }
+      : null;
   }
   m = /^Give it \+(\d+) \[M\] this turn$/i.exec(sen);
   if (m) {
@@ -1288,7 +1313,7 @@ function canAdd(st: ParseState, add: SlotDecl[]): boolean {
 }
 
 const CHOOSE = new RegExp(
-  `^Choose an? ${SIDE}unit( at a battlefield)?(?: and (an? )?(another )?${SIDE}unit)?$`,
+  `^Choose an? ${SIDE}unit( at a battlefield| here)?(?: and (an? )?(another )?${SIDE}unit)?$`,
   'i',
 );
 
@@ -1448,7 +1473,8 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
   if (m) {
     const first: SlotDecl = {
       side: side(m[1]) ?? 'any',
-      ...(m[2] ? { atBattlefield: true } : {}),
+      ...(m[2] === ' at a battlefield' ? { atBattlefield: true } : {}),
+      ...(m[2] === ' here' ? { here: true } : {}),
     };
     const adds: SlotDecl[] = [first];
     if (/ and /i.test(sen)) {
@@ -2987,7 +3013,7 @@ const DEATH_HEAD =
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
-  /^(When you conquer or hold|When you conquer|When you hold|When a friendly unit attacks or defends alone|When an enemy unit attacks a battlefield you control|When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you choose a friendly unit|When you choose me with a spell|When you choose or ready me|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you conquer or hold|When you conquer|When you hold|When a friendly unit attacks or defends alone|When an enemy unit attacks a battlefield you control|When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When you choose a friendly unit|When you choose me with a spell|When you choose or ready me|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend one on one|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -3362,6 +3388,10 @@ export function parseCardAbilities(
         when = split.when;
         body = split.rest;
       }
+      if (head.endsWith('one on one')) {
+        if (when) return null;
+        when = { kind: 'COMBAT_ROLE', role: 'EITHER', oneOnOne: true };
+      }
       if (empowered) {
         if (when) return null;
         when = gate;
@@ -3591,6 +3621,7 @@ export function parseBattlefieldAbilities(text: string): CardTrigger[] | null {
       /At the start of each player['’]s (?:first )?Beginning Phase/gi,
       'At the start of your Beginning Phase',
     )
+    .replace(/\ba unit you control here\b/gi, 'a friendly unit here')
     .replace(/\bthat player channels\b/gi, 'channel')
     .replace(/\bthat player gains (\d+) points?\b/gi, 'score $1 point')
     .replace(

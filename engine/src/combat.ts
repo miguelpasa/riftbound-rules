@@ -51,7 +51,7 @@
  */
 import { baseMight } from './baseMight.js';
 import { fork } from './workingCopy.js';
-import { killGear } from './effects.js';
+import { endCombatGrants, killGear } from './effects.js';
 import { askDeathReplacement } from './deathOffer.js';
 import { replaceDeath } from './deathReplace.js';
 import { applyDamageMods } from './damageMod.js';
@@ -630,6 +630,7 @@ export function resolveCombatWithResult(
   for (const o of Object.values(s.objects)) {
     if (o.zone.kind === 'base' || o.zone.kind === 'battlefield') o.damage = 0;
   }
+  endCombatGrants(s); // "this combat" effects end with the combat
 
   const result = combatResult(s); // 468.3
   // R71: the units standing at the battlefield when the combat ends (before the attackers are recalled).

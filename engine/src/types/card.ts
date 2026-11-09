@@ -606,11 +606,15 @@ type CardEffectCore =
       keywords: KeywordInstance[];
       /** R93: "[Assault] equal to its Might": the keyword's value is the target's Might. */
       valueFromMight?: boolean;
+      /** "... this combat": the grant ends when the combat does. */
+      duration?: 'COMBAT';
       side?: TargetSide;
       atBattlefield?: boolean;
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
+  /** "Double my Might this combat" (Fiora). */
+  | { op: 'DOUBLE_MIGHT_SELF'; duration?: 'COMBAT' }
   /** "Give me [Ganking] this turn" / "Give your other units here [Shield] this turn" (R43). */
   | { op: 'GRANT_KEYWORDS'; keywords: KeywordInstance[]; to: 'SELF' | 'OTHERS_HERE' }
   /**
@@ -863,6 +867,8 @@ export type Condition =
       role: 'ATTACKING' | 'DEFENDING' | 'EITHER';
       alone?: boolean;
       withOther?: boolean;
+      /** One unit on each side of the combat ("one on one"). */
+      oneOnOne?: boolean;
     }
   /** R87: the controller assigned at least `n` excess combat damage to enemy units this turn. */
   | { kind: 'EXCESS_DAMAGE'; n: number }

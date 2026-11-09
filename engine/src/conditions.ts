@@ -178,6 +178,17 @@ export function evalCondition(
       ).length;
       if (cond.alone && others > 0) return false;
       if (cond.withOther && others === 0) return false;
+      if (cond.oneOnOne) {
+        const count = (p: PlayerId): number =>
+          Object.values(state.objects).filter(
+            (o) =>
+              o.controller === p &&
+              o.zone.kind === 'battlefield' &&
+              o.zone.battlefieldId === c.battlefieldId &&
+              cards[o.cardId]?.type === 'UNIT',
+          ).length;
+        if (count(c.attacker) !== 1 || count(c.defender) !== 1) return false;
+      }
       return true;
     }
     case 'FROM_FACEDOWN':
