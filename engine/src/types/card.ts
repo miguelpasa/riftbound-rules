@@ -1155,6 +1155,8 @@ export interface PlayFilter {
   inShowdown?: boolean;
   /** "a [Mighty] unit": the played unit's printed Might is 5 or more. */
   mighty?: boolean;
+  /** "another Dragon": the played card has this subtype (case-insensitive). */
+  subtype?: string;
 }
 
 /**

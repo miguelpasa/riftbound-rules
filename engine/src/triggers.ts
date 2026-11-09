@@ -96,6 +96,10 @@ function playMatches(
   if (f.onOpponentTurn && state.turn.activePlayer === player) return false;
   if (f.inShowdown && !state.flow.showdown) return false;
   if (f.mighty && (def.type !== 'UNIT' || (def.stats.might ?? 0) < 5)) return false;
+  if (f.subtype) {
+    const want = f.subtype.toLowerCase();
+    if (!def.subtypes.some((x) => x.toLowerCase() === want)) return false;
+  }
   return true;
 }
 

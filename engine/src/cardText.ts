@@ -3517,12 +3517,28 @@ const PLAY_HEAD =
 /** R99: "When you play your second card in a turn, ..." */
 const PLAY_NTH_HEAD = /^When you play your (second|third) card in a turn\s*,\s*(.+)$/i;
 
-function parsePlayHead(sen: string): { filter: PlayFilter; body: string } | null {
+/** "When you play [me or] [another] a Dragon, ...": a played unit of a given subtype (a capitalised word). */
+const PLAY_SUBTYPE_HEAD = /^When you play (me or )?(another |an? )([A-Z][a-z]+)\s*,\s*(.+)$/;
+const NOT_A_SUBTYPE = new Set(['Card', 'Spell', 'Unit', 'Gear', 'Token', 'Mighty']);
+
+function parsePlayHead(
+  sen: string,
+): { filter: PlayFilter; body: string; alsoSelf?: boolean } | null {
   const nth = PLAY_NTH_HEAD.exec(sen);
   if (nth) {
     return {
       filter: { nth: (nth[1] ?? '').toLowerCase() === 'second' ? 2 : 3 },
       body: nth[2] ?? '',
+    };
+  }
+  const st = PLAY_SUBTYPE_HEAD.exec(sen);
+  if (st && !NOT_A_SUBTYPE.has(st[3] ?? '')) {
+    const other = /another/i.test(st[2] ?? '');
+    if (st[1] && !other) return null; // "me or a Dragon" is not a printed form
+    return {
+      filter: { subtype: st[3] ?? '', ...(other ? { other: true } : {}) },
+      body: st[4] ?? '',
+      ...(st[1] ? { alsoSelf: true } : {}),
     };
   }
   const m = PLAY_HEAD.exec(sen);
@@ -3839,7 +3855,7 @@ export function parseCardAbilities(
       if (empowered && split.when) return null;
       cur = {
         kind: 'trigger',
-        ons: ['YOU_PLAY'],
+        ons: ph.alsoSelf ? ['PLAY', 'YOU_PLAY'] : ['YOU_PLAY'],
         legion,
         ...(empowered ? { when: gate as Condition } : split.when ? { when: split.when } : {}),
         playFilter: ph.filter,
