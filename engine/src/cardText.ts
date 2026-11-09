@@ -2486,6 +2486,17 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       last.orReturn = true;
       continue;
     }
+    // "... If <condition>, <effect>": the effect carries its own condition (checked as it resolves).
+    const cw = /^If (.+?), (.+)$/i.exec(list[i] as string);
+    if (cw && !/^you do$/i.test(cw[1] as string) && !/ instead$/i.test(list[i] as string)) {
+      const cond = parseCondition(cw[1] as string);
+      if (cond) {
+        const before = out.length;
+        if (!parseSpellSentence(cw[2] as string, st, out)) return null;
+        for (let k = before; k < out.length; k++) (out[k] as CardEffect).when = cond;
+        continue;
+      }
+    }
     // "... If you do, <effect>": the effect runs only when the previous effect actually did something.
     const ifDo = /^If you do, (.+)$/i.exec(list[i] as string);
     if (ifDo) {
@@ -2748,6 +2759,12 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/[.\s]+$/, '')
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
+  if (/^you played this from your hand$/i.test(text)) return { kind: 'PLAYED_FROM', from: 'HAND' };
+  if (/^you played this from face down$/i.test(text)) {
+    return { kind: 'PLAYED_FROM', from: 'FACEDOWN' };
+  }
+  if (/^it['’]s your turn$/i.test(text)) return { kind: 'YOUR_TURN' };
+  if (/^it['’]s not your turn$/i.test(text)) return { kind: 'YOUR_TURN', not: true };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
   if (/^I['’]m \[Mighty\]$/i.test(text)) return { kind: 'MIGHTY' };
   if (/^I am not in your hand$/i.test(text)) return { kind: 'NOT_IN_HAND' };

@@ -193,6 +193,12 @@ export function evalCondition(
     }
     case 'FROM_FACEDOWN':
       return true; // decided by the triggering CARD_PLAYED event (triggers.ts)
+    case 'PLAYED_FROM': {
+      const how = state.objects[sourceId]?.playedHow;
+      return cond.from === 'FACEDOWN' ? how === 'FACEDOWN' : how === undefined;
+    }
+    case 'YOUR_TURN':
+      return (state.turn.activePlayer === controller) !== (cond.not === true);
     case 'OTHER_UNITS_MIGHT': {
       let sum = 0;
       for (const o of Object.values(state.objects)) {

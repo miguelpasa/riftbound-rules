@@ -684,6 +684,9 @@ export function playCard(
     ...(obj.faceDownPlay ? { fromFacedown: true } : {}),
   });
   delete obj.faceDownPlay;
+  if (def.type === 'SPELL' && hooks?.hiddenAt) obj.playedHow = 'FACEDOWN';
+  else if (flow) obj.playedHow = 'ELSEWHERE';
+  else delete obj.playedHow;
   const playedEvents = stampEvents(work, events);
   const pushed = pushPendingItem(work, item);
 

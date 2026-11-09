@@ -150,7 +150,11 @@ export interface LookTake {
 }
 
 /** `ifDid`: "If you do, ...": runs only when the previous effect changed the game. */
-export type CardEffect = CardEffectCore & { ifDid?: true };
+export type CardEffect = CardEffectCore & {
+  ifDid?: true;
+  /** "... If <condition>, <effect>": the effect runs only while the condition holds when it resolves. */
+  when?: Condition;
+};
 
 type CardEffectCore =
   /** `perOtherBattlefield`: draw `amount` for each OTHER battlefield the controller controls (R44). */
@@ -874,6 +878,10 @@ export type Condition =
   | { kind: 'OTHER_UNITS_MIGHT'; n: number }
   /** R100: this card was just played from face down (read from the triggering CARD_PLAYED event). */
   | { kind: 'FROM_FACEDOWN' }
+  /** "If you played this from your hand / from face down": read from the spell's own Chain item. */
+  | { kind: 'PLAYED_FROM'; from: 'HAND' | 'FACEDOWN' }
+  /** "If it's [not] your turn": the controller is [not] the turn player. */
+  | { kind: 'YOUR_TURN'; not?: boolean }
   /**
    * R95: the source is in the combat being fought as an attacker / defender (`role`), optionally `alone` (no other
    * friendly unit at the battlefield) or `withOther` (at least one other friendly unit there).

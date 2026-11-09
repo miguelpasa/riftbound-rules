@@ -277,3 +277,46 @@ describe('scenario: taking control of a unit (Possession, Hostile Takeover)', ()
     expect(after.players[1]?.base).toContain(victim);
   });
 });
+
+describe('scenario: a sentence with its own condition (Back Off)', () => {
+  it('draws only when the spell was played from the hand', () => {
+    // Tests Rule 355: playing a card; its effects resolve in order
+    const effects = parseSpellText('Stun a unit. If you played this from your hand, draw 1.') ?? [];
+    expect(effects[1]).toMatchObject({
+      op: 'DRAW',
+      when: { kind: 'PLAYED_FROM', from: 'HAND' },
+    });
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-flare': { ...base('fx-flare'), supportLevel: 'full', effects },
+    };
+    const sc = Scenario.start({}, cards);
+    const victim = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    const handBefore = sc.state.players[0]?.hand.length ?? 0;
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: victim }],
+    });
+    for (let i = 0; i < 20 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    // the Flare left the hand and one card was drawn
+    expect(sc.state.players[0]?.hand.length).toBe(handBefore);
+    expect(sc.obj(victim).stunned).toBe(true);
+  });
+
+  it('skips the sentence while its condition is false', () => {
+    // Tests Rule 355: playing a card; its effects resolve in order
+    const effects = parseSpellText("If it's not your turn, draw 1.") ?? [];
+    const sc = Scenario.start({});
+    const s = structuredClone(sc.state);
+    const before = s.players[1]?.hand.length ?? 0;
+    runEffects(s, 'p1', effects, sc.cards); // it is p0's turn: p1 draws
+    expect(s.players[1]?.hand.length).toBe(before + 1);
+    const t = structuredClone(sc.state);
+    const mine = t.players[0]?.hand.length ?? 0;
+    runEffects(t, 'p0', effects, sc.cards); // p0's own turn: nothing
+    expect(t.players[0]?.hand.length).toBe(mine);
+  });
+});

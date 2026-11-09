@@ -974,6 +974,7 @@ export function playByEffect(
       return false;
     }
     u.zone = { kind: 'chain', player: u.owner };
+    u.playedHow = 'ELSEWHERE';
     const spellItem: ChainItem = {
       id: allocObjectId(state),
       kind: 'CARD',
@@ -1167,6 +1168,10 @@ export function runEffects(
   for (const e of effects) {
     if (state.gameStatus !== 'IN_PROGRESS') break;
     if (e.ifDid && !lastDid) continue;
+    if (e.when && !evalCondition(state, cards, e.when, controller, sourceObjectId)) {
+      lastDid = false;
+      continue;
+    }
     const mark = out.length;
     switch (e.op) {
       case 'DRAW': {
