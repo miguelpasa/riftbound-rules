@@ -242,6 +242,15 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
           dest: e.dest ?? 'ANY',
         });
       }
+    } else if (e.op === 'MUTUAL_DAMAGE_SELF') {
+      if (!reqs.has(e.slot)) {
+        reqs.set(e.slot, {
+          slot: e.slot,
+          kind: 'unit',
+          side: e.side,
+          ...(e.atBattlefield ? { atBattlefield: true } : {}),
+        });
+      }
     } else if (e.op === 'MUTUAL_DAMAGE') {
       e.slots.forEach((slot, i) => {
         if (reqs.has(slot)) return;
@@ -1740,6 +1749,20 @@ export function runEffects(
         }
         (state.objects[id] as CardInstance).attachedTo = unit.id;
         out.push({ type: 'EQUIPPED', equipmentId: id, unitId: unit.id });
+        break;
+      }
+      case 'MUTUAL_DAMAGE_SELF': {
+        const a = state.objects[sourceObjectId];
+        const b = state.objects[ids[e.slot] ?? ''];
+        const okB = legalForSpec(state, cards, controller, { kind: 'unit', side: e.side }, b);
+        if (!a || !b || !okB || a.id === b.id || (a.zone.kind !== 'base' && a.zone.kind !== 'battlefield')) {
+          fizzle();
+          break;
+        }
+        const dealtByA = Math.max(0, mightOf(a));
+        const dealtByB = Math.max(0, mightOf(b));
+        damage(b, dealtByA);
+        damage(a, dealtByB);
         break;
       }
       case 'MUTUAL_DAMAGE': {

@@ -313,3 +313,28 @@ describe('scenario: "If it is stunned, kill it. Otherwise, stun it." (Solari Chi
     expect(second.alive).toBe(false);
   });
 });
+
+describe('scenario: "We deal damage equal to our Mights to each other" (Carnivorous Snapvine)', () => {
+  const text =
+    'When you play me, choose an enemy unit at a battlefield. We deal damage equal to our Mights to each other.';
+
+  it('reads as a play trigger choosing an enemy at a battlefield', () => {
+    // Tests Rule 573: damage dealt by an effect
+    expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
+      on: 'PLAY',
+      effects: [{ op: 'MUTUAL_DAMAGE_SELF', slot: 0, side: 'enemy', atBattlefield: true }],
+    });
+  });
+
+  it('deals each Might to the other at once', () => {
+    // Tests Rule 573: damage dealt by an effect
+    const trig = parseCardAbilities(text)?.triggers ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const me = sc.putUnit('p0', 'fx-ash-tank', 'base'); // 3 Might
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'bf1'); // 2 Might
+    const s = structuredClone(sc.state);
+    runEffects(s, 'p0', trig[0]?.effects ?? [], SCENARIO_CARDS, [{ kind: 'object', id: foe }], 'fx-ash-tank', me);
+    expect(s.objects[me]?.damage).toBe(2);
+    expect(s.objects[foe]?.damage).toBe(3);
+  });
+});

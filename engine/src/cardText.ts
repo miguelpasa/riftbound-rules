@@ -1645,6 +1645,19 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     else delete st.it;
     return true;
   }
+  // "We deal damage equal to our Mights to each other": me and the unit just chosen.
+  if (/^We deal damage equal to our Mights to each other$/i.test(sen)) {
+    const k = st.it;
+    const d = k === undefined ? undefined : st.slots[k];
+    if (k === undefined || !d || d.kind !== undefined || st.locked) return false;
+    out.push({
+      op: 'MUTUAL_DAMAGE_SELF',
+      slot: k,
+      side: d.side,
+      ...(d.atBattlefield ? { atBattlefield: true } : {}),
+    });
+    return true;
+  }
   if (/^They deal damage equal to their Mights to each other$/i.test(sen)) {
     if (st.slots.length !== 2 || st.locked) return false;
     const [a, b] = st.slots as [SlotDecl, SlotDecl];

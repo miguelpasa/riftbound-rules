@@ -354,6 +354,8 @@ type CardEffectCore =
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
+  /** "We deal damage equal to our Mights to each other": me and the chosen unit (Carnivorous Snapvine). */
+  | { op: 'MUTUAL_DAMAGE_SELF'; slot: number; side: TargetSide; atBattlefield?: boolean }
   /** Two chosen units each deal damage equal to their Might to the other (simultaneously). */
   | {
       op: 'MUTUAL_DAMAGE';
