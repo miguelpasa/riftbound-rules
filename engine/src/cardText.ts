@@ -315,6 +315,18 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   if (/^Exhaust all friendly units$/i.test(sen)) return [{ op: 'EXHAUST_ALL', side: 'friendly' }];
   if (/^Kill all gear$/i.test(sen)) return [{ op: 'KILL_ALL_GEAR' }];
   if (/^Kill all units$/i.test(sen)) return [{ op: 'KILL_ALL_UNITS' }];
+  m = /^Kill all (damaged )?(friendly |enemy )?units( here)?$/i.exec(sen);
+  if (m && (m[1] || m[2] || m[3])) {
+    const sideWord = (m[2] ?? '').trim().toLowerCase();
+    return [
+      {
+        op: 'KILL_ALL_UNITS',
+        ...(sideWord === 'friendly' || sideWord === 'enemy' ? { side: sideWord } : {}),
+        ...(m[1] ? { damaged: true } : {}),
+        ...(m[3] ? { here: true } : {}),
+      },
+    ];
+  }
   const tok = parseTokenClause(sen);
   if (tok) return [tok];
   const add = parseAddClause(sen);

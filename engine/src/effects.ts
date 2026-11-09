@@ -1512,6 +1512,13 @@ export function runEffects(
         break;
       case 'KILL_ALL_UNITS':
         for (const u of boardUnits(state, cards)) {
+          if (e.side && !sideMatches(e.side, controller, u)) continue;
+          if (e.damaged && u.damage <= 0) continue;
+          if (e.here) {
+            const hb = hereOfSource(state, sourceObjectId);
+            if (hb === null || u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== hb)
+              continue;
+          }
           const lethal = Math.max(1, mightOf(u)) - u.damage;
           if (lethal > 0) u.damage += lethal;
           out.push({ type: 'EFFECT_DAMAGE', unitId: u.id, amount: Math.max(lethal, 0) });

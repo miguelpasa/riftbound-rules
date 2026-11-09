@@ -481,7 +481,13 @@ export type CardEffect =
       count?: TargetCount;
     } & TargetScope)
   /** Kill every unit on the board. */
-  | { op: 'KILL_ALL_UNITS' }
+  | {
+      op: 'KILL_ALL_UNITS';
+      /** "Kill all damaged enemy units here" (Warwick): optional side / damaged / here filters. */
+      side?: TargetSide;
+      damaged?: boolean;
+      here?: boolean;
+    }
   /**
    * Look at the top `count` cards of the controller's Main Deck, take one into the hand (`take`;
    * "draw it" or "put it into your hand", optionally revealed and restricted to `filter`) and
