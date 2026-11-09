@@ -835,3 +835,43 @@ describe('scenario: "Units you play to battlefields you control enter ready" (Th
     expect(readyAfter('base')).toBe(false);
   });
 });
+
+describe('scenario: "2 or more other friendly units and/or gear at my battlefield" (Steadfast Outrider)', () => {
+  const text =
+    'While there are 2 or more other friendly units and/or gear at my battlefield, I have +2 [M].';
+
+  it('reads as a might static gated on the count of other units and gear here', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    expect(parseStaticLines(text)?.statics).toEqual([
+      {
+        affects: 'SELF',
+        might: 2,
+        when: {
+          kind: 'COUNT',
+          what: 'unitOrGear',
+          where: 'here',
+          who: 'friendly',
+          other: true,
+          cmp: 'GTE',
+          n: 2,
+        },
+      },
+    ]);
+  });
+
+  it('gives +2 Might only once two other friendly units or gear stand at my battlefield', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ash-tank': { ...base('fx-ash-tank'), statics: parseStaticLines(text)?.statics ?? [] },
+    };
+    const sc = Scenario.start({}, cards);
+    const me = sc.putUnit('p0', 'fx-ash-tank', 'bf1', { control: true });
+    const might = (): number => effectiveMight(sc.state, cards, me, { role: null });
+    expect(might()).toBe(3);
+    sc.putUnit('p0', 'fx-archer', 'bf1');
+    expect(might()).toBe(3); // one other: not enough
+    sc.putUnit('p0', 'fx-grunt', 'bf1');
+    expect(might()).toBe(5); // two others
+  });
+});

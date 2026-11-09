@@ -3084,6 +3084,21 @@ export function parseCondition(raw: string): Condition | null {
         n: 1,
       };
     }
+    // "there are 2 or more other friendly units and/or gear at my battlefield" (Steadfast Outrider).
+    const og = /^there are (\d+) or more other friendly units and\/or gear (?:here|at my battlefield)$/i.exec(
+      text,
+    );
+    if (og) {
+      return {
+        kind: 'COUNT',
+        what: 'unitOrGear',
+        where: 'here',
+        who: 'friendly',
+        other: true,
+        cmp: 'GTE',
+        n: Number(og[1]),
+      };
+    }
     const a = /^I['’]m at a battlefield with exactly one other unit you control$/i.test(text);
     if (a) {
       return {

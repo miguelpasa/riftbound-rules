@@ -354,6 +354,8 @@ export function evalCondition(
         const kindOk =
           cond.what === 'unit'
             ? isUnitDef(def)
+            : cond.what === 'unitOrGear'
+              ? def.type === 'GEAR' || isUnitDef(def)
             : cond.what === 'gear'
               ? def.type === 'GEAR'
               : cond.what === 'rune'

@@ -866,7 +866,7 @@ export type CountCmp = 'EQ' | 'GTE' | 'LTE';
 export type Condition =
   | {
       kind: 'COUNT';
-      what: 'unit' | 'gear' | 'rune' | 'card';
+      what: 'unit' | 'gear' | 'unitOrGear' | 'rune' | 'card';
       where: 'here' | 'base' | 'board' | 'hand' | 'runeDeck';
       who: 'friendly' | 'enemy';
       other?: boolean;
