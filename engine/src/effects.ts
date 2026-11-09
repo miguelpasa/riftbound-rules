@@ -200,7 +200,10 @@ function specOf(e: TargetedEffect): Spec {
   if ('exhausted' in e && e.exhausted) spec.exhausted = true;
   if ('another' in e && e.another) spec.another = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergy !== undefined) spec.maxEnergy = e.maxEnergy;
-  if ((e.op === 'KILL_TARGET' || e.op === 'RETURN_TARGET') && e.maxMight !== undefined) {
+  if (
+    (e.op === 'KILL_TARGET' || e.op === 'RETURN_TARGET' || e.op === 'MOVE_BASE_TARGET') &&
+    e.maxMight !== undefined
+  ) {
     spec.maxMight = e.maxMight;
   }
   return spec;

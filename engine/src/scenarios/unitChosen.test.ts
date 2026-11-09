@@ -7,7 +7,7 @@ import {
   parseSpellText,
 } from '../cardText.js';
 import { evalCondition } from '../conditions.js';
-import { runEffects } from '../effects.js';
+import { runEffects, spellTargetsLegal } from '../effects.js';
 import { runTurnTriggers } from '../turnTriggers.js';
 import { effectiveMight } from '../combat.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
@@ -471,5 +471,48 @@ describe('scenario: "heal your units here, then move up to one enemy unit from h
     expect(s.objects[mate]?.damage).toBe(0);
     expect(s.objects[far]?.damage).toBe(1); // not here
     expect(s.objects[foe]?.zone.kind).toBe('base');
+  });
+});
+
+describe('scenario: "move any number of enemy units here each with 5 [M] or less to their base" (Corrupted Dragon)', () => {
+  const text =
+    'When I attack, you may move any number of enemy units here each with 5 [M] or less to their base.';
+
+  it('reads as an optional multi-target move limited by Might', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
+      on: 'ATTACK',
+      effects: [
+        {
+          op: 'MOVE_BASE_TARGET',
+          side: 'enemy',
+          here: true,
+          maxMight: 5,
+          count: { min: 0, max: 99 },
+        },
+      ],
+    });
+  });
+
+  it('only offers enemy units at my battlefield with at most that Might', () => {
+    // Tests Rule 355.10: targets must be legal
+    const effects = parseCardAbilities(text)?.triggers[0]?.effects ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const me = sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+    const small = sc.putUnit('p1', 'fx-tide-grunt', 'bf1'); // 2 Might
+    const big = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    sc.state.objects[big]!.mightBonus = 4; // 6 Might
+    const legal = (ids: string[]): boolean =>
+      spellTargetsLegal(
+        sc.state,
+        SCENARIO_CARDS,
+        'p0',
+        effects,
+        ids.map((id) => ({ kind: 'object' as const, id })),
+        me,
+      );
+    expect(legal([small])).toBe(true);
+    expect(legal([big])).toBe(false);
+    expect(legal([])).toBe(true);
   });
 });

@@ -1260,6 +1260,23 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  m = new RegExp(
+    `^Move any number of ${SIDE}units each with (\\d+) \\[M\\] or less to (?:their |its )?base$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: {
+        op: 'MOVE_BASE_TARGET',
+        ...sideProp(s),
+        maxMight: Number(m[2]),
+        count: { min: 0, max: 99 },
+      },
+      decl: { side: s ?? 'any' },
+      multi: true,
+    };
+  }
   m = new RegExp(`^Move an attacking unit to (?:its |their )?base$`, 'i').exec(sen);
   if (m) {
     return {

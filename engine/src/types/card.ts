@@ -532,6 +532,8 @@ type CardEffectCore =
       attacking?: boolean;
       side?: TargetSide;
       atBattlefield?: boolean;
+      /** "each with 5 [M] or less": only units whose current Might is at most this. */
+      maxMight?: number;
       slot?: number;
       count?: TargetCount;
     } & TargetScope)
