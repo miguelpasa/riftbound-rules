@@ -902,17 +902,46 @@ function parseChooserBase(sen: string): Chooser | null {
   }
   // X5: "Play a unit [costing / with cost no more than [3] and no more than [A]] from your trash, ignoring its cost".
   m =
-    /^[Pp]lay an? unit(?: (?:costing|with cost) no more than \[(\d+)\](?: and no more than \[A\])?)? from your trash, ignoring its cost$/.exec(
+    /^[Pp]lay an? unit(?: (?:costing|with cost) no more than \[(\d+)\](?: and no more than \[A\])?)? from your trash, ignoring its (Energy )?cost$/.exec(
       sen,
     );
   if (m) {
     return {
       effect: {
         op: 'PLAY_FROM_TRASH',
+        ...(m[2] ? { payPower: true } : {}),
         ...(m[1] !== undefined ? { maxEnergy: Number(m[1]) } : {}),
         ...(m[1] !== undefined && /and no more than \[A\]/.test(sen) ? { maxPower: 1 } : {}),
       },
       decl: { side: 'friendly' },
+    };
+  }
+  // "Play a unit from your hand to your base, ignoring its [Energy] cost" (Rift Herald).
+  m = /^[Pp]lay an? unit from your hand to your base, ignoring its (Energy )?cost$/.exec(sen);
+  if (m) {
+    return {
+      effect: { op: 'PLAY_FROM_TRASH', from: 'hand', ...(m[1] ? { payPower: true } : {}) },
+      decl: { side: 'friendly' },
+    };
+  }
+  // "Play up to 3 units and/or gear from your trash, each with Energy cost no more than [3] and Power cost no more
+  // than [A], ignoring their costs" (Remember the Fallen).
+  m =
+    /^[Pp]lay up to (two|three|\d+) units and\/or gear from your trash, each with Energy cost no more than \[(\d+)\] and Power cost no more than \[A\], ignoring their costs$/.exec(
+      sen,
+    );
+  if (m) {
+    const n = COUNT_WORDS[(m[1] ?? '').toLowerCase()] ?? Number(m[1]);
+    return {
+      effect: {
+        op: 'PLAY_FROM_TRASH',
+        what: 'unitOrGear',
+        maxEnergy: Number(m[2]),
+        maxPower: 1,
+        count: { min: 0, max: n },
+      },
+      decl: { side: 'friendly' },
+      multi: true,
     };
   }
   // R75: "Return a unit / gear / spell (or a Bird, Cat, ...) from your trash to your hand".

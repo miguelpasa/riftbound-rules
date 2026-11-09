@@ -209,3 +209,103 @@ describe('scenario: Burn Out on look and mill (X8)', () => {
     expect(ev.some((e) => e.type === 'BURN_OUT')).toBe(true);
   });
 });
+
+describe('scenario: play a unit from the Trash, ignoring only its Energy cost (Soulgorger, The Harrowing)', () => {
+  const setup = (withRunes: boolean) => {
+    const sc = Scenario.start();
+    if (withRunes) sc.giveRunes('p0', 2, 'Calm');
+    const titan = sc.putInHand('p0', 'fx-titan'); // 5 Energy and 1 Calm Power
+    const s = structuredClone(sc.state);
+    const t = s.objects[titan] as CardInstance;
+    s.players[0].hand = s.players[0].hand.filter((x) => x !== titan);
+    s.players[0].trash.push(titan);
+    t.zone = { kind: 'trash', player: 'p0' };
+    return { sc, s, titan };
+  };
+  const eff = [{ op: 'PLAY_FROM_TRASH' as const, payPower: true }];
+
+  it('pays the Power cost with the cheapest plan and plays the unit', async () => {
+    // Tests Rule 560.1.a: only the Energy cost is set to zero, so the Power cost is still paid
+    const { runEffects, spellTargetsLegal } = await import('../effects.js');
+    const { sc, s, titan } = setup(true);
+    const target = [{ kind: 'object' as const, id: titan }];
+    expect(spellTargetsLegal(s, sc.cards, 'p0', eff, target)).toBe(true);
+    const runesBefore = s.players[0].base.filter((id) =>
+      s.objects[id]?.cardId.includes('rune'),
+    ).length;
+    const ev = runEffects(s, 'p0', eff, sc.cards, target);
+    expect((s.objects[titan] as CardInstance).zone.kind).toBe('base');
+    expect(ev.some((e) => e.type === 'CARD_PLAYED')).toBe(true);
+    const runesAfter = s.players[0].base.filter((id) =>
+      s.objects[id]?.cardId.includes('rune'),
+    ).length;
+    expect(runesAfter).toBeLessThanOrEqual(runesBefore);
+  });
+
+  it('cannot choose a unit whose Power cost cannot be paid', async () => {
+    // Tests Rule 560.1.a: only the Energy cost is set to zero, so the Power cost is still paid
+    const { spellTargetsLegal } = await import('../effects.js');
+    const { sc, s, titan } = setup(false);
+    // No runes of any domain in the base: the Calm Power cannot be paid.
+    for (const id of [...s.players[0].base]) {
+      if ((s.objects[id] as CardInstance).cardId.includes('rune')) {
+        s.players[0].base = s.players[0].base.filter((x) => x !== id);
+      }
+    }
+    s.players[0].runePool = { energy: 0, power: {} } as never;
+    expect(spellTargetsLegal(s, sc.cards, 'p0', eff, [{ kind: 'object', id: titan }])).toBe(false);
+  });
+});
+
+describe('scenario: play from the hand or several from the Trash by an effect (Rift Herald, Remember the Fallen)', () => {
+  it('plays a unit from the hand to the Base, paying only its Power cost', async () => {
+    // Tests Rule 560.1.a: playing by an effect with the Energy cost set to zero
+    const { runEffects, spellTargetsLegal } = await import('../effects.js');
+    const sc = Scenario.start();
+    sc.giveRunes('p0', 2, 'Calm');
+    const titan = sc.putInHand('p0', 'fx-titan');
+    const eff = [{ op: 'PLAY_FROM_TRASH' as const, from: 'hand' as const, payPower: true }];
+    const target = [{ kind: 'object' as const, id: titan }];
+    const s = structuredClone(sc.state);
+    expect(spellTargetsLegal(s, sc.cards, 'p0', eff, target)).toBe(true);
+    runEffects(s, 'p0', eff, sc.cards, target);
+    expect((s.objects[titan] as CardInstance).zone.kind).toBe('base');
+    expect(s.players[0].hand).not.toContain(titan);
+    // A card in the trash is not a hand card.
+    const t2 = structuredClone(sc.state);
+    const o = t2.objects[titan] as CardInstance;
+    t2.players[0].hand = t2.players[0].hand.filter((x) => x !== titan);
+    t2.players[0].trash.push(titan);
+    o.zone = { kind: 'trash', player: 'p0' };
+    expect(spellTargetsLegal(t2, sc.cards, 'p0', eff, target)).toBe(false);
+  });
+
+  it('plays up to three units and gear from the Trash for free, limited by cost', async () => {
+    // Tests Rule 560.1.a: playing "ignoring their costs" sets the base costs to zero
+    const { runEffects, spellTargetsLegal } = await import('../effects.js');
+    const sc = Scenario.start();
+    const a = sc.putInHand('p0', 'fx-grunt');
+    const b = sc.putInHand('p0', 'fx-blade');
+    const s = structuredClone(sc.state);
+    for (const id of [a, b]) {
+      const o = s.objects[id] as CardInstance;
+      s.players[0].hand = s.players[0].hand.filter((x) => x !== id);
+      s.players[0].trash.push(id);
+      o.zone = { kind: 'trash', player: 'p0' };
+    }
+    const eff = [
+      {
+        op: 'PLAY_FROM_TRASH' as const,
+        what: 'unitOrGear' as const,
+        maxEnergy: 3,
+        maxPower: 1,
+        count: { min: 0, max: 3 },
+      },
+    ];
+    const targets = [a, b].map((id) => ({ kind: 'object' as const, id }));
+    expect(spellTargetsLegal(s, sc.cards, 'p0', eff, targets)).toBe(true);
+    runEffects(s, 'p0', eff, sc.cards, targets);
+    expect((s.objects[a] as CardInstance).zone.kind).toBe('base');
+    expect((s.objects[b] as CardInstance).zone.kind).toBe('base');
+  });
+});

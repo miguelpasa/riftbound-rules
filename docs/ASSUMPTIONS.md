@@ -559,3 +559,8 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 
 - **Where:** the controller chooses the battlefield when the ability goes on the Chain; several Bombs from one effect all go to that one battlefield.
 - **Death ability:** it is a trigger of the dead token, resolved from its last known battlefield (`GameState.lki`); "an enemy there" is an up-to-one target, so with no enemy there the Bombs are still killed. Only the Bomb's controller's other Bombs there are killed.
+
+## X-play: playing a card by an effect (A-X-play)
+
+- **Power cost:** "ignoring its Energy cost" still costs the card's Power. The engine pays it automatically with the cheapest plan (`autoPlan`), so the controller does not pick which runes are recycled; a card whose Power cannot be paid is not a legal choice.
+- **Where:** a unit played by an effect goes to its owner's Base (the choice of location is not modelled, as before); gear enters ready unless it enters exhausted.

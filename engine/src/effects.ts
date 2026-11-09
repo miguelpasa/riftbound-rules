@@ -13,7 +13,7 @@ import { fork } from './workingCopy.js';
 import { burnOutIfEmpty, drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
 import { equipTotalCost, hasKeyword, removeTokenFromGame } from './keywords.js';
-import { autoPlan, payCost } from './resources.js';
+import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import { allocObjectId } from './setup.js';
 import { hereOfSource } from './sources.js';
 import { isGearDef, isUnitDef } from './tokens.js';
@@ -86,6 +86,10 @@ interface Spec {
   /** X5: printed-cost limits of a Trash card played by an effect. */
   trashMaxEnergy?: number;
   trashMaxPower?: number;
+  /** The card is in the controller's hand instead of the Trash. */
+  trashFromHand?: boolean;
+  /** The Power cost of the Trash card must be payable now ("ignoring its Energy cost"). */
+  trashPayPower?: boolean;
   /** R42: at the source's battlefield / not the source itself (needs the source object). */
   here?: boolean;
   another?: boolean;
@@ -160,10 +164,12 @@ function specOf(e: TargetedEffect): Spec {
   }
   if (e.op === 'PLAY_FROM_TRASH') {
     spec.side = 'friendly';
-    spec.trashWhat = 'unit';
+    spec.trashWhat = e.what ?? 'unit';
+    if (e.from === 'hand') spec.trashFromHand = true;
     if (e.subtypes) spec.trashSubtypes = e.subtypes;
     if (e.maxEnergy !== undefined) spec.trashMaxEnergy = e.maxEnergy;
     if (e.maxPower !== undefined) spec.trashMaxPower = e.maxPower;
+    if (e.payPower) spec.trashPayPower = true;
   }
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
   if ((e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET') && e.inBase) spec.inBase = true;
@@ -297,7 +303,8 @@ function legalForSpec(
   }
   if (spec.kind === 'trash') {
     // R75: a card of the right kind in the controller's own Trash (tokens never reach the Trash).
-    if (u.zone.kind !== 'trash' || u.owner !== controller) return false;
+    if (u.zone.kind !== (spec.trashFromHand ? 'hand' : 'trash') || u.owner !== controller)
+      return false;
     const d = cards[u.cardId];
     if (!d) return false;
     const what = spec.trashWhat;
@@ -314,6 +321,12 @@ function legalForSpec(
     if (spec.trashMaxPower !== undefined) {
       const pw = Object.values(d.cost.power ?? {}).reduce((n, v) => n + (v ?? 0), 0);
       if (pw > spec.trashMaxPower) return false;
+    }
+    if (
+      spec.trashPayPower &&
+      autoPlan(state, cards, controller, { energy: 0, power: computeTotalCost(d).power }) === null
+    ) {
+      return false;
     }
     const subs = spec.trashSubtypes;
     return !subs || subs.some((s) => d.subtypes.some((x) => x.toLowerCase() === s.toLowerCase()));
@@ -1341,17 +1354,41 @@ export function runEffects(
             u.zone = { kind: 'hand', player: u.owner };
             ps.hand.push(u.id);
           } else if (e.op === 'PLAY_FROM_TRASH') {
-            // X5 (560.1.a, 595.3): played by an effect with every cost set to zero.
+            // X5 (560.1.a, 595.3): played by an effect with every cost set to zero ("ignoring its cost"), or with only the
+            // Energy cost set to zero ("ignoring its Energy cost"): the Power cost is paid first, with the automatic plan.
+            if (e.payPower) {
+              const total = {
+                energy: 0,
+                power: computeTotalCost(cards[u.cardId] as CardDef).power,
+              };
+              const plan = autoPlan(state, cards, controller, total);
+              const paid = plan === null ? null : payCost(state, cards, controller, total, plan);
+              if (!paid || !paid.ok) {
+                fizzle();
+                continue;
+              }
+              if (paid.state !== state) {
+                // Take over the payment's changes without replacing objects this loop already holds.
+                state.players = paid.state.players;
+                for (const r of plan ?? []) {
+                  const rune = paid.state.objects[r.runeId];
+                  if (rune) state.objects[r.runeId] = rune;
+                }
+              }
+            }
             const ps = state.players[playerIndex(u.owner)];
             ps.trash = ps.trash.filter((x) => x !== u.id);
+            ps.hand = ps.hand.filter((x) => x !== u.id);
             u.zone = { kind: 'base', player: u.owner };
             u.controller = u.owner;
             u.damage = 0;
             u.mightBonus = 0;
             u.enteredTurn = state.turn.number;
             u.ready =
-              staticBonus(state, cards, u).entersReady === true ||
-              ps.enterReadyTurn === state.turn.number;
+              cards[u.cardId]?.type === 'GEAR'
+                ? cards[u.cardId]?.entersExhausted !== true
+                : staticBonus(state, cards, u).entersReady === true ||
+                  ps.enterReadyTurn === state.turn.number;
             ps.base.push(u.id);
             const sameTurn = ps.playedThisTurn?.turn === state.turn.number;
             ps.playedThisTurn = {

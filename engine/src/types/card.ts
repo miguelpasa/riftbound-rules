@@ -444,6 +444,12 @@ export type CardEffect =
    */
   | {
       op: 'PLAY_FROM_TRASH';
+      /** "ignoring its Energy cost": the unit's Power cost is still paid (automatically, with the cheapest plan). */
+      payPower?: boolean;
+      /** "Play a unit from your hand": the card comes from the hand instead of the Trash. */
+      from?: 'hand';
+      /** "units and/or gear": what may be chosen (a unit by default). */
+      what?: 'unit' | 'unitOrGear';
       maxEnergy?: number;
       maxPower?: number;
       subtypes?: string[];
