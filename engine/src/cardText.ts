@@ -3643,6 +3643,16 @@ const CC_RE: { kind: CostCardChoice['kind']; re: RegExp }[] = [
 ];
 
 function parseCostCardAt(s: string): { cc: CostCardChoice; len: number } | null {
+  // "Exhaust a friendly [Mighty] unit": the [Mighty] qualifier narrows the choice to units with 5+ Might.
+  const mightyTag = /\[Mighty\] /i.exec(s);
+  if (mightyTag && mightyTag.index > 0) {
+    const plain = parseCostCardAt(
+      s.slice(0, mightyTag.index) + s.slice(mightyTag.index + mightyTag[0].length),
+    );
+    return plain && (plain.cc.kind === 'KILL' || plain.cc.kind === 'EXHAUST' || plain.cc.kind === 'RETURN')
+      ? { cc: { ...plain.cc, mighty: true }, len: plain.len + mightyTag[0].length }
+      : null;
+  }
   for (const { kind, re } of CC_RE) {
     re.lastIndex = 0;
     const m = re.exec(s);
