@@ -101,7 +101,13 @@ export type GameEvent = EventBase &
       }
     | { type: 'FINAL_POINT_DENIED_DREW_CARD'; player: PlayerId }
     | { type: 'BURN_OUT'; player: PlayerId }
-    | { type: 'BATTLEFIELD_CONTROL_CHANGED'; battlefieldId: string; controller: PlayerId | null }
+    | {
+        type: 'BATTLEFIELD_CONTROL_CHANGED';
+        battlefieldId: string;
+        controller: PlayerId | null;
+        /** The battlefield had no controller before ('a battlefield that was uncontrolled'). */
+        fromNeutral?: true;
+      }
     | { type: 'GAME_ENDED'; winner: PlayerId }
     | { type: 'GAME_ABORTED'; reason: string }
     | { type: 'CLEANUP_ITERATION'; iteration: number }

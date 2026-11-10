@@ -3864,6 +3864,7 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^you showed off(?: an? (?:card|unit|gear))?$/i.test(text)) return { kind: 'SHOWED_OFF' };
+  if (/^the battlefield was uncontrolled$/i.test(text)) return { kind: 'WAS_UNCONTROLLED' };
   if (/^you played this from your hand$/i.test(text)) return { kind: 'PLAYED_FROM', from: 'HAND' };
   if (/^you played this from face down$/i.test(text)) {
     return { kind: 'PLAYED_FROM', from: 'FACEDOWN' };
@@ -4458,6 +4459,14 @@ export function parseCardAbilities(
   // "<effects>, then recycle me if I was played from face down" (Elnuk Herd): the recycle is its own
   // "when you play me from face down" trigger, put on the Chain first so it resolves after the rest.
   // "When I'm played and when I conquer, ..." is "When you play me or when I conquer, ..." (Sett).
+  // "When I conquer a battlefield that was uncontrolled, ..." = "When I conquer, if the battlefield was uncontrolled, ..." (Yone).
+  const unctl = /When I conquer a battlefield that was uncontrolled,/i;
+  if (unctl.test(text0)) {
+    return parseCardAbilities(
+      text0.replace(unctl, 'When I conquer, if the battlefield was uncontrolled,'),
+      opts,
+    );
+  }
   const playedAnd = /When I['’]m played and when I (conquer|hold|attack|defend)/i;
   if (playedAnd.test(text0)) {
     return parseCardAbilities(text0.replace(playedAnd, 'When you play me or when I $1'), opts);

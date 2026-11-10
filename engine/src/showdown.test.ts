@@ -258,7 +258,12 @@ describe('helpers', () => {
     const ev = establishControl(s, 'bf0', 'p1');
     expect(s.battlefields[0]).toMatchObject({ controller: 'p1', contestedBy: null });
     expect(ev).toEqual([
-      { type: 'BATTLEFIELD_CONTROL_CHANGED', battlefieldId: 'bf0', controller: 'p1' },
+      {
+        type: 'BATTLEFIELD_CONTROL_CHANGED',
+        battlefieldId: 'bf0',
+        controller: 'p1',
+        fromNeutral: true,
+      },
     ]);
     expect(establishControl(s, 'bf0', 'p1')).toEqual([]);
   });

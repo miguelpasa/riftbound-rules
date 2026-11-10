@@ -85,8 +85,16 @@ export function establishControl(
   if (!bf) return [];
   bf.contestedBy = null; // 190.3.b
   if (bf.controller === player) return [];
+  const fromNeutral = bf.controller === null;
   bf.controller = player;
-  return [{ type: 'BATTLEFIELD_CONTROL_CHANGED', battlefieldId: bfId, controller: player }];
+  return [
+    {
+      type: 'BATTLEFIELD_CONTROL_CHANGED',
+      battlefieldId: bfId,
+      controller: player,
+      ...(fromNeutral ? { fromNeutral: true as const } : {}),
+    },
+  ];
 }
 
 /** Contested battlefields where the contester has units present (cleanup loop, 323.7). */

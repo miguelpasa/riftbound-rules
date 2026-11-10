@@ -1040,6 +1040,8 @@ export type Condition =
   | { kind: 'DIED_ALONE'; not?: boolean }
   /** A Deathknell's "if I was [Mighty]" (709): it had 5+ Might as it died (read from the UNIT_KILLED event). */
   | { kind: 'DIED_MIGHTY' }
+  /** "When I conquer a battlefield that was uncontrolled": decided by the scoring events (triggers.ts). */
+  | { kind: 'WAS_UNCONTROLLED' }
   /** R72: the controller has fewer / more runes in play than an opponent. */
   | { kind: 'RUNES_VS_OPPONENT'; cmp: 'FEWER' | 'MORE' }
   /** R72: the controller has a facedown card at a battlefield (`here` = the source's battlefield). */

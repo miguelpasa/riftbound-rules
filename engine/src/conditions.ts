@@ -440,6 +440,7 @@ export function evalCondition(
     }
     case 'DIED_ALONE':
     case 'DIED_MIGHTY':
+    case 'WAS_UNCONTROLLED':
       return true; // decided by the triggering UNIT_KILLED event (triggers.ts)
     case 'PAID_ADDITIONAL':
       if (cond.spell) return state.objects[sourceId]?.paidExtra === true;

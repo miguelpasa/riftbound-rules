@@ -129,6 +129,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
   let diedAlone: boolean | undefined;
   let diedMighty = false;
   let diedAt: string | undefined;
+  let scoredFromNeutral = false;
   /** The battlefield of the BATTLEFIELD_SCORED event being collected ("at that battlefield"). */
   let scoredAt: string | undefined;
   const batchSeen = new Set<string>();
@@ -158,6 +159,8 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         if (!facedownPlay) return;
       } else if (t.when?.kind === 'PAID_ADDITIONAL') {
         if (!paidExtra) return;
+      } else if (t.when?.kind === 'WAS_UNCONTROLLED') {
+        if (!scoredFromNeutral) return;
       } else if (t.when?.kind === 'DIED_MIGHTY') {
         if (!diedMighty) return;
       } else if (t.when?.kind === 'DIED_ALONE') {
@@ -285,6 +288,14 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     } else if (e.type === 'BATTLEFIELD_SCORED') {
       addBattlefield(e.battlefieldId, e.method, e.player);
       scoredAt = e.battlefieldId;
+      scoredFromNeutral =
+        e.method === 'CONQUER' &&
+        events.some(
+          (x) =>
+            x.type === 'BATTLEFIELD_CONTROL_CHANGED' &&
+            x.battlefieldId === e.battlefieldId &&
+            x.fromNeutral === true,
+        );
       for (const o of Object.values(state.objects)) {
         if (
           o.controller === e.player &&
@@ -305,6 +316,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         if (l.controller === e.player && l.zone.kind === 'legend') add(l, e.method, e.player);
       }
       scoredAt = undefined;
+      scoredFromNeutral = false;
     } else if (e.type === 'UNIT_MOVED') {
       // MOVE (R43): "When I move" fires for a unit that arrived at a battlefield. Moves to the Base
       // are not reported as moves here because recall and combat retreats share the event (UNCLEAR).
