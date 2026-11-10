@@ -1385,7 +1385,7 @@ function parseChooserBase(sen: string): Chooser | null {
   }
   // R79: "Move an enemy unit to that battlefield / here / my battlefield".
   m = new RegExp(
-    `^Move an? ${SIDE}unit to (?:here|that battlefield|my battlefield|this battlefield)$`,
+    `^Move an? ${SIDE}unit to (?:here|that battlefield|my battlefield|this battlefield|the same battlefield)$`,
     'i',
   ).exec(sen);
   if (m) {
