@@ -1089,7 +1089,7 @@ function parseChooserBase(sen: string): Chooser | null {
     };
   }
   m = new RegExp(
-    `^Give an? ${SIDE}unit ${DASH}(\\d+) \\[M\\] this turn(?:, to a minimum of (\\d+) \\[M\\])?$`,
+    `^Give an? ${SIDE}unit( at a battlefield)? ${DASH}(\\d+) \\[M\\] this turn(?:, to a minimum of (\\d+) \\[M\\])?$`,
     'i',
   ).exec(sen);
   if (m) {
@@ -1097,8 +1097,9 @@ function parseChooserBase(sen: string): Chooser | null {
     return {
       effect: {
         op: 'DEBUFF_TARGET',
-        amount: Number(m[2]),
-        ...(m[3] ? { minMight: Number(m[3]) } : {}),
+        amount: Number(m[3]),
+        ...(m[4] ? { minMight: Number(m[4]) } : {}),
+        ...(m[2] ? { atBattlefield: true } : {}),
         ...sideProp(s),
       },
       decl: { side: s ?? 'any' },

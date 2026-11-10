@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { parseCardAbilities } from '../cardText.js';
+import { spellTargetsLegal } from '../effects.js';
 import type { CardDatabase, CardDef, CardTrigger } from '../types/index.js';
 
 const bf1 = { kind: 'battlefield' as const, battlefieldId: 'bf1' };
@@ -192,5 +193,32 @@ describe('scenario: Legend "When you banish a card you own, empower me" (Master 
     // Tests Rule 303: a triggered ability fires on its event
     expect(legendEmpowered(true)).toBe(true);
     expect(legendEmpowered(false)).toBe(false);
+  });
+});
+
+describe('scenario: Legend "Disempower me, [E]: Give a unit at a battlefield -2 [M] this turn" (Soul\'s Reflection)', () => {
+  const text =
+    'When you empower something else, empower me.\nDisempower me, [E]: Give a unit at a battlefield -2 [M] this turn.';
+
+  it('reads the ability with a battlefield-only debuff target', () => {
+    // Tests Rule 145.1: an activated ability with a cost and an effect
+    const parsed = parseCardAbilities(text, { legend: true });
+    expect(parsed?.abilities[0]).toMatchObject({
+      cost: { disempower: true, exhaust: true },
+      effects: [{ op: 'DEBUFF_TARGET', amount: 2, atBattlefield: true }],
+    });
+    expect(parsed?.triggers[0]?.on).toBe('YOU_EMPOWER_ELSE');
+  });
+
+  it('only a unit at a battlefield can be chosen', () => {
+    // Tests Rule 355.10: a target must meet the ability\'s requirements
+    const eff = parseCardAbilities(text, { legend: true })?.abilities[0]?.effects ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const atBf = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+    const home = sc.putUnit('p1', 'fx-order-tank', 'base');
+    const legal = (id: string) =>
+      spellTargetsLegal(sc.state, SCENARIO_CARDS, 'p0', eff, [{ kind: 'object', id }]);
+    expect(legal(atBf)).toBe(true);
+    expect(legal(home)).toBe(false);
   });
 });
