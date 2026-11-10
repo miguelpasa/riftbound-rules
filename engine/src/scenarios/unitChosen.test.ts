@@ -832,3 +832,34 @@ describe('scenario: "It can\'t be chosen by enemy spells and abilities this turn
     expect(choose('p1')).toBe(true); // a new turn: the protection is over
   });
 });
+
+describe('scenario: "give me +2 [M] and [Ganking] this turn" (Oasis Raider)', () => {
+  const text =
+    'If you control fewer runes than an opponent at the start of your Beginning Phase, give me +2 [M] and [Ganking] this turn.';
+
+  it('reads a turn-start trigger giving the source Might and the keyword', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
+      on: 'TURN_START',
+      when: { kind: 'RUNES_VS_OPPONENT', cmp: 'FEWER' },
+      effects: [
+        { op: 'BUFF_SELF', amount: 2 },
+        { op: 'GRANT_KEYWORDS', keywords: [{ name: 'Ganking' }], to: 'SELF' },
+      ],
+    });
+  });
+
+  it('gives both to the source only', () => {
+    // Tests Rule 583: the trigger resolves its effects on the source
+    const eff = parseCardAbilities(text)?.triggers[0]?.effects ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const me = sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+    const mate = sc.putUnit('p0', 'fx-archer', 'bf1');
+    const s = structuredClone(sc.state);
+    const before = effectiveMight(s, SCENARIO_CARDS, me, { role: null });
+    runEffects(s, 'p0', eff, SCENARIO_CARDS, [], 'fx-grunt', me);
+    expect(effectiveMight(s, SCENARIO_CARDS, me, { role: null })).toBe(before + 2);
+    expect(s.objects[me]?.tempKeywords?.some((k) => k.name === 'Ganking')).toBe(true);
+    expect(s.objects[mate]?.tempKeywords?.length ?? 0).toBe(0);
+  });
+});

@@ -67,7 +67,9 @@ export function protectGrants(text: string): string {
   // "Give <a unit> +N [M] and [Keyword] this turn" = the buff, then the keyword for the same unit.
   const split = text.replace(
     new RegExp(`(\\bGive [^.\\n]*? \\+\\d+ \\[M\\]) and \\[(${GRANT_KW})\\](?= this turn)`, 'gi'),
-    (_m, head: string, kw: string) => `${head} this turn. Give it {${kw}}`,
+    (_m, head: string, kw: string) =>
+      // "Give me ..." keeps giving the source; otherwise the second sentence is about the same chosen unit.
+      `${head} this turn. Give ${/^Give me /i.test(head) ? 'me' : 'it'} {${kw}}`,
   );
   return split.replace(
     new RegExp(
