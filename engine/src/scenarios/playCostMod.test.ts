@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { selfEnergyDiscount } from '../costReduction.js';
+import { opponentSpellSurcharge, selfEnergyDiscount } from '../costReduction.js';
 import { parseStaticLines } from '../cardText.js';
 import type { CardDatabase, CardDef, StaticAbility } from '../types/index.js';
 
@@ -80,5 +80,57 @@ describe('parser: cost-modifier statics (R104)', () => {
       parseStaticLines("Your Dragons' Energy costs are reduced by [2], to a minimum of [1].")
         ?.statics,
     ).toEqual([{ affects: 'SELF', playCostMod: { energy: 2, min: 1, subtype: 'Dragon' } }]);
+  });
+});
+
+describe('scenario: "Opponents\' spells cost [1] more. If this is [Empowered], they cost [1][A] more instead." (Helm of Suppression)', () => {
+  const text =
+    "Opponents' spells cost [1] more. If this is [Empowered], they cost [1][A] more instead.";
+  const statics = parseStaticLines(text)?.statics ?? [];
+
+  it('reads two statics: an Energy surcharge, replaced by a Power surcharge while Empowered', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    expect(statics).toEqual([
+      {
+        affects: 'SELF',
+        spellSurcharge: { energy: 1 },
+        when: { kind: 'NOT', cond: { kind: 'EMPOWERED' } },
+      },
+      { affects: 'SELF', spellSurcharge: { energy: 1, anyPower: 1 }, when: { kind: 'EMPOWERED' } },
+    ]);
+  });
+
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-ember-totem': { ...(SCENARIO_CARDS['fx-ember-totem'] as CardDef), statics },
+  };
+
+  it("adds to an opponent's spells only, and swaps the surcharge once Empowered", () => {
+    // Tests Rule 584: the surcharge applies to opponents' spells
+    const sc = Scenario.start({}, cards);
+    const helm = sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const spell = SCENARIO_CARDS['fx-plain-spell'] as CardDef;
+    const unit = SCENARIO_CARDS['fx-tide-grunt'] as CardDef;
+    expect(opponentSpellSurcharge(sc.state, cards, 'p1', spell)).toEqual({ energy: 1 });
+    expect(opponentSpellSurcharge(sc.state, cards, 'p0', spell)).toBeNull(); // its own spells
+    expect(opponentSpellSurcharge(sc.state, cards, 'p1', unit)).toBeNull(); // not a spell
+    sc.state.objects[helm]!.empowered = true;
+    expect(opponentSpellSurcharge(sc.state, cards, 'p1', spell)).toEqual({
+      energy: 1,
+      anyPower: 1,
+    });
+  });
+
+  it('is charged when the opponent actually plays the spell', () => {
+    // Tests Rule 584: the cost is paid in full
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p0', 'fx-ember-totem', 'base');
+    sc.giveRunes('p1', 4);
+    const spell = sc.putInHand('p1', 'fx-plain-spell'); // costs 2
+    sc.endTurn('p0');
+    const before = sc.player('p1').base.filter((id) => sc.obj(id).ready).length;
+    sc.play('p1', spell, { payment: sc.exhaustPlan('p1', 3) });
+    const after = sc.player('p1').base.filter((id) => sc.obj(id).ready).length;
+    expect(before - after).toBe(3); // 2 + the surcharge of 1
   });
 });

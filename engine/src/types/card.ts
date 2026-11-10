@@ -887,6 +887,8 @@ export interface StaticAbility {
     | 'ONE_CHANNEL';
   /** Battlefield card: the points needed to win are raised by this much (Aspirant's Climb). */
   victoryBonus?: number;
+  /** "Opponents' spells cost [1] more": an extra cost opponents pay to play spells while this holds (Helm of Suppression). */
+  spellSurcharge?: { energy?: number; anyPower?: number };
   /** "You ignore [Tank] while assigning combat damage here": while this unit fights, its side assigns damage as if no enemy had Tank (Dune Surfer). */
   ignoreTank?: boolean;
   /**

@@ -26,7 +26,7 @@
  * (PASS_PRIORITY, END_TURN, the combat assignment) are always kept and the rest is truncated.
  */
 import { abilityCandidates } from './abilities.js';
-import { selfEnergyDiscount, selfPowerDiscount } from './costReduction.js';
+import { opponentSpellSurcharge, selfEnergyDiscount, selfPowerDiscount } from './costReduction.js';
 import { autoAssign } from './combat.js';
 import { MAX_TARGET_COMBOS, enumerateSpellTargets, spellEffects } from './effects.js';
 import { hasUnitAt, playToAllowed } from './play.js';
@@ -179,7 +179,9 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
             if (picks.length > 1)
               picks.splice(Math.max(1, Math.floor(MAX_TARGET_COMBOS / targetOptions.length)));
             const oac = paysExtra ? def.optionalAdditionalCost : undefined;
+            const surcharge = opponentSpellSurcharge(state, cards, pid, def);
             const increases = [
+              ...(surcharge ? [surcharge] : []),
               ...(repeat && def.repeatCost ? [def.repeatCost] : []),
               ...(oac ? [{ energy: oac.energy, power: oac.power, anyPower: oac.anyPower }] : []),
             ];

@@ -27,7 +27,7 @@ import type { ChainResolver } from './chain.js';
 import { computeTotalCost, payCost } from './resources.js';
 import type { CostMod } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
-import { selfEnergyDiscount, selfPowerDiscount } from './costReduction.js';
+import { opponentSpellSurcharge, selfEnergyDiscount, selfPowerDiscount } from './costReduction.js';
 import { evalCondition, noteSpent } from './conditions.js';
 import { optionalPlan } from './optional.js';
 import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
@@ -625,8 +625,10 @@ export function playCard(
   }
   if (oac?.reduceEnergy) discounts.push({ energy: oac.reduceEnergy });
   const ignoreAll = oac?.reduceAll === true;
+  const surcharge = opponentSpellSurcharge(state, cards, pid, def);
   const increases: CostMod[] = [
     ...(extra ? [extra] : []),
+    ...(surcharge ? [surcharge] : []),
     ...(oac ? [{ energy: oac.energy, power: oac.power, anyPower: oac.anyPower }] : []),
     ...(repeat && def.repeatCost
       ? [{ energy: def.repeatCost.energy, power: def.repeatCost.power }]

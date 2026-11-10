@@ -161,6 +161,35 @@ export function selfEnergyDiscount(
   return bestDiscountTotal(def.cost.energy, ds);
 }
 
+/**
+ * "Opponents' spells cost [1] more" (Helm of Suppression): what `pid` must add to the cost of playing `def`
+ * because of statics on permanents the opponents control. Null when nothing applies (or `def` is not a spell).
+ */
+export function opponentSpellSurcharge(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  def: CardDef,
+): { energy?: number; anyPower?: number } | null {
+  if (def.type !== 'SPELL') return null;
+  let energy = 0;
+  let anyPower = 0;
+  for (const o of Object.values(state.objects)) {
+    if (o.controller === pid) continue;
+    const z = o.zone.kind;
+    if (z !== 'base' && z !== 'battlefield' && z !== 'legend') continue;
+    for (const s of cards[o.cardId]?.statics ?? []) {
+      const sc = s.spellSurcharge;
+      if (!sc) continue;
+      if (s.when && !evalCondition(state, cards, s.when, o.controller, o.id)) continue;
+      energy += sc.energy ?? 0;
+      anyPower += sc.anyPower ?? 0;
+    }
+  }
+  if (energy === 0 && anyPower === 0) return null;
+  return { ...(energy > 0 ? { energy } : {}), ...(anyPower > 0 ? { anyPower } : {}) };
+}
+
 /** The Power part of the card's own "I cost [N][C] less ..." right now (counted like the Energy part). */
 export function selfPowerDiscount(
   state: GameState,

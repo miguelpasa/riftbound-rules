@@ -2599,6 +2599,35 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       .replace(/^(Other friendly units) (have .+?) here$/i, '$1 here $2')
       .replace(/\ban additional (\+\d+ \[M\])/i, '$1')
       .replace(/^(Friendly buffed units have .+?) if they didn['’]t already$/i, '$1');
+    // "Opponents' spells cost [1] more[. If this is [Empowered], they cost [1][A] more instead]" (Helm of Suppression).
+    const sur =
+      /^Opponents['’] spells cost ((?:\[(?:\d+|A)\])+) more(?:\. If this is \[?Empowered\]?, they cost ((?:\[(?:\d+|A)\])+) more instead)?$/i.exec(
+        body,
+      );
+    if (sur && !em && !lv) {
+      const cost = (s: string | undefined): { energy?: number; anyPower?: number } => {
+        let energy = 0;
+        let anyPower = 0;
+        for (const t of (s ?? '').matchAll(/\[(\d+|A)\]/gi)) {
+          if ((t[1] ?? '').toUpperCase() === 'A') anyPower++;
+          else energy += Number(t[1]);
+        }
+        return { ...(energy > 0 ? { energy } : {}), ...(anyPower > 0 ? { anyPower } : {}) };
+      };
+      if (sur[2] === undefined) {
+        statics.push({ affects: 'SELF', spellSurcharge: cost(sur[1]) });
+      } else {
+        statics.push(
+          {
+            affects: 'SELF',
+            spellSurcharge: cost(sur[1]),
+            when: { kind: 'NOT', cond: { kind: 'EMPOWERED' } },
+          },
+          { affects: 'SELF', spellSurcharge: cost(sur[2]), when: { kind: 'EMPOWERED' } },
+        );
+      }
+      continue;
+    }
     // "Your units have +1 [M]. If I'm [Empowered], they have +2 [M] instead." (Rage Amplifier): two gated statics.
     const ei =
       /^Your units have \+(\d+) \[M\]\. If I['’]m \[?Empowered\]?, they have \+(\d+) \[M\] instead$/i.exec(
