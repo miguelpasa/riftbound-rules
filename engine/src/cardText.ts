@@ -3865,6 +3865,11 @@ export function parseCondition(raw: string): Condition | null {
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
   if (/^you showed off(?: an? (?:card|unit|gear))?$/i.test(text)) return { kind: 'SHOWED_OFF' };
   if (/^the battlefield was uncontrolled$/i.test(text)) return { kind: 'WAS_UNCONTROLLED' };
+  if (
+    /^you['’]ve played a non-token unit, a non-token gear, and a spell this turn$/i.test(text)
+  ) {
+    return { kind: 'PLAYED_UNIT_GEAR_SPELL' };
+  }
   if (/^you played this from your hand$/i.test(text)) return { kind: 'PLAYED_FROM', from: 'HAND' };
   if (/^you played this from face down$/i.test(text)) {
     return { kind: 'PLAYED_FROM', from: 'FACEDOWN' };
@@ -4145,7 +4150,15 @@ function splitCondition(sen: string): { when?: Condition; rest: string } | null 
   let m = /^if (.+?), (.+)$/i.exec(sen);
   if (m) {
     const when = parseCondition(m[1] as string);
-    return when ? { when, rest: m[2] as string } : null;
+    if (when) return { when, rest: m[2] as string };
+    // A condition may itself hold commas ("if you've played a unit, a gear, and a spell this turn, ..."):
+    // try each later comma as the end of the condition.
+    const body = sen.slice(3);
+    for (let i = body.indexOf(', '); i >= 0; i = body.indexOf(', ', i + 1)) {
+      const w = parseCondition(body.slice(0, i));
+      if (w) return { when: w, rest: body.slice(i + 2) };
+    }
+    return null;
   }
   m = /^(.+?),? if (.+)$/i.exec(sen);
   if (m) {

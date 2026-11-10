@@ -438,6 +438,12 @@ export function evalCondition(
         return state.objects[b.facedownSlotId]?.controller === controller;
       });
     }
+    case 'PLAYED_UNIT_GEAR_SPELL': {
+      const rec = state.players[playerIndex(controller)]?.playedThisTurn;
+      if (!rec || rec.turn !== state.turn.number) return false;
+      const types = new Set(rec.objectIds.map((id) => cards[state.objects[id]?.cardId ?? '']?.type));
+      return types.has('UNIT') && types.has('GEAR') && types.has('SPELL');
+    }
     case 'DIED_ALONE':
     case 'DIED_MIGHTY':
     case 'WAS_UNCONTROLLED':

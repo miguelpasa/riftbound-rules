@@ -1042,6 +1042,8 @@ export type Condition =
   | { kind: 'DIED_MIGHTY' }
   /** "When I conquer a battlefield that was uncontrolled": decided by the scoring events (triggers.ts). */
   | { kind: 'WAS_UNCONTROLLED' }
+  /** "you've played a non-token unit, a non-token gear, and a spell this turn" (Swain). */
+  | { kind: 'PLAYED_UNIT_GEAR_SPELL' }
   /** R72: the controller has fewer / more runes in play than an opponent. */
   | { kind: 'RUNES_VS_OPPONENT'; cmp: 'FEWER' | 'MORE' }
   /** R72: the controller has a facedown card at a battlefield (`here` = the source's battlefield). */
