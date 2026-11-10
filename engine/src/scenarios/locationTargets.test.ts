@@ -479,3 +479,52 @@ describe('scenario: "Kill a friendly unit. If you do, give +[M] equal to its Mig
     expect(sc.player('p0').hand.length).toBe(hand + 1);
   });
 });
+
+describe('scenario: "increase its Might to the Might of another friendly unit" (Convergent Mutation)', () => {
+  const text =
+    'Choose a friendly unit. This turn, increase its Might to the Might of another friendly unit.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a buff up to the Might of a second friendly unit', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      {
+        op: 'BUFF_TARGET',
+        amount: 0,
+        mightUpToSlot: 1,
+        duration: 'TURN',
+        side: 'friendly',
+        slot: 0,
+      },
+    ]);
+  });
+
+  it("raises a weaker unit to the other unit's Might, and never lowers a stronger one", () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const small = sc.putUnit('p0', 'fx-grunt', 'base');
+    const big = sc.putUnit('p0', 'fx-titan', 'base');
+    const m = (id: string) => effectiveMight(sc.state, cards, id, { role: null });
+    const bigMight = m(big);
+    cast(sc, [obj(small), obj(big)]);
+    expect(m(small)).toBe(bigMight);
+
+    const sc2 = Scenario.start({}, cards);
+    const s2 = sc2.putUnit('p0', 'fx-grunt', 'base');
+    const b2 = sc2.putUnit('p0', 'fx-titan', 'base');
+    const bigBefore = effectiveMight(sc2.state, cards, b2, { role: null });
+    cast(sc2, [obj(b2), obj(s2)]);
+    expect(effectiveMight(sc2.state, cards, b2, { role: null })).toBe(bigBefore);
+  });
+
+  it('needs two different friendly units', () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const a = sc.putUnit('p0', 'fx-grunt', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(a), obj(a)])).toBe(false);
+    expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(a), obj(foe)])).toBe(false);
+  });
+});

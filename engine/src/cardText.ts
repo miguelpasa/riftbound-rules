@@ -1737,6 +1737,27 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     st.it = st.slots.length - 1;
     return true;
   }
+  // "This turn, increase its Might to the Might of another friendly unit": raise the chosen unit (Convergent Mutation).
+  if (/^This turn, increase its Might to the Might of another friendly unit$/i.test(sen)) {
+    const k = st.it;
+    if (k === undefined || st.locked) return false;
+    const target = st.slots[k] as SlotDecl;
+    if (target.kind !== undefined || target.side !== 'friendly') return false;
+    const other: SlotDecl = { side: 'friendly', another: true };
+    if (!canAdd(st, [other])) return false;
+    const slot = st.slots.length;
+    st.slots.push(other);
+    delete st.it;
+    out.push({
+      op: 'BUFF_TARGET',
+      amount: 0,
+      mightUpToSlot: slot,
+      duration: 'TURN',
+      side: 'friendly',
+      slot: k,
+    });
+    return true;
+  }
   // "Give +[M] equal to its Might to another friendly unit this turn": the unit just killed / chosen (Deathgrip).
   m =
     /^Give \+\[M\] equal to its Might to (another friendly unit|a friendly unit) this turn$/i.exec(

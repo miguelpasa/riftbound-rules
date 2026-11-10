@@ -288,6 +288,9 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
   }
   // R94: "It deals damage equal to its Might to ..." also needs the unit that deals the damage.
   for (const ef of effects ?? []) {
+    if (ef.op === 'BUFF_TARGET' && ef.mightUpToSlot !== undefined && !reqs.has(ef.mightUpToSlot)) {
+      reqs.set(ef.mightUpToSlot, { slot: ef.mightUpToSlot, kind: 'unit', side: ef.side ?? 'any' });
+    }
     if (
       ef.op === 'KILL_TARGET' &&
       ef.lessMightThanSlot !== undefined &&
@@ -1831,7 +1834,11 @@ export function runEffects(
                 : e.timesEnemiesThere
                   ? 0
                   : 1;
-            if (e.mightOfSlot !== undefined) {
+            if (e.mightUpToSlot !== undefined) {
+              const to = state.objects[ids[e.mightUpToSlot] ?? ''];
+              const gift = to ? Math.max(0, mightOf(to) - mightOf(u)) : 0;
+              if (gift > 0) addTemp(u, gift, e.duration === 'TURN');
+            } else if (e.mightOfSlot !== undefined) {
               const from = state.objects[ids[e.mightOfSlot] ?? ''];
               const gift = from ? Math.max(0, mightOf(from)) : 0;
               if (gift > 0) addTemp(u, gift, e.duration === 'TURN');

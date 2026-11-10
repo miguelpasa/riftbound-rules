@@ -266,6 +266,8 @@ type CardEffectCore =
       perPetTags?: true;
       /** "+[M] equal to its Might": the amount is the Might of the unit chosen into this other slot (amount is 0). */
       mightOfSlot?: number;
+      /** "increase its Might to the Might of another unit": the target gains what it lacks to match the unit in this slot (never less than 0). */
+      mightUpToSlot?: number;
       atBattlefield?: boolean;
       /** "Buff a friendly unit in your base": the unit stands in a Base. */
       inBase?: boolean;
