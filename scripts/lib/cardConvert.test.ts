@@ -659,3 +659,22 @@ describe('Equip with a card-choice cost (Blade of the Ruined King, Last Rites)',
     expect(card?.equipCost?.cardInstead).toBe(true);
   });
 });
+
+describe('"Spend my buff" cost (Sett)', () => {
+  // Tests: the card validates against the schema and is fully supported
+  it('converts to a full card whose ability cost spends the source’s own buff', () => {
+    const { card } = convertRow(
+      row({
+        cardType: 'Unit',
+        name: 'Sett',
+        fullName: 'Sett',
+        might: 5,
+        abilityEffective:
+          'When I’m played and when I conquer, buff me.\nSpend my buff: Give me +4 [M] this turn.',
+      }),
+    );
+    expect(card?.supportLevel).toBe('full');
+    expect(card?.abilities?.[0]?.cost.card).toEqual({ kind: 'SPEND_BUFF', self: true });
+    expect(createCardValidator()(card)).toEqual([]);
+  });
+});

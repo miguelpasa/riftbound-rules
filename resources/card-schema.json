@@ -19,6 +19,7 @@
         "another": { "type": "boolean" },
         "mighty": { "type": "boolean" },
         "hidden": { "type": "boolean" },
+        "self": { "type": "boolean" },
         "minEnergy": { "type": "integer", "minimum": 0 },
         "subtype": { "type": "string" }
       }

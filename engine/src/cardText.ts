@@ -3604,6 +3604,7 @@ function parseAddClause(sen: string): CardEffect[] | null {
 const CC_N = '(a|an|one|two|three|four|five|\\d+)';
 const CC_BOARD = '(units? or gear|units? and/or gear|units?|gear)';
 const CC_RE: { kind: CostCardChoice['kind']; re: RegExp }[] = [
+  { kind: 'SPEND_BUFF', re: /spend (my) buff(?![\w[])/iy },
   { kind: 'SPEND_BUFF', re: /spend (a|an|one|two|three|\d+) buffs?(?![\w[])/iy },
   {
     kind: 'DISCARD',
@@ -3643,6 +3644,7 @@ function parseCostCardAt(s: string): { cc: CostCardChoice; len: number } | null 
     if (!m) continue;
     if (kind === 'SPEND_BUFF') {
       const w = (m[1] ?? '').toLowerCase();
+      if (w === 'my') return { cc: { kind, self: true }, len: m[0].length };
       const n = numberOf(w === 'a' || w === 'an' ? 'one' : w);
       if (n === null || n < 1) return null;
       return { cc: { kind, ...(n > 1 ? { count: n } : {}) }, len: m[0].length };
@@ -4338,6 +4340,11 @@ export function parseCardAbilities(
 ): ParsedAbilities | null {
   // "<effects>, then recycle me if I was played from face down" (Elnuk Herd): the recycle is its own
   // "when you play me from face down" trigger, put on the Chain first so it resolves after the rest.
+  // "When I'm played and when I conquer, ..." is "When you play me or when I conquer, ..." (Sett).
+  const playedAnd = /When I['’]m played and when I (conquer|hold|attack|defend)/i;
+  if (playedAnd.test(text0)) {
+    return parseCardAbilities(text0.replace(playedAnd, 'When you play me or when I $1'), opts);
+  }
   const recycleTail = /,\s*then recycle me if I was played from face down/i;
   if (recycleTail.test(text0)) {
     const base = parseCardAbilities(text0.replace(recycleTail, ''), opts);

@@ -1177,6 +1177,8 @@ export interface CostCardChoice {
   another?: boolean;
   /** R47: only [Mighty] units qualify ("kill a friendly [Mighty] unit": Might 5 or more). */
   mighty?: boolean;
+  /** SPEND_BUFF: spend the SOURCE's own buff ("Spend my buff"). */
+  self?: boolean;
   /** REVEAL: only a card with [Hidden]. */
   hidden?: boolean;
   /** REVEAL: only a card with this Energy cost or more. */

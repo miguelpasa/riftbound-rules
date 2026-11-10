@@ -67,7 +67,7 @@ export function costCardText(cc: CostCardChoice): string {
     case 'RECYCLE':
       return `Recycle ${n} ${noun(what)} from your Trash`;
     case 'SPEND_BUFF':
-      return n === 1 ? 'Spend a buff' : `Spend ${n} buffs`;
+      return cc.self ? 'Spend my buff' : n === 1 ? 'Spend a buff' : `Spend ${n} buffs`;
     case 'REVEAL':
       return `Show off ${lead} ${cc.subtype ?? ''}${cc.hidden ? ' card with Hidden' : ' ' + noun(what)}`
         .replace(/\s+/g, ' ')
@@ -117,6 +117,7 @@ function qualifies(
   const gear = isGearDef(def);
   if (cc.kind === 'SPEND_BUFF') {
     if (!unit || o.buffed !== true) return false;
+    if (cc.self && o.id !== sourceId) return false;
   } else if (cc.kind === 'EXHAUST') {
     if (!unit || !o.ready) return false;
   } else if (what === 'unit' ? !unit : what === 'gear' ? !gear : !(unit || gear)) {
