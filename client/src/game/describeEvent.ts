@@ -216,6 +216,7 @@ export function describeEvent(
         RETURN: 'returned to hand',
         RECYCLE: 'recycled from their Trash:',
         SPEND_BUFF: 'spent the buff of',
+        BANISH: 'banished from the Trash:',
         REVEAL: 'showed off',
       }[event.kind];
       const names = event.cardNames.join(' and ') || 'cards';

@@ -66,6 +66,8 @@ export function costCardText(cc: CostCardChoice): string {
       return `Return ${lead} friendly ${mighty}${noun(what)}${where} to hand`;
     case 'RECYCLE':
       return `Recycle ${n} ${noun(what)} from your Trash`;
+    case 'BANISH':
+      return `Banish ${lead} ${noun(what)} from your Trash`;
     case 'SPEND_BUFF':
       return cc.self ? 'Spend my buff' : n === 1 ? 'Spend a buff' : `Spend ${n} buffs`;
     case 'REVEAL':
@@ -96,6 +98,13 @@ function qualifies(
 ): boolean {
   const def = cards[o.cardId];
   if (!def) return false;
+  if (cc.kind === 'BANISH') {
+    if (o.zone.kind !== 'trash' || o.owner !== player) return false;
+    const w = cc.what ?? 'unitOrGear';
+    const isUnit = def.type === 'UNIT';
+    const isGear = def.type === 'GEAR';
+    return w === 'unit' ? isUnit : w === 'gear' ? isGear : isUnit || isGear;
+  }
   if (cc.kind === 'DISCARD' || cc.kind === 'RECYCLE' || cc.kind === 'REVEAL') {
     const want = typeOfWhat(cc.what);
     const zone = cc.kind === 'RECYCLE' ? 'trash' : 'hand';
@@ -237,6 +246,11 @@ export function payCostCards(
         ps.trash = ps.trash.filter((x) => x !== id);
         ps.mainDeck.push(id);
         o.zone = { kind: 'mainDeck', player: o.owner };
+        break;
+      case 'BANISH':
+        ps.trash = ps.trash.filter((x) => x !== id);
+        state.players[playerIndex(o.owner)].banishment.push(id);
+        o.zone = { kind: 'banishment', player: o.owner };
         break;
       case 'EXHAUST':
         o.ready = false;

@@ -3675,6 +3675,10 @@ const CC_RE: { kind: CostCardChoice['kind']; re: RegExp }[] = [
     ),
   },
   {
+    kind: 'BANISH',
+    re: new RegExp(`banish ${CC_N} ${CC_BOARD} from your trash`, 'iy'),
+  },
+  {
     kind: 'RECYCLE',
     re: new RegExp(`recycle ${CC_N}(?: (unit|gear|spell|card))?(?: cards?)? from your trash`, 'iy'),
   },
@@ -3701,6 +3705,16 @@ function parseCostCardAt(s: string): { cc: CostCardChoice; len: number } | null 
       const n = numberOf(w === 'a' || w === 'an' ? 'one' : w);
       if (n === null || n < 1) return null;
       return { cc: { kind, ...(n > 1 ? { count: n } : {}) }, len: m[0].length };
+    }
+    if (kind === 'BANISH') {
+      const word = (m[1] ?? '').toLowerCase();
+      const count = numberOf(word === 'a' || word === 'an' ? 'one' : word);
+      if (count === null || count < 1) return null;
+      const noun = (m[2] ?? '').toLowerCase();
+      const cc: CostCardChoice = { kind };
+      if (count > 1) cc.count = count;
+      cc.what = noun === 'gear' ? 'gear' : /^units?$/.test(noun) ? 'unit' : 'unitOrGear';
+      return { cc, len: m[0].length };
     }
     if (kind === 'DISCARD' || kind === 'RECYCLE') {
       const word = (m[1] ?? '').toLowerCase();

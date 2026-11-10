@@ -1150,6 +1150,8 @@ export type CostCardKind =
   | 'EXHAUST'
   | 'RETURN'
   | 'RECYCLE'
+  /** Banish a unit and / or gear from the payer's Trash (Iron Revenant). */
+  | 'BANISH'
   | 'SPEND_BUFF'
   /** Show Off: reveal a card from your hand (it stays there); the played card remembers that you showed off. */
   | 'REVEAL';
