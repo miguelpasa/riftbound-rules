@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { effectiveMight } from '../combat.js';
 import { getLegalActions } from '../legalActions.js';
-import { abilityEnergyDiscount, selfEnergyDiscount } from '../costReduction.js';
+import { abilityEnergyDiscount, selfEnergyDiscount, selfPowerDiscount } from '../costReduction.js';
 import { parseCardAbilities, parseSelfCostReduction } from '../cardText.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
@@ -153,5 +153,50 @@ describe('scenario: tiered "[Level N][>] This costs [X] less ... instead" (Conce
     expect(at(6)).toBe(2);
     expect(at(10)).toBe(2);
     expect(at(11)).toBe(4);
+  });
+});
+
+describe('scenario: Level tiers with Power parts (Master Yi)', () => {
+  const text =
+    '[Level 3][>] I cost [2][C] less.\n[Level 6][>] I cost [4][C][C] less instead.\n[Level 11][>] I cost [6][C][C][C] less instead.';
+
+  it('reads Energy and Power for every tier', () => {
+    // Tests Rule 560.4: a cost reduction counts what it names
+    expect(parseSelfCostReduction(text)?.reduction).toEqual({
+      energy: 2,
+      power: 1,
+      when: { kind: 'XP', n: 3 },
+      instead: [
+        { energy: 4, power: 2, when: { kind: 'XP', n: 6 } },
+        { energy: 6, power: 3, when: { kind: 'XP', n: 11 } },
+      ],
+    });
+  });
+
+  it('takes the deepest tier the XP reaches for both Energy and Power', () => {
+    // Tests Rule 560.4: the later "instead" replaces the earlier discount
+    const reduction = parseSelfCostReduction(text)?.reduction;
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-grunt': {
+        ...(SCENARIO_CARDS['fx-grunt'] as CardDef),
+        cost: { energy: 7, power: 3 },
+        ...(reduction ? { costReduction: reduction } : {}),
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const id = sc.putInHand('p0', 'fx-grunt');
+    const def = cards['fx-grunt'] as CardDef;
+    const at = (xp: number): [number, number] => {
+      (sc.state.players[0] as { xp?: number }).xp = xp;
+      return [
+        selfEnergyDiscount(sc.state, cards, 'p0', def, id),
+        selfPowerDiscount(sc.state, cards, 'p0', def, id),
+      ];
+    };
+    expect(at(2)).toEqual([0, 0]);
+    expect(at(3)).toEqual([2, 1]);
+    expect(at(6)).toEqual([4, 2]);
+    expect(at(11)).toEqual([6, 3]);
   });
 });

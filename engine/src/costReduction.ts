@@ -170,9 +170,15 @@ export function selfPowerDiscount(
   sourceId: string,
 ): number {
   const r = def.costReduction;
-  if (!r?.power) return 0;
-  if (r.per) return r.power * countFor(state, cards, pid, def, sourceId, r.per);
-  return !r.when || evalCondition(state, cards, r.when, pid, sourceId) ? r.power : 0;
+  if (!r || (!r.power && !r.instead?.some((t) => t.power))) return 0;
+  let power = 0;
+  if (r.per) power = (r.power ?? 0) * countFor(state, cards, pid, def, sourceId, r.per);
+  else if (!r.when || evalCondition(state, cards, r.when, pid, sourceId)) power = r.power ?? 0;
+  // "... instead" tiers replace the whole discount, Power included.
+  for (const t of r.instead ?? []) {
+    if (evalCondition(state, cards, t.when, pid, sourceId)) power = t.power ?? 0;
+  }
+  return power;
 }
 
 /** R104: the "cost modifier" statics of the player's permanents and Legend that apply to `def`. */

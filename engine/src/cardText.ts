@@ -2865,22 +2865,25 @@ export function parseSelfCostReduction(
   // "[Level 6][>] This costs [2] less. [Level 11][>] This costs [4] less instead." (Concentrate): Energy tiers by XP.
   {
     const tierRe =
-      /(?:^|\n)[ \t]*\[Level (\d+)\][ \t]*\[>\][ \t]*(?:This costs|I cost) \[(\d+)\] less( instead)?\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/gi;
+      /(?:^|\n)[ \t]*\[Level (\d+)\][ \t]*\[>\][ \t]*(?:This costs|I cost) \[(\d+)\]((?:\[C\])*) less( instead)?\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/gi;
     const tiers = [...text.matchAll(tierRe)];
     if (tiers.length > 0) {
-      const base = tiers.find((t) => !t[3]);
+      const base = tiers.find((t) => !t[4]);
       if (!base) return null;
-      const later = tiers.filter((t) => t[3]);
+      const later = tiers.filter((t) => t[4]);
+      const pips = (t: RegExpMatchArray): number => (t[3] ?? '').length / 3;
       let rest = text;
       for (const t of tiers) rest = rest.replace(t[0], '');
       return {
         reduction: {
           energy: Number(base[2]),
+          ...(pips(base) > 0 ? { power: pips(base) } : {}),
           when: { kind: 'XP', n: Number(base[1]) },
           ...(later.length > 0
             ? {
                 instead: later.map((t) => ({
                   energy: Number(t[2]),
+                  ...(pips(t) > 0 ? { power: pips(t) } : {}),
                   when: { kind: 'XP' as const, n: Number(t[1]) },
                 })),
               }
