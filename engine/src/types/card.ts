@@ -1101,7 +1101,15 @@ export type Condition =
   /** R87: the controller assigned at least `n` excess combat damage to enemy units this turn. */
   | { kind: 'EXCESS_DAMAGE'; n: number }
   /** R56: a unit of `who` (friendly = the controller's, any = either side) died this turn. */
-  | { kind: 'DIED_THIS_TURN'; who: 'friendly' | 'enemy' | 'any'; orGear?: true }
+  | {
+      kind: 'DIED_THIS_TURN';
+      who: 'friendly' | 'enemy' | 'any';
+      orGear?: true;
+      /** Only deaths during the controller's own Beginning Phase count. */
+      duringBeginning?: true;
+    }
+  /** "If it's your Beginning Phase" (LeBlanc). */
+  | { kind: 'YOUR_BEGINNING_PHASE' }
   /** "If you've discarded a card / gained XP this turn" (recorded per player and turn, only when a card asks). */
   | { kind: 'TURN_FLAG'; flag: 'discarded' | 'xpGained' }
   /** "If you've spent [4] or more to play a spell / at least [A][A] this turn": the most Energy paid for one spell, or the total Power paid. */

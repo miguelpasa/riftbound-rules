@@ -4014,6 +4014,10 @@ export function parseCondition(raw: string): Condition | null {
     if (fd) return { kind: 'FACEDOWN', ...(fd[1] ? { here: true } : {}) };
   }
   if (/^I (?:didn['’]t|did not) die alone$/i.test(text)) return { kind: 'DIED_ALONE', not: true };
+  if (/^it['’]s your Beginning Phase$/i.test(text)) return { kind: 'YOUR_BEGINNING_PHASE' };
+  if (/^an? friendly unit died during your Beginning Phase this turn$/i.test(text)) {
+    return { kind: 'DIED_THIS_TURN', who: 'friendly', duringBeginning: true };
+  }
   const m0 = /^(?:an? )?(friendly|enemy)? ?unit( or gear)? (?:has )?died this turn$/i.exec(text);
   if (m0) {
     const who = (m0[1] ?? '').toLowerCase();

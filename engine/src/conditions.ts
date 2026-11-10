@@ -257,7 +257,16 @@ export function recordDeath(
   const rec = ps.diedThisTurn?.turn === state.turn.number ? ps.diedThisTurn : undefined;
   const count = (rec?.count ?? 0) + (gear ? 0 : 1);
   const g = (rec?.gear ?? 0) + (gear ? 1 : 0);
-  ps.diedThisTurn = { turn: state.turn.number, count, ...(g > 0 ? { gear: g } : {}) };
+  // "died during your Beginning Phase": a unit death while it is the controller's Beginning Phase.
+  const b =
+    (rec?.beginning ?? 0) +
+    (!gear && state.turn.phase === 'BEGINNING' && state.turn.activePlayer === controller ? 1 : 0);
+  ps.diedThisTurn = {
+    turn: state.turn.number,
+    count,
+    ...(g > 0 ? { gear: g } : {}),
+    ...(b > 0 ? { beginning: b } : {}),
+  };
 }
 
 export function evalCondition(
@@ -277,6 +286,9 @@ export function evalCondition(
     case 'DIED_THIS_TURN': {
       const died = (p: PlayerId): number => {
         const rec = state.players[playerIndex(p)]?.diedThisTurn;
+        if (cond.duringBeginning) {
+          return rec && rec.turn === state.turn.number ? (rec.beginning ?? 0) : 0;
+        }
         return rec && rec.turn === state.turn.number
           ? rec.count + (cond.orGear ? (rec.gear ?? 0) : 0)
           : 0;
@@ -290,6 +302,8 @@ export function evalCondition(
             : died(controller) + died(other);
       return n > 0;
     }
+    case 'YOUR_BEGINNING_PHASE':
+      return state.turn.phase === 'BEGINNING' && state.turn.activePlayer === controller;
     case 'EXCESS_DAMAGE': {
       const rec = state.players[playerIndex(controller)]?.excessRecord;
       return rec !== undefined && rec.turn === state.turn.number && rec.amount >= cond.n;

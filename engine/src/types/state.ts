@@ -159,7 +159,7 @@ export interface PlayerState {
    * R56: units of this player that died during turn `turn` ("a unit died this turn"). Only recorded when a
    * card in the database asks (see conditions.ts `recordDeath`), so games without such cards are unchanged.
    */
-  diedThisTurn?: { turn: number; count: number; gear?: number };
+  diedThisTurn?: { turn: number; count: number; gear?: number; beginning?: number };
   /** What this player did during turn `turn` (discarded a card, gained XP); only recorded when a card asks. */
   turnFlags?: {
     turn: number;
