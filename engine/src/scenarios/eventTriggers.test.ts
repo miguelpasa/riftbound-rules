@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { effectiveMight } from '../combat.js';
 import { parseCardAbilities } from '../cardText.js';
+import { runEffects, spellTargetsLegal } from '../effects.js';
 import type { CardDatabase, CardDef, CardEffect, CardTrigger } from '../types/index.js';
 
 const watch = (trigger: CardTrigger, spellEffects: CardEffect[]): CardDatabase => ({
@@ -139,5 +140,33 @@ describe('scenario: "When a unit you control becomes Mighty, you may pay [C] to 
     expect(sc.obj(target).ready).toBe(true);
     expect(sc.obj(grunt).ready).toBe(false);
     expect(sc.obj(watcher).ready).toBe(false);
+  });
+});
+
+describe('scenario: "When I move, you may have another unit\'s base Might become 4 this turn" (Lulu)', () => {
+  const text = "When I move, you may have another unit's base Might become 4 this turn.";
+
+  it('reads an base-Might change on another chosen unit that may be left unchosen', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
+      on: 'MOVE',
+      effects: [{ op: 'SET_BASE_MIGHT', amount: 4, another: true, count: { min: 0, max: 1 } }],
+    });
+  });
+
+  it("sets another unit's base Might to 4 for the turn, never the source's", () => {
+    // Tests Rule 583: a triggered ability resolves its effects on its chosen target
+    const eff = parseCardAbilities(text)?.triggers[0]?.effects ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const lulu = sc.putUnit('p0', 'fx-ash-tank', 'bf1', { control: true }); // Might 3
+    const other = sc.putUnit('p1', 'fx-tide-grunt', 'bf1'); // Might 2
+    const legal = (id: string) =>
+      spellTargetsLegal(sc.state, SCENARIO_CARDS, 'p0', eff, [{ kind: 'object', id }], lulu);
+    expect(legal(other)).toBe(true);
+    expect(legal(lulu)).toBe(false); // "another unit"
+    const s = structuredClone(sc.state);
+    runEffects(s, 'p0', eff, SCENARIO_CARDS, [{ kind: 'object', id: other }], 'fx-ash-tank', lulu);
+    expect(effectiveMight(s, SCENARIO_CARDS, other, { role: null })).toBe(4);
+    expect(effectiveMight(s, SCENARIO_CARDS, lulu, { role: null })).toBe(3);
   });
 });

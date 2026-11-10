@@ -1165,6 +1165,16 @@ function parseChooserBase(sen: string): Chooser | null {
       },
     };
   }
+  // "Have another unit's base Might become 4 this turn" (Lulu): another unit's base Might is set.
+  // ("another" and "You may" are lifted off by parseChooser before this rule sees the sentence.)
+  m = new RegExp(`^have an? ${SIDE}unit['’]s base Might become (\\d+) this turn$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: { op: 'SET_BASE_MIGHT', amount: Number(m[2]), ...sideProp(s) },
+      decl: { side: s ?? 'any' },
+    };
+  }
   // "Banish a unit with 3 [M] or less or a gear" (Burn Away): a small unit or any gear.
   m = /^Banish an? unit with (\d+) \[M\] or less or an? gear$/i.exec(sen);
   if (m) {
