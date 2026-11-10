@@ -57,7 +57,10 @@ export function tracksTurnFlags(cards: CardDatabase): boolean {
     v = Object.values(cards).some((d) => {
       const j = JSON.stringify([d.entersReadyWhen, d.triggers, d.statics, d.costReduction]);
       return (
-        j.includes('TURN_FLAG') || j.includes('TURN_SPENT') || j.includes('CONQUERED_THIS_TURN')
+        j.includes('TURN_FLAG') ||
+        j.includes('TURN_SPENT') ||
+        j.includes('CONQUERED_THIS_TURN') ||
+        j.includes('HELD_THIS_TURN')
       );
     });
     flagsDb.set(cards, v);
@@ -77,11 +80,13 @@ export function noteTurnFlags(
     let flag: 'xpGained' | 'discarded';
     if (e.type === 'BATTLEFIELD_SCORED') {
       // "for each battlefield you've conquered this turn" counts one per conquer (holds are not conquers).
-      if (e.method !== 'CONQUER') continue;
       const ps = state.players[playerIndex(e.player)] as GameState['players'][number];
       const rec =
         ps.turnFlags?.turn === state.turn.number ? ps.turnFlags : { turn: state.turn.number };
-      ps.turnFlags = { ...rec, conquered: (rec.conquered ?? 0) + 1 };
+      ps.turnFlags =
+        e.method === 'CONQUER'
+          ? { ...rec, conquered: (rec.conquered ?? 0) + 1 }
+          : { ...rec, held: (rec.held ?? 0) + 1 };
       continue;
     }
     if (e.type === 'XP_GAINED') {

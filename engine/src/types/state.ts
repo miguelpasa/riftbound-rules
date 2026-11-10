@@ -159,6 +159,8 @@ export interface PlayerState {
     power?: number;
     /** Battlefields this player conquered this turn (a cost reduction counts them). */
     conquered?: number;
+    /** Points this player scored from holding this turn (a cost reduction counts them). */
+    held?: number;
   };
   /**
    * Cards this player played (PLAY_CARD, Hidden plays included) during turn `turn` (Legion, 812).

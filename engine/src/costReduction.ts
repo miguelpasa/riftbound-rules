@@ -47,6 +47,10 @@ function countFor(
       }
       return best;
     }
+    case 'HELD_THIS_TURN': {
+      const rec = ps?.turnFlags;
+      return rec && rec.turn === state.turn.number ? (rec.held ?? 0) : 0;
+    }
     case 'CONQUERED_THIS_TURN': {
       const rec = ps?.turnFlags;
       return rec && rec.turn === state.turn.number ? (rec.conquered ?? 0) : 0;
@@ -155,6 +159,20 @@ export function selfEnergyDiscount(
     ds.push({ amount: nd.energy, min: 0 });
   }
   return bestDiscountTotal(def.cost.energy, ds);
+}
+
+/** The Power part of the card's own "I cost [N][C] less ..." right now (counted like the Energy part). */
+export function selfPowerDiscount(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  def: CardDef,
+  sourceId: string,
+): number {
+  const r = def.costReduction;
+  if (!r?.power) return 0;
+  if (r.per) return r.power * countFor(state, cards, pid, def, sourceId, r.per);
+  return !r.when || evalCondition(state, cards, r.when, pid, sourceId) ? r.power : 0;
 }
 
 /** R104: the "cost modifier" statics of the player's permanents and Legend that apply to `def`. */

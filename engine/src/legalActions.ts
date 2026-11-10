@@ -26,7 +26,7 @@
  * (PASS_PRIORITY, END_TURN, the combat assignment) are always kept and the rest is truncated.
  */
 import { abilityCandidates } from './abilities.js';
-import { selfEnergyDiscount } from './costReduction.js';
+import { selfEnergyDiscount, selfPowerDiscount } from './costReduction.js';
 import { autoAssign } from './combat.js';
 import { MAX_TARGET_COMBOS, enumerateSpellTargets, spellEffects } from './effects.js';
 import { hasUnitAt, playToAllowed } from './play.js';
@@ -145,7 +145,9 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     const extraOptions = def.optionalAdditionalCost ? [false, true] : [false];
     const costDef = costDefFor(obj, def);
     const selfDiscount = selfEnergyDiscount(state, cards, pid, def, obj.id);
-    const discounts = selfDiscount > 0 ? [{ energy: selfDiscount }] : [];
+    const selfPower = selfPowerDiscount(state, cards, pid, def, obj.id);
+    const discounts =
+      selfDiscount > 0 || selfPower > 0 ? [{ energy: selfDiscount, power: selfPower }] : [];
     // Quick-Draw gear: one variant per unit its controller controls (the unit is a Target).
     // Targeted spells (R2): one variant per unit on the board (either side).
     // R59: a modal spell is offered once per mode (each mode has its own targets).

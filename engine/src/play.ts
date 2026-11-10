@@ -27,7 +27,7 @@ import type { ChainResolver } from './chain.js';
 import { computeTotalCost, payCost } from './resources.js';
 import type { CostMod } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
-import { selfEnergyDiscount } from './costReduction.js';
+import { selfEnergyDiscount, selfPowerDiscount } from './costReduction.js';
 import { evalCondition, noteSpent } from './conditions.js';
 import { optionalPlan } from './optional.js';
 import { costCardsLegal, payCostCards, playCostCard } from './costCards.js';
@@ -604,7 +604,9 @@ export function playCard(
   // play is recorded; the source itself never counts).
   // R50: plus the card's own "I cost [N] less ..." (selfEnergyDiscount covers both).
   const selfDiscount = selfEnergyDiscount(state, cards, pid, def, src.id);
-  const discounts: CostMod[] = selfDiscount > 0 ? [{ energy: selfDiscount }] : [];
+  const selfPower = selfPowerDiscount(state, cards, pid, def, src.id);
+  const discounts: CostMod[] =
+    selfDiscount > 0 || selfPower > 0 ? [{ energy: selfDiscount, power: selfPower }] : [];
   // R58: the optional additional cost ("You may pay [N] as an additional cost to play me").
   const paidExtra = intent.additionalCosts?.extra === true;
   if (paidExtra && !def.optionalAdditionalCost) {

@@ -2846,6 +2846,7 @@ const COST_PER: [RegExp, CostCount][] = [
   [/^cards? you['’]ve played this turn$/i, 'CARDS_PLAYED'],
   [/^runes? you control$/i, 'RUNE'],
   [/^battlefield you['’]ve conquered this turn$/i, 'CONQUERED_THIS_TURN'],
+  [/^points? you scored from holding this turn$/i, 'HELD_THIS_TURN'],
 ];
 
 /**
@@ -2944,17 +2945,19 @@ export function parseSelfCostReduction(
     };
   }
   const re =
-    /(?:^|\n)[ \t]*(?:I cost|This costs) \[(\d+)\] less (?:for each ([^.\n,]+?)(?:, to a minimum of \[(\d+)\])?|if ([^.\n]+?))\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
+    /(?:^|\n)[ \t]*(?:I cost|This costs) \[(\d+)\]((?:\[C\])*) less (?:for each ([^.\n,]+?)(?:, to a minimum of \[(\d+)\])?|if ([^.\n]+?))\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i;
   const m = re.exec(text);
   if (!m) return null;
   const reduction: CostReduction = { energy: Number(m[1]) };
-  if (m[2] !== undefined) {
-    const per = COST_PER.find(([r]) => r.test((m[2] ?? '').trim()));
+  const powerPips = (m[2] ?? '').length / 3; // "[C]" per pip
+  if (powerPips > 0) reduction.power = powerPips;
+  if (m[3] !== undefined) {
+    const per = COST_PER.find(([r]) => r.test((m[3] ?? '').trim()));
     if (!per) return null;
     reduction.per = per[1];
-    if (m[3] !== undefined) reduction.min = Number(m[3]);
+    if (m[4] !== undefined) reduction.min = Number(m[4]);
   } else {
-    const when = parseCondition(m[4] ?? '');
+    const when = parseCondition(m[5] ?? '');
     if (!when) return null;
     reduction.when = when;
   }

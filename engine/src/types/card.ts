@@ -929,12 +929,15 @@ export type CostCount =
   | 'CARDS_PLAYED' // each card you have played this turn
   | 'RUNE' // R91: each rune you control
   | 'CONQUERED_THIS_TURN' // each battlefield you've conquered this turn
+  | 'HELD_THIS_TURN' // each point you scored from holding this turn
   | 'PET_TAGS' // each of the tags Bird, Cat, Dog, Poro among your units (distinct, Daisy!)
   | 'HIGHEST_MIGHT'; // R91: the highest Might among units you control (counted as that many)
 
 export interface CostReduction {
   /** Energy discount: per counted item (`per`) or once (`when`, or unconditional). */
   energy: number;
+  /** "[2][C] less": the Power part of the discount (generic Power of the card's domain), counted like `energy`. */
+  power?: number;
   per?: CostCount;
   /** "if <condition>": the discount applies only while it holds (checked as the card is played / listed). */
   when?: Condition;

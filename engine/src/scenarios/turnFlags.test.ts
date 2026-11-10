@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { parseCondition, parseSelfCostReduction, parseStaticLines } from '../cardText.js';
 import { evalCondition, noteTurnFlags } from '../conditions.js';
-import { selfEnergyDiscount } from '../costReduction.js';
+import { selfEnergyDiscount, selfPowerDiscount } from '../costReduction.js';
 import { autoPlan, computeTotalCost } from '../resources.js';
 import type { CardDatabase, CardDef, CardEffect, Condition } from '../types/index.js';
 
@@ -184,5 +184,55 @@ describe('scenario: "I cost [2] less for each battlefield you\'ve conquered this
     sc.endTurn('p0');
     sc.endTurn('p1');
     expect(selfEnergyDiscount(sc.state, cards, 'p0', def, id)).toBe(0);
+  });
+});
+
+describe('scenario: "I cost [2][C] less for each point you scored from holding this turn" (Needlessly Large Yordle)', () => {
+  const text = 'I cost [2][C] less for each point you scored from holding this turn.';
+  const hold = (bf: string, who: 'p0' | 'p1' = 'p0') =>
+    ({ type: 'BATTLEFIELD_SCORED', player: who, battlefieldId: bf, method: 'HOLD' }) as const;
+  const conquer = (bf: string) =>
+    ({ type: 'BATTLEFIELD_SCORED', player: 'p0', battlefieldId: bf, method: 'CONQUER' }) as const;
+
+  it('reads an Energy and Power discount per hold point', () => {
+    // Tests Rule 560.4: a cost reduction counts what it names
+    expect(parseSelfCostReduction(text)?.reduction).toEqual({
+      energy: 2,
+      power: 1,
+      per: 'HELD_THIS_TURN',
+    });
+  });
+
+  it('takes [2] and one Power off for each hold this turn, not for conquers or the other player', () => {
+    // Tests Rule 560.4: the discount counts only the holds of its controller this turn
+    const reduction = parseSelfCostReduction(text)?.reduction;
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-titan': {
+        ...base('fx-titan'),
+        ...(reduction ? { costReduction: reduction } : {}),
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const def = cards['fx-titan'] as CardDef;
+    const id = sc.putInHand('p0', 'fx-titan');
+    const cost = () =>
+      computeTotalCost(def, {
+        discounts: [
+          {
+            energy: selfEnergyDiscount(sc.state, cards, 'p0', def, id),
+            power: selfPowerDiscount(sc.state, cards, 'p0', def, id),
+          },
+        ],
+      });
+    const full = computeTotalCost(def);
+    const powerOf = (c: typeof full): number => c.power.reduce((n, p) => n + p.amount, 0);
+    expect(cost().energy).toBe(full.energy);
+    noteTurnFlags(sc.state, cards, [hold('bf0'), conquer('bf1'), hold('bf1', 'p1')]);
+    expect(cost().energy).toBe(full.energy - 2);
+    expect(powerOf(cost())).toBe(powerOf(full) - 1);
+    noteTurnFlags(sc.state, cards, [hold('bf1')]);
+    expect(cost().energy).toBe(Math.max(0, full.energy - 4));
+    expect(powerOf(cost())).toBe(Math.max(0, powerOf(full) - 2));
   });
 });
