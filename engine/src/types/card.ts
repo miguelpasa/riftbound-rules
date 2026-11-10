@@ -1216,6 +1216,8 @@ export type TriggerKind =
   | 'YOU_BANISH_OWN'
   /** "When you defend at a battlefield": the controller defends a combat anywhere (the source need not be there). */
   | 'YOU_DEFEND'
+  /** "When you draw your second card each turn": see `CardTrigger.drawNth`. */
+  | 'YOU_DRAW'
   /** R92: "When an opponent scores" (a point from any source). */
   | 'OPP_SCORES'
   /** R100: "When you hide a card". */
@@ -1317,6 +1319,8 @@ export interface CardTrigger {
   dies?: DeathFilter;
   /** MIGHT_REACHES: the Might the unit must reach (from below to at least this). */
   mightAtLeast?: number;
+  /** YOU_DRAW: fires on the controller's n-th card drawn this turn. */
+  drawNth?: number;
   /** `on: 'UNIT_ATTACKS'`: which unit in a combat triggers it. */
   unitFilter?: {
     side: 'friendly' | 'enemy';

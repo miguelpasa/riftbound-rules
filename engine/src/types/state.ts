@@ -165,6 +165,8 @@ export interface PlayerState {
     conqueredAt?: string[];
     /** Points this player scored from holding this turn (a cost reduction counts them). */
     held?: number;
+    /** Cards this player drew this turn ("your second card each turn"). */
+    drawn?: number;
   };
   /**
    * Cards this player played (PLAY_CARD, Hidden plays included) during turn `turn` (Legion, 812).

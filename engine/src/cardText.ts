@@ -4407,6 +4407,7 @@ export function parseCardAbilities(
         chosen?: CardTrigger['chosen'];
         buffed?: CardTrigger['buffed'];
         mightAtLeast?: number;
+        drawNth?: number;
         inCombat?: boolean;
         sens: string[];
       }
@@ -4507,6 +4508,22 @@ export function parseCardAbilities(
         },
         ...(once ? { once: true } : {}),
         sens: [body],
+      };
+      groups.push(cur);
+      continue;
+    }
+    const dn = /^When you draw your (second|third) card each turn\s*,\s*(.+)$/i.exec(sen);
+    if (dn) {
+      if (once || empowered) return null;
+      const split = splitCondition(dn[2] as string);
+      if (!split) return null;
+      cur = {
+        kind: 'trigger',
+        ons: ['YOU_DRAW'],
+        legion,
+        ...(split.when ? { when: split.when } : {}),
+        drawNth: dn[1]?.toLowerCase() === 'second' ? 2 : 3,
+        sens: [split.rest],
       };
       groups.push(cur);
       continue;
@@ -4921,6 +4938,7 @@ export function parseCardAbilities(
           ...(g.chosen ? { chosen: g.chosen } : {}),
           ...(g.buffed ? { buffed: g.buffed } : {}),
           ...(g.mightAtLeast ? { mightAtLeast: g.mightAtLeast } : {}),
+          ...(g.drawNth ? { drawNth: g.drawNth } : {}),
           ...(g.inCombat ? { inCombat: true } : {}),
         });
       }

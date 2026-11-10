@@ -37,7 +37,7 @@ import { isDeployGear } from './tokens.js';
 import { evalCondition } from './conditions.js';
 import { effectiveMight } from './combat.js';
 import { isUnitDef } from './tokens.js';
-import { ruleError } from './types/index.js';
+import { playerIndex, ruleError } from './types/index.js';
 import type {
   CardDatabase,
   CardInstance,
@@ -199,7 +199,25 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       });
     });
   };
+  // "Your second card each turn": the state already counts this step's draws, so the n-th is worked back from it.
+  const drawsInStep = [0, 0];
   for (const e of events) {
+    if (e.type === 'CARD_DRAWN') drawsInStep[playerIndex(e.player)] = (drawsInStep[playerIndex(e.player)] ?? 0) + 1;
+  }
+  const drawSeen = [0, 0];
+  for (const e of events) {
+    if (e.type === 'CARD_DRAWN') {
+      const pi = playerIndex(e.player);
+      const f = state.players[pi]?.turnFlags;
+      const before = (f?.turn === state.turn.number ? (f.drawn ?? 0) : 0) - (drawsInStep[pi] ?? 0);
+      drawSeen[pi] = (drawSeen[pi] ?? 0) + 1;
+      const nth = before + (drawSeen[pi] ?? 0);
+      for (const src of Object.values(state.objects)) {
+        if (src.controller !== e.player || (!onBoard(src) && src.zone.kind !== 'legend')) continue;
+        add(src, 'YOU_DRAW', src.controller, (tr) => tr.drawNth === nth);
+      }
+      continue;
+    }
     if (e.type === 'CARD_PLAYED') {
       // R100: hiding a card emits a private CARD_PLAYED marker; that is not playing the card.
       if (e.visibleTo !== undefined) continue;

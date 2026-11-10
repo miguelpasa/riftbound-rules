@@ -61,6 +61,7 @@ export function tracksTurnFlags(cards: CardDatabase): boolean {
         j.includes('TURN_SPENT') ||
         j.includes('CONQUERED_THIS_TURN') ||
         j.includes('HELD_THIS_TURN') ||
+        j.includes('drawNth') ||
         j.includes('PLAY_ONLY_CONQUERED')
       );
     });
@@ -92,6 +93,13 @@ export function noteTurnFlags(
               conqueredAt: [...(rec.conqueredAt ?? []), e.battlefieldId],
             }
           : { ...rec, held: (rec.held ?? 0) + 1 };
+      continue;
+    }
+    if (e.type === 'CARD_DRAWN') {
+      const ps = state.players[playerIndex(e.player)] as GameState['players'][number];
+      const rec =
+        ps.turnFlags?.turn === state.turn.number ? ps.turnFlags : { turn: state.turn.number };
+      ps.turnFlags = { ...rec, drawn: (rec.drawn ?? 0) + 1 };
       continue;
     }
     if (e.type === 'XP_GAINED') {
