@@ -8,6 +8,7 @@ import {
   parseSpellText,
   parseStaticLines,
   parseTriggerText,
+  takeUnlimitedCopies,
 } from './cardText.js';
 
 describe('parseSpellText', () => {
@@ -903,5 +904,18 @@ describe('parseStaticLines: "[Level N][>] I have +1 [M] and enter ready" (Scorch
     expect(parsed?.statics).toEqual([{ affects: 'SELF', might: 1, when: { kind: 'XP', n: 3 } }]);
     const rest = parseCardAbilities(parsed?.rest ?? '');
     expect(rest?.entersReadyWhen).toEqual({ kind: 'XP', n: 3 });
+  });
+});
+
+describe('takeUnlimitedCopies: "Your deck can have any number of cards named X" (Spiderling)', () => {
+  it('reads the named card and removes the line', () => {
+    // Tests Rule 103.3.b: a card can lift the copy limit for itself
+    const text =
+      'I have +1 [M] for each other unit you control here with my name.\nYour deck can have any number of cards named Spiderling.';
+    expect(takeUnlimitedCopies(text)).toEqual({
+      name: 'Spiderling',
+      rest: 'I have +1 [M] for each other unit you control here with my name.',
+    });
+    expect(takeUnlimitedCopies('Draw 1.')).toBeNull();
   });
 });

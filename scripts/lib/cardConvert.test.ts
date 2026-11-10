@@ -539,3 +539,19 @@ describe('Legend "When you empower something else, empower me" (Matriarch of War
     expect(card?.abilities?.[0]?.cost.disempower).toBe(true);
   });
 });
+
+describe('Spiderling: "Your deck can have any number of cards named Spiderling"', () => {
+  // Tests: the deck-building line is read onto the card and the rest of the text is still parsed
+  it('marks the card full with unlimited copies', () => {
+    const { card } = convertRow(
+      row({
+        name: 'Spiderling',
+        fullName: 'Spiderling',
+        abilityEffective:
+          'I have +1 [S] for each other unit you control here with my name.\nYour deck can have any number of cards named Spiderling.',
+      }),
+    );
+    expect(card?.supportLevel).toBe('full');
+    expect(card?.unlimitedCopies).toBe(true);
+  });
+});

@@ -63,7 +63,11 @@ export function validateDeck(cards: CardDatabase, deck: DeckList): DeckValidatio
     );
   }
   const copies = new Map<string, number>();
-  const bump = (c: CardDef): void => void copies.set(c.name, (copies.get(c.name) ?? 0) + 1);
+  const unlimited = new Set<string>();
+  const bump = (c: CardDef): void => {
+    copies.set(c.name, (copies.get(c.name) ?? 0) + 1);
+    if (c.unlimitedCopies) unlimited.add(c.name);
+  };
   const mainCards: CardDef[] = [];
   if (champion) {
     bump(champion);
@@ -89,7 +93,7 @@ export function validateDeck(cards: CardDatabase, deck: DeckList): DeckValidatio
     }
   }
   for (const [name, n] of copies) {
-    if (n > MAX_COPIES) {
+    if (n > MAX_COPIES && !unlimited.has(name)) {
       errors.push(`Too many copies of "${name}": ${n} > ${MAX_COPIES} (Rule 103.3.b).`);
     }
   }

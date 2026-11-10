@@ -149,3 +149,18 @@ describe('validateDeck', () => {
     expect(e.length).toBeGreaterThanOrEqual(4);
   });
 });
+
+describe('validateDeck: "Your deck can have any number of cards named X" (Spiderling)', () => {
+  it('lifts the 3-copy limit for the named card only', () => {
+    // Tests Rule 103.3.b: a card can lift the copy limit for itself
+    const db: CardDatabase = {
+      ...FIXTURE_CARDS,
+      'fx-grunt': { ...card('fx-grunt'), unlimitedCopies: true },
+    };
+    const many = [...FIXTURE_DECK_A.mainDeck, 'fx-grunt', 'fx-grunt', 'fx-grunt'];
+    expect(errorsOf(withMain(many), db)).toEqual([]); // 6+ copies are fine
+    expect(errorsOf(withMain(many)).join()).toMatch(/Too many copies of "Cinder Grunt"/);
+    const other = [...FIXTURE_DECK_A.mainDeck, 'fx-archer', 'fx-archer', 'fx-archer'];
+    expect(errorsOf(withMain(other), db).join()).toMatch(/Too many copies of "Flame Archer"/);
+  });
+});

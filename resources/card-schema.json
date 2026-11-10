@@ -168,6 +168,10 @@
       "type": "array",
       "items": { "enum": ["OPEN", "ENEMY"] }
     },
+    "unlimitedCopies": {
+      "description": "Your deck can have any number of cards named like this one (Spiderling).",
+      "type": "boolean"
+    },
     "flowCost": {
       "description": "Flow: the spell may be played from the Trash for this cost, then banished (R61).",
       "type": "object",

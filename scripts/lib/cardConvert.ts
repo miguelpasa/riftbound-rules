@@ -15,6 +15,7 @@ import {
   parseModalSpell,
   parseOptionalAdditionalCost,
   parsePlayTo,
+  takeUnlimitedCopies,
   parseStaticLines,
   parseSpellText,
 } from '../../engine/src/cardText';
@@ -325,7 +326,10 @@ export function convertRow(row: RawRow): ConvertResult {
   const spellFlags = type === 'SPELL' ? takeSpellFlags(fullText) : null;
   const flagged = spellFlags ? spellFlags.rest : fullText;
   const showOff = type === 'UNIT' || type === 'SPELL' ? takeShowOff(flagged) : null;
-  const baseText = showOff ? showOff.rest : flagged;
+  const baseText0 = showOff ? showOff.rest : flagged;
+  // "Your deck can have any number of cards named X": a deck-building rule, kept on the card.
+  const deckRule = takeUnlimitedCopies(baseText0);
+  const baseText = deckRule ? deckRule.rest : baseText0;
   const additional =
     type === 'UNIT' || type === 'SPELL' || type === 'GEAR' ? parseAdditionalCost(baseText) : null;
   const afterAdditionalCost = additional ? additional.rest : baseText;
@@ -485,6 +489,9 @@ export function convertRow(row: RawRow): ConvertResult {
       card.triggers = triggers;
       card.supportLevel = 'full';
     }
+  }
+  if (deckRule && deckRule.name === row.name && card.supportLevel === 'full') {
+    card.unlimitedCopies = true;
   }
   // R76: likewise the extra play locations.
   if (playToLine && card.supportLevel === 'full') card.playTo = playToLine.playTo;

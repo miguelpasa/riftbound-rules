@@ -1432,6 +1432,8 @@ export interface CardDef {
    * no units on it, "ENEMY" = a battlefield an opponent controls with their units on it.
    */
   playTo?: ('OPEN' | 'ENEMY')[];
+  /** "Your deck can have any number of cards named X" (Spiderling): the 3-copy limit does not apply to this card. */
+  unlimitedCopies?: boolean;
   optionalAdditionalCost?: {
     energy: number;
     power?: number;

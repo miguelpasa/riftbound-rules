@@ -2790,6 +2790,19 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
   return statics.length > 0 ? { statics, rest: keep.join('\n').trim() } : null;
 }
 
+/** "Your deck can have any number of cards named X." (Spiderling): the named card and the text without that line. */
+export function takeUnlimitedCopies(text: string): { name: string; rest: string } | null {
+  const m =
+    /(?:^|\n)[ \t]*Your deck can have any number of cards named ([^.\n]+?)\.?[ \t]*(?=\n|$)/i.exec(
+      text,
+    );
+  if (!m) return null;
+  return {
+    name: (m[1] ?? '').trim(),
+    rest: (text.slice(0, m.index) + '\n' + text.slice(m.index + m[0].length)).trim(),
+  };
+}
+
 /** R76: "You may play me to an open battlefield." / "... an occupied enemy battlefield." lines of a Unit. */
 export function parsePlayTo(text: string): { playTo: ('OPEN' | 'ENEMY')[]; rest: string } | null {
   const re =
