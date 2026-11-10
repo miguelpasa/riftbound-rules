@@ -1383,7 +1383,15 @@ export function runEffects(
     amountFrom?: string;
     amountSlot?: number;
     perAttachedEquipment?: boolean;
+    perSameNameInTrash?: number;
   }): number => {
+    if (e.perSameNameInTrash) {
+      const name = cards[sourceCardId]?.name;
+      const same = state.players[playerIndex(controller)].trash.filter(
+        (id) => cards[state.objects[id]?.cardId ?? '']?.name === name,
+      ).length;
+      return e.amount + e.perSameNameInTrash * same;
+    }
     if (e.perAttachedEquipment) {
       const attached = Object.values(state.objects).filter(
         (g) => g.attachedTo === sourceObjectId && g.zone.kind === 'base',

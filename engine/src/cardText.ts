@@ -3461,6 +3461,16 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       continue;
     }
     if (attachInstead(list[i] as string, out)) continue;
+    // "This deals 1 Bonus Damage for each card with this name in your trash"
+    const sameName =
+      /^This deals (\d+) Bonus Damage for each card with this name in your trash$/i.exec(
+        list[i] as string,
+      );
+    const prevDmg = out[out.length - 1];
+    if (sameName && prevDmg?.op === 'DAMAGE_TARGET' && !prevDmg.amountFrom) {
+      prevDmg.perSameNameInTrash = Number(sameName[1]);
+      continue;
+    }
     // "If <condition>, <effect> instead": replaces the effect just before it (both carry the condition or its negation).
     const ins = /^If (.+?), (.+) instead$/i.exec(list[i] as string);
     const insCond = ins ? parseCondition(ins[1] as string) : null;
