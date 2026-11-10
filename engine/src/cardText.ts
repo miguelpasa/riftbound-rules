@@ -1175,6 +1175,13 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  // "Move me to that battlefield" (Vex): after "When you stun an enemy unit at a battlefield".
+  if (/^Move me to that battlefield$/i.test(sen)) {
+    return {
+      effect: { op: 'MOVE_SELF_TO_TARGET', side: 'enemy', atBattlefield: true },
+      decl: { side: 'enemy', atBattlefield: true },
+    };
+  }
   // "Attach it to a unit you control" (Edge of Night, a Hidden Equipment played from face down).
   m = /^Attach it to an? (?:unit you control|friendly unit)(?: here)?$/i.exec(sen);
   if (m) {
@@ -4374,7 +4381,7 @@ const DEATH_HEAD =
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
-  /^(When you conquer or hold|When you or an ally hold|When you conquer|When you hold|When a friendly unit attacks or defends alone|When an enemy unit attacks a battlefield you control|When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When my Might becomes \d+ or more|When you empower something else|When you banish a card you own|When you buff me|When you buff a friendly unit|When you choose a friendly unit|When you choose me with a spell|When you choose or ready me|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When a unit moves from here|When you ready a friendly unit|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend one on one|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you conquer or hold|When you or an ally hold|When you conquer|When you hold|When a friendly unit attacks or defends alone|When an enemy unit attacks a battlefield you control|When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When my Might becomes \d+ or more|When you empower something else|When you banish a card you own|When you buff me|When you buff a friendly unit|When you choose a friendly unit|When you choose me with a spell|When you choose or ready me|When you stun (?:an enemy unit(?: at a battlefield)?|one or more enemy units)|When you discard me|When you discard one or more cards|When a unit moves from here|When you ready a friendly unit|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend one on one|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -5092,6 +5099,20 @@ export function parseCardAbilities(
       const opt = splitOptional(g.sens);
       effects = opt ? parseEffectSentences(opt.rest) : null;
       optional = opt?.optional;
+    }
+    // "you may move me to that battlefield": the chosen unit is preset by the event, so "may" is the optional prompt.
+    if (
+      effects &&
+      g.kind === 'trigger' &&
+      effects.some((x) => x.op === 'MOVE_SELF_TO_TARGET' && 'count' in x && x.count?.min === 0)
+    ) {
+      effects = effects.map((x) => {
+        if (x.op !== 'MOVE_SELF_TO_TARGET') return x;
+        const rest = { ...x };
+        delete rest.count;
+        return rest as CardEffect;
+      });
+      optional = optional ?? {};
     }
     if (!effects && g.kind === 'trigger') {
       // R77: "Discard N[, then ...]" is a cost the controller must pay.

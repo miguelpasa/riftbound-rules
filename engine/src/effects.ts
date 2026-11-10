@@ -159,6 +159,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'DISEMPOWER_TARGET' ||
   e.op === 'PROTECT_TARGET' ||
   e.op === 'ATTACH_SELF_TARGET' ||
+  e.op === 'MOVE_SELF_TO_TARGET' ||
   e.op === 'EMPOWER_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
@@ -1866,6 +1867,7 @@ export function runEffects(
       case 'DISEMPOWER_TARGET':
       case 'PROTECT_TARGET':
       case 'ATTACH_SELF_TARGET':
+      case 'MOVE_SELF_TO_TARGET':
       case 'EMPOWER_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
@@ -2013,6 +2015,17 @@ export function runEffects(
             if (!u.empowered) {
               u.empowered = true;
               out.push({ type: 'EFFECT_EMPOWERED', unitId: u.id });
+            }
+          } else if (e.op === 'MOVE_SELF_TO_TARGET') {
+            const me = state.objects[sourceObjectId];
+            if (
+              me &&
+              (me.zone.kind === 'base' || me.zone.kind === 'battlefield') &&
+              u.zone.kind === 'battlefield'
+            ) {
+              moveHere(state, cards, me, u.zone.battlefieldId, out);
+            } else {
+              fizzle();
             }
           } else if (e.op === 'ATTACH_SELF_TARGET') {
             const gear = state.objects[sourceObjectId];

@@ -579,6 +579,14 @@ type CardEffectCore =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** "Move me to that battlefield" (Vex): the source unit moves to the chosen (stunned) unit's battlefield. */
+  | ({
+      op: 'MOVE_SELF_TO_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+      count?: TargetCount;
+    } & TargetScope)
   /** "Disempower it": the chosen unit stops being Empowered. */
   | ({
       op: 'DISEMPOWER_TARGET';
@@ -836,6 +844,7 @@ export type TargetedEffect = Extract<
       | 'DISEMPOWER_TARGET'
       | 'PROTECT_TARGET'
       | 'ATTACH_SELF_TARGET'
+      | 'MOVE_SELF_TO_TARGET'
       | 'EMPOWER_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'

@@ -526,7 +526,11 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       if (stunned && e.by !== undefined && stunned.controller !== e.by) {
         for (const src of Object.values(state.objects)) {
           if (src.controller !== e.by || (!onBoard(src) && src.zone.kind !== 'legend')) continue;
-          add(src, 'YOU_STUN_ENEMY', src.controller);
+          // "... move me to that battlefield": the stunned unit is the ability's chosen target.
+          const movesToIt = (tr: CardTrigger): boolean =>
+            tr.effects.some((x) => x.op === 'MOVE_SELF_TO_TARGET');
+          add(src, 'YOU_STUN_ENEMY', src.controller, (tr) => !movesToIt(tr));
+          add(src, 'YOU_STUN_ENEMY', src.controller, movesToIt, e.unitId);
         }
       }
     } else if (e.type === 'COST_CARDS_PAID' && e.kind === 'DISCARD' && e.cardIds.length > 0) {
