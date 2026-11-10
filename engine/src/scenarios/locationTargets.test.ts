@@ -847,3 +847,50 @@ describe('scenario: "Recycle up to 4 cards from trashes" (Forge of the Future)',
     expect(sc.player('p1').trash).not.toContain(theirs[0]);
   });
 });
+
+describe('scenario: "Return up to 2 units from trashes to their owners\' hands" (Shadows of the Past)', () => {
+  const text = "Return up to 2 units from trashes to their owners' hands.";
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a return of up to two units from any Trash', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'RETURN_FROM_TRASH', what: 'unit', anyTrash: true, count: { min: 0, max: 2 } },
+    ]);
+  });
+
+  /** Moves a specific card of `player` into their Trash; returns its id. */
+  function trashCard(sc: Scenario, player: 'p0' | 'p1', cardId: string): string {
+    const id = sc.putInHand(player, cardId);
+    const ps = sc.state.players[player === 'p0' ? 0 : 1] as GameState['players'][number];
+    ps.hand = ps.hand.filter((x) => x !== id);
+    ps.trash.push(id);
+    (sc.state.objects[id] as CardInstance).zone = { kind: 'trash', player };
+    return id;
+  }
+
+  it('only units in a Trash can be chosen, at most two, from either player', () => {
+    // Tests Rule 355.10: every pick must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mine = trashCard(sc, 'p0', 'fx-grunt');
+    const theirs = trashCard(sc, 'p1', 'fx-tide-grunt');
+    const spell = trashCard(sc, 'p0', 'fx-flare');
+    const extra = trashCard(sc, 'p0', 'fx-archer');
+    const ok = (ids: string[]) => spellTargetsLegal(sc.state, cards, 'p0', effects, ids.map(obj));
+    expect(ok([mine, theirs])).toBe(true);
+    expect(ok([spell])).toBe(false); // not a unit
+    expect(ok([mine, theirs, extra])).toBe(false); // three
+  });
+
+  it("returns each chosen unit to its owner's hand", () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mine = trashCard(sc, 'p0', 'fx-grunt');
+    const theirs = trashCard(sc, 'p1', 'fx-tide-grunt');
+    cast(sc, [obj(mine), obj(theirs)]);
+    expect(sc.obj(mine).zone).toMatchObject({ kind: 'hand', player: 'p0' });
+    expect(sc.obj(theirs).zone).toMatchObject({ kind: 'hand', player: 'p1' });
+  });
+});

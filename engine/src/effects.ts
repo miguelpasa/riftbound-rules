@@ -194,7 +194,8 @@ function specOf(e: TargetedEffect): Spec {
   if (e.op === 'GRANT_TEMPORARY_TARGET' && e.kind) spec.kind = e.kind;
   if (e.op === 'RECYCLE_FROM_TRASHES') spec.trashAny = true;
   if (e.op === 'RETURN_FROM_TRASH') {
-    spec.side = 'friendly';
+    spec.side = e.anyTrash ? 'any' : 'friendly';
+    if (e.anyTrash) spec.trashAny = true;
     spec.trashWhat = e.what;
     if (e.subtypes) spec.trashSubtypes = e.subtypes;
   }
@@ -401,7 +402,19 @@ function legalForSpec(
     return autoPlan(state, cards, controller, weaponmasterCost(state, cards, u, src)) !== null;
   }
   if (spec.kind === 'trash' && spec.trashAny) {
-    return u.zone.kind === 'trash' && cards[u.cardId] !== undefined;
+    const d = cards[u.cardId];
+    if (u.zone.kind !== 'trash' || !d) return false;
+    const w = spec.trashWhat;
+    return (
+      w === undefined ||
+      (w === 'spell'
+        ? d.type === 'SPELL'
+        : w === 'gear'
+          ? d.type === 'GEAR'
+          : w === 'unit'
+            ? d.type === 'UNIT'
+            : d.type === 'UNIT' || d.type === 'GEAR')
+    );
   }
   if (spec.kind === 'trash') {
     // R75: a card of the right kind in the controller's own Trash (tokens never reach the Trash).

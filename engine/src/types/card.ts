@@ -489,6 +489,8 @@ type CardEffectCore =
   | {
       op: 'RETURN_FROM_TRASH';
       what: 'unit' | 'gear' | 'unitOrGear' | 'spell';
+      /** "... from trashes": the card may be in any player's Trash (it returns to its owner's hand). */
+      anyTrash?: boolean;
       subtypes?: string[];
       slot?: number;
       count?: TargetCount;

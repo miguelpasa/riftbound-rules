@@ -928,6 +928,21 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  // "Return up to 2 units from trashes to their owners' hands" (Shadows of the Past).
+  m = /^Return up to (\d+) (units|gear|spells) from trashes to their owners['’] hands$/i.exec(sen);
+  if (m) {
+    const w = (m[2] ?? '').toLowerCase();
+    return {
+      effect: {
+        op: 'RETURN_FROM_TRASH',
+        what: w === 'units' ? 'unit' : w === 'gear' ? 'gear' : 'spell',
+        anyTrash: true,
+        count: { min: 0, max: Number(m[1]) },
+      },
+      decl: { side: 'any', kind: 'trash' },
+      multi: true,
+    };
+  }
   // "Recycle up to 4 cards from trashes" (Forge of the Future): chosen cards from any Trash.
   m = /^Recycle up to (\d+) cards from trashes$/i.exec(sen);
   if (m) {
