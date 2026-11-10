@@ -270,10 +270,13 @@ export function parseEquipCost(text: string): EquipCost | undefined {
     any = true;
   } else if (rest && !/^Pay the cost/i.test(rest)) {
     const phrase = rest.replace(/[.\s]+$/, '');
+    // "or exhaust a friendly unit": the cards pay INSTEAD of the resources.
+    const alt = /^or\s+(.+)$/i.exec(phrase);
     // "Kill a friendly unit" / "Recycle 2 cards from your trash": a card-choice cost the engine enforces.
-    const card = parseCostCard(phrase);
+    const card = parseCostCard(alt ? (alt[1] as string) : phrase);
     if (card) {
       cost.card = card;
+      if (alt) cost.cardInstead = true;
       any = true;
     } else {
       cost.nonResource = phrase;

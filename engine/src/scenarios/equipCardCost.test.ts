@@ -84,3 +84,71 @@ describe('scenario: Equip with a card-choice cost (Blade of the Ruined King, Las
     );
   });
 });
+
+describe('scenario: "[Equip] — [A] or exhaust a friendly unit" (Blade of the Exile)', () => {
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-blade': {
+      ...(SCENARIO_CARDS['fx-blade'] as CardDef),
+      equipCost: {
+        energy: 0,
+        power: 0,
+        anyPower: 1,
+        card: { kind: 'EXHAUST' },
+        cardInstead: true,
+      },
+    },
+  };
+
+  it('is paid by exhausting a unit instead of the Power, or by the Power alone', () => {
+    // Tests Rule 818: either alternative pays the Equip cost
+    const sc = Scenario.start({}, cards);
+    sc.setRunes('p0', []);
+    const blade = sc.putUnit('p0', 'fx-blade', 'base');
+    const carrier = sc.putUnit('p0', 'fx-grunt', 'base');
+    const helper = sc.putUnit('p0', 'fx-archer', 'base');
+    const equip = (costCards?: string[]): ReturnType<typeof reduce> =>
+      reduce(sc.state, cards, {
+        type: 'EQUIP',
+        playerId: 'p0',
+        equipmentId: blade,
+        unitId: carrier,
+        ...(costCards ? { costCards } : {}),
+      } as Intent);
+    // No runes: the Power cannot be paid, so exhausting a unit is the only way.
+    expect(equip().ok).toBe(false);
+    const r = equip([helper]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.objects[helper]?.ready).toBe(false);
+
+    // With a rune of Power, the plain payment works too and exhausts nobody.
+    const sc2 = Scenario.start({}, cards);
+    const b2 = sc2.putUnit('p0', 'fx-blade', 'base');
+    const c2 = sc2.putUnit('p0', 'fx-grunt', 'base');
+    const h2 = sc2.putUnit('p0', 'fx-archer', 'base');
+    sc2.setRunes('p0', ['Fury', 'Fury']);
+    const r2 = reduce(sc2.state, cards, {
+      type: 'EQUIP',
+      playerId: 'p0',
+      equipmentId: b2,
+      unitId: c2,
+    } as Intent);
+    expect(r2.ok).toBe(true);
+    if (r2.ok) expect(r2.state.objects[h2]?.ready).toBe(true); // nobody was exhausted
+  });
+
+  it('the legal actions offer both ways', () => {
+    // Tests Rule 818: an Equip that cannot be paid is not offered
+    const sc = Scenario.start({}, cards);
+    const blade = sc.putUnit('p0', 'fx-blade', 'base');
+    const carrier = sc.putUnit('p0', 'fx-grunt', 'base');
+    sc.putUnit('p0', 'fx-archer', 'base');
+    sc.giveRunes('p0', 2);
+    const equips = getLegalActions(sc.state, cards, 'p0').filter(
+      (i) => i.type === 'EQUIP' && i.equipmentId === blade && i.unitId === carrier,
+    ) as { costCards?: string[] }[];
+    expect(equips.some((i) => i.costCards === undefined)).toBe(true); // pay the Power
+    expect(equips.some((i) => i.costCards !== undefined)).toBe(true); // exhaust a unit
+  });
+});

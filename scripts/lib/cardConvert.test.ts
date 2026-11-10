@@ -634,4 +634,28 @@ describe('Equip with a card-choice cost (Blade of the Ruined King, Last Rites)',
     expect(card?.supportLevel).toBe('full');
     expect(card?.equipCost?.card).toEqual({ kind: 'KILL', what: 'unit' });
   });
+
+  // Tests: "or exhaust a friendly unit" is an alternative to the Power, not an addition
+  it('reads "[A] or exhaust a friendly unit" as an alternative card cost', () => {
+    expect(parseEquipCost('[Equip] — [A] or exhaust a friendly unit')).toEqual({
+      energy: 0,
+      power: 0,
+      anyPower: 1,
+      card: { kind: 'EXHAUST' },
+      cardInstead: true,
+    });
+    const { card } = convertRow(
+      row({
+        cardType: 'Gear',
+        cardTypeLabels: ['Gear', 'Equipment'],
+        name: 'Blade of the Exile',
+        fullName: 'Blade of the Exile',
+        might: null,
+        abilityEffective:
+          '[Equip] — [A] or exhaust a friendly unit (Pay the cost: Attach this to a unit you control.)',
+      }),
+    );
+    expect(card?.supportLevel).toBe('full');
+    expect(card?.equipCost?.cardInstead).toBe(true);
+  });
 });

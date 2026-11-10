@@ -1408,6 +1408,8 @@ export interface EquipCost {
   xp?: number;
   /** "[Equip] — [C], Kill a friendly unit": the card-choice part of the cost, paid with `EquipIntent.costCards`. */
   card?: CostCardChoice;
+  /** "[Equip] — [A] or exhaust a friendly unit": paying the cards replaces the Power instead of adding to it. */
+  cardInstead?: boolean;
   /** Printed non-resource cost part that is not understood (kept so the card stays partial). */
   nonResource?: string;
 }

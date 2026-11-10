@@ -429,20 +429,30 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   }
   // "[Equip] — [C], Kill a friendly unit": the chosen cards are checked before anything is paid.
   const costCard = eqDef.equipCost?.card;
-  if (costCard) {
+  // "[Equip] — [A] or exhaust a friendly unit": the cards pay INSTEAD of the Power when they are given.
+  const instead = eqDef.equipCost?.cardInstead === true;
+  const chosenCards = intent.costCards ?? [];
+  const payWithCards = costCard !== undefined && (!instead || chosenCards.length > 0);
+  if (costCard && payWithCards) {
     if (intent.costCards === undefined) {
       return ruleError('MISSING_TARGET', 'choose the cards that pay the Equip cost');
     }
     if (
-      intent.costCards.includes(unit.id) ||
+      (costCard.kind === 'KILL' && intent.costCards.includes(unit.id)) ||
       !costCardsLegal(state, cards, pid, eq.id, costCard, intent.costCards)
     ) {
       return ruleError('ILLEGAL_TARGET', 'those cards cannot pay the Equip cost');
     }
-  } else if (intent.costCards !== undefined && intent.costCards.length > 0) {
+  } else if (chosenCards.length > 0) {
     return ruleError('ILLEGAL_TARGET', 'this Equip has no card cost');
   }
-  const cost = equipTotalCost(state, cards, eqDef, unit);
+  const cost = equipTotalCost(
+    state,
+    cards,
+    eqDef,
+    unit,
+    payWithCards && instead ? { power: eqDef.equipCost?.anyPower ?? 0 } : undefined,
+  );
   const plan = autoPlan(state, cards, pid, cost);
   if (!plan) return ruleError('INSUFFICIENT_RESOURCES', 'cannot pay Equip');
   const paid = payCost(state, cards, pid, cost, plan);
@@ -451,7 +461,7 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   // Reaction. The attachment happens when it resolves (see `playResolver`).
   const work = paid.state;
   const costEvents =
-    costCard && intent.costCards
+    costCard && payWithCards && intent.costCards
       ? stampEvents(work, payCostCards(work, cards, pid, eq.id, costCard, intent.costCards))
       : [];
   if (xpCost > 0) {

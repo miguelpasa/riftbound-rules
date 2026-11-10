@@ -349,9 +349,13 @@ function equipCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): 
         out.push({ type: 'EQUIP', playerId: pid, equipmentId: g.id, unitId: u.id });
         continue;
       }
-      // A card-choice Equip cost: one candidate per choice of cards (never the unit being equipped).
+      // "[A] or exhaust a unit": paying the Power with no cards is a candidate too.
+      if (cards[g.cardId]?.equipCost?.cardInstead) {
+        out.push({ type: 'EQUIP', playerId: pid, equipmentId: g.id, unitId: u.id });
+      }
+      // A card-choice Equip cost: one candidate per choice of cards (never the unit being killed for it).
       for (const costCards of costCardCombos(state, cards, pid, g.id, costCard)) {
-        if (costCards.includes(u.id)) continue;
+        if (costCard.kind === 'KILL' && costCards.includes(u.id)) continue;
         out.push({ type: 'EQUIP', playerId: pid, equipmentId: g.id, unitId: u.id, costCards });
       }
     }
