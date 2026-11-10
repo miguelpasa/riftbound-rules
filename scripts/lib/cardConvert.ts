@@ -462,6 +462,7 @@ export function convertRow(row: RawRow): ConvertResult {
           'TURN_END',
           'UNIT_ATTACKS',
           'YOU_EMPOWER_ELSE',
+          'YOU_BANISH_OWN',
         ].includes(t.on),
       ) &&
       !parsed.entersReady &&

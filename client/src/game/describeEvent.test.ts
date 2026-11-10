@@ -44,6 +44,13 @@ const SAMPLES: { [K in GameEventType]: Extract<GameEvent, { type: K }> } = {
   BECAME_READY: { seq: 97, type: 'BECAME_READY', objectId: 'o1' },
   BECAME_MIGHTY: { seq: 98, type: 'BECAME_MIGHTY', objectId: 'o1' },
   BECAME_MIGHT_AT: { seq: 98, type: 'BECAME_MIGHT_AT', objectId: 'o1', n: 10 },
+  CARD_BANISHED: {
+    seq: 99,
+    type: 'CARD_BANISHED',
+    player: 'p0',
+    cardInstanceId: 'o1',
+    cardId: 'c',
+  },
   UNIT_BUFFED: { seq: 198, type: 'UNIT_BUFFED', objectId: 'o1' },
   UNIT_CHOSEN: { seq: 199, type: 'UNIT_CHOSEN', objectId: 'o1', chooser: 'p0', spell: true },
   COMBAT_ENDED: {

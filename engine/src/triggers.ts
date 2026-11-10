@@ -388,6 +388,13 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           );
         }
       }
+    } else if (e.type === 'CARD_BANISHED') {
+      // "When you banish a card you own": the owner's permanents and Legend.
+      for (const src of Object.values(state.objects)) {
+        if (src.controller !== e.player) continue;
+        if (!onBoard(src) && src.zone.kind !== 'legend') continue;
+        add(src, 'YOU_BANISH_OWN', src.controller);
+      }
     } else if (e.type === 'BECAME_MIGHT_AT') {
       const m = state.objects[e.objectId];
       if (m && onBoard(m)) add(m, 'MIGHT_REACHES', m.controller, (t) => t.mightAtLeast === e.n);

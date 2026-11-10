@@ -428,6 +428,12 @@ export const playResolver: ChainResolver = (state, item, cards) => {
       // R61: a spell played with Flow is banished instead of going to the Trash.
       owner.banishment.push(obj.id);
       obj.zone = { kind: 'banishment', player: obj.owner };
+      events.push({
+        type: 'CARD_BANISHED',
+        player: obj.owner,
+        cardInstanceId: obj.id,
+        cardId: obj.cardId,
+      });
     } else {
       if (!owner.trash.includes(obj.id)) owner.trash.push(obj.id);
       obj.zone = { kind: 'trash', player: obj.owner };

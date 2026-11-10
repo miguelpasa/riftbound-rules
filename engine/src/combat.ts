@@ -544,6 +544,14 @@ export function killLethalUnits(state: GameState, cards: CardDatabase): GameEven
     if (o.damage <= 0 || o.damage < Math.max(1, effectiveMight(state, cards, id))) continue;
     if (o.deathReplace) {
       events.push(replaceDeath(state, cards, o));
+      if (state.objects[o.id]?.zone.kind === 'banishment') {
+        events.push({
+          type: 'CARD_BANISHED',
+          player: o.owner,
+          cardInstanceId: o.id,
+          cardId: o.cardId,
+        });
+      }
       continue;
     }
     const standing = staticBonus(state, cards, o).replaceDeath;

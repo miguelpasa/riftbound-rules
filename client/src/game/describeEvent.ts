@@ -229,6 +229,8 @@ export function describeEvent(
       return `${objectName(event.objectId, view, cards, 'A unit')} was chosen.`;
     case 'BECAME_MIGHTY':
       return `${objectName(event.objectId, view, cards, 'A unit')} became Mighty.`;
+    case 'CARD_BANISHED':
+      return `${objectName(event.cardInstanceId, view, cards, 'A card')} was banished.`;
     case 'BECAME_MIGHT_AT':
       return `${objectName(event.objectId, view, cards, 'A unit')} reached ${event.n} Might.`;
     case 'BECAME_EXHAUSTED':

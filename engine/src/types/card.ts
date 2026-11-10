@@ -1179,6 +1179,8 @@ export type TriggerKind =
   | 'MIGHT_REACHES'
   /** "When you empower something else": another permanent of the controller became Empowered. */
   | 'YOU_EMPOWER_ELSE'
+  /** "When you banish a card you own": one of the controller's cards was banished. */
+  | 'YOU_BANISH_OWN'
   /** R92: "When an opponent scores" (a point from any source). */
   | 'OPP_SCORES'
   /** R100: "When you hide a card". */

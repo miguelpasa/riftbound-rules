@@ -1907,7 +1907,16 @@ export function runEffects(
             delete u.empowered;
           } else if (e.op === 'BANISH_TARGET') {
             doneSlots.set(slot, u.owner);
+            const tokenGone = isTokenInstance(u);
             banishUnit(state, u);
+            if (!tokenGone) {
+              out.push({
+                type: 'CARD_BANISHED',
+                player: u.owner,
+                cardInstanceId: u.id,
+                cardId: u.cardId,
+              });
+            }
           } else if (e.op === 'BLINK_TARGET') {
             doneSlots.set(slot, u.owner);
             const was = u.zone;
@@ -2266,6 +2275,12 @@ export function runEffects(
           const holder = state.players[playerIndex(pick.owner)];
           holder.banishment.push(pick.id);
           pick.zone = { kind: 'banishment', player: pick.owner };
+          out.push({
+            type: 'CARD_BANISHED',
+            player: pick.owner,
+            cardInstanceId: pick.id,
+            cardId: pick.cardId,
+          });
           const at =
             e.here && isUnitDef(cards[pick.cardId]) ? hereOfSource(state, sourceObjectId) : null;
           playByEffect(

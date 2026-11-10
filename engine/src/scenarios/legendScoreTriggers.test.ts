@@ -152,3 +152,45 @@ describe('scenario: Legend "When you empower something else, empower me" (Matria
     expect(legendEmpowered(false)).toBe(false);
   });
 });
+
+describe('scenario: Legend "When you banish a card you own, empower me" (Master of Shadows)', () => {
+  const text = 'When you banish a card you own, empower me.';
+
+  it('reads a Legend trigger on banishing one of your own cards', () => {
+    // Tests Rule 303: parsed text
+    expect(parseCardAbilities(text, { legend: true })?.triggers[0]).toMatchObject({
+      on: 'YOU_BANISH_OWN',
+      effects: [{ op: 'EMPOWER_SELF' }],
+    });
+  });
+
+  /** p0 banishes `target` (its own unit, or p1's unit) with a spell; returns whether p0's Legend got empowered. */
+  function legendEmpowered(own: boolean): boolean {
+    const trig = parseCardAbilities(text, { legend: true })?.triggers ?? [];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-legend-ember': { ...(SCENARIO_CARDS['fx-legend-ember'] as CardDef), triggers: trig },
+      'fx-flare': {
+        ...(SCENARIO_CARDS['fx-flare'] as CardDef),
+        supportLevel: 'partial',
+        effects: [{ op: 'BANISH_TARGET' }],
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const victim = sc.putUnit(own ? 'p0' : 'p1', own ? 'fx-grunt' : 'fx-tide-grunt', 'base');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: victim }],
+    });
+    settle(sc);
+    expect(sc.obj(victim).zone.kind).toBe('banishment');
+    return sc.state.objects[sc.state.players[0]?.legend as string]?.empowered === true;
+  }
+
+  it("fires for a card its owner banished, not for an opponent's card", () => {
+    // Tests Rule 303: a triggered ability fires on its event
+    expect(legendEmpowered(true)).toBe(true);
+    expect(legendEmpowered(false)).toBe(false);
+  });
+});

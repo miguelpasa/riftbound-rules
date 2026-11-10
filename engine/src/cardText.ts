@@ -4018,7 +4018,7 @@ const DEATH_HEAD =
 const DEATH_BATCH_HEAD = /^When one or more (friendly|enemy) units die\s*,\s*(.*)$/i;
 
 const TRIGGER_HEAD =
-  /^(When you conquer or hold|When you or an ally hold|When you conquer|When you hold|When a friendly unit attacks or defends alone|When an enemy unit attacks a battlefield you control|When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When my Might becomes \d+ or more|When you empower something else|When you buff me|When you buff a friendly unit|When you choose a friendly unit|When you choose me with a spell|When you choose or ready me|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When a unit moves from here|When you ready a friendly unit|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend one on one|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
+  /^(When you conquer or hold|When you or an ally hold|When you conquer|When you hold|When a friendly unit attacks or defends alone|When an enemy unit attacks a battlefield you control|When this is played, discarded, or killed|When this leaves the board|When (?:a unit you control|one of your units) becomes \[?Mighty\]?|When my Might becomes \d+ or more|When you empower something else|When you banish a card you own|When you buff me|When you buff a friendly unit|When you choose a friendly unit|When you choose me with a spell|When you choose or ready me|When you stun (?:an enemy unit|one or more enemy units)|When you discard me|When you discard one or more cards|When a unit moves from here|When you ready a friendly unit|When I move from a battlefield|When you use an activated ability of a gear|When you hide a card|When you play me from face down|When you play me or when I score|When an opponent scores|When you play me or when I become exhausted|When I become (?:exhausted|ready|empowered)|When you play me or at (?:the )?start of your Beginning Phase|At (?:the )?start of your Beginning Phase|At the end of your turn|When I win a combat|When a combat that I was in ends|When you play me or when I (hold|conquer|attack|defend)|When you play me to a battlefield|When you play me|When I hold|When I conquer|When I attack or defend one on one|When I attack or defend|When I attack|When I defend|When I move to a battlefield|When I move|When I die in combat|Deathknell:)\s*,?\s*(.*)$/i;
 
 /**
  * Parse the abilities of a unit, gear or token: triggered abilities ("When you play me / hold /
@@ -4339,96 +4339,98 @@ export function parseCardAbilities(
                   ? ['PLAY', 'DISCARD_SELF', 'GEAR_LEAVES']
                   : head.startsWith('when this leaves the board')
                     ? ['GEAR_LEAVES']
-                    : head.startsWith('when you empower something else')
-                      ? ['YOU_EMPOWER_ELSE']
-                      : head.startsWith('when my might becomes')
-                        ? ['MIGHT_REACHES']
-                        : head.includes('becomes')
-                          ? ['UNIT_BECOMES_MIGHTY']
-                          : head.startsWith('when you stun')
-                            ? ['YOU_STUN_ENEMY']
-                            : head.startsWith('when you discard me')
-                              ? ['DISCARD_SELF']
-                              : head.startsWith('when you discard')
-                                ? ['YOU_DISCARD']
-                                : head.startsWith('when a unit moves from here')
-                                  ? ['UNIT_LEAVES_HERE']
-                                  : head.startsWith('when you ready a friendly unit')
-                                    ? ['FRIENDLY_READIED']
-                                    : head.startsWith('when i move from a battlefield')
-                                      ? ['MOVE_FROM']
-                                      : head.startsWith(
-                                            'when you use an activated ability of a gear',
-                                          )
-                                        ? ['USE_GEAR_ABILITY']
-                                        : head.startsWith('when you hide a card')
-                                          ? ['YOU_HIDE']
-                                          : head.startsWith('when you play me from face down')
-                                            ? ['PLAY']
-                                            : head.startsWith('when you play me or when i score')
-                                              ? ['PLAY', 'HOLD', 'CONQUER']
-                                              : head.startsWith('when an opponent scores')
-                                                ? ['OPP_SCORES']
-                                                : head.startsWith(
-                                                      'when you play me or when i become',
-                                                    )
-                                                  ? ['PLAY', 'BECOME_EXHAUSTED']
-                                                  : head.startsWith('when i become')
-                                                    ? [
-                                                        head.endsWith('exhausted')
-                                                          ? 'BECOME_EXHAUSTED'
-                                                          : head.endsWith('ready')
-                                                            ? 'BECOME_READY'
-                                                            : 'BECOME_EMPOWERED',
-                                                      ]
-                                                    : head.startsWith('when you play me or at')
-                                                      ? ['PLAY', 'TURN_START']
-                                                      : head.startsWith('at the end of')
-                                                        ? ['TURN_END']
-                                                        : head.startsWith('at ')
-                                                          ? ['TURN_START']
-                                                          : head.startsWith('when i win a combat')
-                                                            ? ['WIN_COMBAT']
-                                                            : head.startsWith(
-                                                                  'when a combat that i was in ends',
-                                                                )
-                                                              ? ['COMBAT_END']
+                    : head.startsWith('when you banish a card you own')
+                      ? ['YOU_BANISH_OWN']
+                      : head.startsWith('when you empower something else')
+                        ? ['YOU_EMPOWER_ELSE']
+                        : head.startsWith('when my might becomes')
+                          ? ['MIGHT_REACHES']
+                          : head.includes('becomes')
+                            ? ['UNIT_BECOMES_MIGHTY']
+                            : head.startsWith('when you stun')
+                              ? ['YOU_STUN_ENEMY']
+                              : head.startsWith('when you discard me')
+                                ? ['DISCARD_SELF']
+                                : head.startsWith('when you discard')
+                                  ? ['YOU_DISCARD']
+                                  : head.startsWith('when a unit moves from here')
+                                    ? ['UNIT_LEAVES_HERE']
+                                    : head.startsWith('when you ready a friendly unit')
+                                      ? ['FRIENDLY_READIED']
+                                      : head.startsWith('when i move from a battlefield')
+                                        ? ['MOVE_FROM']
+                                        : head.startsWith(
+                                              'when you use an activated ability of a gear',
+                                            )
+                                          ? ['USE_GEAR_ABILITY']
+                                          : head.startsWith('when you hide a card')
+                                            ? ['YOU_HIDE']
+                                            : head.startsWith('when you play me from face down')
+                                              ? ['PLAY']
+                                              : head.startsWith('when you play me or when i score')
+                                                ? ['PLAY', 'HOLD', 'CONQUER']
+                                                : head.startsWith('when an opponent scores')
+                                                  ? ['OPP_SCORES']
+                                                  : head.startsWith(
+                                                        'when you play me or when i become',
+                                                      )
+                                                    ? ['PLAY', 'BECOME_EXHAUSTED']
+                                                    : head.startsWith('when i become')
+                                                      ? [
+                                                          head.endsWith('exhausted')
+                                                            ? 'BECOME_EXHAUSTED'
+                                                            : head.endsWith('ready')
+                                                              ? 'BECOME_READY'
+                                                              : 'BECOME_EMPOWERED',
+                                                        ]
+                                                      : head.startsWith('when you play me or at')
+                                                        ? ['PLAY', 'TURN_START']
+                                                        : head.startsWith('at the end of')
+                                                          ? ['TURN_END']
+                                                          : head.startsWith('at ')
+                                                            ? ['TURN_START']
+                                                            : head.startsWith('when i win a combat')
+                                                              ? ['WIN_COMBAT']
                                                               : head.startsWith(
-                                                                    'when you play me or',
+                                                                    'when a combat that i was in ends',
                                                                   )
-                                                                ? [
-                                                                    'PLAY',
-                                                                    OR_WHEN[
-                                                                      m[2]?.toLowerCase() ?? ''
-                                                                    ] ?? 'CONQUER',
-                                                                  ]
+                                                                ? ['COMBAT_END']
                                                                 : head.startsWith(
-                                                                      'when you play me',
+                                                                      'when you play me or',
                                                                     )
-                                                                  ? ['PLAY']
-                                                                  : head.startsWith('when i hold')
-                                                                    ? ['HOLD']
-                                                                    : head.startsWith(
-                                                                          'when i conquer',
-                                                                        )
-                                                                      ? ['CONQUER']
+                                                                  ? [
+                                                                      'PLAY',
+                                                                      OR_WHEN[
+                                                                        m[2]?.toLowerCase() ?? ''
+                                                                      ] ?? 'CONQUER',
+                                                                    ]
+                                                                  : head.startsWith(
+                                                                        'when you play me',
+                                                                      )
+                                                                    ? ['PLAY']
+                                                                    : head.startsWith('when i hold')
+                                                                      ? ['HOLD']
                                                                       : head.startsWith(
-                                                                            'when i attack or defend',
+                                                                            'when i conquer',
                                                                           )
-                                                                        ? ['ATTACK', 'DEFEND']
+                                                                        ? ['CONQUER']
                                                                         : head.startsWith(
-                                                                              'when i attack',
+                                                                              'when i attack or defend',
                                                                             )
-                                                                          ? ['ATTACK']
+                                                                          ? ['ATTACK', 'DEFEND']
                                                                           : head.startsWith(
-                                                                                'when i defend',
+                                                                                'when i attack',
                                                                               )
-                                                                            ? ['DEFEND']
+                                                                            ? ['ATTACK']
                                                                             : head.startsWith(
-                                                                                  'when i move',
+                                                                                  'when i defend',
                                                                                 )
-                                                                              ? ['MOVE']
-                                                                              : ['DEATH'];
+                                                                              ? ['DEFEND']
+                                                                              : head.startsWith(
+                                                                                    'when i move',
+                                                                                  )
+                                                                                ? ['MOVE']
+                                                                                : ['DEATH'];
       let body = m[3] ?? '';
       // "give it ..." targets the unit that attacked: written as a friendly / enemy unit, preset as the target.
       let unitFilter: CardTrigger['unitFilter'] | undefined;
