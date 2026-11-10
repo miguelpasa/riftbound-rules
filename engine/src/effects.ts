@@ -1831,7 +1831,11 @@ export function runEffects(
                 : e.timesEnemiesThere
                   ? 0
                   : 1;
-            if (times > 0) addTemp(u, e.amount * times, e.duration === 'TURN');
+            if (e.mightOfSlot !== undefined) {
+              const from = state.objects[ids[e.mightOfSlot] ?? ''];
+              const gift = from ? Math.max(0, mightOf(from)) : 0;
+              if (gift > 0) addTemp(u, gift, e.duration === 'TURN');
+            } else if (times > 0) addTemp(u, e.amount * times, e.duration === 'TURN');
           }
         }
         break;

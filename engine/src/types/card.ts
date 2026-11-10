@@ -264,6 +264,8 @@ type CardEffectCore =
       timesEnemiesThere?: boolean;
       /** "for each of the following tags among your units — Bird, Cat, Dog, and Poro": times the distinct tags (Friendship). */
       perPetTags?: true;
+      /** "+[M] equal to its Might": the amount is the Might of the unit chosen into this other slot (amount is 0). */
+      mightOfSlot?: number;
       atBattlefield?: boolean;
       /** "Buff a friendly unit in your base": the unit stands in a Base. */
       inBase?: boolean;

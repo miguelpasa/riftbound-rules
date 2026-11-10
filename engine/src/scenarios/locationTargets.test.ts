@@ -440,3 +440,42 @@ describe("scenario: damage equal to a chosen unit's [Shield] (Ntofo Strikes)", (
     expect(sc.obj(foe).damage).toBe(3);
   });
 });
+
+describe('scenario: "Kill a friendly unit. If you do, give +[M] equal to its Might to another friendly unit" (Deathgrip)', () => {
+  const text =
+    'Kill a friendly unit. If you do, give +[M] equal to its Might to another friendly unit this turn. Draw 1.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads the kill, the Might transfer and the draw', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'KILL_TARGET', side: 'friendly' },
+      {
+        op: 'BUFF_TARGET',
+        amount: 0,
+        mightOfSlot: 0,
+        duration: 'TURN',
+        side: 'friendly',
+        another: true,
+        slot: 1,
+        ifDid: true,
+      },
+      { op: 'DRAW', amount: 1 },
+    ]);
+  });
+
+  it("gives the other unit the killed unit's Might for the turn and draws", () => {
+    // Tests Rule 355.10: the spell resolves its effects in order
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const big = sc.putUnit('p0', 'fx-titan', 'base');
+    const ally = sc.putUnit('p0', 'fx-grunt', 'base');
+    const bigMight = effectiveMight(sc.state, cards, big, { role: null });
+    const before = effectiveMight(sc.state, cards, ally, { role: null });
+    const hand = sc.player('p0').hand.length;
+    cast(sc, [obj(big), obj(ally)]);
+    expect(sc.obj(big).zone.kind).toBe('trash');
+    expect(effectiveMight(sc.state, cards, ally, { role: null })).toBe(before + bigMight);
+    expect(sc.player('p0').hand.length).toBe(hand + 1);
+  });
+});

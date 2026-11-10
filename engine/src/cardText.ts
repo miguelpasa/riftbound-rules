@@ -1737,6 +1737,34 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     st.it = st.slots.length - 1;
     return true;
   }
+  // "Give +[M] equal to its Might to another friendly unit this turn": the unit just killed / chosen (Deathgrip).
+  m =
+    /^Give \+\[M\] equal to its Might to (another friendly unit|a friendly unit) this turn$/i.exec(
+      sen,
+    );
+  if (m) {
+    const prev = out[out.length - 1];
+    const from = prev?.op === 'KILL_TARGET' ? (prev.slot ?? 0) : st.it;
+    if (from === undefined || st.locked) return false;
+    const other: SlotDecl = {
+      side: 'friendly',
+      ...(/another/i.test(m[1] ?? '') ? { another: true } : {}),
+    };
+    if (!canAdd(st, [other])) return false;
+    const slot = st.slots.length;
+    st.slots.push(other);
+    delete st.it;
+    out.push({
+      op: 'BUFF_TARGET',
+      amount: 0,
+      mightOfSlot: from,
+      duration: 'TURN',
+      side: 'friendly',
+      ...(other.another ? { another: true } : {}),
+      slot,
+    });
+    return true;
+  }
   // "Kill an enemy unit with less Might than it": the unit chosen just before is the yardstick (Public Execution).
   if (/^Kill an enemy unit with less Might than it$/i.test(sen)) {
     const k = st.it;
