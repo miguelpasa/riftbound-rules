@@ -531,6 +531,16 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       if (!c || c.battlefieldId !== e.battlefieldId) continue;
       addBattlefield(e.battlefieldId, 'ATTACK', c.attacker);
       addBattlefield(e.battlefieldId, 'DEFEND', c.defender);
+      // "When you defend at a battlefield": any of the defender's units elsewhere on the board.
+      for (const o of Object.values(state.objects)) {
+        if (!onBoard(o) || o.controller !== c.defender) continue;
+        add(
+          o,
+          'YOU_DEFEND',
+          o.controller,
+          () => !(o.zone.kind === 'battlefield' && o.zone.battlefieldId === e.battlefieldId),
+        );
+      }
       for (const o of Object.values(state.objects)) {
         if (
           o.zone.kind === 'battlefield' &&

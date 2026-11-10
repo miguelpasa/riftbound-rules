@@ -249,6 +249,7 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   if (/^Double my Might this turn$/i.test(sen)) return [{ op: 'DOUBLE_MIGHT_SELF' }];
   if (/^Give me (?:\[Temporary\]|Temporary)$/i.test(sen)) return [{ op: 'GRANT_TEMPORARY_SELF' }];
   if (/^Move me to your base$/i.test(sen)) return [{ op: 'MOVE_SELF_BASE' }];
+  if (/^Move me there$/i.test(sen)) return [{ op: 'MOVE_SELF_TO_COMBAT' }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
     const keywords = parseKwList(m[1]);
@@ -4506,6 +4507,21 @@ export function parseCardAbilities(
         },
         ...(once ? { once: true } : {}),
         sens: [body],
+      };
+      groups.push(cur);
+      continue;
+    }
+    const yd = /^When you defend(?: at a battlefield)?\s*,\s*(.+)$/i.exec(sen);
+    if (yd) {
+      if (once || empowered) return null;
+      const split = splitCondition(yd[1] as string);
+      if (!split) return null;
+      cur = {
+        kind: 'trigger',
+        ons: ['YOU_DEFEND'],
+        legion,
+        ...(split.when ? { when: split.when } : {}),
+        sens: [split.rest],
       };
       groups.push(cur);
       continue;

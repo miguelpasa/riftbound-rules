@@ -2704,6 +2704,16 @@ export function runEffects(
         });
         break;
       }
+      case 'MOVE_SELF_TO_COMBAT': {
+        const me = state.objects[sourceObjectId];
+        const dest = state.flow.combat?.battlefieldId;
+        if (!me || dest === undefined || (me.zone.kind !== 'base' && me.zone.kind !== 'battlefield')) {
+          fizzle();
+          break;
+        }
+        moveHere(state, cards, me, dest, out);
+        break;
+      }
       case 'MOVE_SELF_BASE': {
         const me = state.objects[sourceObjectId];
         if (me) moveToBase(state, me, out);

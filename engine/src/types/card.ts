@@ -750,6 +750,8 @@ type CardEffectCore =
     }
   /** "Move me to your base" (Ezreal): the source unit moves from a battlefield to its controller's Base. */
   | { op: 'MOVE_SELF_BASE' }
+  /** "Move me there" (Loyal Pup): the source unit moves to the battlefield of the combat being fought. */
+  | { op: 'MOVE_SELF_TO_COMBAT' }
   /** "Double my Might this combat" (Fiora). */
   | { op: 'DOUBLE_MIGHT_SELF'; duration?: 'COMBAT' }
   /** "Give me [Temporary]" (Momentary Companion). */
@@ -1212,6 +1214,8 @@ export type TriggerKind =
   | 'YOU_EMPOWER_ELSE'
   /** "When you banish a card you own": one of the controller's cards was banished. */
   | 'YOU_BANISH_OWN'
+  /** "When you defend at a battlefield": the controller defends a combat anywhere (the source need not be there). */
+  | 'YOU_DEFEND'
   /** R92: "When an opponent scores" (a point from any source). */
   | 'OPP_SCORES'
   /** R100: "When you hide a card". */
