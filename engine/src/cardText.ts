@@ -1786,6 +1786,17 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     st.it = st.slots.length - 1;
     return true;
   }
+  // "Swap the Mights of two units at the same battlefield this turn" (Switcheroo).
+  if (/^Swap the Mights of two units at the same battlefield this turn$/i.test(sen)) {
+    const one: SlotDecl = { side: 'any', atBattlefield: true };
+    const two: SlotDecl = { side: 'any', atBattlefield: true, another: true };
+    if (!canAdd(st, [one, two])) return false;
+    const slot = st.slots.length;
+    st.slots.push(one, two);
+    delete st.it;
+    out.push({ op: 'SWAP_MIGHT', slots: [slot, slot + 1] });
+    return true;
+  }
   // "Stun a friendly unit and an enemy unit at the same battlefield" (Facebreaker).
   if (/^Stun a friendly unit and an enemy unit at the same battlefield$/i.test(sen)) {
     const mine: SlotDecl = { side: 'friendly', atBattlefield: true };

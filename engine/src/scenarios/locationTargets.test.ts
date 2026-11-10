@@ -747,3 +747,42 @@ describe('scenario: "If it\'s Empowered, disempower it. Then kill it if it has 3
     expect(sc3.obj(plain).zone.kind).toBe('base'); // nothing to disempower, too big to kill
   });
 });
+
+describe('scenario: "Swap the Mights of two units at the same battlefield this turn" (Switcheroo)', () => {
+  const text = 'Swap the Mights of two units at the same battlefield this turn.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a swap between two different units that share a battlefield', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([{ op: 'SWAP_MIGHT', slots: [0, 1] }]);
+  });
+
+  it('needs two different units at one battlefield', () => {
+    // Tests Rule 355.10: every pick must meet the spell's requirements together
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const a = sc.putUnit('p0', 'fx-grunt', 'bf0');
+    const b = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+    const far = sc.putUnit('p0', 'fx-titan', 'bf1');
+    const home = sc.putUnit('p0', 'fx-archer', 'base');
+    const ok = (ids: string[]) => spellTargetsLegal(sc.state, cards, 'p0', effects, ids.map(obj));
+    expect(ok([a, b])).toBe(true);
+    expect(ok([a, a])).toBe(false);
+    expect(ok([a, far])).toBe(false); // another battlefield
+    expect(ok([a, home])).toBe(false); // a Base is not a battlefield
+  });
+
+  it('swaps the two Mights for the turn', () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const small = sc.putUnit('p0', 'fx-grunt', 'bf0');
+    const big = sc.putUnit('p1', 'fx-order-titan', 'bf0');
+    const m = (id: string) => effectiveMight(sc.state, cards, id, { role: null });
+    const [ms, mb] = [m(small), m(big)];
+    expect(ms).not.toBe(mb);
+    cast(sc, [obj(small), obj(big)]);
+    expect(m(small)).toBe(mb);
+    expect(m(big)).toBe(ms);
+  });
+});

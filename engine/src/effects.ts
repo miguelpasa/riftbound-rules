@@ -290,6 +290,19 @@ export function targetRequirements(effects: readonly CardEffect[] | undefined): 
           ...(e.atBattlefield ? { atBattlefield: true } : {}),
         });
       }
+    } else if (e.op === 'SWAP_MIGHT') {
+      const [first, second] = e.slots;
+      if (!reqs.has(first))
+        reqs.set(first, { slot: first, kind: 'unit', side: 'any', atBattlefield: true });
+      if (!reqs.has(second)) {
+        reqs.set(second, {
+          slot: second,
+          kind: 'unit',
+          side: 'any',
+          atBattlefield: true,
+          sameBattlefieldAsSlot: first,
+        });
+      }
     } else if (e.op === 'MUTUAL_DAMAGE') {
       e.slots.forEach((slot, i) => {
         if (reqs.has(slot)) return;
@@ -1998,6 +2011,27 @@ export function runEffects(
         const dealtByB = Math.max(0, mightOf(b));
         damage(b, dealtByA);
         damage(a, dealtByB);
+        break;
+      }
+      case 'SWAP_MIGHT': {
+        const a = state.objects[ids[e.slots[0]] ?? ''];
+        const b = state.objects[ids[e.slots[1]] ?? ''];
+        const spec = { kind: 'unit', side: 'any', atBattlefield: true } as const;
+        if (
+          !a ||
+          !b ||
+          a.id === b.id ||
+          !legalForSpec(state, cards, controller, spec, a) ||
+          !legalForSpec(state, cards, controller, spec, b) ||
+          !sameBattlefieldOk(state, a.id, b.id)
+        ) {
+          fizzle();
+          break;
+        }
+        // Both Mights are read before either changes.
+        const [ma, mb] = [mightOf(a), mightOf(b)];
+        addTemp(a, mb - ma, true);
+        addTemp(b, ma - mb, true);
         break;
       }
       case 'MUTUAL_DAMAGE': {

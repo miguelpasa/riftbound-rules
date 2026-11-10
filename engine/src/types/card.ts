@@ -385,6 +385,8 @@ type CardEffectCore =
       sides: [TargetSide, TargetSide];
       atBattlefield?: boolean;
     }
+  /** "Swap the Mights of two units at the same battlefield this turn": each gets the other's Might (two different units at one battlefield). */
+  | { op: 'SWAP_MIGHT'; slots: [number, number] }
   /** Kill the target gear (it goes to its owner's Trash; Equipment detaches). */
   | ({
       op: 'KILL_GEAR';
