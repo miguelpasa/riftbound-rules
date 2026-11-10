@@ -225,6 +225,8 @@ type CardEffectCore =
   | ({
       op: 'DAMAGE_TARGET';
       amount: number;
+      /** "Deal 2 to it for each Equipment attached to me": `amount` times the Equipment attached to the source. */
+      perAttachedEquipment?: boolean;
       /** X1 (559.3.d): the damage is split among all the chosen units (each gets at least 1; the split is made on resolution). */
       split?: boolean;
       /** X1: all chosen units must be at the same battlefield ("units at a single battlefield"). */

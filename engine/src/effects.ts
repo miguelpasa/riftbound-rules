@@ -1349,7 +1349,14 @@ export function runEffects(
     amount: number;
     amountFrom?: string;
     amountSlot?: number;
+    perAttachedEquipment?: boolean;
   }): number => {
+    if (e.perAttachedEquipment) {
+      const attached = Object.values(state.objects).filter(
+        (g) => g.attachedTo === sourceObjectId && g.zone.kind === 'base',
+      ).length;
+      return e.amount * attached;
+    }
     if (!e.amountFrom) return e.amount;
     if (e.amountFrom === 'SLOT_MIGHT') {
       const id = e.amountSlot === undefined ? undefined : ids[e.amountSlot];

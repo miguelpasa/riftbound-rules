@@ -1470,8 +1470,17 @@ function parseItSentence(sen0: string, d: SlotDecl, slot: number): CardEffect | 
       ...at,
     };
   }
-  m = /^Deal (\d+) to it$/i.exec(sen);
-  if (m) return { op: 'DAMAGE_TARGET', amount: Number(m[1]), ...sd, ...bf, ...at };
+  m = /^Deal (\d+) to it( for each Equipment attached to me)?$/i.exec(sen);
+  if (m) {
+    return {
+      op: 'DAMAGE_TARGET',
+      amount: Number(m[1]),
+      ...(m[2] ? { perAttachedEquipment: true } : {}),
+      ...sd,
+      ...bf,
+      ...at,
+    };
+  }
   m = /^Its base Might becomes (\d+) this turn$/i.exec(sen);
   if (m) return { op: 'SET_BASE_MIGHT', amount: Number(m[1]), ...sd, ...at };
   if (

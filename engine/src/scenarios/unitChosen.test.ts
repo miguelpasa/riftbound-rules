@@ -653,3 +653,39 @@ describe('scenario: "give one of your other units here +3 [M] and [Tank] this tu
     ).toBe(true);
   });
 });
+
+describe('scenario: "Deal 2 to it for each Equipment attached to me" (Riven)', () => {
+  const text =
+    'When I attack, choose an enemy unit here. Deal 2 to it for each Equipment attached to me.';
+
+  it('reads the damage scaled by the Equipment attached to the source', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(parseCardAbilities(text)?.triggers[0]).toMatchObject({
+      on: 'ATTACK',
+      effects: [
+        { op: 'DAMAGE_TARGET', amount: 2, perAttachedEquipment: true, side: 'enemy', here: true },
+      ],
+    });
+  });
+
+  it('deals 2 for each Equipment attached to the source, and nothing with none', () => {
+    // Tests Rule 583: a triggered ability resolves its effects on its chosen target
+    const eff = parseCardAbilities(text)?.triggers[0]?.effects ?? [];
+    const run = (attached: number): number => {
+      const sc = Scenario.start({}, SCENARIO_CARDS);
+      const me = sc.putUnit('p0', 'fx-grunt', 'bf1', { control: true });
+      const foe = sc.putUnit('p1', 'fx-order-titan', 'bf1');
+      const gear = ['fx-blade', 'fx-ember-totem'].slice(0, attached);
+      for (const g of gear) {
+        const id = sc.putUnit('p0', g, 'base');
+        (sc.state.objects[id] as { attachedTo?: string }).attachedTo = me;
+      }
+      const s = structuredClone(sc.state);
+      runEffects(s, 'p0', eff, SCENARIO_CARDS, [{ kind: 'object', id: foe }], 'fx-grunt', me);
+      return s.objects[foe]?.damage ?? 0;
+    };
+    expect(run(0)).toBe(0);
+    expect(run(1)).toBe(2);
+    expect(run(2)).toBe(4);
+  });
+});
