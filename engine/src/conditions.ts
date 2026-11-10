@@ -204,6 +204,23 @@ export function tracksBuffed(cards: CardDatabase): boolean {
 const mightyDb = new WeakMap<CardDatabase, boolean>();
 
 /** X9: true when some card reacts to a unit becoming Mighty (the Might diff is computed only then). */
+const mightAtDb = new WeakMap<CardDatabase, number[]>();
+
+/** The Might thresholds some card's "When my Might becomes N or more" trigger waits for (none = not tracked). */
+export function mightThresholds(cards: CardDatabase): number[] {
+  let v = mightAtDb.get(cards);
+  if (v === undefined) {
+    const set = new Set<number>();
+    for (const d of Object.values(cards)) {
+      for (const t of d.triggers ?? [])
+        if (t.on === 'MIGHT_REACHES' && t.mightAtLeast) set.add(t.mightAtLeast);
+    }
+    v = [...set];
+    mightAtDb.set(cards, v);
+  }
+  return v;
+}
+
 export function tracksMighty(cards: CardDatabase): boolean {
   let v = mightyDb.get(cards);
   if (v === undefined) {

@@ -58,6 +58,7 @@ import {
   tracksBuffed,
   tracksChosen,
   tracksMighty,
+  mightThresholds,
   tracksReadiness,
 } from './conditions.js';
 import { effectiveMight } from './combat.js';
@@ -436,6 +437,23 @@ function reduceInSession(state: GameState, cards: CardDatabase, intent: Intent):
         const now = effectiveMight(c.state, cards, o.id, { role: null });
         if (was < MIGHTY_MIGHT_COST && now >= MIGHTY_MIGHT_COST) {
           extra.push({ type: 'BECAME_MIGHTY', objectId: o.id });
+        }
+      }
+      if (extra.length > 0) all.push(...stampEvents(c.state, extra));
+    }
+    // "When my Might becomes N or more": a unit whose Might crossed a threshold some card waits for.
+    const thresholds = mightThresholds(cards);
+    if (thresholds.length > 0) {
+      const extra: GameEventInput[] = [];
+      for (const o of Object.values(c.state.objects)) {
+        const before = state.objects[o.id];
+        if (!before || (o.zone.kind !== 'base' && o.zone.kind !== 'battlefield')) continue;
+        if (before.zone.kind !== 'base' && before.zone.kind !== 'battlefield') continue;
+        if (!isUnitDef(cards[o.cardId])) continue;
+        const was = effectiveMight(state, cards, o.id, { role: null });
+        const now = effectiveMight(c.state, cards, o.id, { role: null });
+        for (const n of thresholds) {
+          if (was < n && now >= n) extra.push({ type: 'BECAME_MIGHT_AT', objectId: o.id, n });
         }
       }
       if (extra.length > 0) all.push(...stampEvents(c.state, extra));

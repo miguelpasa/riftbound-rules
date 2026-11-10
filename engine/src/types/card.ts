@@ -1175,6 +1175,8 @@ export type TriggerKind =
   | 'BECOME_EXHAUSTED'
   | 'BECOME_READY'
   | 'BECOME_EMPOWERED'
+  /** "When my Might becomes 10 or more": see `CardTrigger.mightAtLeast`. */
+  | 'MIGHT_REACHES'
   /** R92: "When an opponent scores" (a point from any source). */
   | 'OPP_SCORES'
   /** R100: "When you hide a card". */
@@ -1274,6 +1276,8 @@ export interface CardTrigger {
   playFilter?: PlayFilter;
   /** R71: only for `on: 'UNIT_DIES'`. */
   dies?: DeathFilter;
+  /** MIGHT_REACHES: the Might the unit must reach (from below to at least this). */
+  mightAtLeast?: number;
   /** `on: 'UNIT_ATTACKS'`: which unit in a combat triggers it. */
   unitFilter?: {
     side: 'friendly' | 'enemy';

@@ -388,6 +388,9 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           );
         }
       }
+    } else if (e.type === 'BECAME_MIGHT_AT') {
+      const m = state.objects[e.objectId];
+      if (m && onBoard(m)) add(m, 'MIGHT_REACHES', m.controller, (t) => t.mightAtLeast === e.n);
     } else if (e.type === 'BECAME_MIGHTY') {
       // X9: "When a unit you control becomes Mighty" fires for the controller's permanents.
       const m = state.objects[e.objectId];

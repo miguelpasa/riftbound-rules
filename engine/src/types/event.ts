@@ -78,6 +78,8 @@ export type GameEvent = EventBase &
     | { type: 'BECAME_READY'; objectId: string }
     /** X9 (709): a unit's Might went from below 5 to 5 or more. */
     | { type: 'BECAME_MIGHTY'; objectId: string }
+    /** "When my Might becomes N or more": a unit's Might went from below `n` to `n` or more (emitted only when a card asks). */
+    | { type: 'BECAME_MIGHT_AT'; objectId: string; n: number }
     /** A spell or ability on the Chain now has this unit among its chosen targets (emitted only when a card reacts to it). */
     | { type: 'UNIT_BUFFED'; objectId: string }
     | { type: 'UNIT_CHOSEN'; objectId: string; chooser: PlayerId; spell: boolean }
