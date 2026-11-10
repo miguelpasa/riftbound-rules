@@ -698,3 +698,29 @@ describe('Equip whose Energy cost is reduced by the Might of the unit (Hextech G
     expect(card?.equipCost).toMatchObject({ energy: 3, anyPower: 1, energyReducedByMight: true });
   });
 });
+
+describe('"you may play me for [C]" (Jhin)', () => {
+  // Tests: the Energy waiver is kept only when the printed Power is exactly what is left to pay
+  const jhin = (power: number) =>
+    convertRow(
+      row({
+        cardType: 'Unit',
+        name: 'Jhin',
+        fullName: 'Jhin',
+        might: 4,
+        energy: 4,
+        power,
+        domains: ['Fury'],
+        abilityEffective:
+          "[Vision]\nIf you've spent [4] or more to play a spell this turn, you may play me for [C].",
+      }),
+    ).card;
+  it('is full with a costReduction when the printed Power is [C]', () => {
+    const c = jhin(1);
+    expect(c?.supportLevel).toBe('full');
+    expect(c?.costReduction?.energy).toBe(99);
+  });
+  it('stays partial when the printed Power is not [C]', () => {
+    expect(jhin(2)?.supportLevel).toBe('partial');
+  });
+});

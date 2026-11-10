@@ -3053,7 +3053,25 @@ const COST_PER: [RegExp, CostCount][] = [
  */
 export function parseSelfCostReduction(
   text0: string,
-): { reduction: CostReduction; rest: string } | null {
+): { reduction: CostReduction; rest: string; forPower?: number } | null {
+  // "If <condition>, you may play me for [C]" (Jhin): the Energy cost is waived, the printed Power is paid.
+  const playFor =
+    /(?:^|\n)[ \t]*If ([^.\n]+?), you may play me for ((?:\[C\])+)\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/i.exec(
+      text0,
+    );
+  if (playFor) {
+    const when = parseCondition(playFor[1] ?? '');
+    if (!when) return null;
+    return {
+      reduction: { energy: 99, when },
+      forPower: (playFor[2] ?? '').length / 3,
+      rest: (
+        text0.slice(0, playFor.index) +
+        '\n' +
+        text0.slice(playFor.index + playFor[0].length)
+      ).trim(),
+    };
+  }
   // "I cost [N] less to play from anywhere other than your hand" = the reversed condition form.
   const text = text0.replace(
     /\bI cost \[(\d+)\] less to play from anywhere other than your hand\b/i,

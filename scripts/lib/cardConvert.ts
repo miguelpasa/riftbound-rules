@@ -352,10 +352,15 @@ export function convertRow(row: RawRow): ConvertResult {
   const afterPlayTo = playToLine ? playToLine.rest : afterAdditionalCost;
   const afterAdditional = flowLine ? flowLine.rest : afterPlayTo;
   // R50: "I cost [N] less for each ..." / "This costs [N] less if ..." is stored on the card too.
-  const selfCost =
+  const selfCost0 =
     type === 'UNIT' || type === 'SPELL' || type === 'GEAR'
       ? parseSelfCostReduction(afterAdditional)
       : null;
+  // "you may play me for [C]" only waives the Energy: it is right only when the printed Power is that much.
+  const selfCost =
+    selfCost0 && selfCost0.forPower !== undefined && selfCost0.forPower !== (row.power ?? 0)
+      ? null
+      : selfCost0;
   // R58: "You may pay [N] as an additional cost to play me" (only kept when the text uses it: "if you paid ...").
   const optionalExtra =
     (type === 'UNIT' || type === 'SPELL' || type === 'GEAR') &&
