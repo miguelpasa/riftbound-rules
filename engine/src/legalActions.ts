@@ -40,8 +40,9 @@ import { abilityItemEffects, allowedModes, triggerDefOf, triggerSourceCardId } f
 import { optionalPlan } from './optional.js';
 import { costCardCombos, playCostCard } from './costCards.js';
 import { itemSourceId } from './sources.js';
-import { autoPlan, computeTotalCost, getPlayerRunes } from './resources.js';
+import { autoPlan, computeTotalCost, getPlayerRunes, manaUsesOf } from './resources.js';
 import type { TotalCost } from './resources.js';
+import type { ManaUse } from './types/index.js';
 import { isDeployGear, isUnitDef } from './tokens.js';
 import { playerIndex } from './types/constants.js';
 import type {
@@ -107,10 +108,10 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
   // the cost: memoise it (copies of one card, and cards of equal cost, share one plan search). An
   // unaffordable cost (null) skips building any PLAY_CARD candidate.
   const plans = new Map<string, PaymentPlan | null>();
-  const plannedPayment = (cost: TotalCost): PaymentPlan | null => {
-    const key = `${cost.energy}|${JSON.stringify(cost.power)}`;
+  const plannedPayment = (cost: TotalCost, uses?: readonly ManaUse[]): PaymentPlan | null => {
+    const key = `${cost.energy}|${JSON.stringify(cost.power)}|${uses?.join(',') ?? ''}`;
     if (plans.has(key)) return plans.get(key) ?? null;
-    const plan = autoPlan(state, cards, pid, cost);
+    const plan = autoPlan(state, cards, pid, cost, uses);
     plans.set(key, plan);
     return plan;
   };
@@ -205,6 +206,7 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
               : discounts;
             const plan = plannedPayment(
               computeTotalCost(costDef, { accelerate, discounts: allDiscounts, increases }),
+              manaUsesOf(def),
             );
             if (plan === null) continue;
             for (const location of locations) {

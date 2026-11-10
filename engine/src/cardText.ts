@@ -33,6 +33,7 @@
 import { targetRequirements } from './effects.js';
 import { BOMB_TOKEN_ID, GOLD_TOKEN_ID, tokenIdFor } from './tokens.js';
 import type {
+  ManaUse,
   AbilityCost,
   ActivatedAbility,
   CardEffect,
@@ -3279,6 +3280,14 @@ const DOMAIN_OPS: ReadonlySet<string> = new Set([
   'GRANT_KEYWORD_TARGET',
 ]);
 
+const MANA_RESTRICTIONS: Record<string, ManaUse[]> = {
+  'to play spells': ['SPELL'],
+  'to play gear or use gear abilities': ['GEAR', 'GEAR_ABILITY'],
+  'to play units or gear': ['UNIT', 'GEAR'],
+  'during showdowns': ['SHOWDOWN'],
+  'to play units or activated abilities of units': ['UNIT', 'UNIT_ABILITY'],
+};
+
 function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
@@ -3486,6 +3495,17 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       continue;
     }
     if (attachInstead(list[i] as string, out)) continue;
+    // "Use only to play spells." / "Spend this Energy only during showdowns.": restricts the [Add] before it.
+    const restrict = /^(?:Use only|Spend (?:this (?:Energy|Power) )?only) (.+)$/i.exec(list[i] as string);
+    if (restrict) {
+      const only = MANA_RESTRICTIONS[(restrict[1] ?? '').toLowerCase()];
+      const tail = out.slice(-2).filter((x) => x.op === 'ADD_ENERGY' || x.op === 'ADD_POWER');
+      if (!only || tail.length === 0 || !out.slice(-tail.length).every((x) => x.op === 'ADD_ENERGY' || x.op === 'ADD_POWER')) {
+        return null;
+      }
+      for (const x of tail) (x as { only?: ManaUse[] }).only = only;
+      continue;
+    }
     // "This deals 1 Bonus Damage for each card with this name in your trash"
     const sameName =
       /^This deals (\d+) Bonus Damage for each card with this name in your trash$/i.exec(

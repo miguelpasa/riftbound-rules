@@ -711,13 +711,13 @@ type CardEffectCore =
       /** R96: what happens to the cards not taken: the bottom of the deck (default) or the Trash. */
       rest?: 'RECYCLE' | 'TRASH';
     }
-  /** [Add] [N]: put `amount` Energy in the controller's Rune Pool (168, 166.1). */
-  | { op: 'ADD_ENERGY'; amount: number }
+  /** [Add] [N]: put `amount` Energy in the controller's Rune Pool (168, 166.1). `only`: it can be spent only on these. */
+  | { op: 'ADD_ENERGY'; amount: number; only?: ManaUse[] }
   /**
    * [Add] [C] / [A]: put `amount` Power in the Rune Pool (168, 166.1). 'SOURCE' = [C], Power of the
    * source card's Domain (Universal [A] when it has none); 'ANY' = [A], Universal Power.
    */
-  | { op: 'ADD_POWER'; amount: number; domain: 'SOURCE' | 'ANY' }
+  | { op: 'ADD_POWER'; amount: number; domain: 'SOURCE' | 'ANY'; only?: ManaUse[] }
   /**
    * "Its controller plays a Gold gear token exhausted": the controller of the object that the
    * earlier KILL_GEAR / KILL_TARGET (same slot) removed plays tokens (like TARGET_CONTROLLER_DRAW).
@@ -1172,6 +1172,12 @@ export interface DeathOffer {
   /** Only a buffed unit qualifies. */
   buffedOnly?: boolean;
 }
+
+/**
+ * What restricted Energy / Power may be spent on ("Use only to play spells"): playing a spell / unit / gear,
+ * activating an ability of a unit / gear, or anything while a showdown is in progress.
+ */
+export type ManaUse = 'SPELL' | 'UNIT' | 'GEAR' | 'UNIT_ABILITY' | 'GEAR_ABILITY' | 'SHOWDOWN';
 
 export interface CostCardChoice {
   kind: CostCardKind;

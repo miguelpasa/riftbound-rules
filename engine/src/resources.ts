@@ -17,6 +17,8 @@
  */
 import { fork } from './workingCopy.js';
 import type {
+  ManaUse,
+  RestrictedMana,
   ActivateRuneIntent,
   CardDatabase,
   CardDef,
@@ -30,6 +32,26 @@ import type {
   RuneAction,
 } from './types/index.js';
 import { DOMAINS, ruleError } from './types/index.js';
+
+/** What restricted mana may pay for the play of this card ("Use only to play spells"). */
+export function manaUsesOf(def: CardDef): ManaUse[] {
+  return def.type === 'SPELL'
+    ? ['SPELL']
+    : def.type === 'GEAR'
+      ? ['GEAR']
+      : def.type === 'UNIT' || (def.type === 'TOKEN' && def.stats.might !== undefined)
+        ? ['UNIT']
+        : [];
+}
+
+/** What restricted mana may pay for an activated ability of this card's permanent. */
+export function manaUsesOfAbility(def: CardDef): ManaUse[] {
+  return def.type === 'GEAR'
+    ? ['GEAR_ABILITY']
+    : def.type === 'UNIT' || (def.type === 'TOKEN' && def.stats.might !== undefined)
+      ? ['UNIT_ABILITY']
+      : [];
+}
 
 /** A modification to a cost (increase or discount). Missing fields mean 0. */
 export interface CostMod {
@@ -224,6 +246,8 @@ interface Source {
   cost: number;
   /** Rune id for rune sources; undefined for the pool. */
   runeId?: string;
+  /** Index into the usable restricted buckets (restricted Power); undefined for the plain pool / runes. */
+  bucket?: number;
 }
 
 interface Edge {
@@ -305,6 +329,26 @@ function allocate(demand: PowerRequirement[], sources: Source[]): number[] | nul
   return srcEdge.map((ei, i) => (sources[i] as Source).capacity - (edges[ei] as Edge).cap);
 }
 
+/** The restricted Energy / Power buckets that may pay for a play of the given kind (and during a showdown). */
+function usableBuckets(
+  state: GameState,
+  pool: GameState['players'][number]['runePool'],
+  uses: readonly ManaUse[] | undefined,
+): RestrictedMana[] {
+  return (pool.restricted ?? []).filter((b) =>
+    b.only.some((u) => (u === 'SHOWDOWN' ? state.flow.showdown !== undefined : uses?.includes(u))),
+  );
+}
+
+/** Power sources of the usable restricted buckets; they are spent before the plain pool (cost below 0). */
+function bucketSources(buckets: readonly RestrictedMana[]): Source[] {
+  const out: Source[] = [];
+  buckets.forEach((b, i) => {
+    for (const s of poolSources(b.power, b.universal)) out.push({ ...s, cost: s.cost - 10, bucket: i });
+  });
+  return out;
+}
+
 function poolSources(power: Partial<Record<Domain, number>>, universal = 0): Source[] {
   const out: Source[] = [];
   // Spend specific Power before Universal Power (cost 1 vs 0 only matters for tie-breaks).
@@ -334,6 +378,7 @@ export function payCost(
   playerId: PlayerId,
   cost: TotalCost,
   payment: PaymentPlan,
+  uses?: readonly ManaUse[],
 ): ReduceResult {
   const seen = new Set<string>();
   for (const a of payment) {
@@ -349,12 +394,29 @@ export function payCost(
     applyRune(next, playerId, a.runeId, a.mode, checked.domain);
   }
   const pool = next.players[idx(playerId)].runePool;
-  if (pool.energy < cost.energy) return ruleError('INSUFFICIENT_RESOURCES', 'not enough Energy');
-  const sources = poolSources(pool.power, pool.universal);
+  const buckets = usableBuckets(next, pool, uses);
+  const restrictedEnergy = buckets.reduce((n, b) => n + b.energy, 0);
+  if (pool.energy + restrictedEnergy < cost.energy) {
+    return ruleError('INSUFFICIENT_RESOURCES', 'not enough Energy');
+  }
+  const sources = [...poolSources(pool.power, pool.universal), ...bucketSources(buckets)];
   const flows = allocate(cost.power, sources);
   if (!flows) return ruleError('INSUFFICIENT_RESOURCES', 'not enough Power');
-  pool.energy -= cost.energy;
+  // Restricted Energy is spent first: it cannot be used for anything else.
+  let energyLeft = cost.energy;
+  for (const b of buckets) {
+    const take = Math.min(b.energy, energyLeft);
+    b.energy -= take;
+    energyLeft -= take;
+  }
+  pool.energy -= energyLeft;
   sources.forEach((s, i) => {
+    if (s.bucket !== undefined) {
+      const b = buckets[s.bucket] as RestrictedMana;
+      if (s.domain === 'ANY') b.universal = (b.universal ?? 0) - (flows[i] as number);
+      else b.power[s.domain] = (b.power[s.domain] ?? 0) - (flows[i] as number);
+      return;
+    }
     if (s.domain === 'ANY') {
       const left = (pool.universal ?? 0) - (flows[i] as number);
       if (left > 0) pool.universal = left;
@@ -365,6 +427,12 @@ export function payCost(
     if (left > 0) pool.power[s.domain] = left;
     else delete pool.power[s.domain];
   });
+  if (pool.restricted) {
+    pool.restricted = pool.restricted.filter(
+      (b) => b.energy > 0 || (b.universal ?? 0) > 0 || Object.values(b.power).some((n) => (n ?? 0) > 0),
+    );
+    if (pool.restricted.length === 0) delete pool.restricted;
+  }
   return { ok: true, state: next, events: [] };
 }
 
@@ -379,12 +447,14 @@ export function autoPlan(
   cards: CardDatabase,
   playerId: PlayerId,
   cost: TotalCost,
+  uses?: readonly ManaUse[],
 ): PaymentPlan | null {
   const pool = state.players[idx(playerId)].runePool;
+  const buckets = usableBuckets(state, pool, uses);
   const runes = getPlayerRunes(state, cards, playerId).filter(
     (r) => r.zone.kind === 'base' && r.zone.player === playerId,
   );
-  const sources = poolSources(pool.power, pool.universal);
+  const sources = [...poolSources(pool.power, pool.universal), ...bucketSources(buckets)];
   const poolCount = sources.length;
   const recyclable: CardInstance[] = [];
   for (const r of runes) {
@@ -399,7 +469,10 @@ export function autoPlan(
   for (let i = poolCount; i < sources.length; i++) {
     if (flows[i]) recycled.add((sources[i] as Source).runeId as string);
   }
-  const needEnergy = Math.max(0, cost.energy - pool.energy);
+  const needEnergy = Math.max(
+    0,
+    cost.energy - pool.energy - buckets.reduce((n, b) => n + b.energy, 0),
+  );
   const exhaustable = runes.filter((r) => r.ready && !recycled.has(r.id));
   if (exhaustable.length < needEnergy) return null;
   const plan: PaymentPlan = exhaustable
@@ -415,8 +488,9 @@ export function canAfford(
   cards: CardDatabase,
   playerId: PlayerId,
   cost: TotalCost,
+  uses?: readonly ManaUse[],
 ): boolean {
-  return autoPlan(state, cards, playerId, cost) !== null;
+  return autoPlan(state, cards, playerId, cost, uses) !== null;
 }
 
 // ---------------------------------------------------------------------------------------

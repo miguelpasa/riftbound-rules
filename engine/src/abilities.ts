@@ -26,7 +26,7 @@ import {
   targetRequirements,
 } from './effects.js';
 import { costCardCombos, costCardsLegal, costCardsPayable, payCostCards } from './costCards.js';
-import { autoPlan, genericPower, payCost } from './resources.js';
+import { autoPlan, genericPower, manaUsesOfAbility, payCost } from './resources.js';
 import type { TotalCost } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { evalCondition } from './conditions.js';
@@ -157,6 +157,7 @@ export function activateAbility(
     pid,
     abilityTotalCost(state, cards, pid, src.id, def, ability),
     intent.payment ?? [],
+    manaUsesOfAbility(def),
   );
   if (!paid.ok) return paid;
 
@@ -226,6 +227,7 @@ export function abilityCandidates(
         cards,
         pid,
         abilityTotalCost(state, cards, pid, o.id, def, a),
+        manaUsesOfAbility(def),
       );
       if (payment === null) return;
       // R46: one candidate per choice of cost cards; none = not activatable.

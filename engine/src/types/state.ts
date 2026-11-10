@@ -1,4 +1,4 @@
-import type { CardEffect, Domain, KeywordInstance, OptionalCost } from './card.js';
+import type { CardEffect, Domain, KeywordInstance, ManaUse, OptionalCost } from './card.js';
 import type { FlowState, MulliganState, TurnState } from './chain.js';
 
 /** Bump on any breaking change to GameState shape or rules behavior. */
@@ -123,6 +123,15 @@ export interface RunePool {
   energy: number;
   power: Partial<Record<Domain, number>>;
   /** Universal Power [A]: pays a Power cost of any Domain (135.2.e.5.b, 163.2.b). */
+  universal?: number;
+  /** Energy / Power that can be spent only on certain things ("Use only to play spells"); empty with the pool. */
+  restricted?: RestrictedMana[];
+}
+
+export interface RestrictedMana {
+  only: ManaUse[];
+  energy: number;
+  power: Partial<Record<Domain, number>>;
   universal?: number;
 }
 

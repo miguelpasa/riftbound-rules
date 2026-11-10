@@ -482,7 +482,8 @@ describe('parseCardAbilities (R38)', () => {
     // Tests Rule 145.1: an unknown cost, speed or follow-up sentence refuses the whole text
     expect(parseCardAbilities('Kill this, [E]: [Add] [A].')).toBeNull(); // not gear-like
     expect(parseCardAbilities('[E]: [Action] — [Add] [A][A].')).toBeNull();
-    expect(parseCardAbilities('[E]: [Reaction] — [Add] [2]. Use only to play spells.')).toBeNull();
+    // (restricted mana is now modelled: see scenarios/restrictedMana.test.ts)
+    expect(parseCardAbilities('[E]: [Reaction] — [Add] [2]. Use only to fly.')).toBeNull();
     expect(parseCardAbilities('Kill an enemy unit, [E]: [Add] [A].')).toBeNull(); // not a cost
     expect(parseCardAbilities('Discard 1, Discard 1: [Add] [A].')).toBeNull(); // one card choice
     expect(parseCardAbilities('[E]: Give a unit +3 [M] this turn. Then fly.')).toBeNull();

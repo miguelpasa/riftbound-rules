@@ -24,6 +24,8 @@ import { pointsLocked } from './pointsLock.js';
 import { petTagCount } from './petTags.js';
 import { playerIndex } from './types/constants.js';
 import type {
+  ManaUse,
+  RestrictedMana,
   HandAction,
   LookTake,
   AltAmount,
@@ -1006,6 +1008,21 @@ export function returnToHand(state: GameState, o: CardInstance, out: GameEventIn
   delete o.buffed;
   delete o.attachedTo;
   state.players[playerIndex(player)].hand.push(o.id);
+}
+
+/** The restricted bucket of a pool for this set of uses (created on demand). */
+function restrictedBucket(
+  pool: GameState['players'][number]['runePool'],
+  only: readonly ManaUse[],
+): RestrictedMana {
+  const key = [...only].sort().join(',');
+  const list = (pool.restricted ??= []);
+  let b = list.find((x) => [...x.only].sort().join(',') === key);
+  if (!b) {
+    b = { only: [...only], energy: 0, power: {} };
+    list.push(b);
+  }
+  return b;
 }
 
 /** Spells the opponents of `controller` played this turn, not counting `exceptId` (the spell being countered). */
@@ -2705,6 +2722,11 @@ export function runEffects(
         break;
       }
       case 'ADD_ENERGY': {
+        if (e.only) {
+          restrictedBucket(state.players[playerIndex(controller)].runePool, e.only).energy += e.amount;
+          out.push({ type: 'RESOURCES_ADDED', player: controller, energy: e.amount, power: 0 });
+          break;
+        }
         state.players[playerIndex(controller)].runePool.energy += e.amount;
         out.push({ type: 'RESOURCES_ADDED', player: controller, energy: e.amount, power: 0 });
         break;
@@ -2712,7 +2734,11 @@ export function runEffects(
       case 'ADD_POWER': {
         const pool = state.players[playerIndex(controller)].runePool;
         const domain = e.domain === 'SOURCE' ? cards[sourceCardId]?.domains[0] : undefined;
-        if (domain) pool.power[domain] = (pool.power[domain] ?? 0) + e.amount;
+        if (e.only) {
+          const b = restrictedBucket(pool, e.only);
+          if (domain) b.power[domain] = (b.power[domain] ?? 0) + e.amount;
+          else b.universal = (b.universal ?? 0) + e.amount;
+        } else if (domain) pool.power[domain] = (pool.power[domain] ?? 0) + e.amount;
         else pool.universal = (pool.universal ?? 0) + e.amount;
         out.push({ type: 'RESOURCES_ADDED', player: controller, energy: 0, power: e.amount });
         break;

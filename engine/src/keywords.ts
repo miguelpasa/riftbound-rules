@@ -453,9 +453,10 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
     unit,
     payWithCards && instead ? { power: eqDef.equipCost?.anyPower ?? 0 } : undefined,
   );
-  const plan = autoPlan(state, cards, pid, cost);
+  // Equip is an ability of the Equipment: Power / Energy restricted to gear abilities may pay for it.
+  const plan = autoPlan(state, cards, pid, cost, ['GEAR_ABILITY']);
   if (!plan) return ruleError('INSUFFICIENT_RESOURCES', 'cannot pay Equip');
-  const paid = payCost(state, cards, pid, cost, plan);
+  const paid = payCost(state, cards, pid, cost, plan, ['GEAR_ABILITY']);
   if (!paid.ok) return paid;
   // 151.2.a / 402.1: activating puts the ability on the Chain; the opponent may respond with a
   // Reaction. The attachment happens when it resolves (see `playResolver`).

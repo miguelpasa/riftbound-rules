@@ -24,7 +24,7 @@ import { cloneState, fork } from './workingCopy.js';
 import { runEffects, spellEffects, spellTargetsLegal } from './effects.js';
 import { canPlayNow, finalizeAndSettle, pushPendingItem } from './chain.js';
 import type { ChainResolver } from './chain.js';
-import { computeTotalCost, payCost } from './resources.js';
+import { computeTotalCost, manaUsesOf, payCost } from './resources.js';
 import type { CostMod } from './resources.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import {
@@ -664,7 +664,7 @@ export function playCard(
       : computeTotalCost(def, { accelerate, increases, discounts });
 
   // 6. Pay (357). Failure = the whole play is undone (358.5): the caller's state is untouched.
-  const paid = payCost(state, cards, pid, cost, intent.payment);
+  const paid = payCost(state, cards, pid, cost, intent.payment, manaUsesOf(def));
   if (!paid.ok) return paid;
   noteSpent(
     paid.state,
