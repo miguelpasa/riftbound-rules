@@ -520,3 +520,22 @@ describe('Legends with [Empower] and activated abilities (Defender of Tomorrow)'
     expect(card?.abilities?.[2]?.when).toEqual({ kind: 'EMPOWERED' });
   });
 });
+
+describe('Legend "When you empower something else, empower me" (Matriarch of War)', () => {
+  // Tests: the Legend trigger on empowering another permanent is implemented, so the Legend is fully supported
+  it('marks the Legend full with its trigger and its disempower-cost ability', () => {
+    const { card } = convertRow(
+      row({
+        cardType: 'Legend',
+        cardTypeLabels: ['Legend'],
+        energy: null,
+        might: null,
+        abilityEffective:
+          "When you empower something else, empower me. (I become Empowered if I'm not already.)\nDisempower me, [A], [E]: Ready a unit.",
+      }),
+    );
+    expect(card?.supportLevel).toBe('full');
+    expect(card?.triggers?.[0]?.on).toBe('YOU_EMPOWER_ELSE');
+    expect(card?.abilities?.[0]?.cost.disempower).toBe(true);
+  });
+});

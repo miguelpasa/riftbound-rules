@@ -1177,6 +1177,8 @@ export type TriggerKind =
   | 'BECOME_EMPOWERED'
   /** "When my Might becomes 10 or more": see `CardTrigger.mightAtLeast`. */
   | 'MIGHT_REACHES'
+  /** "When you empower something else": another permanent of the controller became Empowered. */
+  | 'YOU_EMPOWER_ELSE'
   /** R92: "When an opponent scores" (a point from any source). */
   | 'OPP_SCORES'
   /** R100: "When you hide a card". */

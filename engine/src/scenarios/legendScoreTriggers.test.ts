@@ -110,3 +110,45 @@ describe('scenario: Legend "When you conquer, if you have 4+ units at that battl
     expect(run(1, 3)).toBe(lone); // units in the Base do not count
   });
 });
+
+describe('scenario: Legend "When you empower something else, empower me" (Matriarch of War)', () => {
+  const text = 'When you empower something else, empower me.';
+
+  it('reads a Legend trigger on empowering another permanent', () => {
+    // Tests Rule 303: parsed text
+    expect(parseCardAbilities(text, { legend: true })?.triggers[0]).toMatchObject({
+      on: 'YOU_EMPOWER_ELSE',
+      effects: [{ op: 'EMPOWER_SELF' }],
+    });
+  });
+
+  /** p0's Legend carries the trigger; a spell empowers `target` (a gear of p0, or p1's gear). */
+  function legendEmpowered(ownGear: boolean): boolean {
+    const trig = parseCardAbilities(text, { legend: true })?.triggers ?? [];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-legend-ember': { ...(SCENARIO_CARDS['fx-legend-ember'] as CardDef), triggers: trig },
+      'fx-flare': {
+        ...(SCENARIO_CARDS['fx-flare'] as CardDef),
+        supportLevel: 'partial',
+        effects: [{ op: 'EMPOWER_TARGET', gear: true }],
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const gear = sc.putUnit(ownGear ? 'p0' : 'p1', ownGear ? 'fx-blade' : 'fx-tide-totem', 'base');
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: gear }],
+    });
+    settle(sc);
+    const legend = sc.state.objects[sc.state.players[0]?.legend as string];
+    return legend?.empowered === true;
+  }
+
+  it("the Legend is empowered when another of its controller's permanents is, not an enemy one", () => {
+    // Tests Rule 303: a triggered ability fires on its event
+    expect(legendEmpowered(true)).toBe(true);
+    expect(legendEmpowered(false)).toBe(false);
+  });
+});

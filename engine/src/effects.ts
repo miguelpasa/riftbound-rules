@@ -1563,7 +1563,9 @@ export function runEffects(
         if (
           src &&
           !src.empowered &&
-          (src.zone.kind === 'base' || src.zone.kind === 'battlefield')
+          (src.zone.kind === 'base' ||
+            src.zone.kind === 'battlefield' ||
+            src.zone.kind === 'legend')
         ) {
           src.empowered = true;
           out.push({ type: 'EFFECT_EMPOWERED', unitId: src.id });

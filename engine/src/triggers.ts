@@ -417,6 +417,14 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
     } else if (e.type === 'EFFECT_EMPOWERED') {
       const o = state.objects[e.unitId];
       if (o && onBoard(o)) add(o, 'BECOME_EMPOWERED', o.controller);
+      // "When you empower something else": the controller's other permanents and their Legend.
+      if (o) {
+        for (const src of Object.values(state.objects)) {
+          if (src.id === o.id || src.controller !== o.controller) continue;
+          if (!onBoard(src) && src.zone.kind !== 'legend') continue;
+          add(src, 'YOU_EMPOWER_ELSE', src.controller);
+        }
+      }
     } else if (e.type === 'ABILITY_ACTIVATED') {
       // R108: "When you use an activated ability of a gear".
       const used = state.objects[e.sourceId];

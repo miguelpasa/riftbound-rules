@@ -140,7 +140,8 @@ function takeSpellFlags(text: string): {
   rest: string;
 } | null {
   const counter = /(?:^|\n)[ \t]*This can['’]t be countered\.?[ \t]*(?=\n|$)/i;
-  const deflect = /(?:^|\n)[ \t]*Ignore \[Deflect\] while paying this spell['’]s cost\.?[ \t]*(?=\n|$)/i;
+  const deflect =
+    /(?:^|\n)[ \t]*Ignore \[Deflect\] while paying this spell['’]s cost\.?[ \t]*(?=\n|$)/i;
   const uncounterable = counter.test(text);
   const ignoreDeflect = deflect.test(text);
   if (!uncounterable && !ignoreDeflect) return null;
@@ -153,7 +154,8 @@ function takeSpellFlags(text: string): {
 
 /** "[Show Off] a Mech." / "a card with [Hidden]" / "a card with Energy cost [7] or more": the reveal as an optional additional cost. */
 function takeShowOff(text: string): { cost: CostCardChoice; rest: string } | null {
-  const re = /(?:^|\n)[ \t]*\[Show Off\][ \t]+an? ([^.\n(]+?)\.?[ \t]*(?:\([^)\n]*\)[ \t]*)?(?=\n|$)/i;
+  const re =
+    /(?:^|\n)[ \t]*\[Show Off\][ \t]+an? ([^.\n(]+?)\.?[ \t]*(?:\([^)\n]*\)[ \t]*)?(?=\n|$)/i;
   const m = re.exec(text);
   if (!m) return null;
   const what = (m[1] ?? '').trim();
@@ -459,6 +461,7 @@ export function convertRow(row: RawRow): ConvertResult {
           'TURN_START',
           'TURN_END',
           'UNIT_ATTACKS',
+          'YOU_EMPOWER_ELSE',
         ].includes(t.on),
       ) &&
       !parsed.entersReady &&
