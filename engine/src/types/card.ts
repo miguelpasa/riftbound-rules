@@ -1219,6 +1219,8 @@ export interface PlayFilter {
   fromFacedown?: boolean;
   /** "When you play a card from anywhere other than your hand". */
   fromElsewhere?: boolean;
+  /** "a unit with Might greater than each other unit on the board": its printed Might beats every unit now on the Board. */
+  mightiest?: boolean;
   /** R99: "with Power cost [A][A] or more": the printed generic Power cost. */
   minPower?: number;
   /** R99: "a token unit": fires when a token unit is played by an effect (never for cards). */

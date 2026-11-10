@@ -35,6 +35,8 @@ import { legionActive } from './keywords.js';
 import { itemSourceId } from './sources.js';
 import { isDeployGear } from './tokens.js';
 import { evalCondition } from './conditions.js';
+import { effectiveMight } from './combat.js';
+import { isUnitDef } from './tokens.js';
 import { ruleError } from './types/index.js';
 import type {
   CardDatabase,
@@ -81,6 +83,8 @@ function playMatches(
   player: PlayerId,
   fromFacedown = false,
   fromElsewhere = false,
+  /** The played card itself (it may already be on the Board) is not one of the "other" units. */
+  playedId = '',
 ): boolean {
   if (!f) return true;
   const def = cards[cardId];
@@ -94,6 +98,13 @@ function playMatches(
   }
   if (f.fromFacedown && !fromFacedown) return false;
   if (f.fromElsewhere && !fromElsewhere) return false;
+  if (f.mightiest) {
+    const might = def.stats.might ?? 0;
+    for (const o of Object.values(state.objects)) {
+      if (o.id === playedId || !onBoard(o) || !isUnitDef(cards[o.cardId])) continue;
+      if (effectiveMight(state, cards, o.id, { role: null }) >= might) return false;
+    }
+  }
   if (f.token) return false; // token plays are matched separately (TOKEN_PLAYED)
   if (f.onOpponentTurn && state.turn.activePlayer === player) return false;
   if (f.inShowdown && !state.flow.showdown) return false;
@@ -203,6 +214,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
               e.player,
               e.fromFacedown === true,
               e.fromElsewhere === true,
+              e.cardInstanceId,
             )
           )
             return;

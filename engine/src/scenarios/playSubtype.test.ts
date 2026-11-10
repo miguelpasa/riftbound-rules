@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { effectiveMight } from '../combat.js';
+import { autoPlan, computeTotalCost } from '../resources.js';
 import { parseCardAbilities, parseSpellText } from '../cardText.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
@@ -103,5 +104,49 @@ describe('scenario: "When you play a card from anywhere other than your hand, em
     });
     settle(sc);
     expect(sc.obj(watcher).empowered).toBe(true);
+  });
+});
+
+describe('scenario: "When you play a unit with Might greater than each other unit on the board, exhaust me to draw 1" (Titanic Shrine)', () => {
+  const text =
+    'When you play a unit with Might greater than each other unit on the board, exhaust me to draw 1.';
+  const triggers = parseCardAbilities(text)?.triggers ?? [];
+
+  it('reads an optional exhaust-to-draw gated on the played unit being the mightiest', () => {
+    // Tests Rule 303: parsed trigger text
+    expect(triggers).toMatchObject([
+      {
+        on: 'YOU_PLAY',
+        playFilter: { type: 'UNIT', mightiest: true },
+        optional: { exhaustSelf: true },
+        effects: [{ op: 'DRAW', amount: 1 }],
+      },
+    ]);
+  });
+
+  /** p0 has the Shrine (a gear stand-in) out, plays `cardId`; returns whether the draw offer came up. */
+  function offered(cardId: string, other?: string): boolean {
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ember-totem': { ...def('fx-ember-totem'), triggers },
+    };
+    const sc = Scenario.start({}, cards);
+    sc.giveRunes('p0', 8);
+    sc.putUnit('p0', 'fx-ember-totem', 'base');
+    if (other) sc.putUnit('p1', other, 'base');
+    const id = sc.putInHand('p0', cardId);
+    const plan = autoPlan(sc.state, cards, 'p0', computeTotalCost(cards[cardId] as CardDef)) ?? [];
+    sc.play('p0', id, { payment: plan });
+    for (let i = 0; i < 10 && sc.state.flow.chain.length > 0 && !sc.state.flow.pendingChoice; i++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+    return sc.state.flow.pendingChoice?.kind === 'OPTIONAL_EFFECT';
+  }
+
+  it('is offered only when the played unit out-Mights every unit on the board', () => {
+    // Tests Rule 303: a triggered ability fires on its event
+    expect(offered('fx-grunt')).toBe(true); // alone on the board
+    expect(offered('fx-grunt', 'fx-order-titan')).toBe(false); // a 7-Might unit is out
+    expect(offered('fx-ash-tank', 'fx-tide-grunt')).toBe(true); // 3 Might beats 2
   });
 });

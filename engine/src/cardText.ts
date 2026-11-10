@@ -3851,7 +3851,9 @@ function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest:
   // "Recycle me to <effect>" (Ekko) is an optional cost without the words "you may".
   const first0 = sens[0];
   const first =
-    first0 !== undefined && /^recycle (?:me|this) to /i.test(first0) ? 'You may ' + first0 : first0;
+    first0 !== undefined && /^(?:recycle|exhaust) (?:me|this) to /i.test(first0)
+      ? 'You may ' + first0
+      : first0;
   const may = first === undefined ? null : /^you may (.+)$/i.exec(first);
   if (!may) return null;
   const body = may[1] as string;
@@ -3958,9 +3960,14 @@ function parsePlayHead(
       ...(st[1] ? { alsoSelf: true } : {}),
     };
   }
-  const m = PLAY_HEAD.exec(sen);
+  // "a unit with Might greater than each other unit on the board" (Titanic Shrine).
+  const mightiest = / with Might greater than each other unit on the board/i.test(sen);
+  const m = PLAY_HEAD.exec(
+    mightiest ? sen.replace(/ with Might greater than each other unit on the board/i, '') : sen,
+  );
   if (!m) return null;
   const filter: PlayFilter = {};
+  if (mightiest) filter.mightiest = true;
   const kind = (m[3] ?? '').toLowerCase();
   if (kind === 'token unit') filter.token = true;
   else if (kind === 'card from face down') filter.fromFacedown = true;
