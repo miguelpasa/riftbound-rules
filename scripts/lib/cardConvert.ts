@@ -390,6 +390,15 @@ export function convertRow(row: RawRow): ConvertResult {
     text: fullText,
     supportLevel: computeSupportLevel(text, keywords),
   };
+  // Reminder tokens: the Buff token ("a unit may have no more than one buff", enforced by the single buff flag)
+  // and the XP Tracker (XP is tracked on the player) carry no effect of their own.
+  if (
+    type === 'TOKEN' &&
+    card.supportLevel === 'partial' &&
+    (row.name === 'Buff' || row.name === 'XP Tracker')
+  ) {
+    card.supportLevel = 'full';
+  }
   // R3: spells whose every sentence the text parser understands become executable.
   // R42: a printed Repeat cost ("[Repeat] [2]") is an optional additional cost, stored on the card.
   const repeatCost = type === 'SPELL' ? parseRepeatCost(text) : null;

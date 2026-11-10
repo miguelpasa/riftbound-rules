@@ -555,3 +555,50 @@ describe('Spiderling: "Your deck can have any number of cards named Spiderling"'
     expect(card?.unlimitedCopies).toBe(true);
   });
 });
+
+describe('reminder tokens (Buff, XP Tracker)', () => {
+  // Tests: tokens that only remind of a rule the engine already enforces are fully supported
+  it('marks the Buff and XP Tracker tokens full', () => {
+    const buff = convertRow(
+      row({
+        cardType: 'Token',
+        cardTypeLabels: ['Token'],
+        name: 'Buff',
+        fullName: 'Buff',
+        energy: null,
+        might: null,
+        abilityEffective: 'A unit may have no more than one buff at a time.',
+      }),
+    ).card;
+    expect(buff?.supportLevel).toBe('full');
+    const xp = convertRow(
+      row({
+        cardType: 'Token',
+        cardTypeLabels: ['Token'],
+        name: 'XP Tracker',
+        fullName: 'XP Tracker',
+        energy: null,
+        might: null,
+        abilityEffective:
+          'Track gained XP here.\nSome cards get bonuses based on your [Level].\nSome cards can spend XP for powerful effects.',
+      }),
+    ).card;
+    expect(xp?.supportLevel).toBe('full');
+  });
+
+  // Tests: a token with other text is not marked full by the reminder rule
+  it('keeps an unknown token with rules text partial', () => {
+    const card = convertRow(
+      row({
+        cardType: 'Token',
+        cardTypeLabels: ['Token'],
+        name: 'Mystery',
+        fullName: 'Mystery',
+        energy: null,
+        might: null,
+        abilityEffective: 'Do something unusual and unparsed.',
+      }),
+    ).card;
+    expect(card?.supportLevel).toBe('partial');
+  });
+});
