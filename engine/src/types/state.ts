@@ -68,6 +68,8 @@ export interface CardInstance {
   combatGrant?: { keywords: KeywordInstance[]; might: number };
   /** Keywords granted until the end of the turn (R43); see tempKeywords.ts. */
   tempKeywords?: KeywordInstance[];
+  /** "It can't be chosen by enemy spells and abilities this turn": the turn number it holds for. */
+  unchoosableTurn?: number;
   /** Stunned this turn: deals no combat damage. Expires in the Ending step. */
   stunned?: boolean;
   /** R52: Empowered (the Empower keyword). Lost when the permanent leaves the board. */

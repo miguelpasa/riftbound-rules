@@ -791,3 +791,44 @@ describe('scenario: "When I attack, kill an enemy unit here with less Might than
     expect(legal(away)).toBe(false);
   });
 });
+
+describe('scenario: "It can\'t be chosen by enemy spells and abilities this turn" (Twilight Shroud)', () => {
+  const text =
+    "Give a friendly unit +1 [M] this turn. It can't be chosen by enemy spells and abilities this turn.";
+  const effects = parseSpellText(text) ?? [];
+  const obj = (id: string) => ({ kind: 'object' as const, id });
+  const spellWith = (eff: CardEffect[]): CardDatabase => ({
+    ...SCENARIO_CARDS,
+    'fx-flare': { ...base('fx-flare'), supportLevel: 'partial', effects: eff },
+  });
+  const cast = (sc: Scenario, id: string): void => {
+    sc.giveRunes('p0', 4);
+    const spell = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', spell, { payment: sc.exhaustPlan('p0', 1), targets: [obj(id)] });
+    for (let k = 0; k < 8 && sc.state.flow.chain.length > 0; k++) {
+      sc.pass(sc.state.flow.priority as 'p0' | 'p1');
+    }
+  };
+
+  it('reads the buff and a protection on the same unit', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'BUFF_TARGET', amount: 1, duration: 'TURN', side: 'friendly' },
+      { op: 'PROTECT_TARGET', side: 'friendly' },
+    ]);
+  });
+
+  it('after the spell the owner can still choose the unit but an enemy cannot, until the turn ends', () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    cast(sc, mine);
+    const poke: CardEffect[] = [{ op: 'DAMAGE_TARGET', amount: 1 }];
+    const choose = (who: 'p0' | 'p1') => spellTargetsLegal(sc.state, cards, who, poke, [obj(mine)]);
+    expect(choose('p0')).toBe(true);
+    expect(choose('p1')).toBe(false);
+    sc.endTurn('p0');
+    expect(choose('p1')).toBe(true); // a new turn: the protection is over
+  });
+});

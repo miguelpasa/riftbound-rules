@@ -1582,6 +1582,9 @@ function parseItSentence(sen0: string, d: SlotDecl, slot: number): CardEffect | 
   if (/^Kill it$/i.test(sen)) return { op: 'KILL_TARGET', ...sd, ...bf, ...at };
   if (/^Banish it$/i.test(sen)) return { op: 'BANISH_TARGET', ...sd, ...bf, ...at };
   if (/^Disempower it$/i.test(sen)) return { op: 'DISEMPOWER_TARGET', ...sd, ...bf, ...at };
+  if (/^It can['’]t be chosen by enemy spells and abilities this turn$/i.test(sen)) {
+    return { op: 'PROTECT_TARGET', ...sd, ...bf, ...at };
+  }
   if (/^Return it to its owner's hand$/i.test(sen)) {
     return { op: 'RETURN_TARGET', ...sd, ...bf, ...at };
   }

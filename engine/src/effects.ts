@@ -155,6 +155,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'BLINK_TARGET' ||
   e.op === 'BANISH_TARGET' ||
   e.op === 'DISEMPOWER_TARGET' ||
+  e.op === 'PROTECT_TARGET' ||
   e.op === 'EMPOWER_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
@@ -486,7 +487,10 @@ function legalForSpec(
   const onBoard = u.zone.kind === 'base' || u.zone.kind === 'battlefield';
   if (!onBoard) return false;
   // R74: "can't be chosen by enemy spells and abilities".
-  if (u.controller !== controller && staticBonus(state, cards, u).noEnemyChoose === true) {
+  if (
+    u.controller !== controller &&
+    (staticBonus(state, cards, u).noEnemyChoose === true || u.unchoosableTurn === state.turn.number)
+  ) {
     return false;
   }
   if (spec.kind === 'gear') {
@@ -1767,6 +1771,7 @@ export function runEffects(
       case 'BLINK_TARGET':
       case 'BANISH_TARGET':
       case 'DISEMPOWER_TARGET':
+      case 'PROTECT_TARGET':
       case 'EMPOWER_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
@@ -1913,6 +1918,8 @@ export function runEffects(
               u.empowered = true;
               out.push({ type: 'EFFECT_EMPOWERED', unitId: u.id });
             }
+          } else if (e.op === 'PROTECT_TARGET') {
+            u.unchoosableTurn = state.turn.number;
           } else if (e.op === 'DISEMPOWER_TARGET') {
             delete u.empowered;
           } else if (e.op === 'BANISH_TARGET') {

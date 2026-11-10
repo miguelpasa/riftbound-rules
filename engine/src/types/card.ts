@@ -557,6 +557,13 @@ type CardEffectCore =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** "It can't be chosen by enemy spells and abilities this turn": the chosen unit is protected for the turn. */
+  | ({
+      op: 'PROTECT_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
   /** "Disempower it": the chosen unit stops being Empowered. */
   | ({
       op: 'DISEMPOWER_TARGET';
@@ -810,6 +817,7 @@ export type TargetedEffect = Extract<
       | 'BLINK_TARGET'
       | 'BANISH_TARGET'
       | 'DISEMPOWER_TARGET'
+      | 'PROTECT_TARGET'
       | 'EMPOWER_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'
