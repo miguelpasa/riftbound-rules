@@ -6,6 +6,7 @@ import {
   parseCondition,
   parseRepeatCost,
   parseSpellText,
+  parseStaticLines,
   parseTriggerText,
 } from './cardText.js';
 
@@ -889,5 +890,18 @@ describe('parseCardAbilities: "Use my abilities only while I\'m at a battlefield
     );
     expect(parsed?.abilities).toHaveLength(2);
     expect(parsed?.abilities.every((a) => a.atBattlefield === true)).toBe(true);
+  });
+});
+
+describe('parseStaticLines: "[Level N][>] I have +1 [M] and enter ready" (Scorchclaw)', () => {
+  const text =
+    '[Level 3][>] I have +1 [M] and enter ready. (While you have 3+ XP, get the effect.)';
+
+  it('splits into a gated Might static and a gated "enter ready" line', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    const parsed = parseStaticLines(text);
+    expect(parsed?.statics).toEqual([{ affects: 'SELF', might: 1, when: { kind: 'XP', n: 3 } }]);
+    const rest = parseCardAbilities(parsed?.rest ?? '');
+    expect(rest?.entersReadyWhen).toEqual({ kind: 'XP', n: 3 });
   });
 });

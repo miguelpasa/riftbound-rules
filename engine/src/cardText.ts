@@ -2458,7 +2458,13 @@ function staticGrant(raw: string): Pick<StaticAbility, 'might' | 'keywords'> | n
 export function parseStaticLines(text: string): { statics: StaticAbility[]; rest: string } | null {
   const statics: StaticAbility[] = [];
   const keep: string[] = [];
-  for (const line of text.split('\n')) {
+  // "[Level N][>] I have +1 [M] and enter ready" = the Might static, plus a gated "enter ready" line (Scorchclaw).
+  const lines = text.split('\n').flatMap((l) => {
+    const both =
+      /^(\s*\[(?:Level \d+|Empowered)\]\s*\[>\]\s*)I have ([^.\n(]+?) and enter ready\.?/i.exec(l);
+    return both ? [`${both[1]}I have ${both[2]}.`, `${both[1]}I enter ready.`] : [l];
+  });
+  for (const line of lines) {
     const plain = line
       .replace(/\([^)]*\)/g, ' ')
       .replace(/\s+/g, ' ')
