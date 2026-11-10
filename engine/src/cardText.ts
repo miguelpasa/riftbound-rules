@@ -2599,6 +2599,22 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       .replace(/^(Other friendly units) (have .+?) here$/i, '$1 here $2')
       .replace(/\ban additional (\+\d+ \[M\])/i, '$1')
       .replace(/^(Friendly buffed units have .+?) if they didn['’]t already$/i, '$1');
+    // "Your units have +1 [M]. If I'm [Empowered], they have +2 [M] instead." (Rage Amplifier): two gated statics.
+    const ei =
+      /^Your units have \+(\d+) \[M\]\. If I['’]m \[?Empowered\]?, they have \+(\d+) \[M\] instead$/i.exec(
+        body,
+      );
+    if (ei && !em && !lv) {
+      statics.push(
+        {
+          affects: 'FRIENDLY_UNITS',
+          might: Number(ei[1]),
+          when: { kind: 'NOT', cond: { kind: 'EMPOWERED' } },
+        },
+        { affects: 'FRIENDLY_UNITS', might: Number(ei[2]), when: { kind: 'EMPOWERED' } },
+      );
+      continue;
+    }
     // X7: standing "would die ... instead" replacements.
     const rd = parseDeathReplaceStatic(body);
     if (rd) {

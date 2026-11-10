@@ -84,3 +84,33 @@ describe('scenario: "[Empowered][>] Your units that are [Empowered] have +2 [M]"
     expect(m(general)).toBe(3 + 2); // including itself
   });
 });
+
+describe('scenario: "Your units have +1 [M]. If I\'m [Empowered], they have +2 [M] instead." (Rage Amplifier)', () => {
+  const text = "Your units have +1 [M]. If I'm [Empowered], they have +2 [M] instead.";
+  const parsed = parseStaticLines(text)?.statics ?? [];
+
+  it('reads two statics: +1 normally, +2 while Empowered', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    expect(parsed).toEqual([
+      { affects: 'FRIENDLY_UNITS', might: 1, when: { kind: 'NOT', cond: { kind: 'EMPOWERED' } } },
+      { affects: 'FRIENDLY_UNITS', might: 2, when: { kind: 'EMPOWERED' } },
+    ]);
+  });
+
+  it('gives +1 to friendly units, or +2 (not +3) once the gear is Empowered', () => {
+    // Tests Rule 584: the "instead" replaces the smaller bonus
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ember-totem': { ...(SCENARIO_CARDS['fx-ember-totem'] as CardDef), statics: parsed },
+    };
+    const sc = Scenario.start({}, cards);
+    const amp = sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const m = (id: string) => effectiveMight(sc.state, cards, id, { role: null });
+    expect(m(mine)).toBe(3); // 2 + 1
+    expect(m(foe)).toBe(2); // enemies are not affected
+    sc.state.objects[amp]!.empowered = true;
+    expect(m(mine)).toBe(4); // 2 + 2, not 2 + 1 + 2
+  });
+});
