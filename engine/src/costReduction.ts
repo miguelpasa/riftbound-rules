@@ -18,6 +18,7 @@ import type {
   CostReduction,
   GameState,
   PlayerId,
+  StaticAbility,
 } from './types/index.js';
 
 export const MIGHTY_MIGHT_COST = 5;
@@ -211,13 +212,14 @@ export function selfPowerDiscount(
 }
 
 /** R104: the "cost modifier" statics of the player's permanents and Legend that apply to `def`. */
-function staticPlayCostDiscounts(
+/** The `playCostMod`s of the player's permanents that apply to `def` right now. */
+function matchingPlayCostMods(
   state: GameState,
   cards: CardDatabase,
   pid: PlayerId,
   def: CardDef,
-): Discount[] {
-  const out: Discount[] = [];
+): NonNullable<StaticAbility['playCostMod']>[] {
+  const out: NonNullable<StaticAbility['playCostMod']>[] = [];
   for (const o of Object.values(state.objects)) {
     if (o.controller !== pid) continue;
     const z = o.zone.kind;
@@ -233,10 +235,32 @@ function staticPlayCostDiscounts(
         continue;
       }
       if (s.when && !evalCondition(state, cards, s.when, pid, o.id)) continue;
-      out.push({ amount: m.energy, min: m.min });
+      out.push(m);
     }
   }
   return out;
+}
+
+function staticPlayCostDiscounts(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  def: CardDef,
+): Discount[] {
+  return matchingPlayCostMods(state, cards, pid, def).map((m) => ({
+    amount: m.energy,
+    min: m.min,
+  }));
+}
+
+/** The generic Power the player's "cost [1][A] less" statics take off `def` right now. */
+export function staticPowerDiscount(
+  state: GameState,
+  cards: CardDatabase,
+  pid: PlayerId,
+  def: CardDef,
+): number {
+  return matchingPlayCostMods(state, cards, pid, def).reduce((n, m) => n + (m.anyPower ?? 0), 0);
 }
 
 /** The raw amount and minimum of one `CostReduction` (before clamping to the cost). */

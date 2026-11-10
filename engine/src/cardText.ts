@@ -2345,6 +2345,25 @@ function parsePlayCostMod(body: string): StaticAbility | null {
       ...(when ? { when } : {}),
     };
   }
+  // "Your spells cost [1][A] less, to a minimum of [1]" (Applied Researchers): Energy and generic Power.
+  const c = /^Your spells cost ((?:\[(?:\d+|A)\])+) less, to a minimum of \[(\d+)\]$/i.exec(body);
+  if (c) {
+    let energy = 0;
+    let anyPower = 0;
+    for (const t of (c[1] ?? '').matchAll(/\[(\d+|A)\]/gi)) {
+      if ((t[1] ?? '').toUpperCase() === 'A') anyPower++;
+      else energy += Number(t[1]);
+    }
+    return {
+      affects: 'SELF',
+      playCostMod: {
+        energy,
+        ...(anyPower > 0 ? { anyPower } : {}),
+        min: Number(c[2]),
+        spellsOnly: true,
+      },
+    };
+  }
   const b =
     /^Your ([A-Za-z]+)s['’] Energy costs are reduced by \[(\d+)\], to a minimum of \[(\d+)\]$/i.exec(
       body,

@@ -895,7 +895,14 @@ export interface StaticAbility {
    * R104: a cost modifier for the cards its controller plays: "the Energy costs for spells you play are reduced by [1],
    * to a minimum of [1]" / "Your Dragons' Energy costs are reduced by [2], to a minimum of [1]".
    */
-  playCostMod?: { energy: number; min: number; spellsOnly?: boolean; subtype?: string };
+  playCostMod?: {
+    energy: number;
+    /** "[1][A] less": generic Power taken off as well. */
+    anyPower?: number;
+    min: number;
+    spellsOnly?: boolean;
+    subtype?: string;
+  };
   /** R88: only token units are affected ("Your token units have +1 [M]"). */
   onlyToken?: boolean;
   /**

@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { opponentSpellSurcharge, selfEnergyDiscount } from '../costReduction.js';
+import {
+  opponentSpellSurcharge,
+  selfEnergyDiscount,
+  staticPowerDiscount,
+} from '../costReduction.js';
+import { computeTotalCost } from '../resources.js';
 import { parseStaticLines } from '../cardText.js';
 import type { CardDatabase, CardDef, StaticAbility } from '../types/index.js';
 
@@ -132,5 +137,54 @@ describe('scenario: "Opponents\' spells cost [1] more. If this is [Empowered], t
     sc.play('p1', spell, { payment: sc.exhaustPlan('p1', 3) });
     const after = sc.player('p1').base.filter((id) => sc.obj(id).ready).length;
     expect(before - after).toBe(3); // 2 + the surcharge of 1
+  });
+});
+
+describe('scenario: "[Empowered][>] Your spells cost [1][A] less, to a minimum of [1]" (Applied Researchers)', () => {
+  const text = '[Empowered][>] Your spells cost [1][A] less, to a minimum of [1].';
+  const statics = parseStaticLines(text)?.statics ?? [];
+
+  it('reads an Energy and Power spell discount with a minimum, gated on Empowered', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    expect(statics).toEqual([
+      {
+        affects: 'SELF',
+        playCostMod: { energy: 1, anyPower: 1, min: 1, spellsOnly: true },
+        when: { kind: 'EMPOWERED' },
+      },
+    ]);
+  });
+
+  it('takes [1] and one Power off a spell once Empowered, never below 1 Energy', () => {
+    // Tests Rule 584: the discount applies while the source is Empowered
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ember-totem': { ...(SCENARIO_CARDS['fx-ember-totem'] as CardDef), statics },
+      'fx-flare': {
+        ...(SCENARIO_CARDS['fx-flare'] as CardDef),
+        cost: { energy: 3, power: 1, domain: [{ element: 'Fury', amount: 1 }] },
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const researcher = sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const spell = cards['fx-flare'] as CardDef;
+    const id = sc.putInHand('p0', 'fx-flare');
+    const cost = () =>
+      computeTotalCost(spell, {
+        discounts: [
+          {
+            energy: selfEnergyDiscount(sc.state, cards, 'p0', spell, id),
+            power: staticPowerDiscount(sc.state, cards, 'p0', spell),
+          },
+        ],
+      });
+    const powerOf = (c: ReturnType<typeof cost>): number =>
+      c.power.reduce((n, p) => n + p.amount, 0);
+    expect([cost().energy, powerOf(cost())]).toEqual([3, 1]); // not Empowered: no discount
+    sc.state.objects[researcher]!.empowered = true;
+    expect([cost().energy, powerOf(cost())]).toEqual([2, 0]);
+    // a unit is not a spell
+    const unit = SCENARIO_CARDS['fx-grunt'] as CardDef;
+    expect(staticPowerDiscount(sc.state, cards, 'p0', unit)).toBe(0);
   });
 });

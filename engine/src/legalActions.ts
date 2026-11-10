@@ -26,7 +26,12 @@
  * (PASS_PRIORITY, END_TURN, the combat assignment) are always kept and the rest is truncated.
  */
 import { abilityCandidates } from './abilities.js';
-import { opponentSpellSurcharge, selfEnergyDiscount, selfPowerDiscount } from './costReduction.js';
+import {
+  opponentSpellSurcharge,
+  selfEnergyDiscount,
+  selfPowerDiscount,
+  staticPowerDiscount,
+} from './costReduction.js';
 import { autoAssign } from './combat.js';
 import { MAX_TARGET_COMBOS, enumerateSpellTargets, spellEffects } from './effects.js';
 import { hasUnitAt, playToAllowed } from './play.js';
@@ -145,7 +150,9 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     const extraOptions = def.optionalAdditionalCost ? [false, true] : [false];
     const costDef = costDefFor(obj, def);
     const selfDiscount = selfEnergyDiscount(state, cards, pid, def, obj.id);
-    const selfPower = selfPowerDiscount(state, cards, pid, def, obj.id);
+    const selfPower =
+      selfPowerDiscount(state, cards, pid, def, obj.id) +
+      staticPowerDiscount(state, cards, pid, def);
     const discounts =
       selfDiscount > 0 || selfPower > 0 ? [{ energy: selfDiscount, power: selfPower }] : [];
     // Quick-Draw gear: one variant per unit its controller controls (the unit is a Target).
