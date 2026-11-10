@@ -1427,6 +1427,8 @@ export function runEffects(
               : evalCondition(state, cards, c, controller, sourceObjectId);
   let lastDid = true;
   let lastKilled = false;
+  /** The tokens the latest PLAY_TOKEN effect made ("ready up to two of them"). */
+  let lastTokens: string[] = [];
   for (const e of effects) {
     if (state.gameStatus !== 'IN_PROGRESS') break;
     if (e.ifDid && !lastDid) continue;
@@ -2530,16 +2532,39 @@ export function runEffects(
           fizzle();
           break;
         }
+        const tokenMark = out.length;
+        const equipment = e.perEquipment
+          ? Object.values(state.objects).filter(
+              (o) =>
+                o.controller === controller &&
+                (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+                isGearDef(cards[o.cardId]) &&
+                (cards[o.cardId]?.subtypes ?? []).includes('Equipment'),
+            ).length
+          : 1;
         playTokens(
           state,
           cards,
           e.forOpponent ? (controller === 'p0' ? 'p1' : 'p0') : controller,
           e.token,
-          e.count,
+          e.count * equipment,
           { ...e, ...(chosenAt !== undefined ? { at: chosenAt } : {}) },
           sourceObjectId,
           out,
         );
+        lastTokens = out
+          .slice(tokenMark)
+          .flatMap((ev) => (ev.type === 'TOKEN_PLAYED' ? [ev.unitId] : []));
+        break;
+      }
+      case 'READY_PLAYED_TOKENS': {
+        for (const id of lastTokens.slice(0, e.count)) {
+          const t = state.objects[id];
+          if (t && !t.ready) {
+            t.ready = true;
+            out.push({ type: 'EFFECT_READIED', unitId: id });
+          }
+        }
         break;
       }
       case 'TARGET_CONTROLLER_PLAY_TOKEN': {

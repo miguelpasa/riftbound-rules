@@ -430,7 +430,7 @@ function parseTokenClauseBase(sen0: string): CardEffect | null {
     return { op: 'PLAY_TOKEN', token: GOLD_TOKEN_ID, count: n, ...(g[2] ? { ready: true } : {}) };
   }
   const m =
-    /^Play (an?|one|two|three|four|\d+) (ready )?(\d+) \[M\] (.+?) unit tokens?(?: with (\w+))?( here| (?:to|into|at|in) your base)?$/i.exec(
+    /^Play (an?|one|two|three|four|\d+) (ready )?(\d+) \[M\] (.+?) unit tokens?(?: with (\w+))?( here| (?:to|into|at|in) your base)?( for each Equipment you control)?$/i.exec(
       sen,
     );
   if (!m) return null;
@@ -443,6 +443,7 @@ function parseTokenClauseBase(sen0: string): CardEffect | null {
     count,
     ...(m[2] ? { ready: true } : {}),
     ...(m[6] && /here/i.test(m[6]) ? { here: true } : {}),
+    ...(m[7] ? { perEquipment: true } : {}),
   };
 }
 
@@ -1833,6 +1834,15 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     st.locked = true;
     return true;
   }
+  // "Ready up to two of them": the tokens the effect before just played (Arise!).
+  const rt = /^Ready up to (two|three|\d+) of them$/i.exec(sen);
+  if (rt && out[out.length - 1]?.op === 'PLAY_TOKEN') {
+    out.push({
+      op: 'READY_PLAYED_TOKENS',
+      count: COUNT_WORDS[(rt[1] ?? '').toLowerCase()] ?? Number(rt[1]),
+    });
+    return true;
+  }
   // "Swap the Mights of two units at the same battlefield this turn" (Switcheroo).
   if (/^Swap the Mights of two units at the same battlefield this turn$/i.test(sen)) {
     const one: SlotDecl = { side: 'any', atBattlefield: true };
@@ -3029,7 +3039,7 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
     .map((x) => x.replace(/\bone of your other units here\b/i, 'another friendly unit here'))
     .map((x) =>
       x
-        .replace(/^Then,? /i, '')
+        .replace(/^Then,? (?:do this: )?/i, '')
         // R93: "if I am at a battlefield" is implied by a "here / there" effect (it does nothing elsewhere).
         .replace(/^if I am at a battlefield, /i, '')
         .trim(),

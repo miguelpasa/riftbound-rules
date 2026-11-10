@@ -3,6 +3,7 @@ import { Scenario, SCENARIO_CARDS } from '../testing/scenario.js';
 import { effectiveMight } from '../combat.js';
 import { enumerateSpellTargets, spellTargetsLegal } from '../effects.js';
 import { parseSpellText } from '../cardText.js';
+import { TOKEN_CARDS } from '../tokens.js';
 import type {
   CardDatabase,
   CardDef,
@@ -925,5 +926,45 @@ describe('scenario: "Choose up to 3 cards from opponents\' trashes. Their owners
     expect(ok([mine])).toBe(false);
     cast(sc, [obj(theirs)]);
     expect(sc.obj(theirs).zone).toMatchObject({ kind: 'mainDeck', player: 'p1' });
+  });
+});
+
+describe('scenario: "Play a Sand Soldier for each Equipment you control. Then ready up to two of them." (Arise!)', () => {
+  const text =
+    'Play a 2 [M] Sand Soldier unit token for each Equipment you control. Then do this: Ready up to two of them.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads one token per Equipment, then a ready of up to two of the new tokens', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'PLAY_TOKEN', token: 'tok-sand-soldier', count: 1, perEquipment: true },
+      { op: 'READY_PLAYED_TOKENS', count: 2 },
+    ]);
+  });
+
+  const sandSoldiers = (sc: Scenario): CardInstance[] =>
+    Object.values(sc.state.objects).filter((o) => o.cardId === 'tok-sand-soldier');
+
+  it('plays a token for each Equipment and readies at most two of them', () => {
+    // Tests Rule 355.10: the spell resolves its effects in order
+    const cards: CardDatabase = {
+      ...spellWith(effects),
+      ...TOKEN_CARDS,
+      'fx-ember-totem': {
+        ...(SCENARIO_CARDS['fx-ember-totem'] as CardDef),
+        subtypes: ['Equipment'],
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p0', 'fx-blade', 'base');
+    sc.putUnit('p0', 'fx-ember-totem', 'base');
+    cast(sc, []);
+    const made = sandSoldiers(sc);
+    expect(made).toHaveLength(2);
+    expect(made.every((t) => t.ready)).toBe(true);
+
+    const none = Scenario.start({}, cards);
+    cast(none, []);
+    expect(sandSoldiers(none)).toHaveLength(0);
   });
 });

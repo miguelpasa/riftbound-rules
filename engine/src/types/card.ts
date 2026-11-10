@@ -467,7 +467,11 @@ type CardEffectCore =
       atEnemyOccupied?: true;
       /** R97: the (only) opponent plays the token(s) ("choose an opponent. They play ..."). */
       forOpponent?: boolean;
+      /** "... for each Equipment you control": `count` tokens per Equipment gear the controller controls. */
+      perEquipment?: boolean;
     }
+  /** "Ready up to two of them": ready up to `count` of the tokens the effect before just played (the controller's choice is the first ones). */
+  | { op: 'READY_PLAYED_TOKENS'; count: number }
   /** Return the target unit (or gear with `gear`) to its owner's hand; a token ceases to exist. */
   | ({
       op: 'RETURN_TARGET';
