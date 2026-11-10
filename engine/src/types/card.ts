@@ -1099,7 +1099,7 @@ export type Condition =
   /** "If you've spent [4] or more to play a spell / at least [A][A] this turn": the most Energy paid for one spell, or the total Power paid. */
   /** "your units have all 4 tags": at least `n` of the tags Bird, Cat, Dog, Poro among your units. */
   | { kind: 'PET_TAGS'; n: number }
-  | { kind: 'TURN_SPENT'; what: 'spellEnergy' | 'power'; n: number }
+  | { kind: 'TURN_SPENT'; what: 'spellEnergy' | 'lastSpellEnergy' | 'power'; n: number }
   /** R53: Level N: the controller has at least `n` XP. */
   | { kind: 'XP'; n: number };
 

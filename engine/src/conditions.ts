@@ -135,7 +135,9 @@ export function noteSpent(
   const rec = ps.turnFlags?.turn === state.turn.number ? ps.turnFlags : { turn: state.turn.number };
   ps.turnFlags = {
     ...rec,
-    ...(isSpell ? { spellEnergy: Math.max(rec.spellEnergy ?? 0, energy) } : {}),
+    ...(isSpell
+      ? { spellEnergy: Math.max(rec.spellEnergy ?? 0, energy), lastSpellEnergy: energy }
+      : {}),
     power: (rec.power ?? 0) + power,
   };
 }
@@ -386,7 +388,13 @@ export function evalCondition(
     case 'TURN_SPENT': {
       const rec = state.players[playerIndex(controller)]?.turnFlags;
       if (!rec || rec.turn !== state.turn.number) return false;
-      return (cond.what === 'spellEnergy' ? (rec.spellEnergy ?? 0) : (rec.power ?? 0)) >= cond.n;
+      const have =
+        cond.what === 'spellEnergy'
+          ? (rec.spellEnergy ?? 0)
+          : cond.what === 'lastSpellEnergy'
+            ? (rec.lastSpellEnergy ?? 0)
+            : (rec.power ?? 0);
+      return have >= cond.n;
     }
     case 'TARGET_STUNNED':
     case 'TARGET_MIGHT':

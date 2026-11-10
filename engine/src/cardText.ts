@@ -3825,6 +3825,9 @@ export function parseCondition(raw: string): Condition | null {
   {
     const sp = /^you['’]ve spent \[(\d+)\] or more to play a spell this turn$/i.exec(text);
     if (sp) return { kind: 'TURN_SPENT', what: 'spellEnergy', n: Number(sp[1]) };
+    // "When you play a spell, if you spent [4] or more": what was paid for the spell just played.
+    const ls = /^you spent \[(\d+)\] or more$/i.exec(text);
+    if (ls) return { kind: 'TURN_SPENT', what: 'lastSpellEnergy', n: Number(ls[1]) };
     const pw = /^you['’]ve spent at least ((?:\[A\])+) this turn$/i.exec(text);
     if (pw) return { kind: 'TURN_SPENT', what: 'power', n: (pw[1]?.match(/A/g) ?? []).length };
   }

@@ -158,6 +158,8 @@ export interface PlayerState {
     xpGained?: true;
     /** Most Energy paid for one spell, and the total Power paid, this turn. */
     spellEnergy?: number;
+    /** Energy paid for the spell played most recently ("When you play a spell, if you spent [4] or more"). */
+    lastSpellEnergy?: number;
     power?: number;
     /** Battlefields this player conquered this turn (a cost reduction counts them). */
     conquered?: number;
