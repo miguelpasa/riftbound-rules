@@ -1007,3 +1007,56 @@ describe('scenario: "Banish a unit with 3 [M] or less or a gear. [Burn 2]." (Bur
     expect(sc.player('p0').trash.length).toBe(trash + 3);
   });
 });
+
+describe('scenario: "When it wins a combat this turn, gain 2 XP" (Grim Resolve)', () => {
+  const text = 'Give a friendly unit +3 [M] this turn. When it wins a combat this turn, gain 2 XP.';
+  const effects = parseSpellText(text) ?? [];
+  const toBf = (battlefieldId: string) => ({ kind: 'battlefield' as const, battlefieldId });
+
+  it('reads the buff and a watcher on that unit winning a combat', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'BUFF_TARGET', amount: 3 },
+      {
+        op: 'DELAYED',
+        on: 'SUBJECT_WINS_COMBAT',
+        subjectSlot: 0,
+        effects: [{ op: 'GAIN_XP', amount: 2 }],
+      },
+    ]);
+  });
+
+  /** p0 buffs `buffed`, then the Titan attacks the Order tank and wins; returns p0's XP gain. */
+  function xpGain(buffTitan: boolean): number {
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const tank = sc.putUnit('p1', 'fx-order-tank', 'bf1', { control: true });
+    const titan = sc.putUnit('p0', 'fx-titan', 'base');
+    const home = sc.putUnit('p0', 'fx-grunt', 'base');
+    const xp = sc.player('p0').xp ?? 0;
+    cast(sc, [obj(buffTitan ? titan : home)]);
+    sc.do({ type: 'STANDARD_MOVE', playerId: 'p0', unitIds: [titan], destination: toBf('bf1') });
+    sc.pass('p0');
+    sc.pass('p1');
+    sc.do({
+      type: 'ASSIGN_COMBAT_DAMAGE',
+      playerId: 'p0',
+      assignments: [{ unitId: tank, amount: buffTitan ? 10 : 7 }],
+    });
+    sc.do({
+      type: 'ASSIGN_COMBAT_DAMAGE',
+      playerId: 'p1',
+      assignments: [{ unitId: titan, amount: 3 }],
+    });
+    for (let i = 0; i < 10 && sc.state.flow.chain.length > 0; i++) {
+      sc.pass(sc.state.flow.priority as PlayerId);
+    }
+    return (sc.player('p0').xp ?? 0) - xp;
+  }
+
+  it('gains XP when the buffed unit wins the combat, not when another unit does', () => {
+    // Tests Rule 468.3: the side with units left wins the combat
+    expect(xpGain(true)).toBe(2);
+    expect(xpGain(false)).toBe(0);
+  });
+});

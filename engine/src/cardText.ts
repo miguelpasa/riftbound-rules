@@ -1610,6 +1610,13 @@ function parseDelayedSentence(sen: string, st: ParseState): CardEffect | null {
     const effects = parseDelayedBody(m[1] as string, false);
     return effects ? { op: 'DELAYED', on: 'UNIT_DAMAGED', effects } : null;
   }
+  m = /^When it wins a combat this turn, (.+)$/i.exec(sen);
+  if (m && st.it !== undefined) {
+    const effects = parseDelayedBody(m[1] as string, false);
+    return effects && targetRequirements(effects).length === 0
+      ? { op: 'DELAYED', on: 'SUBJECT_WINS_COMBAT', subjectSlot: st.it, effects }
+      : null;
+  }
   m = /^When it dies this turn, (.+)$/i.exec(sen);
   if (m && st.it !== undefined) {
     const effects = parseDelayedBody(m[1] as string, false);

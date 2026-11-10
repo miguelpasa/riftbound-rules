@@ -143,8 +143,12 @@ const combatEndDb = new WeakMap<CardDatabase, boolean>();
 export function tracksCombatEnd(cards: CardDatabase): boolean {
   let v = combatEndDb.get(cards);
   if (v === undefined) {
-    v = Object.values(cards).some((d) =>
-      d.triggers?.some((t) => t.on === 'WIN_COMBAT' || t.on === 'COMBAT_END'),
+    v = Object.values(cards).some(
+      (d) =>
+        d.triggers?.some((t) => t.on === 'WIN_COMBAT' || t.on === 'COMBAT_END') ||
+        JSON.stringify([d.effects, d.modes, d.abilities, d.triggers]).includes(
+          'SUBJECT_WINS_COMBAT',
+        ),
     );
     combatEndDb.set(cards, v ?? false);
   }

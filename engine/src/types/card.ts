@@ -718,9 +718,9 @@ type CardEffectCore =
    */
   | {
       op: 'DELAYED';
-      on: 'UNIT_PLAYED' | 'UNIT_DAMAGED' | 'SUBJECT_DIES' | 'END_OF_TURN';
+      on: 'UNIT_PLAYED' | 'UNIT_DAMAGED' | 'SUBJECT_DIES' | 'SUBJECT_WINS_COMBAT' | 'END_OF_TURN';
       times?: number;
-      /** SUBJECT_DIES: the target slot holding the unit it watches. */
+      /** SUBJECT_DIES / SUBJECT_WINS_COMBAT: the target slot holding the unit it watches. */
       subjectSlot?: number;
       effects: CardEffect[];
     }

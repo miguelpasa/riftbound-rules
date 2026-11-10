@@ -56,6 +56,16 @@ export function runDelayed(
       } else if (d.on === 'SUBJECT_DIES' && e.type === 'UNIT_KILLED' && e.unitId === d.subject) {
         d.times = 0;
         run(d);
+      } else if (
+        d.on === 'SUBJECT_WINS_COMBAT' &&
+        e.type === 'COMBAT_ENDED' &&
+        d.subject !== undefined &&
+        e.winner !== null &&
+        e.participants.includes(d.subject) &&
+        s.objects[d.subject]?.controller === e.winner &&
+        onBoard(s, d.subject)
+      ) {
+        run(d);
       }
     }
   }
