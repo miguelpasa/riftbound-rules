@@ -967,7 +967,7 @@ export type Condition =
       kind: 'COUNT';
       what: 'unit' | 'gear' | 'unitOrGear' | 'rune' | 'card';
       /** `scored`: the battlefield a conquer / hold trigger is about ("at that battlefield"). */
-      where: 'here' | 'scored' | 'base' | 'board' | 'hand' | 'runeDeck';
+      where: 'here' | 'scored' | 'base' | 'board' | 'battlefields' | 'hand' | 'runeDeck';
       who: 'friendly' | 'enemy';
       other?: boolean;
       /** Only ready units count ("a ready enemy unit here"). */
@@ -1015,6 +1015,8 @@ export type Condition =
   | { kind: 'TARGET_STUNNED'; slot: number }
   /** "If it has N [M] or less": the unit chosen into target `slot` has at most `max` Might as the effect resolves. */
   | { kind: 'TARGET_MIGHT'; slot: number; max: number }
+  /** Every one of these conditions holds ("... and ..."). */
+  | { kind: 'ALL'; conds: Condition[] }
   /** "[Legion] —" on a spell effect (812): the controller has played another card this turn. */
   | { kind: 'LEGION' }
   /** "If it's Empowered": the unit chosen into target `slot` is Empowered as the effect resolves. */

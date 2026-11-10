@@ -3862,7 +3862,7 @@ export function parseCondition(raw: string): Condition | null {
     return { kind: 'COUNT', what: 'card', where: 'runeDeck', who: 'friendly', cmp: 'EQ', n: 0 };
   }
   m = new RegExp(
-    `^you (?:control|have) ${NUM}(?:(\\+)| or (more|fewer))? (other )?(units?|gear|runes?|cards?)(?: (in your base|in your hand|here))?$`,
+    `^you (?:control|have) (?:exactly )?${NUM}(?:(\\+)| or (more|fewer))? (other )?(units?|gear|runes?|cards?)(?: (in your base|in (?:your )?hand|here|at battlefields))?$`,
     'i',
   ).exec(text);
   if (m) {
@@ -3876,9 +3876,10 @@ export function parseCondition(raw: string): Condition | null {
         : noun.startsWith('rune')
           ? 'rune'
           : 'card';
-    const place = (m[6] ?? '').toLowerCase();
+    const place = (m[6] ?? '').toLowerCase().replace('in hand', 'in your hand');
     // "N cards" only makes sense in the hand; runes only on the board; "here" holds units and gear.
     if ((what === 'card') !== (place === 'in your hand')) return null;
+    if (place === 'at battlefields' && what !== 'unit' && what !== 'gear') return null;
     if (what === 'rune' && place !== '') return null;
     const where =
       place === 'in your base'
@@ -3887,7 +3888,9 @@ export function parseCondition(raw: string): Condition | null {
           ? 'hand'
           : place === 'here'
             ? 'here'
-            : 'board';
+            : place === 'at battlefields'
+              ? 'battlefields'
+              : 'board';
     const cmp: CountCmp =
       m[2] || /^more$/i.test(m[3] ?? '') ? 'GTE' : /^fewer$/i.test(m[3] ?? '') ? 'LTE' : 'EQ';
     return {
@@ -3907,6 +3910,14 @@ export function parseCondition(raw: string): Condition | null {
       subtype: m[2] as string,
       ...(m[1]?.toLowerCase() === 'another' ? { other: true } : {}),
     };
+  }
+  // "A and B": every part holds ("you have exactly 4 cards in hand and exactly 4 units at battlefields").
+  const parts = text.split(/ and (?=exactly |\d|you |there |I )/i);
+  if (parts.length > 1) {
+    const conds = parts.map((p, i) =>
+      parseCondition(i === 0 || /^(?:you|there|I)\b/i.test(p) ? p : 'you have ' + p),
+    );
+    if (conds.every((c): c is Condition => c !== null)) return { kind: 'ALL', conds };
   }
   return null;
 }

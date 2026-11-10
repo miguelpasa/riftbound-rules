@@ -320,6 +320,8 @@ export function evalCondition(
       return true; // decided by the triggering CARD_PLAYED event (triggers.ts)
     case 'SHOWED_OFF':
       return state.objects[sourceId]?.showedOff !== undefined;
+    case 'ALL':
+      return cond.conds.every((c) => evalCondition(state, cards, c, controller, sourceId, at));
     case 'NOT':
       return !evalCondition(state, cards, cond.cond, controller, sourceId);
     case 'PLAYED_FROM': {
@@ -495,7 +497,9 @@ export function evalCondition(
             ? z.kind === 'battlefield' && z.battlefieldId === here
             : cond.where === 'base'
               ? z.kind === 'base'
-              : z.kind === 'base' || z.kind === 'battlefield';
+              : cond.where === 'battlefields'
+                ? z.kind === 'battlefield'
+                : z.kind === 'base' || z.kind === 'battlefield';
         if (placed) count++;
       }
       return compare(count, cond.cmp, cond.n);
