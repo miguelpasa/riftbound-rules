@@ -544,6 +544,15 @@ type CardEffectCore =
       slot?: number;
       count: TargetCount;
     }
+  /** "Empower another gear": the chosen unit (or, with `gear`, gear) becomes Empowered. */
+  | ({
+      op: 'EMPOWER_TARGET';
+      side?: TargetSide;
+      gear?: boolean;
+      another?: boolean;
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
   /** "Disempower it": the chosen unit stops being Empowered. */
   | ({
       op: 'DISEMPOWER_TARGET';
@@ -797,6 +806,7 @@ export type TargetedEffect = Extract<
       | 'BLINK_TARGET'
       | 'BANISH_TARGET'
       | 'DISEMPOWER_TARGET'
+      | 'EMPOWER_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'
       | 'WEAPONMASTER_EQUIP'

@@ -689,3 +689,42 @@ describe('scenario: "Deal 2 to it for each Equipment attached to me" (Riven)', (
     expect(run(2)).toBe(4);
   });
 });
+
+describe('scenario: "[E]: Empower another gear" (Hextech Formula)', () => {
+  const text = '[E]: Empower another gear.';
+  const ability = parseCardAbilities(text)?.abilities[0];
+
+  it('reads an exhaust ability that empowers another chosen gear', () => {
+    // Tests Rule 145.1: an activated ability with a cost and an effect
+    expect(ability).toMatchObject({
+      cost: { exhaust: true },
+      effects: [{ op: 'EMPOWER_TARGET', gear: true, another: true }],
+    });
+  });
+
+  it('empowers the other gear, never the source or a unit', () => {
+    // Tests Rule 145.1: the effect resolves on the chosen target
+    const eff = ability?.effects ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const formula = sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const other = sc.putUnit('p0', 'fx-blade', 'base');
+    const unit = sc.putUnit('p0', 'fx-grunt', 'base');
+    const legal = (id: string) =>
+      spellTargetsLegal(sc.state, SCENARIO_CARDS, 'p0', eff, [{ kind: 'object', id }], formula);
+    expect(legal(other)).toBe(true);
+    expect(legal(formula)).toBe(false); // "another"
+    expect(legal(unit)).toBe(false); // a unit is not a gear
+    const s = structuredClone(sc.state);
+    runEffects(
+      s,
+      'p0',
+      eff,
+      SCENARIO_CARDS,
+      [{ kind: 'object', id: other }],
+      'fx-ember-totem',
+      formula,
+    );
+    expect(s.objects[other]?.empowered).toBe(true);
+    expect(s.objects[formula]?.empowered).toBeFalsy();
+  });
+});

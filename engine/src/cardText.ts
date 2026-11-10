@@ -1119,6 +1119,24 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  // "Empower another gear" / "Empower a unit" (Hextech Formula).
+  m = /^Empower (another|a|an) (gear|unit|friendly unit|friendly gear)$/i.exec(sen);
+  if (m) {
+    const gear = /gear/i.test(m[2] ?? '');
+    const friendly = /friendly/i.test(m[2] ?? '');
+    return {
+      effect: {
+        op: 'EMPOWER_TARGET',
+        ...(gear ? { gear: true } : {}),
+        ...(/another/i.test(m[1] ?? '') ? { another: true } : {}),
+        ...(friendly ? { side: 'friendly' as const } : {}),
+      },
+      decl: {
+        side: friendly ? 'friendly' : 'any',
+        ...(/another/i.test(m[1] ?? '') ? { another: true } : {}),
+      },
+    };
+  }
   // "Banish a unit with 3 [M] or less or a gear" (Burn Away): a small unit or any gear.
   m = /^Banish an? unit with (\d+) \[M\] or less or an? gear$/i.exec(sen);
   if (m) {

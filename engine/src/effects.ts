@@ -153,6 +153,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'BLINK_TARGET' ||
   e.op === 'BANISH_TARGET' ||
   e.op === 'DISEMPOWER_TARGET' ||
+  e.op === 'EMPOWER_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
   e.op === 'WEAPONMASTER_EQUIP' ||
@@ -175,6 +176,7 @@ function specOf(e: TargetedEffect): Spec {
         ? 'trash'
         : e.op === 'KILL_GEAR' ||
             (e.op === 'RETURN_TARGET' && e.gear) ||
+            (e.op === 'EMPOWER_TARGET' && e.gear) ||
             (e.op === 'READY_TARGET' && e.gear)
           ? 'gear'
           : (e.op === 'KILL_TARGET' || e.op === 'BANISH_TARGET') && e.orGear
@@ -486,6 +488,7 @@ function legalForSpec(
   }
   if (spec.kind === 'gear') {
     if (!isGearDef(cards[u.cardId])) return false;
+    if (spec.another && u.id === sourceId) return false;
     if (spec.maxEnergyMyMight) {
       const src = state.objects[sourceId];
       const limit = src ? effectiveMight(state, cards, src.id, { role: null }) : 0;
@@ -1752,6 +1755,7 @@ export function runEffects(
       case 'BLINK_TARGET':
       case 'BANISH_TARGET':
       case 'DISEMPOWER_TARGET':
+      case 'EMPOWER_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
       case 'GRANT_KEYWORD_TARGET': {
@@ -1892,6 +1896,11 @@ export function runEffects(
               break;
             }
             moveHere(state, cards, u, dest, out);
+          } else if (e.op === 'EMPOWER_TARGET') {
+            if (!u.empowered) {
+              u.empowered = true;
+              out.push({ type: 'EFFECT_EMPOWERED', unitId: u.id });
+            }
           } else if (e.op === 'DISEMPOWER_TARGET') {
             delete u.empowered;
           } else if (e.op === 'BANISH_TARGET') {
