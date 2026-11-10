@@ -225,6 +225,10 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
     return [{ op: 'RETURN_SELF' }];
   m = /^\[Predict(?: (\d+))?\]$/i.exec(sen);
   if (m) return [{ op: 'PREDICT', count: Number(m[1] ?? 1) }];
+  // "[Predict] equal to its Power cost" (The Empyrean): as many cards as the shown card's Power cost.
+  if (/^\[?Predict\]? equal to its Power cost$/i.test(sen)) {
+    return [{ op: 'PREDICT', count: 0, countFrom: 'SHOWN_POWER' }];
+  }
   m = /^Gain (\d+) XP(?: for each friendly unit)?$/i.exec(sen);
   if (m) {
     return [
@@ -3850,7 +3854,7 @@ export function parseCondition(raw: string): Condition | null {
     .replace(/[.\s]+$/, '')
     .replace(/\s+/g, ' ');
   if (/^I['’]m at a battlefield$/i.test(text)) return { kind: 'AT_BATTLEFIELD' };
-  if (/^you showed off$/i.test(text)) return { kind: 'SHOWED_OFF' };
+  if (/^you showed off(?: an? (?:card|unit|gear))?$/i.test(text)) return { kind: 'SHOWED_OFF' };
   if (/^you played this from your hand$/i.test(text)) return { kind: 'PLAYED_FROM', from: 'HAND' };
   if (/^you played this from face down$/i.test(text)) {
     return { kind: 'PLAYED_FROM', from: 'FACEDOWN' };

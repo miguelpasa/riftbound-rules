@@ -1583,7 +1583,13 @@ export function runEffects(
         out.push(...burnOutIfEmpty(state, controller, cards));
         if (state.gameStatus !== 'IN_PROGRESS') break;
         const ps = state.players[playerIndex(controller)] as GameState['players'][number];
-        const ids = ps.mainDeck.splice(0, e.count);
+        let want = e.count;
+        if (e.countFrom === 'SHOWN_POWER') {
+          const shownDef = cards[state.objects[state.objects[sourceObjectId]?.showedOff ?? '']?.cardId ?? ''];
+          const covered = (shownDef?.cost.domain ?? []).reduce((n, d) => n + d.amount, 0);
+          want = Math.max(shownDef?.cost.power ?? 0, covered);
+        }
+        const ids = ps.mainDeck.splice(0, want);
         out.push({ type: 'CARDS_LOOKED_AT', player: controller, count: ids.length });
         const runes = Object.values(state.objects).filter(
           (o) =>

@@ -203,7 +203,7 @@ type CardEffectCore =
    * R55: Predict N / Vision: look at the top N cards of the Main Deck, recycle those that cost too much
    * and put the rest back in order. A deterministic policy until choices exist (see ASSUMPTIONS R55).
    */
-  | { op: 'PREDICT'; count: number }
+  | { op: 'PREDICT'; count: number; countFrom?: 'SHOWN_POWER' }
   /** R53: "gain N XP" (optionally per friendly unit on the board). */
   | { op: 'GAIN_XP'; amount: number; perFriendlyUnit?: boolean }
   /** R62: "return me / this to its owner's hand": the source permanent returns to hand (tokens cease to exist). */
