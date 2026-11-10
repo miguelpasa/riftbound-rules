@@ -177,7 +177,7 @@ function specOf(e: TargetedEffect): Spec {
             (e.op === 'RETURN_TARGET' && e.gear) ||
             (e.op === 'READY_TARGET' && e.gear)
           ? 'gear'
-          : e.op === 'KILL_TARGET' && e.orGear
+          : (e.op === 'KILL_TARGET' || e.op === 'BANISH_TARGET') && e.orGear
             ? 'unitOrGear'
             : e.op === 'COUNTER_SPELL'
               ? 'spell'
@@ -235,7 +235,10 @@ function specOf(e: TargetedEffect): Spec {
   if ('another' in e && e.another) spec.another = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergy !== undefined) spec.maxEnergy = e.maxEnergy;
   if (
-    (e.op === 'KILL_TARGET' || e.op === 'RETURN_TARGET' || e.op === 'MOVE_BASE_TARGET') &&
+    (e.op === 'KILL_TARGET' ||
+      e.op === 'RETURN_TARGET' ||
+      e.op === 'MOVE_BASE_TARGET' ||
+      e.op === 'BANISH_TARGET') &&
     e.maxMight !== undefined
   ) {
     spec.maxMight = e.maxMight;

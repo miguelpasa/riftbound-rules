@@ -553,6 +553,9 @@ type CardEffectCore =
   | ({
       op: 'BANISH_TARGET';
       side?: TargetSide;
+      /** "a unit with 3 [M] or less or a gear": the target may also be a gear; `maxMight` limits units only. */
+      orGear?: boolean;
+      maxMight?: number;
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)

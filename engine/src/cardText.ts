@@ -1119,6 +1119,14 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  // "Banish a unit with 3 [M] or less or a gear" (Burn Away): a small unit or any gear.
+  m = /^Banish an? unit with (\d+) \[M\] or less or an? gear$/i.exec(sen);
+  if (m) {
+    return {
+      effect: { op: 'BANISH_TARGET', orGear: true, maxMight: Number(m[1]) },
+      decl: { side: 'any' },
+    };
+  }
   m = new RegExp(`^Kill an? ${SIDE}unit or gear( here)?$`, 'i').exec(sen);
   if (m) {
     // R46: either kind of permanent; "an enemy unit or gear" limits it to the opponent's.

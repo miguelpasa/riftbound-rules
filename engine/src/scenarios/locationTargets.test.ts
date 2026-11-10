@@ -968,3 +968,42 @@ describe('scenario: "Play a Sand Soldier for each Equipment you control. Then re
     expect(sandSoldiers(none)).toHaveLength(0);
   });
 });
+
+describe('scenario: "Banish a unit with 3 [M] or less or a gear. [Burn 2]." (Burn Away)', () => {
+  const text = 'Banish a unit with 3 [M] or less or a gear. [Burn 2].';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a banish of a small unit or any gear, then a Burn', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'BANISH_TARGET', orGear: true, maxMight: 3 },
+      { op: 'BURN', amount: 2 },
+    ]);
+  });
+
+  it('the Might limit applies to units only; any gear can be chosen', () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const small = sc.putUnit('p0', 'fx-grunt', 'base');
+    const big = sc.putUnit('p0', 'fx-titan', 'base');
+    const gear = sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const ok = (id: string) => spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(id)]);
+    expect(ok(small)).toBe(true);
+    expect(ok(big)).toBe(false);
+    expect(ok(gear)).toBe(true);
+  });
+
+  it('banishes the chosen permanent and burns two cards', () => {
+    // Tests Rule 355.10: the spell resolves its effects in order
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const gear = sc.putUnit('p0', 'fx-ember-totem', 'base');
+    const trash = sc.player('p0').trash.length;
+    cast(sc, [obj(gear)]);
+    expect(sc.obj(gear).zone).toMatchObject({ kind: 'banishment', player: 'p0' });
+    expect(sc.player('p0').banishment).toContain(gear);
+    // the spell itself also lands in the Trash, besides the two burned cards
+    expect(sc.player('p0').trash.length).toBe(trash + 3);
+  });
+});
