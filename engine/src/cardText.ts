@@ -2510,13 +2510,19 @@ const STATIC_RESTRICT = [
   [/^(Units) can['’]t move from here to base$/i, 'UNITS_HERE'],
 ] as const;
 const STATIC_AFF =
-  '(I|Other buffed friendly units at my battlefield|Your gear|Your token units|Friendly units here|Friendly buffed units|Other friendly units|Friendly units|Your units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
+  '(I|Your units that are \\[?Empowered\\]?|Other buffed friendly units at my battlefield|Your gear|Your token units|Friendly units here|Friendly buffed units|Other friendly units|Friendly units|Your units|Your [A-Za-z]+s|Other friendly units here|Your other units here|Units here with [\\[A-Za-z]+\\]|Champion units here|Units here)';
 
 function staticAffects(
   raw: string,
 ): Pick<
   StaticAbility,
-  'affects' | 'subtype' | 'onlyKeyword' | 'onlySubtype' | 'onlyToken' | 'onlyBuffed'
+  | 'affects'
+  | 'subtype'
+  | 'onlyKeyword'
+  | 'onlySubtype'
+  | 'onlyToken'
+  | 'onlyBuffed'
+  | 'onlyEmpowered'
 > | null {
   const w = raw.toLowerCase();
   // R70: filtered "here" statics.
@@ -2533,6 +2539,9 @@ function staticAffects(
   if (w === 'other buffed friendly units at my battlefield')
     return { affects: 'OTHER_FRIENDLY_HERE', onlyBuffed: true };
   if (w === 'friendly buffed units') return { affects: 'FRIENDLY_UNITS', onlyBuffed: true };
+  if (w === 'your units that are [empowered]' || w === 'your units that are empowered') {
+    return { affects: 'FRIENDLY_UNITS', onlyEmpowered: true };
+  }
   if (w === 'other friendly units') return { affects: 'OTHER_FRIENDLY_UNITS' };
   if (w === 'friendly units' || w === 'your units') return { affects: 'FRIENDLY_UNITS' };
   if (w === 'other friendly units here' || w === 'your other units here')

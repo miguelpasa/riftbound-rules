@@ -120,6 +120,7 @@ function applies(
   }
   if (s.onlyToken && targetDef.type !== 'TOKEN') return false;
   if (s.onlyBuffed && target.buffed !== true) return false;
+  if (s.onlyEmpowered && target.empowered !== true) return false;
   if (s.onlyStunned && target.stunned !== true) return false;
   if (s.lessMight && (!mights || mights.target >= mights.source)) return false;
   switch (s.affects) {

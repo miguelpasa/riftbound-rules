@@ -905,6 +905,8 @@ export interface StaticAbility {
   doubleDeathknell?: boolean;
   /** Only buffed units are affected ("Friendly buffed units have [Deflect]"). */
   onlyBuffed?: boolean;
+  /** "Your units that are [Empowered]": only Empowered units are affected. */
+  onlyEmpowered?: boolean;
   /** Only stunned units are affected (Leona). */
   onlyStunned?: boolean;
   /** Only a unit that is defending alone in the current combat (Wuju Bladesman). */

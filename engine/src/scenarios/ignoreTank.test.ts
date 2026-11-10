@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { parseStaticLines } from '../cardText.js';
-import { computeAssignmentConstraints } from '../combat.js';
+import { computeAssignmentConstraints, effectiveMight } from '../combat.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
 const text = 'You ignore [Tank] while assigning combat damage here.';
@@ -42,5 +42,45 @@ describe('scenario: ignoring Tank while assigning combat damage (467.2.c)', () =
   it('with a Surfer among the attackers the Tank is an ordinary unit', () => {
     // Tests Rule 467.2.c: the assigner ignores Tank
     expect(tiersFor(surfer, 'fx-grunt')).toEqual(['NORMAL', 'NORMAL']);
+  });
+});
+
+describe('scenario: "[Empowered][>] Your units that are [Empowered] have +2 [M]" (Aurok General)', () => {
+  const text = '[Empowered][>] Your units that are [Empowered] have +2 [M] (including me).';
+  const parsed = parseStaticLines(text)?.statics ?? [];
+
+  it('reads a static for the Empowered friendly units, gated on the source being Empowered', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    expect(parsed).toEqual([
+      {
+        affects: 'FRIENDLY_UNITS',
+        onlyEmpowered: true,
+        might: 2,
+        when: { kind: 'EMPOWERED' },
+      },
+    ]);
+  });
+
+  it('boosts only Empowered friendly units, and only while the General is Empowered', () => {
+    // Tests Rule 584: the static applies while its condition holds
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ash-tank': { ...(SCENARIO_CARDS['fx-ash-tank'] as CardDef), statics: parsed },
+    };
+    const sc = Scenario.start({}, cards);
+    const general = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    const empowered = sc.putUnit('p0', 'fx-grunt', 'base');
+    const plain = sc.putUnit('p0', 'fx-archer', 'base');
+    const foe = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const m = (id: string) => effectiveMight(sc.state, cards, id, { role: null });
+    const base = { e: m(empowered), p: m(plain), f: m(foe) };
+    sc.state.objects[empowered]!.empowered = true;
+    sc.state.objects[foe]!.empowered = true;
+    expect(m(empowered)).toBe(base.e); // the General is not Empowered: nothing
+    sc.state.objects[general]!.empowered = true;
+    expect(m(empowered)).toBe(base.e + 2);
+    expect(m(plain)).toBe(base.p);
+    expect(m(foe)).toBe(base.f); // enemy units never count
+    expect(m(general)).toBe(3 + 2); // including itself
   });
 });
