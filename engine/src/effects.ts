@@ -83,6 +83,8 @@ interface Spec {
   subtype?: string;
   notSubtype?: string;
   maxMight?: number;
+  /** At the battlefield where the unit chosen into this earlier slot stands. */
+  sameBattlefieldAsSlot?: number;
   /** Less Might than the unit chosen into this earlier slot. */
   lessMightThanSlot?: number;
   /** The unit has moved this turn. */
@@ -204,6 +206,9 @@ function specOf(e: TargetedEffect): Spec {
   if (e.op === 'DAMAGE_TARGET' && e.sameBattlefield) spec.sameBattlefield = true;
   if (e.op === 'DAMAGE_TARGET' && e.sameLocation) spec.sameLocation = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
+  if (e.op === 'STUN_TARGET' && e.sameBattlefieldAsSlot !== undefined) {
+    spec.sameBattlefieldAsSlot = e.sameBattlefieldAsSlot;
+  }
   if (e.op === 'KILL_TARGET' && e.lessMightThanSlot !== undefined) {
     spec.lessMightThanSlot = e.lessMightThanSlot;
   }
@@ -648,6 +653,12 @@ export function spellTargetsLegal(
       seen.add(id);
     }
     if (
+      r.sameBattlefieldAsSlot !== undefined &&
+      !sameBattlefieldOk(state, picks[0], ids[r.sameBattlefieldAsSlot])
+    ) {
+      return false;
+    }
+    if (
       r.lessMightThanSlot !== undefined &&
       !lessMightOk(state, cards, picks[0], ids[r.lessMightThanSlot])
     ) {
@@ -655,6 +666,19 @@ export function spellTargetsLegal(
     }
   }
   return true;
+}
+
+/** Both units stand at the same battlefield (a Base never counts). */
+function sameBattlefieldOk(
+  state: GameState,
+  id: string | undefined,
+  other: string | undefined,
+): boolean {
+  const a = id === undefined ? undefined : state.objects[id]?.zone;
+  const b = other === undefined ? undefined : state.objects[other]?.zone;
+  return (
+    a?.kind === 'battlefield' && b?.kind === 'battlefield' && a.battlefieldId === b.battlefieldId
+  );
 }
 
 /** "With less Might than it": `id` has less Might than `than` (both on the Board). */
@@ -755,6 +779,12 @@ export function enumerateSpellTargets(
     for (const prefix of acc) {
       for (const choice of opt) {
         if (choice.some((id) => prefix.includes(id))) continue;
+        if (
+          req.sameBattlefieldAsSlot !== undefined &&
+          !sameBattlefieldOk(state, choice[0], prefix[req.sameBattlefieldAsSlot])
+        ) {
+          continue;
+        }
         if (
           req.lessMightThanSlot !== undefined &&
           !lessMightOk(state, cards, choice[0], prefix[req.lessMightThanSlot])
@@ -1659,7 +1689,10 @@ export function runEffects(
               isLegalEffectTarget(state, cards, controller, e, u, sourceObjectId) &&
               (e.op !== 'KILL_TARGET' ||
                 e.lessMightThanSlot === undefined ||
-                lessMightOk(state, cards, u?.id, ids[e.lessMightThanSlot])),
+                lessMightOk(state, cards, u?.id, ids[e.lessMightThanSlot])) &&
+              (e.op !== 'STUN_TARGET' ||
+                e.sameBattlefieldAsSlot === undefined ||
+                sameBattlefieldOk(state, u?.id, ids[e.sameBattlefieldAsSlot])),
           );
         if (legal.length === 0) {
           fizzle();

@@ -352,6 +352,8 @@ type CardEffectCore =
       atBattlefield?: boolean;
       /** R95: only a unit that is attacking in the combat being fought. */
       attacking?: boolean;
+      /** "... an enemy unit at the same battlefield": it stands at the battlefield of the unit chosen into this other slot. */
+      sameBattlefieldAsSlot?: number;
       /** "If it's already stunned, return it to its owner's hand instead" (Existential Dread). */
       orReturn?: boolean;
       slot?: number;

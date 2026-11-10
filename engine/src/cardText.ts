@@ -1752,6 +1752,44 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     st.it = st.slots.length - 1;
     return true;
   }
+  // "Stun a friendly unit and an enemy unit at the same battlefield" (Facebreaker).
+  if (/^Stun a friendly unit and an enemy unit at the same battlefield$/i.test(sen)) {
+    const mine: SlotDecl = { side: 'friendly', atBattlefield: true };
+    const theirs: SlotDecl = { side: 'enemy', atBattlefield: true };
+    if (!canAdd(st, [mine, theirs])) return false;
+    const slot = st.slots.length;
+    st.slots.push(mine, theirs);
+    delete st.it;
+    out.push(
+      { op: 'STUN_TARGET', side: 'friendly', atBattlefield: true, slot },
+      {
+        op: 'STUN_TARGET',
+        side: 'enemy',
+        atBattlefield: true,
+        slot: slot + 1,
+        sameBattlefieldAsSlot: slot,
+      },
+    );
+    return true;
+  }
+  // "Stun an enemy unit at its location": at the battlefield of the unit chosen just before (Heroic Charge).
+  if (/^Stun an enemy unit at its location$/i.test(sen)) {
+    const k = st.it;
+    if (k === undefined || st.locked || (st.slots[k] as SlotDecl).kind !== undefined) return false;
+    const theirs: SlotDecl = { side: 'enemy', atBattlefield: true };
+    if (!canAdd(st, [theirs])) return false;
+    const slot = st.slots.length;
+    st.slots.push(theirs);
+    delete st.it;
+    out.push({
+      op: 'STUN_TARGET',
+      side: 'enemy',
+      atBattlefield: true,
+      slot,
+      sameBattlefieldAsSlot: k,
+    });
+    return true;
+  }
   // "This turn, increase its Might to the Might of another friendly unit": raise the chosen unit (Convergent Mutation).
   if (/^This turn, increase its Might to the Might of another friendly unit$/i.test(sen)) {
     const k = st.it;
@@ -2859,6 +2897,9 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       // R65: "Ready a unit and give it [Assault 3] this turn" = two sentences about the same unit.
       const m = /^(Ready an? (?:friendly |enemy )?unit) and (give it .+)$/i.exec(x);
       if (m) return [m[1] as string, m[2] as string];
+      // "Give a friendly unit +1 [M] this turn and [Stun] an enemy unit at its location" (Heroic Charge).
+      const gs = /^(Give .+? this turn) and \[?Stun\]? (an enemy unit) at its location$/i.exec(x);
+      if (gs) return [gs[1] as string, `Stun ${gs[2]} at its location`];
       // "[Buff] a friendly unit and [Stun] an enemy unit": two keyword actions, each choosing its own unit.
       const kw =
         /^(\[?(?:Buff|Stun|Ready)\]? an? [a-z ]+?) and (\[?(?:Buff|Stun|Ready)\]? an? [a-z ]+)$/i.exec(

@@ -568,3 +568,54 @@ describe('scenario: "Deal 1 to up to three units at the same location" (Bellows 
     expect(sc.obj(b).damage).toBe(1);
   });
 });
+
+describe('scenario: a second unit "at the same battlefield" / "at its location" (Facebreaker, Heroic Charge)', () => {
+  const stunBoth =
+    parseSpellText('Stun a friendly unit and an enemy unit at the same battlefield.') ?? [];
+  const charge =
+    parseSpellText(
+      'Give a friendly unit +1 [M] this turn and [Stun] an enemy unit at its location.',
+    ) ?? [];
+
+  it("reads both spells with the second unit tied to the first one's battlefield", () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(stunBoth).toMatchObject([
+      { op: 'STUN_TARGET', side: 'friendly', slot: 0 },
+      { op: 'STUN_TARGET', side: 'enemy', slot: 1, sameBattlefieldAsSlot: 0 },
+    ]);
+    expect(charge).toMatchObject([
+      { op: 'BUFF_TARGET', amount: 1, side: 'friendly' },
+      { op: 'STUN_TARGET', side: 'enemy', slot: 1, sameBattlefieldAsSlot: 0 },
+    ]);
+  });
+
+  it('the enemy must stand at the battlefield where the friendly unit is', () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    for (const effects of [stunBoth, charge]) {
+      const cards = spellWith(effects);
+      const sc = Scenario.start({}, cards);
+      const mine = sc.putUnit('p0', 'fx-grunt', 'bf0');
+      const near = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+      const far = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+      const home = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+      const ok = (ids: string[]) => spellTargetsLegal(sc.state, cards, 'p0', effects, ids.map(obj));
+      expect(ok([mine, near])).toBe(true);
+      expect(ok([mine, far])).toBe(false);
+      expect(ok([mine, home])).toBe(false);
+      const picks = enumerateSpellTargets(sc.state, cards, 'p0', effects) ?? [];
+      expect(picks).toContainEqual([obj(mine), obj(near)]);
+      expect(picks).not.toContainEqual([obj(mine), obj(far)]);
+    }
+  });
+
+  it('stuns both units', () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(stunBoth);
+    const sc = Scenario.start({}, cards);
+    const mine = sc.putUnit('p0', 'fx-grunt', 'bf0');
+    const near = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+    cast(sc, [obj(mine), obj(near)]);
+    expect(sc.obj(mine).stunned).toBe(true);
+    expect(sc.obj(near).stunned).toBe(true);
+  });
+});
