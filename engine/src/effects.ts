@@ -1593,6 +1593,12 @@ export function runEffects(
         }
         break;
       }
+      case 'EXHAUST_LEGEND': {
+        const legend = state.players[playerIndex(controller)].legend;
+        const lo = legend ? state.objects[legend] : undefined;
+        if (lo?.ready) lo.ready = false;
+        break;
+      }
       case 'EXTRA_TURN':
         state.extraTurnFor = controller;
         break;

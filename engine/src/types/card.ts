@@ -220,6 +220,8 @@ type CardEffectCore =
   | { op: 'READY_SELF' }
   /** R45: "ready your legend". */
   | { op: 'READY_LEGEND' }
+  /** "Exhaust a legend": the controller's Legend becomes exhausted. */
+  | { op: 'EXHAUST_LEGEND' }
   | { op: 'GAIN_POINT'; amount: number; forOpponent?: boolean }
   /** Deal damage to the target unit(s); Cleanup kills a unit if lethal. */
   | ({

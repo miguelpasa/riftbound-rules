@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { parseCardAbilities } from '../cardText.js';
-import { spellTargetsLegal } from '../effects.js';
+import { runEffects, spellTargetsLegal } from '../effects.js';
 import type { CardDatabase, CardDef, CardTrigger } from '../types/index.js';
 
 const bf1 = { kind: 'battlefield' as const, battlefieldId: 'bf1' };
@@ -220,5 +220,34 @@ describe('scenario: Legend "Disempower me, [E]: Give a unit at a battlefield -2 
       spellTargetsLegal(sc.state, SCENARIO_CARDS, 'p0', eff, [{ kind: 'object', id }]);
     expect(legal(atBf)).toBe(true);
     expect(legal(home)).toBe(false);
+  });
+});
+
+describe('scenario: "When you play me, ready or exhaust a legend" (Royal Entourage)', () => {
+  const text = 'When you play me, ready or exhaust a legend.';
+  const trig = parseCardAbilities(text)?.triggers[0];
+
+  it('reads a choice between readying and exhausting a legend', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(trig).toMatchObject({
+      on: 'PLAY',
+      modes: [[{ op: 'READY_LEGEND' }], [{ op: 'EXHAUST_LEGEND' }]],
+    });
+  });
+
+  it("readies or exhausts the controller's Legend", () => {
+    // Tests Rule 583: a triggered ability resolves its chosen mode
+    const run = (mode: number, ready: boolean): boolean => {
+      const sc = Scenario.start({}, SCENARIO_CARDS);
+      const legendId = sc.state.players[0]?.legend as string;
+      sc.state.objects[legendId]!.ready = ready;
+      const s = structuredClone(sc.state);
+      runEffects(s, 'p0', trig?.modes?.[mode] ?? [], SCENARIO_CARDS, [], 'fx-grunt', '');
+      return s.objects[legendId]?.ready === true;
+    };
+    expect(run(0, false)).toBe(true); // ready it
+    expect(run(1, true)).toBe(false); // exhaust it
+    expect(run(0, true)).toBe(true);
+    expect(run(1, false)).toBe(false);
   });
 });

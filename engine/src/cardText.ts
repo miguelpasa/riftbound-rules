@@ -232,7 +232,8 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
       },
     ];
   }
-  if (/^Ready (?:your|a friendly) legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
+  if (/^Ready (?:your|a friendly|a) legend$/i.test(sen)) return [{ op: 'READY_LEGEND' }];
+  if (/^Exhaust (?:your|a friendly|a) legend$/i.test(sen)) return [{ op: 'EXHAUST_LEGEND' }];
   // R72: runes.
   m = /^Ready up to (\d+) (?:friendly |your )?runes$/i.exec(sen);
   if (m) return [{ op: 'READY_RUNES', count: Number(m[1]) }];
@@ -4231,6 +4232,15 @@ function extractModal(text: string): { text: string; blocks: ModalBlock[] } {
         once: false,
         giveMe: false,
       });
+      continue;
+    }
+    // "..., ready or exhaust a legend." (Royal Entourage): a choice between the two actions.
+    const legendChoice = /^((?:When|At) .+?),\s*ready or exhaust a legend\.?$/i.exec(
+      line.trim().replace(/\s*\([^)]*\)\s*$/, ''),
+    );
+    if (legendChoice) {
+      out.push(`${legendChoice[1]}, MODAL${blocks.length}.`);
+      blocks.push({ modes: ['Ready a legend.', 'Exhaust a legend.'], once: false, giveMe: false });
       continue;
     }
     const m =
