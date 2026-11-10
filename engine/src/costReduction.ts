@@ -198,6 +198,10 @@ function rawReduction(
   let amount = 0;
   if (r.per) amount = r.energy * countFor(state, cards, pid, def, sourceId, r.per);
   else if (!r.when || evalCondition(state, cards, r.when, pid, sourceId)) amount = r.energy;
+  // Tiers that say "instead" replace the discount; the deepest one that holds wins.
+  for (const t of r.instead ?? []) {
+    if (evalCondition(state, cards, t.when, pid, sourceId)) amount = t.energy;
+  }
   return r.min === undefined ? { amount } : { amount, min: r.min };
 }
 

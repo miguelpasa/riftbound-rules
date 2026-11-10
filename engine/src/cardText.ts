@@ -2847,6 +2847,34 @@ export function parseSelfCostReduction(
     /\bI cost \[(\d+)\] less to play from anywhere other than your hand\b/i,
     'If I am not in your hand, I cost [$1] less',
   );
+  // "[Level 6][>] This costs [2] less. [Level 11][>] This costs [4] less instead." (Concentrate): Energy tiers by XP.
+  {
+    const tierRe =
+      /(?:^|\n)[ \t]*\[Level (\d+)\][ \t]*\[>\][ \t]*(?:This costs|I cost) \[(\d+)\] less( instead)?\.?(?:[ \t]*\([^)\n]*\))?[ \t]*(?=\n|$)/gi;
+    const tiers = [...text.matchAll(tierRe)];
+    if (tiers.length > 0) {
+      const base = tiers.find((t) => !t[3]);
+      if (!base) return null;
+      const later = tiers.filter((t) => t[3]);
+      let rest = text;
+      for (const t of tiers) rest = rest.replace(t[0], '');
+      return {
+        reduction: {
+          energy: Number(base[2]),
+          when: { kind: 'XP', n: Number(base[1]) },
+          ...(later.length > 0
+            ? {
+                instead: later.map((t) => ({
+                  energy: Number(t[2]),
+                  when: { kind: 'XP' as const, n: Number(t[1]) },
+                })),
+              }
+            : {}),
+        },
+        rest: rest.trim(),
+      };
+    }
+  }
   // "Reduce my cost by [1] for each of the following tags among your units — Bird, Cat, Dog, and Poro." (Daisy!)
   const pet =
     /(?:^|\n)[ \t]*Reduce my cost by \[(\d+)\] for each of the following tags among your units [—–-] Bird, Cat, Dog, and Poro\.?[ \t]*(?=\n|$)/i.exec(

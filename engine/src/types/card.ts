@@ -936,6 +936,8 @@ export interface CostReduction {
   when?: Condition;
   /** "to a minimum of [N]": the discounted Energy cost never goes below this. */
   min?: number;
+  /** "... instead": later tiers; the last one whose condition holds replaces `energy` (Concentrate: Level 6 / Level 11). */
+  instead?: { energy: number; when: Condition }[];
 }
 
 export type CountCmp = 'EQ' | 'GTE' | 'LTE';

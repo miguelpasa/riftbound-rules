@@ -115,3 +115,43 @@ describe('parser: ability discounts (R91)', () => {
     ).toMatchObject({ reduction: { energy: 1, per: 'HIGHEST_MIGHT' }, rest: 'Deal 5 to a unit.' });
   });
 });
+
+describe('scenario: tiered "[Level N][>] This costs [X] less ... instead" (Concentrate)', () => {
+  const text =
+    'Draw 2.\n[Level 6][>] This costs [2] less. (While you have 6+ XP, get the effect.)\n[Level 11][>] This costs [4] less instead.';
+
+  it('reads a Level 6 discount that a Level 11 discount replaces', () => {
+    // Tests Rule 560.4: a cost reduction counts what it names
+    const parsed = parseSelfCostReduction(text);
+    expect(parsed?.reduction).toEqual({
+      energy: 2,
+      when: { kind: 'XP', n: 6 },
+      instead: [{ energy: 4, when: { kind: 'XP', n: 11 } }],
+    });
+    expect(parsed?.rest.trim()).toBe('Draw 2.');
+  });
+
+  it('takes the deepest tier the XP reaches, not the sum', () => {
+    // Tests Rule 560.4: the later "instead" replaces the earlier discount
+    const reduction = parseSelfCostReduction(text)?.reduction;
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-plain-spell': {
+        ...(SCENARIO_CARDS['fx-plain-spell'] as CardDef),
+        cost: { energy: 6 },
+        ...(reduction ? { costReduction: reduction } : {}),
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const id = sc.putInHand('p0', 'fx-plain-spell');
+    const def = cards['fx-plain-spell'] as CardDef;
+    const at = (xp: number): number => {
+      (sc.state.players[0] as { xp?: number }).xp = xp;
+      return selfEnergyDiscount(sc.state, cards, 'p0', def, id);
+    };
+    expect(at(5)).toBe(0);
+    expect(at(6)).toBe(2);
+    expect(at(10)).toBe(2);
+    expect(at(11)).toBe(4);
+  });
+});
