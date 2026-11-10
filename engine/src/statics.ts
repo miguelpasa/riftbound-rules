@@ -126,6 +126,8 @@ function applies(
   switch (s.affects) {
     case 'OTHER_FRIENDLY_UNITS':
       return friendly && isUnit(targetDef) && target.id !== sourceId;
+    case 'EQUIPPED_UNITS':
+      return friendly && isUnit(targetDef); // the Equipment itself is counted in `staticBonus`
     case 'ENEMY_UNITS_HERE':
       return !friendly && isUnit(targetDef) && sourceHere !== null && at === sourceHere;
     case 'FRIENDLY_UNITS_HERE':
@@ -247,7 +249,16 @@ export function staticBonus(
       if (s.replaceDeath && !s.replaceDeath.offer && !replaceDeath) {
         replaceDeath = { sourceId, killSource: s.replaceDeath.killSource === true };
       }
-      for (const k of s.keywords ?? []) keywords.push({ ...k });
+      let copies = 1;
+      if (s.affects === 'EQUIPPED_UNITS') {
+        copies = Object.values(state.objects).filter(
+          (g) =>
+            g.attachedTo === target.id &&
+            g.controller === controller &&
+            (g.zone.kind === 'base' || g.zone.kind === 'battlefield'),
+        ).length;
+      }
+      for (let n = 0; n < copies; n++) for (const k of s.keywords ?? []) keywords.push({ ...k });
     }
   };
   for (const o of Object.values(state.objects)) {

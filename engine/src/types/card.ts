@@ -885,7 +885,9 @@ export interface StaticAbility {
     | 'ENEMY_UNITS_HERE'
     | 'FRIENDLY_UNITS_HERE'
     /** R88: every friendly unit except the source ("Other friendly units enter ready"). */
-    | 'OTHER_FRIENDLY_UNITS';
+    | 'OTHER_FRIENDLY_UNITS'
+    /** Friendly units carrying friendly Equipment: the grant is given once per attached Equipment (Purifier). */
+    | 'EQUIPPED_UNITS';
   subtype?: string;
   /**
    * R67: "for each ...": `might` is multiplied by this count; with `perKeyword` the keyword is granted with the

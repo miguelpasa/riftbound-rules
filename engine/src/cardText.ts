@@ -2884,6 +2884,15 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       statics.push({ ...rx, ...(gateWhen ? { when: gateWhen } : {}) });
       continue;
     }
+    // "Your Equipment each give [Assault]" (Purifier): each attached friendly Equipment grants it to its unit.
+    const eq = new RegExp(`^Your Equipment each give ${STATIC_GRANT}$`, 'i').exec(body);
+    if (eq) {
+      const g = staticGrant(eq[1] ?? '');
+      if (g && !em && !lv) {
+        statics.push({ affects: 'EQUIPPED_UNITS', ...g });
+        continue;
+      }
+    }
     const f1 = new RegExp(`^${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`, 'i').exec(body);
     const f2 = new RegExp(
       `^(?:While|If) (.+?), ${STATIC_AFF} (?:have|has) ${STATIC_GRANT}$`,
