@@ -955,6 +955,8 @@ export interface StaticAbility {
   bonusDamage?: { amount: number; scope: 'YOURS' | 'HERE' };
   /** Karthus: the controller's Deathknell triggers happen an additional time. */
   doubleDeathknell?: boolean;
+  /** With `doubleDeathknell`: only Deathknells of units that die at the source's battlefield (Detonation Amplifier). */
+  deathknellHere?: boolean;
   /** Only buffed units are affected ("Friendly buffed units have [Deflect]"). */
   onlyBuffed?: boolean;
   /** "Your units that are [Empowered]": only Empowered units are affected. */

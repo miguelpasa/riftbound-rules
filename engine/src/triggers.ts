@@ -389,7 +389,12 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           (k) =>
             onBoard(k) &&
             k.controller === o.owner &&
-            cards[k.cardId]?.statics?.some((st) => st.doubleDeathknell === true),
+            cards[k.cardId]?.statics?.some(
+              (st) =>
+                st.doubleDeathknell === true &&
+                (!st.deathknellHere ||
+                  (k.zone.kind === 'battlefield' && k.zone.battlefieldId === e.at)),
+            ),
         );
         if (doubles) add(o, 'DEATH', o.owner, (t) => !t.inCombat);
         diedAlone = undefined;

@@ -2607,6 +2607,9 @@ function parseDeathReplaceStatic(body: string): StaticAbility | null {
   if (/^Your \[Deathknell\] effects trigger an additional time$/i.test(body)) {
     return { affects: 'SELF', doubleDeathknell: true };
   }
+  if (/^Friendly \[Deathknell\] effects here trigger an additional time$/i.test(body)) {
+    return { affects: 'SELF', doubleDeathknell: true, deathknellHere: true };
+  }
   const nd = /^If (.+?), I don['’]t take damage$/i.exec(body);
   if (nd) {
     const when = parseCondition(nd[1] ?? '');
