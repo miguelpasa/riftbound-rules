@@ -149,6 +149,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'TAKE_CONTROL' ||
   e.op === 'BLINK_TARGET' ||
   e.op === 'BANISH_TARGET' ||
+  e.op === 'DISEMPOWER_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
   e.op === 'WEAPONMASTER_EQUIP' ||
@@ -1380,9 +1381,11 @@ export function runEffects(
         : c.kind === 'TARGET_MIGHT'
           ? state.objects[ids[c.slot] ?? ''] !== undefined &&
             mightOf(state.objects[ids[c.slot] ?? ''] as CardInstance) <= c.max
-          : c.kind === 'OPP_OTHER_SPELL'
-            ? opponentOtherSpells(state, cards, controller, ids[c.slot]) > 0
-            : evalCondition(state, cards, c, controller, sourceObjectId);
+          : c.kind === 'TARGET_EMPOWERED'
+            ? state.objects[ids[c.slot] ?? '']?.empowered === true
+            : c.kind === 'OPP_OTHER_SPELL'
+              ? opponentOtherSpells(state, cards, controller, ids[c.slot]) > 0
+              : evalCondition(state, cards, c, controller, sourceObjectId);
   let lastDid = true;
   let lastKilled = false;
   for (const e of effects) {
@@ -1690,6 +1693,7 @@ export function runEffects(
       case 'TAKE_CONTROL':
       case 'BLINK_TARGET':
       case 'BANISH_TARGET':
+      case 'DISEMPOWER_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
       case 'GRANT_KEYWORD_TARGET': {
@@ -1823,6 +1827,8 @@ export function runEffects(
               break;
             }
             moveHere(state, cards, u, dest, out);
+          } else if (e.op === 'DISEMPOWER_TARGET') {
+            delete u.empowered;
           } else if (e.op === 'BANISH_TARGET') {
             doneSlots.set(slot, u.owner);
             banishUnit(state, u);

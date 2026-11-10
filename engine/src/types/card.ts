@@ -526,6 +526,13 @@ type CardEffectCore =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** "Disempower it": the chosen unit stops being Empowered. */
+  | ({
+      op: 'DISEMPOWER_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
   /** "Banish it": the chosen unit goes to its owner's banishment (a token ceases to exist). */
   | ({
       op: 'BANISH_TARGET';
@@ -767,6 +774,7 @@ export type TargetedEffect = Extract<
       | 'TAKE_CONTROL'
       | 'BLINK_TARGET'
       | 'BANISH_TARGET'
+      | 'DISEMPOWER_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'
       | 'WEAPONMASTER_EQUIP'
@@ -964,6 +972,8 @@ export type Condition =
   | { kind: 'TARGET_STUNNED'; slot: number }
   /** "If it has N [M] or less": the unit chosen into target `slot` has at most `max` Might as the effect resolves. */
   | { kind: 'TARGET_MIGHT'; slot: number; max: number }
+  /** "If it's Empowered": the unit chosen into target `slot` is Empowered as the effect resolves. */
+  | { kind: 'TARGET_EMPOWERED'; slot: number }
   /** "if an opponent has played another spell this turn": besides the spell chosen into target `slot`, if that is theirs. */
   | { kind: 'OPP_OTHER_SPELL'; slot: number }
   /** R73: the controller's Trash holds a card with the source's name ("a card with my name"). */

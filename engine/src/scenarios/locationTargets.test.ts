@@ -711,3 +711,39 @@ describe('scenario: "Return any number of enemy Order units with total Might 5 o
     expect(sc.obj(guard).zone).toMatchObject({ kind: 'hand', player: 'p1' });
   });
 });
+
+describe('scenario: "If it\'s Empowered, disempower it. Then kill it if it has 3 [M] or less" (Lacerate)', () => {
+  const text =
+    "Choose a unit. If it's [Empowered], disempower it. Then kill it if it has 3 [M] or less.";
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a disempower gated on Empowered, then a kill gated on Might', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'DISEMPOWER_TARGET', when: { kind: 'TARGET_EMPOWERED', slot: 0 } },
+      { op: 'KILL_TARGET', when: { kind: 'TARGET_MIGHT', slot: 0, max: 3 } },
+    ]);
+  });
+
+  it('disempowers an Empowered unit and kills it only when it is small enough', () => {
+    // Tests Rule 355.10: the spell resolves its effects in order on the chosen unit
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const small = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    sc.state.objects[small]!.empowered = true;
+    cast(sc, [obj(small)]);
+    expect(sc.obj(small).zone.kind).toBe('trash');
+
+    const sc2 = Scenario.start({}, cards);
+    const big = sc2.putUnit('p0', 'fx-titan', 'base');
+    sc2.state.objects[big]!.empowered = true;
+    cast(sc2, [obj(big)]);
+    expect(sc2.obj(big).empowered).toBeFalsy();
+    expect(sc2.obj(big).zone.kind).toBe('base'); // 7 Might: survives
+
+    const sc3 = Scenario.start({}, cards);
+    const plain = sc3.putUnit('p0', 'fx-titan', 'base');
+    cast(sc3, [obj(plain)]);
+    expect(sc3.obj(plain).zone.kind).toBe('base'); // nothing to disempower, too big to kill
+  });
+});
