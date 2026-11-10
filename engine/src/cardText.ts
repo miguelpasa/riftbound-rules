@@ -1610,6 +1610,17 @@ function parseDelayedSentence(sen: string, st: ParseState): CardEffect | null {
     const effects = parseDelayedBody(m[1] as string, false);
     return effects ? { op: 'DELAYED', on: 'UNIT_DAMAGED', effects } : null;
   }
+  // "Kill it the next time it takes damage this turn" (Noxian Guillotine): a one-shot watcher on the chosen unit.
+  m = /^Kill it the next time it takes damage this turn$/i.exec(sen);
+  if (m && st.it !== undefined) {
+    return {
+      op: 'DELAYED',
+      on: 'UNIT_DAMAGED',
+      subjectSlot: st.it,
+      times: 1,
+      effects: [{ op: 'KILL_TARGET' }],
+    };
+  }
   m = /^When it wins a combat this turn, (.+)$/i.exec(sen);
   if (m && st.it !== undefined) {
     const effects = parseDelayedBody(m[1] as string, false);
@@ -3114,6 +3125,17 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       for (let k = before; k < out.length; k++) {
         (out[k] as CardEffect).when = { kind: 'XP', n: Number(lvl[1]) };
       }
+      continue;
+    }
+    // "[Legion] — <effect> instead": with Legion the effect replaces the one just before it (Noxian Guillotine).
+    const lg = /^\[?Legion\]?\s*[—–-]\s*(.+?) instead$/i.exec(list[i] as string);
+    const lgPrev = out[out.length - 1];
+    if (lg && lgPrev && !lgPrev.when) {
+      const before = out.length;
+      const inner = (lg[1] as string).replace(/ now$/i, '');
+      if (!parseSpellSentence(inner, st, out) || out.length !== before + 1) return null;
+      lgPrev.when = { kind: 'NOT', cond: { kind: 'LEGION' } };
+      (out[before] as CardEffect).when = { kind: 'LEGION' };
       continue;
     }
     // "Counter a spell if an opponent has played another spell this turn" (Crumbling Sands).

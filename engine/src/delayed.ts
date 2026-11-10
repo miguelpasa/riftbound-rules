@@ -50,8 +50,11 @@ export function runDelayed(
         d.on === 'UNIT_DAMAGED' &&
         (e.type === 'EFFECT_DAMAGE' || e.type === 'COMBAT_DAMAGE_ASSIGNED') &&
         e.amount > 0 &&
-        onBoard(s, e.unitId)
+        onBoard(s, e.unitId) &&
+        (d.subject === undefined || d.subject === e.unitId)
       ) {
+        // "the next time it takes damage" (a subject) fires once.
+        if (d.subject !== undefined) d.times = 0;
         run(d, e.unitId);
       } else if (d.on === 'SUBJECT_DIES' && e.type === 'UNIT_KILLED' && e.unitId === d.subject) {
         d.times = 0;

@@ -354,6 +354,7 @@ export function evalCondition(
     case 'TARGET_STUNNED':
     case 'TARGET_MIGHT':
     case 'TARGET_EMPOWERED':
+    case 'LEGION':
     case 'OPP_OTHER_SPELL':
       return false; // read from the chosen targets by runEffects
     case 'ENEMY_STUNNED':

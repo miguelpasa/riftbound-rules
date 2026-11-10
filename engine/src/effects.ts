@@ -12,7 +12,7 @@ import { applyDamageMods } from './damageMod.js';
 import { fork } from './workingCopy.js';
 import { burnOutIfEmpty, drawWithBurnOut } from './burnout.js';
 import { effectiveMight } from './combat.js';
-import { equipTotalCost, hasKeyword, removeTokenFromGame } from './keywords.js';
+import { equipTotalCost, hasKeyword, legionActive, removeTokenFromGame } from './keywords.js';
 import { startHandChoice, takeFromHand } from './handChoiceStart.js';
 import { autoPlan, computeTotalCost, payCost } from './resources.js';
 import { allocObjectId } from './setup.js';
@@ -1423,11 +1423,13 @@ export function runEffects(
         : c.kind === 'TARGET_MIGHT'
           ? state.objects[ids[c.slot] ?? ''] !== undefined &&
             mightOf(state.objects[ids[c.slot] ?? ''] as CardInstance) <= c.max
-          : c.kind === 'TARGET_EMPOWERED'
-            ? state.objects[ids[c.slot] ?? '']?.empowered === true
-            : c.kind === 'OPP_OTHER_SPELL'
-              ? opponentOtherSpells(state, cards, controller, ids[c.slot]) > 0
-              : evalCondition(state, cards, c, controller, sourceObjectId);
+          : c.kind === 'LEGION'
+            ? legionActive(state, controller, sourceObjectId)
+            : c.kind === 'TARGET_EMPOWERED'
+              ? state.objects[ids[c.slot] ?? '']?.empowered === true
+              : c.kind === 'OPP_OTHER_SPELL'
+                ? opponentOtherSpells(state, cards, controller, ids[c.slot]) > 0
+                : evalCondition(state, cards, c, controller, sourceObjectId);
   let lastDid = true;
   let lastKilled = false;
   /** The tokens the latest PLAY_TOKEN effect made ("ready up to two of them"). */
@@ -2594,7 +2596,14 @@ export function runEffects(
         break;
       case 'DELAYED': {
         const subject = e.subjectSlot === undefined ? undefined : ids[e.subjectSlot];
-        if (e.on === 'SUBJECT_DIES' && !subject) break;
+        if (
+          (e.on === 'SUBJECT_DIES' ||
+            e.on === 'SUBJECT_WINS_COMBAT' ||
+            (e.on === 'UNIT_DAMAGED' && e.subjectSlot !== undefined)) &&
+          !subject
+        ) {
+          break;
+        }
         (state.delayed ??= []).push({
           controller,
           turn: state.turn.number,

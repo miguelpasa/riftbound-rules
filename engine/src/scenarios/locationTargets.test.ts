@@ -1060,3 +1060,60 @@ describe('scenario: "When it wins a combat this turn, gain 2 XP" (Grim Resolve)'
     expect(xpGain(false)).toBe(0);
   });
 });
+
+describe('scenario: "Kill it the next time it takes damage this turn. [Legion] — Kill it now instead." (Noxian Guillotine)', () => {
+  const text =
+    'Choose a unit. Kill it the next time it takes damage this turn. [Legion] — Kill it now instead.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a delayed kill that Legion replaces by an immediate kill', () => {
+    // Tests Rule 812: Legion applies when another card was played this turn
+    expect(effects).toMatchObject([
+      {
+        op: 'DELAYED',
+        on: 'UNIT_DAMAGED',
+        subjectSlot: 0,
+        times: 1,
+        effects: [{ op: 'KILL_TARGET' }],
+        when: { kind: 'NOT', cond: { kind: 'LEGION' } },
+      },
+      { op: 'KILL_TARGET', when: { kind: 'LEGION' } },
+    ]);
+  });
+
+  /** p0 casts the spell at a big enemy; `legion` plays another card first; `hit` then damages the enemy. */
+  function enemyZone(legion: boolean, hit: boolean): string {
+    const cards: CardDatabase = {
+      ...spellWith(effects),
+      'fx-plain-spell': {
+        ...(SCENARIO_CARDS['fx-plain-spell'] as CardDef),
+        supportLevel: 'partial',
+        effects: [{ op: 'DAMAGE_TARGET', amount: 1 }],
+      },
+    };
+    const sc = Scenario.start({}, cards);
+    const foe = sc.putUnit('p1', 'fx-order-titan', 'base'); // big: 1 damage does not kill it
+    const play = (id: string, targets: Target[]): void => {
+      sc.play('p0', id, { payment: sc.exhaustPlan('p0', 2), targets });
+      for (let i = 0; i < 10 && sc.state.flow.chain.length > 0; i++) {
+        sc.pass(sc.state.flow.priority as PlayerId);
+      }
+    };
+    sc.giveRunes('p0', 6);
+    if (legion) play(sc.putInHand('p0', 'fx-plain-spell'), [obj(foe)]);
+    play(sc.putInHand('p0', 'fx-flare'), [obj(foe)]);
+    if (hit) play(sc.putInHand('p0', 'fx-plain-spell'), [obj(foe)]);
+    return sc.obj(foe).zone.kind;
+  }
+
+  it('without Legion the unit dies the next time it takes damage', () => {
+    // Tests Rule 359.3: a spell's effects resolve in printed order
+    expect(enemyZone(false, false)).toBe('base'); // nothing hurt it yet
+    expect(enemyZone(false, true)).toBe('trash');
+  });
+
+  it('with Legion it is killed at once', () => {
+    // Tests Rule 812: Legion applies when another card was played this turn
+    expect(enemyZone(true, false)).toBe('trash');
+  });
+});

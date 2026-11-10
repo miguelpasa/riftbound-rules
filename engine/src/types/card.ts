@@ -992,6 +992,8 @@ export type Condition =
   | { kind: 'TARGET_STUNNED'; slot: number }
   /** "If it has N [M] or less": the unit chosen into target `slot` has at most `max` Might as the effect resolves. */
   | { kind: 'TARGET_MIGHT'; slot: number; max: number }
+  /** "[Legion] —" on a spell effect (812): the controller has played another card this turn. */
+  | { kind: 'LEGION' }
   /** "If it's Empowered": the unit chosen into target `slot` is Empowered as the effect resolves. */
   | { kind: 'TARGET_EMPOWERED'; slot: number }
   /** "if an opponent has played another spell this turn": besides the spell chosen into target `slot`, if that is theirs. */
