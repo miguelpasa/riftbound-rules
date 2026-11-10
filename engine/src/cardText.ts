@@ -1105,6 +1105,20 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  // "Kill an enemy unit here with less Might than me" (Ambessa).
+  m = new RegExp(`^Kill an? ${SIDE}unit( here)? with less Might than me$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: {
+        op: 'KILL_TARGET',
+        ...sideProp(s),
+        lessMightThanMe: true,
+        ...(m[2] ? { here: true } : {}),
+      },
+      decl: { side: s ?? 'any', ...(m[2] ? { here: true } : {}) },
+    };
+  }
   m = new RegExp(
     `^Kill an? ${SIDE}unit( at a battlefield)?(?: with (\\d+) \\[M\\] or less)?$`,
     'i',

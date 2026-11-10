@@ -291,6 +291,8 @@ type CardEffectCore =
       maxMight?: number;
       /** "... with less Might than it": only a unit with less Might than the unit chosen into this slot. */
       lessMightThanSlot?: number;
+      /** "... with less Might than me": only a unit with less Might than the source unit. */
+      lessMightThanMe?: boolean;
       /** "any number of units at a battlefield with total Might 4 or less": the chosen units share a battlefield and their Mights add up to at most this. */
       sameBattlefield?: boolean;
       totalMaxMight?: number;

@@ -760,3 +760,34 @@ describe('scenario: "[Add] [1]. If this is [Empowered], [Add] [2] instead." (Pla
     expect(run(true)).toBe(2);
   });
 });
+
+describe('scenario: "When I attack, kill an enemy unit here with less Might than me" (Ambessa)', () => {
+  const text = '[Empowered][>] When I attack, kill an enemy unit here with less Might than me.';
+  const trig = parseCardAbilities(text)?.triggers[0];
+
+  it('reads an attack trigger with a "less Might than me" limit, gated on Empowered', () => {
+    // Tests Rule 583: triggered abilities have a trigger condition and an effect
+    expect(trig).toMatchObject({
+      on: 'ATTACK',
+      when: { kind: 'EMPOWERED' },
+      effects: [{ op: 'KILL_TARGET', side: 'enemy', here: true, lessMightThanMe: true }],
+    });
+  });
+
+  it('only an enemy unit here with less Might than the source can be chosen', () => {
+    // Tests Rule 355.10: a target must meet the ability's requirements
+    const eff = trig?.effects ?? [];
+    const sc = Scenario.start({}, SCENARIO_CARDS);
+    const me = sc.putUnit('p0', 'fx-ash-tank', 'bf1', { control: true }); // Might 3
+    const weaker = sc.putUnit('p1', 'fx-tide-grunt', 'bf1'); // 2
+    const equal = sc.putUnit('p1', 'fx-order-tank', 'bf1'); // 3
+    const stronger = sc.putUnit('p1', 'fx-order-titan', 'bf1'); // 7
+    const away = sc.putUnit('p1', 'fx-order-shielder', 'base');
+    const legal = (id: string) =>
+      spellTargetsLegal(sc.state, SCENARIO_CARDS, 'p0', eff, [{ kind: 'object', id }], me);
+    expect(legal(weaker)).toBe(true);
+    expect(legal(equal)).toBe(false);
+    expect(legal(stronger)).toBe(false);
+    expect(legal(away)).toBe(false);
+  });
+});

@@ -87,6 +87,8 @@ interface Spec {
   sameBattlefieldAsSlot?: number;
   /** Less Might than the unit chosen into this earlier slot. */
   lessMightThanSlot?: number;
+  /** Less Might than the source unit ("less Might than me"). */
+  lessMightThanMe?: boolean;
   /** The unit has moved this turn. */
   movedThisTurn?: boolean;
   /** X1: every pick must be at one battlefield. */
@@ -226,6 +228,7 @@ function specOf(e: TargetedEffect): Spec {
   if (e.op === 'STUN_TARGET' && e.sameBattlefieldAsSlot !== undefined) {
     spec.sameBattlefieldAsSlot = e.sameBattlefieldAsSlot;
   }
+  if (e.op === 'KILL_TARGET' && e.lessMightThanMe) spec.lessMightThanMe = true;
   if (e.op === 'KILL_TARGET' && e.lessMightThanSlot !== undefined) {
     spec.lessMightThanSlot = e.lessMightThanSlot;
   }
@@ -534,6 +537,7 @@ function legalForSpec(
       }
     }
     if (spec.another && u.id === sourceId) return false;
+    if (spec.lessMightThanMe && !lessMightOk(state, cards, u.id, sourceId)) return false;
     if (spec.movedThisTurn && !(u.moves && u.moves.turn === state.turn.number)) return false;
     if (spec.domain && !(cards[u.cardId]?.domains ?? []).includes(spec.domain)) return false;
     if (spec.exhausted && u.ready) return false;
