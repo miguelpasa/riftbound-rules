@@ -409,6 +409,8 @@ type CardEffectCore =
       maxEnergy?: number;
       /** R107: "no more than my Might": the limit is the source unit's current Might. */
       maxEnergyMyMight?: boolean;
+      /** "If it's Empowered, disempower it. Otherwise, kill it": an Empowered gear is disempowered instead of killed. */
+      disempowerInstead?: boolean;
     } & TargetScope)
   /** Kill every gear on the board. */
   | { op: 'KILL_ALL_GEAR' }

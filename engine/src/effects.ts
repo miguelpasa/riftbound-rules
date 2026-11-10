@@ -1966,6 +1966,8 @@ export function runEffects(
             const room = e.minMight === undefined ? total : mightOf(u) - e.minMight;
             const cut = Math.max(0, Math.min(total, room));
             if (cut > 0) addTemp(u, -cut, true);
+          } else if (e.op === 'KILL_GEAR' && e.disempowerInstead && u.empowered) {
+            delete u.empowered; // an Empowered gear is disempowered instead of killed
           } else if (e.op === 'KILL_GEAR') {
             doneSlots.set(slot, u.controller);
             killGear(state, u, cards);

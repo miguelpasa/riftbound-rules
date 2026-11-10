@@ -1225,6 +1225,15 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  // "Choose an enemy gear. If it's [Empowered], disempower it. Otherwise, kill it." (Tomb-Raider Barbara)
+  m = new RegExp(`^Kill an? ${SIDE}gear, or disempower it if it is Empowered$`, 'i').exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: { op: 'KILL_GEAR', disempowerInstead: true, ...sideProp(s) },
+      decl: { side: s ?? 'any' },
+    };
+  }
   m = new RegExp(
     `^Kill an? ${SIDE}gear(?: with Energy cost (?:\\[?(\\d+)\\]? or less|no more than \\[?(\\d+)\\]?))?$`,
     'i',
@@ -3319,7 +3328,22 @@ const MANA_RESTRICTIONS: Record<string, ManaUse[]> = {
   'to play units or activated abilities of units': ['UNIT', 'UNIT_ABILITY'],
 };
 
-function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
+function parseEffectSentences(sens0: readonly string[]): CardEffect[] | null {
+  // "Choose an enemy gear. If it's [Empowered], disempower it. Otherwise, kill it." is one choice with two outcomes.
+  const sens: string[] = [];
+  for (let i = 0; i < sens0.length; i++) {
+    const ch = /^Choose an? (enemy |friendly )?gear$/i.exec(sens0[i] ?? '');
+    if (
+      ch &&
+      /^If it['’]s \[?Empowered\]?, disempower it$/i.test(sens0[i + 1] ?? '') &&
+      /^Otherwise, kill it$/i.test(sens0[i + 2] ?? '')
+    ) {
+      sens.push(`Kill a ${ch[1] ?? ''}gear, or disempower it if it is Empowered`);
+      i += 2;
+    } else {
+      sens.push(sens0[i] as string);
+    }
+  }
   const st: ParseState = { slots: [], locked: false };
   const out: CardEffect[] = [];
   const filters: { dom?: Domain; exhausted?: boolean }[] = [];
