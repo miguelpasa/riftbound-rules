@@ -1593,6 +1593,34 @@ export function runEffects(
         }
         break;
       }
+      case 'RECYCLE_SELF': {
+        const src = state.objects[sourceObjectId];
+        if (src && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {
+          const owner = state.players[playerIndex(src.owner)] as GameState['players'][number];
+          const holder = state.players[playerIndex(src.controller)] as GameState['players'][number];
+          holder.base = holder.base.filter((x) => x !== src.id);
+          for (const g of Object.values(state.objects)) {
+            if (g.attachedTo === src.id) delete g.attachedTo;
+          }
+          if (isTokenInstance(src)) {
+            removeTokenFromGame(state, src.id);
+            break;
+          }
+          owner.mainDeck.push(src.id);
+          src.zone = { kind: 'mainDeck', player: src.owner };
+          src.controller = src.owner;
+          src.ready = false;
+          src.damage = 0;
+          src.mightBonus = 0;
+          delete src.tempMight;
+          delete src.tempKeywords;
+          delete src.stunned;
+          delete src.empowered;
+          delete src.buffed;
+          out.push({ type: 'CARDS_RECYCLED', player: src.owner, count: 1 });
+        }
+        break;
+      }
       case 'RETURN_SELF': {
         const src = state.objects[sourceObjectId];
         if (src && (src.zone.kind === 'base' || src.zone.kind === 'battlefield')) {

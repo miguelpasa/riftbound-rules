@@ -208,6 +208,8 @@ type CardEffectCore =
   | { op: 'GAIN_XP'; amount: number; perFriendlyUnit?: boolean }
   /** R62: "return me / this to its owner's hand": the source permanent returns to hand (tokens cease to exist). */
   | { op: 'RETURN_SELF' }
+  /** "Recycle me": the source permanent goes to the bottom of its owner's Main Deck (tokens cease to exist). */
+  | { op: 'RECYCLE_SELF' }
   /** R72: ready up to `count` of the controller's exhausted runes (lowest object id first). */
   | { op: 'READY_RUNES'; count: number }
   /** R72: recycle every rune the controller has in play (they go to the bottom of the Rune Deck, ready). */

@@ -249,6 +249,7 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   if (/^Double my Might this turn$/i.test(sen)) return [{ op: 'DOUBLE_MIGHT_SELF' }];
   if (/^Give me (?:\[Temporary\]|Temporary)$/i.test(sen)) return [{ op: 'GRANT_TEMPORARY_SELF' }];
   if (/^Move me to your base$/i.test(sen)) return [{ op: 'MOVE_SELF_BASE' }];
+  if (/^Recycle me$/i.test(sen)) return [{ op: 'RECYCLE_SELF' }];
   if (/^Move me there$/i.test(sen)) return [{ op: 'MOVE_SELF_TO_COMBAT' }];
   m = new RegExp(`^Give me ${KW_LIST} this turn$`, 'i').exec(sen);
   if (m) {
@@ -4335,6 +4336,15 @@ export function parseCardAbilities(
   text0: string,
   opts: { gearLike?: boolean; legend?: boolean } = {},
 ): ParsedAbilities | null {
+  // "<effects>, then recycle me if I was played from face down" (Elnuk Herd): the recycle is its own
+  // "when you play me from face down" trigger, put on the Chain first so it resolves after the rest.
+  const recycleTail = /,\s*then recycle me if I was played from face down/i;
+  if (recycleTail.test(text0)) {
+    const base = parseCardAbilities(text0.replace(recycleTail, ''), opts);
+    const extra = parseCardAbilities('When you play me from face down, recycle me.', opts);
+    if (!base || !extra) return null;
+    return { ...base, triggers: [...extra.triggers, ...base.triggers] };
+  }
   const { text, blocks: modalBlocks } = extractModal(text0);
   const kwTriggers = keywordTriggers(text);
   const cleaned = protectGrants(text)
