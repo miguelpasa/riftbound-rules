@@ -4717,6 +4717,21 @@ export function parseCardAbilities(
       groups.push(cur);
       continue;
     }
+    const rd = /^When you reduce the Might of an enemy unit here by 1 or more\s*,\s*(.+)$/i.exec(sen);
+    if (rd) {
+      if (once || empowered) return null;
+      const split = splitCondition(rd[1] as string);
+      if (!split) return null;
+      cur = {
+        kind: 'trigger',
+        ons: ['YOU_REDUCE_HERE'],
+        legion,
+        ...(split.when ? { when: split.when } : {}),
+        sens: [split.rest],
+      };
+      groups.push(cur);
+      continue;
+    }
     const yd = /^When you defend(?: at a battlefield)?\s*,\s*(.+)$/i.exec(sen);
     if (yd) {
       if (once || empowered) return null;

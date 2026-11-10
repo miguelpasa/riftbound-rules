@@ -1256,6 +1256,8 @@ export type TriggerKind =
   | 'YOU_BANISH_OWN'
   /** "When you defend at a battlefield": the controller defends a combat anywhere (the source need not be there). */
   | 'YOU_DEFEND'
+  /** "When you reduce the Might of an enemy unit here by 1 or more": an enemy unit at the source's battlefield lost Might. */
+  | 'YOU_REDUCE_HERE'
   /** "When you draw your second card each turn": see `CardTrigger.drawNth`. */
   | 'YOU_DRAW'
   /** R92: "When an opponent scores" (a point from any source). */

@@ -245,6 +245,23 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       }
       continue;
     }
+    if (e.type === 'EFFECT_BUFF' && e.amount < 0) {
+      const victim = state.objects[e.unitId];
+      if (victim && victim.zone.kind === 'battlefield') {
+        for (const src of Object.values(state.objects)) {
+          if (
+            !onBoard(src) ||
+            src.controller === victim.controller ||
+            src.zone.kind !== 'battlefield' ||
+            src.zone.battlefieldId !== victim.zone.battlefieldId
+          ) {
+            continue;
+          }
+          add(src, 'YOU_REDUCE_HERE', src.controller);
+        }
+      }
+      continue;
+    }
     if (e.type === 'CARD_PLAYED') {
       // R100: hiding a card emits a private CARD_PLAYED marker; that is not playing the card.
       if (e.visibleTo !== undefined) continue;
