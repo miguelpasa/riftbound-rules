@@ -1152,6 +1152,11 @@ function parseChooserBase(sen: string): Chooser | null {
       decl: { side: s ?? 'any' },
     };
   }
+  // "Attach it to a unit you control" (Edge of Night, a Hidden Equipment played from face down).
+  m = /^Attach it to an? (?:unit you control|friendly unit)(?: here)?$/i.exec(sen);
+  if (m) {
+    return { effect: { op: 'ATTACH_SELF_TARGET', side: 'friendly' }, decl: { side: 'friendly' } };
+  }
   // "Empower another gear" / "Empower a unit" (Hextech Formula).
   m = /^Empower (another|a|an) (gear|unit|friendly unit|friendly gear)$/i.exec(sen);
   if (m) {

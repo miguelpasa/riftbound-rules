@@ -568,6 +568,13 @@ type CardEffectCore =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** "Attach it to a unit you control" (Edge of Night): the source Equipment attaches to the chosen unit. */
+  | ({
+      op: 'ATTACH_SELF_TARGET';
+      side?: TargetSide;
+      atBattlefield?: boolean;
+      slot?: number;
+    } & TargetScope)
   /** "Disempower it": the chosen unit stops being Empowered. */
   | ({
       op: 'DISEMPOWER_TARGET';
@@ -824,6 +831,7 @@ export type TargetedEffect = Extract<
       | 'BANISH_TARGET'
       | 'DISEMPOWER_TARGET'
       | 'PROTECT_TARGET'
+      | 'ATTACH_SELF_TARGET'
       | 'EMPOWER_TARGET'
       | 'MOVE_HERE_TARGET'
       | 'COUNTER_SPELL'

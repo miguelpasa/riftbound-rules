@@ -156,6 +156,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'BANISH_TARGET' ||
   e.op === 'DISEMPOWER_TARGET' ||
   e.op === 'PROTECT_TARGET' ||
+  e.op === 'ATTACH_SELF_TARGET' ||
   e.op === 'EMPOWER_TARGET' ||
   e.op === 'MOVE_HERE_TARGET' ||
   e.op === 'COUNTER_SPELL' ||
@@ -1834,6 +1835,7 @@ export function runEffects(
       case 'BANISH_TARGET':
       case 'DISEMPOWER_TARGET':
       case 'PROTECT_TARGET':
+      case 'ATTACH_SELF_TARGET':
       case 'EMPOWER_TARGET':
       case 'MOVE_HERE_TARGET':
       case 'COUNTER_SPELL':
@@ -1979,6 +1981,13 @@ export function runEffects(
             if (!u.empowered) {
               u.empowered = true;
               out.push({ type: 'EFFECT_EMPOWERED', unitId: u.id });
+            }
+          } else if (e.op === 'ATTACH_SELF_TARGET') {
+            const gear = state.objects[sourceObjectId];
+            if (gear && gear.zone.kind === 'base' && gear.controller === u.controller) {
+              gear.attachedTo = u.id;
+            } else {
+              fizzle();
             }
           } else if (e.op === 'PROTECT_TARGET') {
             u.unchoosableTurn = state.turn.number;
