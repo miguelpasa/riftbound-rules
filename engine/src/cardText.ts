@@ -3602,6 +3602,7 @@ export function parseCondition(raw: string): Condition | null {
   if (/^it['’]s your turn$/i.test(text)) return { kind: 'YOUR_TURN' };
   if (/^it['’]s not your turn$/i.test(text)) return { kind: 'YOUR_TURN', not: true };
   if (/^I['’]m buffed$/i.test(text)) return { kind: 'BUFFED' };
+  if (/^(?:this is|I['’]m|I am) \[?empowered\]?$/i.test(text)) return { kind: 'EMPOWERED' };
   if (/^I['’]m \[Mighty\]$/i.test(text)) return { kind: 'MIGHTY' };
   if (/^I am not in your hand$/i.test(text)) return { kind: 'NOT_IN_HAND' };
   if (/^I have moved twice this turn$/i.test(text)) return { kind: 'MOVES_AT_LEAST', n: 2 };

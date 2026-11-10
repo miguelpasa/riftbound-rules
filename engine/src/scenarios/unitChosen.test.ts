@@ -728,3 +728,35 @@ describe('scenario: "[E]: Empower another gear" (Hextech Formula)', () => {
     expect(s.objects[formula]?.empowered).toBeFalsy();
   });
 });
+
+describe('scenario: "[Add] [1]. If this is [Empowered], [Add] [2] instead." (Platewyrm Egg)', () => {
+  const text = '[Reaction][>] [E]: [Add] [1]. If this is [Empowered], [Add] [2] instead.';
+  const ability = parseCardAbilities(text)?.abilities[0];
+
+  it('reads an exhaust Reaction ability whose Add is replaced while Empowered', () => {
+    // Tests Rule 168: an ability that adds resources
+    expect(ability).toMatchObject({
+      cost: { exhaust: true },
+      reaction: true,
+      effects: [
+        { op: 'ADD_ENERGY', amount: 1, when: { kind: 'NOT', cond: { kind: 'EMPOWERED' } } },
+        { op: 'ADD_ENERGY', amount: 2, when: { kind: 'EMPOWERED' } },
+      ],
+    });
+  });
+
+  it('adds 1 Energy normally and 2 once the gear is Empowered', () => {
+    // Tests Rule 168: [Add] puts Energy in the Rune Pool
+    const eff = ability?.effects ?? [];
+    const run = (empowered: boolean): number => {
+      const sc = Scenario.start({}, SCENARIO_CARDS);
+      const egg = sc.putUnit('p0', 'fx-ember-totem', 'base');
+      if (empowered) sc.state.objects[egg]!.empowered = true;
+      const s = structuredClone(sc.state);
+      runEffects(s, 'p0', eff, SCENARIO_CARDS, [], 'fx-ember-totem', egg);
+      return s.players[0]?.runePool.energy ?? 0;
+    };
+    expect(run(false)).toBe(1);
+    expect(run(true)).toBe(2);
+  });
+});
