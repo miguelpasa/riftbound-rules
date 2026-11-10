@@ -528,6 +528,12 @@ type CardEffectCore =
       atBattlefield?: boolean;
       slot?: number;
     } & TargetScope)
+  /** "Recycle up to 4 cards from trashes": the chosen cards (any Trash, any owner) go to the bottom of their owners' Main Decks. */
+  | {
+      op: 'RECYCLE_FROM_TRASHES';
+      slot?: number;
+      count: TargetCount;
+    }
   /** "Disempower it": the chosen unit stops being Empowered. */
   | ({
       op: 'DISEMPOWER_TARGET';
@@ -771,6 +777,7 @@ export type TargetedEffect = Extract<
       | 'KILL_GEAR'
       | 'RETURN_TARGET'
       | 'RETURN_FROM_TRASH'
+      | 'RECYCLE_FROM_TRASHES'
       | 'PLAY_FROM_TRASH'
       | 'MOVE_BASE_TARGET'
       | 'TAKE_CONTROL'

@@ -109,7 +109,7 @@ interface SlotDecl {
   /** R42: "... unit here" / "another ... unit" (relative to the ability's source). */
   here?: boolean;
   /** X-loc: a chosen battlefield, or the location a moved unit goes to (not a unit). */
-  kind?: 'battlefield' | 'location' | 'gear';
+  kind?: 'battlefield' | 'location' | 'gear' | 'trash';
 }
 
 interface ParseState {
@@ -925,6 +925,15 @@ function parseChooserBase(sen: string): Chooser | null {
         count: { min: 0, max: 99 },
       },
       decl: { side: s ?? 'any' },
+      multi: true,
+    };
+  }
+  // "Recycle up to 4 cards from trashes" (Forge of the Future): chosen cards from any Trash.
+  m = /^Recycle up to (\d+) cards from trashes$/i.exec(sen);
+  if (m) {
+    return {
+      effect: { op: 'RECYCLE_FROM_TRASHES', count: { min: 0, max: Number(m[1]) } },
+      decl: { side: 'any', kind: 'trash' },
       multi: true,
     };
   }

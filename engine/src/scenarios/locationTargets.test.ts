@@ -3,7 +3,15 @@ import { Scenario, SCENARIO_CARDS } from '../testing/scenario.js';
 import { effectiveMight } from '../combat.js';
 import { enumerateSpellTargets, spellTargetsLegal } from '../effects.js';
 import { parseSpellText } from '../cardText.js';
-import type { CardDatabase, CardDef, CardEffect, PlayerId, Target } from '../types/index.js';
+import type {
+  CardDatabase,
+  CardDef,
+  CardEffect,
+  CardInstance,
+  GameState,
+  PlayerId,
+  Target,
+} from '../types/index.js';
 
 const bf = (battlefieldId: string): Target => ({ kind: 'battlefield', battlefieldId });
 const obj = (id: string): Target => ({ kind: 'object', id });
@@ -784,5 +792,58 @@ describe('scenario: "Swap the Mights of two units at the same battlefield this t
     cast(sc, [obj(small), obj(big)]);
     expect(m(small)).toBe(mb);
     expect(m(big)).toBe(ms);
+  });
+});
+
+describe('scenario: "Recycle up to 4 cards from trashes" (Forge of the Future)', () => {
+  const text = 'Recycle up to 4 cards from trashes.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a recycle of up to four chosen cards from any Trash', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([{ op: 'RECYCLE_FROM_TRASHES', count: { min: 0, max: 4 } }]);
+  });
+
+  /** Puts `n` cards of `player`'s deck into their Trash; returns their ids. */
+  function trashSome(sc: Scenario, player: 'p0' | 'p1', n: number): string[] {
+    const ps = sc.state.players[player === 'p0' ? 0 : 1] as GameState['players'][number];
+    const ids = ps.mainDeck.splice(0, n);
+    for (const id of ids) {
+      ps.trash.push(id);
+      (sc.state.objects[id] as CardInstance).zone = { kind: 'trash', player };
+    }
+    return ids;
+  }
+
+  it('only cards in a Trash can be chosen, at most four', () => {
+    // Tests Rule 355.10: every pick must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mine = trashSome(sc, 'p0', 3);
+    const theirs = trashSome(sc, 'p1', 2);
+    const inHand = sc.player('p0').hand[0] as string;
+    const ok = (ids: string[]) => spellTargetsLegal(sc.state, cards, 'p0', effects, ids.map(obj));
+    expect(ok([mine[0] as string, theirs[0] as string])).toBe(true);
+    expect(ok([...mine, ...theirs])).toBe(false); // five cards
+    expect(ok([inHand])).toBe(false); // not in a Trash
+  });
+
+  it("puts every chosen card at the bottom of its owner's Main Deck", () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const mine = trashSome(sc, 'p0', 2);
+    const theirs = trashSome(sc, 'p1', 1);
+    const picked = [...mine, ...theirs];
+    cast(sc, picked.map(obj));
+    for (const id of mine) {
+      expect(sc.obj(id).zone).toMatchObject({ kind: 'mainDeck', player: 'p0' });
+    }
+    // both of p0's cards sit at the very bottom of p0's Main Deck
+    expect(sc.player('p0').mainDeck.slice(-2).sort()).toEqual([...mine].sort());
+    expect(sc.player('p1').mainDeck.at(-1)).toBe(theirs[0]);
+    expect(sc.obj(theirs[0] as string).zone).toMatchObject({ kind: 'mainDeck', player: 'p1' });
+    expect(sc.player('p0').trash).not.toContain(mine[0]);
+    expect(sc.player('p1').trash).not.toContain(theirs[0]);
   });
 });

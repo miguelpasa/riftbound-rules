@@ -101,6 +101,8 @@ interface Spec {
   counterMinPower?: number;
   counterMaxEnergy?: number;
   counterMaxPower?: number;
+  /** Any card in any player's Trash ("cards from trashes"). */
+  trashAny?: boolean;
   /** R75: a card in the controller's Trash: which kind(s) and subtype(s) qualify. */
   trashWhat?: 'unit' | 'gear' | 'unitOrGear' | 'spell';
   /** The chosen card is played (not just returned): a spell must then have a legal set of targets. */
@@ -144,6 +146,7 @@ const isTargeted = (e: CardEffect): e is TargetedEffect =>
   e.op === 'KILL_GEAR' ||
   e.op === 'RETURN_TARGET' ||
   e.op === 'RETURN_FROM_TRASH' ||
+  e.op === 'RECYCLE_FROM_TRASHES' ||
   e.op === 'PLAY_FROM_TRASH' ||
   e.op === 'MOVE_BASE_TARGET' ||
   e.op === 'TAKE_CONTROL' ||
@@ -166,7 +169,9 @@ function specOf(e: TargetedEffect): Spec {
   const kind: TargetKind =
     e.op === 'WEAPONMASTER_EQUIP'
       ? 'equipment'
-      : e.op === 'RETURN_FROM_TRASH' || e.op === 'PLAY_FROM_TRASH'
+      : e.op === 'RETURN_FROM_TRASH' ||
+          e.op === 'PLAY_FROM_TRASH' ||
+          e.op === 'RECYCLE_FROM_TRASHES'
         ? 'trash'
         : e.op === 'KILL_GEAR' ||
             (e.op === 'RETURN_TARGET' && e.gear) ||
@@ -187,6 +192,7 @@ function specOf(e: TargetedEffect): Spec {
     if (e.maxPower !== undefined) spec.counterMaxPower = e.maxPower;
   }
   if (e.op === 'GRANT_TEMPORARY_TARGET' && e.kind) spec.kind = e.kind;
+  if (e.op === 'RECYCLE_FROM_TRASHES') spec.trashAny = true;
   if (e.op === 'RETURN_FROM_TRASH') {
     spec.side = 'friendly';
     spec.trashWhat = e.what;
@@ -393,6 +399,9 @@ function legalForSpec(
       return false;
     }
     return autoPlan(state, cards, controller, weaponmasterCost(state, cards, u, src)) !== null;
+  }
+  if (spec.kind === 'trash' && spec.trashAny) {
+    return u.zone.kind === 'trash' && cards[u.cardId] !== undefined;
   }
   if (spec.kind === 'trash') {
     // R75: a card of the right kind in the controller's own Trash (tokens never reach the Trash).
@@ -783,9 +792,11 @@ export function enumerateSpellTargets(
       const keys = state.battlefields.map((b) => ['bf:' + b.id]);
       return r.kind === 'location' ? [...keys, ['bf:' + BASE_LOCATION]] : keys;
     }
-    const cand = all
+    let cand = all
       .filter((o) => legalForSpec(state, cards, controller, r, o, sourceId, opts.hiddenAt))
       .map((o) => o.id);
+    // "cards from trashes": a whole Trash would make the combinations explode, so offer the first few.
+    if (r.trashAny) cand = cand.slice(0, 8);
     if (!r.count) return cand.map((id) => [id]);
     const out: string[][] = [];
     for (let k = Math.max(1, r.count.min); k <= r.count.max; k++) {
@@ -1701,6 +1712,7 @@ export function runEffects(
       case 'KILL_GEAR':
       case 'RETURN_TARGET':
       case 'RETURN_FROM_TRASH':
+      case 'RECYCLE_FROM_TRASHES':
       case 'PLAY_FROM_TRASH':
       case 'MOVE_BASE_TARGET':
       case 'TAKE_CONTROL':
@@ -1810,6 +1822,13 @@ export function runEffects(
             doneSlots.set(slot, u.controller);
             killGear(state, u, cards);
             out.push({ type: 'GEAR_KILLED', gearId: u.id });
+          } else if (e.op === 'RECYCLE_FROM_TRASHES') {
+            // The card goes to the bottom of its owner's Main Deck.
+            const ps = state.players[playerIndex(u.owner)];
+            ps.trash = ps.trash.filter((x) => x !== u.id);
+            ps.mainDeck.push(u.id);
+            u.zone = { kind: 'mainDeck', player: u.owner };
+            out.push({ type: 'CARDS_RECYCLED', player: u.owner, count: 1 });
           } else if (e.op === 'RETURN_FROM_TRASH') {
             // R75: the Trash card goes to its owner's hand.
             const ps = state.players[playerIndex(u.owner)];
