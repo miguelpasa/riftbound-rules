@@ -4944,6 +4944,16 @@ export function parseCardAbilities(
  * (all-or-nothing, like units). Static and "while you control this battlefield" text stays partial.
  */
 export function parseBattlefieldAbilities(text: string): CardTrigger[] | null {
+  // "When combat starts here, the attacker and defender each <effect>": each of them gets the effect (an
+  // ATTACK trigger for the attacker and a DEFEND trigger for the defender, both controlled by that player).
+  const cs = /^When combat starts here, the attacker and defender each (.+?)\.?\s*$/i.exec(text.trim());
+  if (cs) {
+    const one = parseCardAbilities('When I attack, ' + (cs[1] as string) + '.');
+    const t = one?.triggers[0];
+    if (!one || one.triggers.length !== 1 || one.abilities.length > 0 || !t || t.on !== 'ATTACK')
+      return null;
+    return [t, { ...t, on: 'DEFEND' }];
+  }
   // "At the start of each player's [first] Beginning Phase, that player ...": the active player's turn start.
   const firstTurn = /At the start of each player['’]s first Beginning Phase/i.test(text);
   const rewritten = text
