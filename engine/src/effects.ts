@@ -748,6 +748,25 @@ function sameBattlefieldOk(
   );
 }
 
+/** Is `u` its controller's only unit at its location (one battlefield, or their Base)? */
+function onlyUnitThere(
+  state: GameState,
+  cards: CardDatabase,
+  u: CardInstance | undefined,
+): boolean {
+  if (!u || (u.zone.kind !== 'base' && u.zone.kind !== 'battlefield')) return false;
+  const key = (o: CardInstance): string =>
+    o.zone.kind === 'battlefield' ? o.zone.battlefieldId : 'base';
+  return !Object.values(state.objects).some(
+    (o) =>
+      o.id !== u.id &&
+      o.controller === u.controller &&
+      (o.zone.kind === 'base' || o.zone.kind === 'battlefield') &&
+      isUnitDef(cards[o.cardId]) &&
+      key(o) === key(u),
+  );
+}
+
 /** "With less Might than it": `id` has less Might than `than` (both on the Board). */
 function lessMightOk(
   state: GameState,
@@ -1446,11 +1465,13 @@ export function runEffects(
             mightOf(state.objects[ids[c.slot] ?? ''] as CardInstance) <= c.max
           : c.kind === 'LEGION'
             ? legionActive(state, controller, sourceObjectId)
-            : c.kind === 'TARGET_EMPOWERED'
-              ? state.objects[ids[c.slot] ?? '']?.empowered === true
-              : c.kind === 'OPP_OTHER_SPELL'
-                ? opponentOtherSpells(state, cards, controller, ids[c.slot]) > 0
-                : evalCondition(state, cards, c, controller, sourceObjectId);
+            : c.kind === 'TARGET_ALONE'
+              ? onlyUnitThere(state, cards, state.objects[ids[c.slot] ?? ''])
+              : c.kind === 'TARGET_EMPOWERED'
+                ? state.objects[ids[c.slot] ?? '']?.empowered === true
+                : c.kind === 'OPP_OTHER_SPELL'
+                  ? opponentOtherSpells(state, cards, controller, ids[c.slot]) > 0
+                  : evalCondition(state, cards, c, controller, sourceObjectId);
   let lastDid = true;
   let lastKilled = false;
   /** The tokens the latest PLAY_TOKEN effect made ("ready up to two of them"). */

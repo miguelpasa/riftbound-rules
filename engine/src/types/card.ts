@@ -1038,6 +1038,8 @@ export type Condition =
   | { kind: 'ALL'; conds: Condition[] }
   /** "[Legion] —" on a spell effect (812): the controller has played another card this turn. */
   | { kind: 'LEGION' }
+  /** "if it is the only unit you control there": the unit chosen into target `slot` is its controller's only unit at its location. */
+  | { kind: 'TARGET_ALONE'; slot: number }
   /** "If it's Empowered": the unit chosen into target `slot` is Empowered as the effect resolves. */
   | { kind: 'TARGET_EMPOWERED'; slot: number }
   /** "if an opponent has played another spell this turn": besides the spell chosen into target `slot`, if that is theirs. */

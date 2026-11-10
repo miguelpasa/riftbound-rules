@@ -1117,3 +1117,48 @@ describe('scenario: "Kill it the next time it takes damage this turn. [Legion] â
     expect(enemyZone(true, false)).toBe('trash');
   });
 });
+
+describe('scenario: "Give a friendly unit +1 [M] this turn, then an additional +1 [M] if it is the only unit you control there" (En Garde)', () => {
+  const text =
+    'Give a friendly unit +1 [M] this turn, then an additional +1 [M] this turn if it is the only unit you control there.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads the buff and a second buff gated on the unit being alone', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'BUFF_TARGET', amount: 1, duration: 'TURN', side: 'friendly' },
+      {
+        op: 'BUFF_TARGET',
+        amount: 1,
+        duration: 'TURN',
+        side: 'friendly',
+        when: { kind: 'TARGET_ALONE', slot: 0 },
+      },
+    ]);
+  });
+
+  it('gives +2 to a unit alone at its location and +1 otherwise', () => {
+    // Tests Rule 355.10: the spell resolves its effects in order on the chosen unit
+    const cards = spellWith(effects);
+    const m = (sc: Scenario, id: string) => effectiveMight(sc.state, cards, id, { role: null });
+
+    const alone = Scenario.start({}, cards);
+    const a = alone.putUnit('p0', 'fx-grunt', 'bf0');
+    const before = m(alone, a);
+    cast(alone, [obj(a)]);
+    expect(m(alone, a)).toBe(before + 2);
+
+    const crowded = Scenario.start({}, cards);
+    const b = crowded.putUnit('p0', 'fx-grunt', 'bf0');
+    crowded.putUnit('p0', 'fx-archer', 'bf0');
+    const before2 = m(crowded, b);
+    cast(crowded, [obj(b)]);
+    expect(m(crowded, b)).toBe(before2 + 1);
+
+    const home = Scenario.start({}, cards); // alone in the Base counts as alone there
+    const c = home.putUnit('p0', 'fx-grunt', 'base');
+    const before3 = m(home, c);
+    cast(home, [obj(c)]);
+    expect(m(home, c)).toBe(before3 + 2);
+  });
+});

@@ -1938,6 +1938,22 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     });
     return true;
   }
+  // "an additional +1 [M] this turn if it is the only unit you control there" (En Garde): a gated copy of the buff before.
+  const extra =
+    /^an additional \+(\d+) \[M\] this turn if it is the only unit you control there$/i.exec(sen);
+  if (extra) {
+    const prev = out[out.length - 1];
+    if (prev?.op !== 'BUFF_TARGET' || prev.duration !== 'TURN' || prev.when) return false;
+    out.push({
+      op: 'BUFF_TARGET',
+      amount: Number(extra[1]),
+      duration: 'TURN',
+      ...(prev.side ? { side: prev.side } : {}),
+      ...(prev.slot !== undefined ? { slot: prev.slot } : {}),
+      when: { kind: 'TARGET_ALONE', slot: prev.slot ?? 0 },
+    });
+    return true;
+  }
   // "Swap the Mights of two units at the same battlefield this turn" (Switcheroo).
   if (/^Swap the Mights of two units at the same battlefield this turn$/i.test(sen)) {
     const one: SlotDecl = { side: 'any', atBattlefield: true };
