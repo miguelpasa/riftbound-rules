@@ -32,6 +32,7 @@ import { deriveTurnState } from './chain.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { abilityTargetsLegal, enumerateSpellTargets, spellEffects } from './effects.js';
 import { legionActive } from './keywords.js';
+import { costCardsPayable } from './costCards.js';
 import { itemSourceId } from './sources.js';
 import { isDeployGear } from './tokens.js';
 import { evalCondition } from './conditions.js';
@@ -746,7 +747,14 @@ export function allowedModes(state: GameState, cards: CardDatabase, item: ChainI
     trig.modeOnce && src?.modesUsed?.turn === state.turn.number
       ? (src.modesUsed.used[item.triggerIndex ?? 0] ?? [])
       : [];
-  return trig.modes.map((_, k) => k).filter((k) => !used.includes(k));
+  return trig.modes
+    .map((_, k) => k)
+    .filter((k) => !used.includes(k))
+    .filter((k) => {
+      // "Spend my buff to ready me": a mode whose card cost cannot be paid cannot be chosen.
+      const cc = trig.modeOptional?.[k]?.card;
+      return !cc || costCardsPayable(state, cards, item.controller, item.sourceObjectId, cc);
+    });
 }
 
 /** The effects of the triggered or activated ability behind a Chain item (undefined for others). */

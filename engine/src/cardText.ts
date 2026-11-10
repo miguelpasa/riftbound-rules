@@ -4078,7 +4078,7 @@ function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest:
   // "Recycle me to <effect>" (Ekko) is an optional cost without the words "you may".
   const first0 = sens[0];
   const first =
-    first0 !== undefined && /^(?:recycle|exhaust) (?:me|this) to /i.test(first0)
+    first0 !== undefined && /^(?:(?:recycle|exhaust) (?:me|this)|spend my buff) to /i.test(first0)
       ? 'You may ' + first0
       : first0;
   const may = first === undefined ? null : /^you may (.+)$/i.exec(first);
@@ -4323,7 +4323,13 @@ function parseModes(
     if (!eff) {
       // "Pay [C] to draw 1" = "you may pay [C] to draw 1".
       const pay = /^pay (.+)$/i.exec(sens[0] ?? '');
-      const opt = pay ? splitOptional([`you may pay ${pay[1] as string}`, ...sens.slice(1)]) : null;
+      // "Spend my buff to ready me" = "you may spend my buff to ready me" (Riven).
+      const spend = /^spend my buff to .+$/i.test(sens[0] ?? '');
+      const opt = pay
+        ? splitOptional([`you may pay ${pay[1] as string}`, ...sens.slice(1)])
+        : spend
+          ? splitOptional([`you may ${sens[0] as string}`, ...sens.slice(1)])
+          : null;
       eff = opt ? parseEffectSentences(opt.rest) : null;
       cost = opt?.optional;
     }
