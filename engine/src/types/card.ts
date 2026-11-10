@@ -1406,7 +1406,9 @@ export interface EquipCost {
   energyReducedByMight?: boolean;
   /** "[Equip] — Spend N XP". */
   xp?: number;
-  /** Printed non-resource cost part (kill a unit, recycle, spend XP, ...); NOT enforced yet. */
+  /** "[Equip] — [C], Kill a friendly unit": the card-choice part of the cost, paid with `EquipIntent.costCards`. */
+  card?: CostCardChoice;
+  /** Printed non-resource cost part that is not understood (kept so the card stays partial). */
   nonResource?: string;
 }
 

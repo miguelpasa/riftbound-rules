@@ -78,6 +78,8 @@ export interface EquipIntent extends IntentBase {
   type: 'EQUIP';
   equipmentId: string;
   unitId: string;
+  /** The cards that pay a card-choice Equip cost (`EquipCost.card`). */
+  costCards?: string[];
 }
 /** Turn player's answer to flow.pendingChoice: begin this battlefield's Showdown/Combat first. */
 export interface ChooseStagedIntent extends IntentBase {

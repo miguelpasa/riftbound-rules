@@ -57,6 +57,7 @@ import type {
   Target,
 } from './types/index.js';
 import { clearBoardState } from './zoneReset.js';
+import { costCardsLegal, payCostCards } from './costCards.js';
 
 // ---------------------------------------------------------------- helpers
 
@@ -426,6 +427,21 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   if (xpCost > 0 && (state.players[playerIndex(pid)]?.xp ?? 0) < xpCost) {
     return ruleError('INSUFFICIENT_RESOURCES', `not enough XP (need ${xpCost})`);
   }
+  // "[Equip] — [C], Kill a friendly unit": the chosen cards are checked before anything is paid.
+  const costCard = eqDef.equipCost?.card;
+  if (costCard) {
+    if (intent.costCards === undefined) {
+      return ruleError('MISSING_TARGET', 'choose the cards that pay the Equip cost');
+    }
+    if (
+      intent.costCards.includes(unit.id) ||
+      !costCardsLegal(state, cards, pid, eq.id, costCard, intent.costCards)
+    ) {
+      return ruleError('ILLEGAL_TARGET', 'those cards cannot pay the Equip cost');
+    }
+  } else if (intent.costCards !== undefined && intent.costCards.length > 0) {
+    return ruleError('ILLEGAL_TARGET', 'this Equip has no card cost');
+  }
   const cost = equipTotalCost(state, cards, eqDef, unit);
   const plan = autoPlan(state, cards, pid, cost);
   if (!plan) return ruleError('INSUFFICIENT_RESOURCES', 'cannot pay Equip');
@@ -434,6 +450,10 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
   // 151.2.a / 402.1: activating puts the ability on the Chain; the opponent may respond with a
   // Reaction. The attachment happens when it resolves (see `playResolver`).
   const work = paid.state;
+  const costEvents =
+    costCard && intent.costCards
+      ? stampEvents(work, payCostCards(work, cards, pid, eq.id, costCard, intent.costCards))
+      : [];
   if (xpCost > 0) {
     const seat = work.players[playerIndex(pid)] as GameState['players'][number];
     seat.xp = (seat.xp ?? 0) - xpCost;
@@ -448,7 +468,9 @@ export function equip(state: GameState, cards: CardDatabase, intent: EquipIntent
     choices: {},
     abilityIndex: EQUIP_ABILITY_INDEX,
   };
-  return finalizeAndSettle(pushPendingItem(work, item), cards, item.id);
+  const settled = finalizeAndSettle(pushPendingItem(work, item), cards, item.id);
+  if (!settled.ok) return settled;
+  return { ok: true, state: settled.state, events: [...costEvents, ...settled.events] };
 }
 
 /**

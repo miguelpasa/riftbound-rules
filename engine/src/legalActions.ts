@@ -344,7 +344,16 @@ function equipCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): 
   for (const g of gear) {
     for (const u of units) {
       if (g.attachedTo === u.id) continue;
-      out.push({ type: 'EQUIP', playerId: pid, equipmentId: g.id, unitId: u.id });
+      const costCard = cards[g.cardId]?.equipCost?.card;
+      if (!costCard) {
+        out.push({ type: 'EQUIP', playerId: pid, equipmentId: g.id, unitId: u.id });
+        continue;
+      }
+      // A card-choice Equip cost: one candidate per choice of cards (never the unit being equipped).
+      for (const costCards of costCardCombos(state, cards, pid, g.id, costCard)) {
+        if (costCards.includes(u.id)) continue;
+        out.push({ type: 'EQUIP', playerId: pid, equipmentId: g.id, unitId: u.id, costCards });
+      }
     }
   }
   return out;

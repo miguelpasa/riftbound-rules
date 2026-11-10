@@ -3665,7 +3665,7 @@ function parseCostCardAt(s: string): { cc: CostCardChoice; len: number } | null 
 }
 
 /** A whole string that is exactly one card-choice cost phrase. */
-function parseCostCard(part: string): CostCardChoice | null {
+export function parseCostCard(part: string): CostCardChoice | null {
   const t = part.trim();
   const r = parseCostCardAt(t);
   return r && r.len === t.length ? r.cc : null;

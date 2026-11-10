@@ -144,12 +144,12 @@ describe('parseEquipCost (Rule 818)', () => {
       anyPower: 0,
     });
   });
-  it('flags non-resource parts and the Might reduction', () => {
-    expect(parseEquipCost('[Equip] — [C], Kill a friendly unit (Pay the cost: Attach)')).toEqual({
+  it('flags unknown non-resource parts and reads the Might reduction', () => {
+    expect(parseEquipCost('[Equip] — [C], Sacrifice a goat (Pay the cost: Attach)')).toEqual({
       energy: 0,
       power: 1,
       anyPower: 0,
-      nonResource: 'Kill a friendly unit',
+      nonResource: 'Sacrifice a goat',
     });
     expect(
       parseEquipCost(
@@ -162,9 +162,7 @@ describe('parseEquipCost (Rule 818)', () => {
       energyReducedByMight: true,
     });
     expect(parseEquipCost('[Equip] — Spend 1 XP (Pay the cost: Attach)')).toMatchObject({ xp: 1 });
-    expect(parseEquipCost('[Equip] — [C], Kill a friendly unit')?.nonResource).toBe(
-      'Kill a friendly unit',
-    );
+    expect(parseEquipCost('[Equip] — [C], Sacrifice a goat')?.nonResource).toBe('Sacrifice a goat');
     expect(parseEquipCost('[Tank]')).toBeUndefined();
   });
 });
@@ -600,5 +598,40 @@ describe('reminder tokens (Buff, XP Tracker)', () => {
       }),
     ).card;
     expect(card?.supportLevel).toBe('partial');
+  });
+});
+
+describe('Equip with a card-choice cost (Blade of the Ruined King, Last Rites)', () => {
+  // Tests: the Equip line's card part is read onto the card instead of being left unenforced
+  it('reads "[C], Kill a friendly unit" and "[C], Recycle 2 cards from your trash"', () => {
+    expect(parseEquipCost('[Equip] — [C], Kill a friendly unit')).toEqual({
+      energy: 0,
+      power: 1,
+      anyPower: 0,
+      card: { kind: 'KILL', what: 'unit' },
+    });
+    expect(parseEquipCost('[Equip] — [C], Recycle 2 cards from your trash')).toEqual({
+      energy: 0,
+      power: 1,
+      anyPower: 0,
+      card: { kind: 'RECYCLE', count: 2 },
+    });
+  });
+
+  // Tests: such a gear converts as fully supported
+  it('marks the gear full and stores the cost', () => {
+    const { card } = convertRow(
+      row({
+        cardType: 'Gear',
+        cardTypeLabels: ['Gear', 'Equipment'],
+        name: 'Blade of the Ruined King',
+        fullName: 'Blade of the Ruined King',
+        might: null,
+        abilityEffective:
+          '[Equip] — [C], Kill a friendly unit (Pay the cost: Attach this to a unit you control.)',
+      }),
+    );
+    expect(card?.supportLevel).toBe('full');
+    expect(card?.equipCost?.card).toEqual({ kind: 'KILL', what: 'unit' });
   });
 });

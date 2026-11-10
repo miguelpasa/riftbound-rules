@@ -14,6 +14,7 @@ import {
   parseFlowCost,
   parseModalSpell,
   parseOptionalAdditionalCost,
+  parseCostCard,
   parsePlayTo,
   takeUnlimitedCopies,
   parseStaticLines,
@@ -268,7 +269,15 @@ export function parseEquipCost(text: string): EquipCost | undefined {
     cost.xp = Number(spendXp[1]);
     any = true;
   } else if (rest && !/^Pay the cost/i.test(rest)) {
-    cost.nonResource = rest.replace(/[.\s]+$/, '');
+    const phrase = rest.replace(/[.\s]+$/, '');
+    // "Kill a friendly unit" / "Recycle 2 cards from your trash": a card-choice cost the engine enforces.
+    const card = parseCostCard(phrase);
+    if (card) {
+      cost.card = card;
+      any = true;
+    } else {
+      cost.nonResource = phrase;
+    }
   }
   if (!any && !cost.nonResource) return undefined;
   return cost;
@@ -485,6 +494,14 @@ export function convertRow(row: RawRow): ConvertResult {
       if (parsed.triggers.length > 0) card.triggers = parsed.triggers;
       if (parsed.abilities.length > 0) card.abilities = parsed.abilities;
       card.supportLevel = 'full';
+    }
+  }
+  // An Equipment whose only text is an Equip line with a card-choice cost (Last Rites, Blade of the Ruined King).
+  if (type === 'GEAR' && card.supportLevel === 'partial') {
+    const eqLine = parseEquipCost(text);
+    if (eqLine?.card && !eqLine.nonResource && keywords.every((k) => MVP_SET.has(k.name))) {
+      const left = stripReminders(text.replace(/(?:^|\n)[ \t]*\[Equip\][^\n]*/i, '\n'));
+      if (!/[A-Za-z0-9]/.test(left)) card.supportLevel = 'full';
     }
   }
   // R44: Battlefield cards whose every sentence is a "When you hold / conquer / defend / attack here" trigger.
