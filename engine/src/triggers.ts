@@ -80,6 +80,7 @@ function playMatches(
   cardId: string,
   player: PlayerId,
   fromFacedown = false,
+  fromElsewhere = false,
 ): boolean {
   if (!f) return true;
   const def = cards[cardId];
@@ -92,6 +93,7 @@ function playMatches(
     if (!rec || rec.turn !== state.turn.number || rec.objectIds.length !== f.nth) return false;
   }
   if (f.fromFacedown && !fromFacedown) return false;
+  if (f.fromElsewhere && !fromElsewhere) return false;
   if (f.token) return false; // token plays are matched separately (TOKEN_PLAYED)
   if (f.onOpponentTurn && state.turn.activePlayer === player) return false;
   if (f.inShowdown && !state.flow.showdown) return false;
@@ -193,7 +195,15 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         cards[src.cardId]?.triggers?.forEach((t, index) => {
           if (
             t.on !== 'YOU_PLAY' ||
-            !playMatches(state, cards, t.playFilter, e.cardId, e.player, e.fromFacedown === true)
+            !playMatches(
+              state,
+              cards,
+              t.playFilter,
+              e.cardId,
+              e.player,
+              e.fromFacedown === true,
+              e.fromElsewhere === true,
+            )
           )
             return;
           if (t.when && !evalCondition(state, cards, t.when, e.player, src.id)) return;

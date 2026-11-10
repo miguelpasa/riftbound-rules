@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { effectiveMight } from '../combat.js';
-import { parseCardAbilities } from '../cardText.js';
+import { parseCardAbilities, parseSpellText } from '../cardText.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
 const text = 'When you play me or another Dragon, give me +2 [M] this turn.';
@@ -61,5 +61,47 @@ describe('scenario: a play trigger filtered by unit type (Dragon)', () => {
     sc.giveRunes('p0', 8);
     const me = playUnit(sc, 'fx-ash-tank');
     expect(mightOf(sc, me)).toBe(((cards['fx-ash-tank'] as CardDef).stats.might ?? 0) + 2);
+  });
+});
+
+describe('scenario: "When you play a card from anywhere other than your hand, empower me" (Heart of the Tempest)', () => {
+  const text = 'When you play a card from anywhere other than your hand, empower me.';
+  const triggers = parseCardAbilities(text)?.triggers ?? [];
+
+  it('reads a play trigger for cards that did not come from the hand', () => {
+    // Tests Rule 303: parsed trigger text
+    expect(triggers).toMatchObject([
+      { on: 'YOU_PLAY', playFilter: { fromElsewhere: true }, effects: [{ op: 'EMPOWER_SELF' }] },
+    ]);
+  });
+
+  it('fires for a unit played from the Trash by an effect, not for a card played from the hand', () => {
+    // Tests Rule 303: a triggered ability fires on its event
+    const playFromTrash = parseSpellText('Play a unit from your trash, ignoring its cost.') ?? [];
+    const cards: CardDatabase = {
+      ...SCENARIO_CARDS,
+      'fx-ash-tank': { ...def('fx-ash-tank'), triggers },
+      'fx-flare': { ...def('fx-flare'), supportLevel: 'partial', effects: playFromTrash },
+    };
+    const sc = Scenario.start({}, cards);
+    sc.giveRunes('p0', 8);
+    const watcher = sc.putUnit('p0', 'fx-ash-tank', 'base');
+    expect(sc.obj(watcher).empowered).toBeFalsy();
+    playUnit(sc, 'fx-grunt'); // from the hand
+    expect(sc.obj(watcher).empowered).toBeFalsy();
+
+    // put a unit into the Trash and play it back with the spell
+    const dead = sc.putInHand('p0', 'fx-archer');
+    const ps = sc.state.players[0] as { hand: string[]; trash: string[] };
+    ps.hand = ps.hand.filter((x) => x !== dead);
+    ps.trash.push(dead);
+    (sc.state.objects[dead] as { zone: unknown }).zone = { kind: 'trash', player: 'p0' };
+    const flare = sc.putInHand('p0', 'fx-flare');
+    sc.play('p0', flare, {
+      payment: sc.exhaustPlan('p0', 1),
+      targets: [{ kind: 'object', id: dead }],
+    });
+    settle(sc);
+    expect(sc.obj(watcher).empowered).toBe(true);
   });
 });

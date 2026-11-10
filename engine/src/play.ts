@@ -707,6 +707,7 @@ export function playCard(
     cardId: obj.cardId,
     ...(paidExtra ? { paidExtra: true } : {}),
     ...(obj.faceDownPlay ? { fromFacedown: true } : {}),
+    ...(flow ? { fromElsewhere: true } : {}),
   });
   delete obj.faceDownPlay;
   if (def.type === 'SPELL' && hooks?.hiddenAt) obj.playedHow = 'FACEDOWN';

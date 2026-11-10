@@ -1174,6 +1174,7 @@ export function playByEffect(
   opts: { power?: boolean; reduceEnergy?: number; recycleAfter?: boolean; at?: string },
   out: GameEventInput[],
 ): boolean {
+  const fromHand = u.zone.kind === 'hand';
   // X5 (560.1.a, 595.3): played by an effect with every cost set to zero ("ignoring its cost"), or with only the
   // Energy cost set to zero ("ignoring its Energy cost"): the Power cost is paid first, with the automatic plan.
   if (opts.power || opts.reduceEnergy !== undefined) {
@@ -1240,6 +1241,7 @@ export function playByEffect(
       player: controller,
       cardInstanceId: u.id,
       cardId: u.cardId,
+      ...(fromHand ? {} : { fromElsewhere: true }),
     });
     return true;
   }
@@ -1266,6 +1268,7 @@ export function playByEffect(
     player: controller,
     cardInstanceId: u.id,
     cardId: u.cardId,
+    ...(fromHand ? {} : { fromElsewhere: true }),
   });
 
   return true;
@@ -1641,6 +1644,7 @@ export function runEffects(
           player: me.owner,
           cardInstanceId: me.id,
           cardId: me.cardId,
+          fromElsewhere: true,
         });
         break;
       }
@@ -1926,6 +1930,7 @@ export function runEffects(
               player: u.owner,
               cardInstanceId: u.id,
               cardId: u.cardId,
+              fromElsewhere: true,
             });
           } else if (e.op === 'MOVE_BASE_TARGET') {
             moveToBase(state, u, out);

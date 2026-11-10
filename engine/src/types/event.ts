@@ -24,6 +24,8 @@ export type GameEvent = EventBase &
         paidExtra?: boolean;
         /** R100: the card was played from face down (a Hidden card revealed). */
         fromFacedown?: boolean;
+        /** The card was played from somewhere other than its owner's hand (the Trash, banishment, ...). */
+        fromElsewhere?: boolean;
       }
     | { type: 'CARD_HIDDEN'; player: PlayerId; battlefieldId: string }
     | { type: 'FACEDOWN_REMOVED'; battlefieldId: string; cardId: string }

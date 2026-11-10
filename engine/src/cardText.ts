@@ -3930,7 +3930,7 @@ const OR_WHEN: Record<string, TriggerKind> = {
 
 /** R49: "When you play [another] a spell / unit / gear / card [that costs [N] or more] [on an opponent's turn]". */
 const PLAY_HEAD =
-  /^When you play (?:(another) )?(?:an? )?(\[Mighty\] )?(card from face down|card|spell|unit|gear|token unit)(?: (?:that costs|with Energy cost) \[(\d+)\] or more| with Power cost ((?:\[A\])+) or more)?( on an opponent's turn| during a showdown)?\s*,\s*(.+)$/i;
+  /^When you play (?:(another) )?(?:an? )?(\[Mighty\] )?(card from face down|card from anywhere other than your hand|card|spell|unit|gear|token unit)(?: (?:that costs|with Energy cost) \[(\d+)\] or more| with Power cost ((?:\[A\])+) or more)?( on an opponent's turn| during a showdown)?\s*,\s*(.+)$/i;
 /** R99: "When you play your second card in a turn, ..." */
 const PLAY_NTH_HEAD = /^When you play your (second|third) card in a turn\s*,\s*(.+)$/i;
 
@@ -3964,6 +3964,7 @@ function parsePlayHead(
   const kind = (m[3] ?? '').toLowerCase();
   if (kind === 'token unit') filter.token = true;
   else if (kind === 'card from face down') filter.fromFacedown = true;
+  else if (kind === 'card from anywhere other than your hand') filter.fromElsewhere = true;
   else if (kind !== 'card') filter.type = kind.toUpperCase() as 'SPELL' | 'UNIT' | 'GEAR';
   if (m[1]) filter.other = true;
   if (m[2]) filter.mighty = true;

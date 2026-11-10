@@ -1217,6 +1217,8 @@ export interface PlayFilter {
   minEnergy?: number;
   /** R100: "When you play a card from face down". */
   fromFacedown?: boolean;
+  /** "When you play a card from anywhere other than your hand". */
+  fromElsewhere?: boolean;
   /** R99: "with Power cost [A][A] or more": the printed generic Power cost. */
   minPower?: number;
   /** R99: "a token unit": fires when a token unit is played by an effect (never for cards). */
