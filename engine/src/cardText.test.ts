@@ -806,9 +806,9 @@ describe('card-choice costs (R46)', () => {
     });
   });
 
-  it('a Deathknell that says "here" stays partial (the place of death is not kept)', () => {
-    // Tests Rule 473.2: partially understood text is never half-executed
-    expect(parseCardAbilities('[Deathknell][>] You may kill a unit or gear here.')).toBeNull();
+  it('a Deathknell that says "here" reads it as the place of death', () => {
+    // Tests Rule 323.4: the location is read as the unit died
+    expect(parseCardAbilities('[Deathknell][>] You may kill a unit or gear here.')).not.toBeNull();
     expect(parseCardAbilities('[Deathknell][>] Kill a unit or gear.')?.triggers).toHaveLength(1);
   });
 

@@ -69,6 +69,8 @@ interface Pending {
   at?: string;
   /** The source token has left the game (Bomb): its card id is read from the Chain item's `sourceCardId`. */
   ghost?: boolean;
+  /** A Deathknell: where the unit died ('base' or a battlefield id), the "here" of its effects. */
+  diedAt?: string;
 }
 
 const onBoard = (o: CardInstance): boolean =>
@@ -122,6 +124,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
   let facedownPlay = false;
   let diedAlone: boolean | undefined;
   let diedMighty = false;
+  let diedAt: string | undefined;
   /** The battlefield of the BATTLEFIELD_SCORED event being collected ("at that battlefield"). */
   let scoredAt: string | undefined;
   const batchSeen = new Set<string>();
@@ -163,6 +166,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         battlefield: false,
         index,
         controller,
+        ...(diedAt !== undefined && kind === 'DEATH' ? { diedAt } : {}),
         ...(subject !== undefined ? { subject } : {}),
         ...(scoredAt !== undefined && t.when?.kind === 'COUNT' && t.when.where === 'scored'
           ? { at: scoredAt }
@@ -307,6 +311,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
       if (o && o.zone.kind === 'trash') {
         diedAlone = e.alone === true;
         diedMighty = e.mighty === true;
+        diedAt = e.at ?? 'base';
         add(o, 'DEATH', o.owner, (t) => !t.inCombat || e.inCombat === true);
         // Karthus: "Your [Deathknell] effects trigger an additional time" (not the "die in combat" form).
         const doubles = Object.values(state.objects).some(
@@ -318,6 +323,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         if (doubles) add(o, 'DEATH', o.owner, (t) => !t.inCombat);
         diedAlone = undefined;
         diedMighty = false;
+        diedAt = undefined;
       }
       // R71: "When a friendly / an enemy unit dies" fires for the permanents on the board.
       const dead = cards[e.cardId ?? o?.cardId ?? ''];
@@ -590,6 +596,17 @@ export function fireTriggers(
   for (const p of ordered) {
     const tdef = cards[p.cardId]?.triggers?.[p.index];
     const effects = tdef?.effects;
+    // A Deathknell's "here" is where the unit died: its object is already in the Trash, so remember the spot.
+    if (p.diedAt !== undefined && !p.battlefield) {
+      s.lki = {
+        ...(s.lki ?? {}),
+        [p.sourceId]: {
+          cardId: p.cardId,
+          controller: p.controller,
+          at: p.diedAt === 'base' ? null : p.diedAt,
+        },
+      };
+    }
     // X-modes: a "choose one —" ability always asks for its mode (and that mode's targets) when put on the Chain.
     const modal = tdef?.modes !== undefined;
     if (modal) {

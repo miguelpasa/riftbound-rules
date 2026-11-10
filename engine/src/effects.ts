@@ -536,7 +536,12 @@ function legalForSpec(
     if (spec.here) {
       // R44: "here" is the source's battlefield, or the Battlefield card's own battlefield.
       const here = hereOfSource(state, sourceId);
-      if (here === null || u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== here) {
+      const diedInBase = here === null && state.lki?.[sourceId]?.at === null;
+      if (diedInBase) {
+        // A Deathknell source that died in a Base: "here" is that Base.
+        const home = state.lki?.[sourceId]?.controller;
+        if (u.zone.kind !== 'base' || u.zone.player !== home) return false;
+      } else if (here === null || u.zone.kind !== 'battlefield' || u.zone.battlefieldId !== here) {
         return false;
       }
     }

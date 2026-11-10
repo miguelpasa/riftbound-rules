@@ -315,8 +315,8 @@ describe('parser: R42 sentence shapes', () => {
     expect(parseCardAbilities('This enters exhausted.', { gearLike: false })).toBeNull();
     // Scopes cannot ride on gear choosers
     expect(parseCardAbilities('When I attack, kill a gear here.')).toBeNull();
-    // Mournful Spirit's "unit or gear" choice is not modelled
-    expect(parseCardAbilities('[Deathknell][>] You may kill a unit or gear here.')).toBeNull();
+    // Mournful Spirit: a Deathknell's "here" is where the unit died (see deathknellHere.test.ts)
+    expect(parseCardAbilities('[Deathknell][>] You may kill a unit or gear here.')).not.toBeNull();
   });
 });
 

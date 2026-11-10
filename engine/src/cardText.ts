@@ -4874,15 +4874,6 @@ export function parseCardAbilities(
     ) {
       return null;
     }
-    // R46: a Deathknell's "here" would be where the unit died, which the engine does not keep (the
-    // object is already in the Trash): such a card stays partial rather than silently doing nothing.
-    if (
-      g.kind === 'trigger' &&
-      g.ons.includes('DEATH') &&
-      (optional?.card?.here || JSON.stringify(effects).includes('"here":true'))
-    ) {
-      return null;
-    }
     if (g.kind === 'ability') {
       // An Action-speed [Add] ability is not a mana ability (UNCLEAR): keep such cards partial.
       if (g.action && effects.every((e) => e.op === 'ADD_ENERGY' || e.op === 'ADD_POWER'))

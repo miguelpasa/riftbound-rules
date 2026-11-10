@@ -15,8 +15,11 @@ export function hereOfSource(
   sourceId: string,
 ): string | null {
   const o: CardInstance | undefined = state.objects[sourceId];
-  if (o) return o.zone.kind === 'battlefield' ? o.zone.battlefieldId : null;
   const ghost = (state as Pick<GameState, 'lki'>).lki?.[sourceId];
+  if (o && o.zone.kind === 'battlefield') return o.zone.battlefieldId;
+  // A Deathknell source sits in the Trash: "here" is where it died (last known information).
+  if (o && o.zone.kind !== 'base' && ghost) return ghost.at;
+  if (o) return null;
   if (ghost) return ghost.at;
   return state.battlefields.some((b) => b.id === sourceId) ? sourceId : null;
 }
