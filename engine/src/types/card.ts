@@ -248,6 +248,8 @@ type CardEffectCore =
         | 'SLOT_MIGHT'
         /** "damage equal to its Energy cost": the printed Energy cost of the chosen gear (target slot `amountSlot`). */
         | 'SLOT_ENERGY'
+        /** "damage equal to that unit's Might": the unit this spell showed off (Primordial Roar). */
+        | 'SHOWN_MIGHT'
         /** "damage equal to its [Shield]": the total Shield of the chosen unit (target slot `amountSlot`), counting grants. */
         | 'SLOT_SHIELD'
         /** "damage equal to the damage marked on it" (Morgana): read from each target as the damage is dealt. */

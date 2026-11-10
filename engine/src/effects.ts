@@ -1438,6 +1438,13 @@ export function runEffects(
         .filter((k) => k.name === 'Shield')
         .reduce((n, k) => n + (k.value ?? 1), 0);
     }
+    if (e.amountFrom === 'SHOWN_MIGHT') {
+      const shown = state.objects[state.objects[sourceObjectId]?.showedOff ?? ''];
+      if (!shown) return 0;
+      return shown.zone.kind === 'base' || shown.zone.kind === 'battlefield'
+        ? Math.max(0, effectiveMight(state, cards, shown.id, { role: null }))
+        : (cards[shown.cardId]?.stats.might ?? 0);
+    }
     if (e.amountFrom === 'SLOT_ENERGY') {
       const id = e.amountSlot === undefined ? undefined : ids[e.amountSlot];
       const gear = id ? state.objects[id] : undefined;

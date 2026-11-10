@@ -989,6 +989,24 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  // "Deal damage equal to that unit's Might to a unit" (Primordial Roar): the unit this spell showed off.
+  m = new RegExp(
+    `^Deal damage equal to that unit['’]s Might to an? ${SIDE}unit( at a battlefield)?$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: {
+        op: 'DAMAGE_TARGET',
+        amount: 0,
+        amountFrom: 'SHOWN_MIGHT',
+        ...sideProp(s),
+        ...(m[2] ? { atBattlefield: true } : {}),
+      },
+      decl: { side: s ?? 'any', ...(m[2] ? { atBattlefield: true } : {}) },
+    };
+  }
   // "Deal N to up to three units at the same location" (Bellows Breath): they share a battlefield or a Base.
   m = /^Deal (\d+) to up to (two|three|2|3) units at the same location$/i.exec(sen);
   if (m) {
@@ -3387,6 +3405,16 @@ function parseEffectSentences(sens: readonly string[]): CardEffect[] | null {
       const last = out[out.length - 1];
       if (last?.op !== 'STUN_TARGET' || last.orReturn) return null;
       last.orReturn = true;
+      continue;
+    }
+    // "If you showed off [a unit], <effect>": the effect works only when this spell showed a card off.
+    const so = /^If you showed off(?: an? (?:unit|card|gear))?, (.+)$/i.exec(list[i] as string);
+    if (so) {
+      const before = out.length;
+      if (!parseSpellSentence(so[1] as string, st, out)) return null;
+      for (let k = before; k < out.length; k++) {
+        (out[k] as CardEffect).when = { kind: 'SHOWED_OFF' };
+      }
       continue;
     }
     // "[Level N][>] <effect>": the effect works only while its controller has N or more XP.
