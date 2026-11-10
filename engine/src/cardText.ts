@@ -909,6 +909,21 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  // "Deal N to up to three units at the same location" (Bellows Breath): they share a battlefield or a Base.
+  m = /^Deal (\d+) to up to (two|three|2|3) units at the same location$/i.exec(sen);
+  if (m) {
+    const max = /^(?:three|3)$/i.test(m[2] ?? '') ? 3 : 2;
+    return {
+      effect: {
+        op: 'DAMAGE_TARGET',
+        amount: Number(m[1]),
+        sameLocation: true,
+        count: { min: 0, max },
+      },
+      decl: { side: 'any' },
+      multi: true,
+    };
+  }
   m = new RegExp(
     `^Deal (\\d+) to each of up to ${TWO} ${SIDE}units( at a battlefield)?$`,
     'i',

@@ -229,6 +229,8 @@ type CardEffectCore =
       split?: boolean;
       /** X1: all chosen units must be at the same battlefield ("units at a single battlefield"). */
       sameBattlefield?: boolean;
+      /** "units at the same location": all chosen units share one battlefield or one Base. */
+      sameLocation?: boolean;
       /** R74: "damage equal to my Might / [Assault] / [Shield]": read from the source when the effect runs (amount is 0). */
       amountFrom?:
         | 'MY_MIGHT'

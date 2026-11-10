@@ -89,6 +89,8 @@ interface Spec {
   movedThisTurn?: boolean;
   /** X1: every pick must be at one battlefield. */
   sameBattlefield?: boolean;
+  /** X1: every pick must share one location (a battlefield, or the same player's Base). */
+  sameLocation?: boolean;
   /** Gear only: Energy cost at most this. */
   maxEnergy?: number;
   /** R80: a countered spell's printed cost limits. */
@@ -200,6 +202,7 @@ function specOf(e: TargetedEffect): Spec {
   if ((e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET') && e.inBase) spec.inBase = true;
   if ((e.op === 'STUN_TARGET' || e.op === 'MOVE_BASE_TARGET') && e.attacking) spec.attacking = true;
   if (e.op === 'DAMAGE_TARGET' && e.sameBattlefield) spec.sameBattlefield = true;
+  if (e.op === 'DAMAGE_TARGET' && e.sameLocation) spec.sameLocation = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
   if (e.op === 'KILL_TARGET' && e.lessMightThanSlot !== undefined) {
     spec.lessMightThanSlot = e.lessMightThanSlot;
@@ -523,6 +526,19 @@ function splitDamage(
 }
 
 /** X1: do all of these objects stand at one and the same battlefield? */
+/** Do all these units share one location: one battlefield, or one player's Base? */
+function oneLocation(state: GameState, ids: readonly string[]): boolean {
+  let key: string | null = null;
+  for (const id of ids) {
+    const z = state.objects[id]?.zone;
+    if (!z || (z.kind !== 'battlefield' && z.kind !== 'base')) return false;
+    const k = z.kind === 'battlefield' ? z.battlefieldId : 'base:' + z.player;
+    if (key !== null && key !== k) return false;
+    key = k;
+  }
+  return true;
+}
+
 function oneBattlefield(state: GameState, ids: readonly string[]): boolean {
   let bf: string | null = null;
   for (const id of ids) {
@@ -621,6 +637,7 @@ export function spellTargetsLegal(
     const max = r.count ? r.count.max : 1;
     if (picks.length < min || picks.length > max) return false;
     if (r.sameBattlefield && !oneBattlefield(state, picks)) return false;
+    if (r.sameLocation && !oneLocation(state, picks)) return false;
     for (const id of picks) {
       if (
         seen.has(id) ||
@@ -721,7 +738,11 @@ export function enumerateSpellTargets(
     for (let k = Math.max(1, r.count.min); k <= r.count.max; k++) {
       if (cand.length >= k) {
         out.push(
-          ...combinations(cand, k).filter((c) => !r.sameBattlefield || oneBattlefield(state, c)),
+          ...combinations(cand, k).filter(
+            (c) =>
+              (!r.sameBattlefield || oneBattlefield(state, c)) &&
+              (!r.sameLocation || oneLocation(state, c)),
+          ),
         );
       }
     }

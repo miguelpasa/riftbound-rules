@@ -528,3 +528,43 @@ describe('scenario: "increase its Might to the Might of another friendly unit" (
     expect(spellTargetsLegal(sc.state, cards, 'p0', effects, [obj(a), obj(foe)])).toBe(false);
   });
 });
+
+describe('scenario: "Deal 1 to up to three units at the same location" (Bellows Breath)', () => {
+  const text = 'Deal 1 to up to three units at the same location.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads up to three units that must share a location', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'DAMAGE_TARGET', amount: 1, sameLocation: true, count: { min: 0, max: 3 } },
+    ]);
+  });
+
+  it('units in one Base or at one battlefield share a location; others do not', () => {
+    // Tests Rule 355.10: every pick must meet the spell's requirements together
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const a = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const b = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const c = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    const ok = (ids: string[]) => spellTargetsLegal(sc.state, cards, 'p0', effects, ids.map(obj));
+    expect(ok([a, b])).toBe(true); // the same Base
+    expect(ok([a, c])).toBe(false); // a Base and a battlefield
+    expect(ok([a, mine])).toBe(false); // two different Bases
+    expect(ok([c])).toBe(true);
+  });
+
+  it('damages every chosen unit', () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const a = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    const b = sc.putUnit('p1', 'fx-tide-grunt', 'base');
+    sc.state.objects[a]!.mightBonus = 9;
+    sc.state.objects[b]!.mightBonus = 9;
+    cast(sc, [obj(a), obj(b)]);
+    expect(sc.obj(a).damage).toBe(1);
+    expect(sc.obj(b).damage).toBe(1);
+  });
+});
