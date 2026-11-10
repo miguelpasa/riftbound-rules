@@ -161,6 +161,8 @@ export interface PlayerState {
     power?: number;
     /** Battlefields this player conquered this turn (a cost reduction counts them). */
     conquered?: number;
+    /** Which battlefields those were ("play me only to a battlefield you conquered this turn"). */
+    conqueredAt?: string[];
     /** Points this player scored from holding this turn (a cost reduction counts them). */
     held?: number;
   };

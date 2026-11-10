@@ -509,6 +509,20 @@ export function playCard(
       );
     }
   }
+  // Perched Grimwyrm: "Play me only to a battlefield you conquered this turn."
+  if (def.statics?.some((s) => s.restrict === 'PLAY_ONLY_CONQUERED')) {
+    const rec = state.players[playerIndex(pid)]?.turnFlags;
+    const ok =
+      intent.location?.kind === 'battlefield' &&
+      rec?.turn === state.turn.number &&
+      (rec.conqueredAt ?? []).includes(intent.location.battlefieldId);
+    if (!ok) {
+      return ruleError(
+        'ILLEGAL_LOCATION',
+        `${def.name} can only be played to a battlefield you conquered this turn`,
+      );
+    }
+  }
   let location: NonNullable<ChainItem['location']> = { kind: 'base' };
   if (intent.location?.kind === 'battlefield') {
     const bfId = intent.location.battlefieldId;

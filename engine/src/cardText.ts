@@ -2827,6 +2827,11 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       statics.push({ affects: 'SELF', restrict: 'ONE_CHANNEL', ...(w ? { when: w } : {}) });
       continue;
     }
+    // "Play me only to a battlefield you conquered this turn" (Perched Grimwyrm).
+    if (/^Play me only to a battlefield you conquered this turn$/i.test(body)) {
+      statics.push({ affects: 'SELF', restrict: 'PLAY_ONLY_CONQUERED' });
+      continue;
+    }
     // "You ignore [Tank] while assigning combat damage here" (Dune Surfer).
     if (/^You ignore \[?Tank\]? while assigning combat damage here$/i.test(body)) {
       statics.push({ affects: 'SELF', ignoreTank: true });

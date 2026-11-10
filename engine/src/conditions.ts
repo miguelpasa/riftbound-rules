@@ -60,7 +60,8 @@ export function tracksTurnFlags(cards: CardDatabase): boolean {
         j.includes('TURN_FLAG') ||
         j.includes('TURN_SPENT') ||
         j.includes('CONQUERED_THIS_TURN') ||
-        j.includes('HELD_THIS_TURN')
+        j.includes('HELD_THIS_TURN') ||
+        j.includes('PLAY_ONLY_CONQUERED')
       );
     });
     flagsDb.set(cards, v);
@@ -85,7 +86,11 @@ export function noteTurnFlags(
         ps.turnFlags?.turn === state.turn.number ? ps.turnFlags : { turn: state.turn.number };
       ps.turnFlags =
         e.method === 'CONQUER'
-          ? { ...rec, conquered: (rec.conquered ?? 0) + 1 }
+          ? {
+              ...rec,
+              conquered: (rec.conquered ?? 0) + 1,
+              conqueredAt: [...(rec.conqueredAt ?? []), e.battlefieldId],
+            }
           : { ...rec, held: (rec.held ?? 0) + 1 };
       continue;
     }

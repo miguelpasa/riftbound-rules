@@ -119,30 +119,38 @@ function playCandidates(state: GameState, cards: CardDatabase, pid: PlayerId): I
     const def = cards[obj.cardId];
     if (!def || UNPLAYABLE.has(def.type)) continue;
     const isUnit = def.type === 'UNIT';
-    const locations: (PlayLocation | undefined)[] = isUnit
-      ? obj.zone.kind === 'facedown'
-        ? [undefined]
-        : [
-            { kind: 'base' },
-            ...myBattlefields.map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id })),
-            // Ambush (822): also battlefields held by the opponent or nobody where I have units.
-            ...(hasKw(def, 'Ambush')
-              ? state.battlefields
-                  .filter((b) => b.controller !== pid && hasUnitAt(state, cards, pid, b.id))
-                  .map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
-              : []),
-            // R76: "You may play me to an open battlefield / an occupied enemy battlefield".
-            ...(def.playTo
-              ? state.battlefields
-                  .filter(
-                    (b) => b.controller !== pid && playToAllowed(state, cards, def, pid, b.id),
-                  )
-                  .map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
-              : []),
-          ]
-      : isDeployGear(def)
-        ? myBattlefields.map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
-        : [undefined];
+    // Perched Grimwyrm: only a battlefield conquered this turn, never the Base.
+    const conqueredOnly = def.statics?.some((s) => s.restrict === 'PLAY_ONLY_CONQUERED') === true;
+    const conqueredNow =
+      state.players[playerIndex(pid)]?.turnFlags?.turn === state.turn.number
+        ? (state.players[playerIndex(pid)]?.turnFlags?.conqueredAt ?? [])
+        : [];
+    const locations: (PlayLocation | undefined)[] = conqueredOnly
+      ? conqueredNow.map((id) => ({ kind: 'battlefield' as const, battlefieldId: id }))
+      : isUnit
+        ? obj.zone.kind === 'facedown'
+          ? [undefined]
+          : [
+              { kind: 'base' },
+              ...myBattlefields.map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id })),
+              // Ambush (822): also battlefields held by the opponent or nobody where I have units.
+              ...(hasKw(def, 'Ambush')
+                ? state.battlefields
+                    .filter((b) => b.controller !== pid && hasUnitAt(state, cards, pid, b.id))
+                    .map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
+                : []),
+              // R76: "You may play me to an open battlefield / an occupied enemy battlefield".
+              ...(def.playTo
+                ? state.battlefields
+                    .filter(
+                      (b) => b.controller !== pid && playToAllowed(state, cards, def, pid, b.id),
+                    )
+                    .map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
+                : []),
+            ]
+        : isDeployGear(def)
+          ? myBattlefields.map((b) => ({ kind: 'battlefield' as const, battlefieldId: b.id }))
+          : [undefined];
     const accelOptions = isUnit && hasKw(def, 'Accelerate') ? [false, true] : [false];
     // Repeat (820): spells with a Repeat cost may also be played with it paid.
     const repeatOptions = def.type === 'SPELL' && def.repeatCost ? [false, true] : [false];

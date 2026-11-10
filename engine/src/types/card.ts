@@ -896,7 +896,9 @@ export interface StaticAbility {
     /** Unit card: while its condition holds, opponents cannot gain points (Tianna Crownguard). */
     | 'NO_ENEMY_POINTS'
     /** Unit card: while its condition holds, every Channel Phase channels at most one rune (Sandstone Chimera). */
-    | 'ONE_CHANNEL';
+    | 'ONE_CHANNEL'
+    /** Unit card: it can only be played to a battlefield its player conquered this turn (Perched Grimwyrm). */
+    | 'PLAY_ONLY_CONQUERED';
   /** Battlefield card: the points needed to win are raised by this much (Aspirant's Climb). */
   victoryBonus?: number;
   /** "Opponents' spells cost [1] more": an extra cost opponents pay to play spells while this holds (Helm of Suppression). */

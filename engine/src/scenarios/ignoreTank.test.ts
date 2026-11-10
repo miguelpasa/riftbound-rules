@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
 import { parseCardAbilities, parseStaticLines } from '../cardText.js';
 import { computeAssignmentConstraints, effectiveMight } from '../combat.js';
+import { noteTurnFlags } from '../conditions.js';
+import { reduce } from '../reducer.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
 const text = 'You ignore [Tank] while assigning combat damage here.';
@@ -180,5 +182,48 @@ describe('scenario: "[Empower] — [1] or [C]" (Legion Marauder)', () => {
       { cost: { energy: 1 }, effects: [{ op: 'EMPOWER_SELF' }] },
       { cost: { power: 1 }, effects: [{ op: 'EMPOWER_SELF' }] },
     ]);
+  });
+});
+
+describe('scenario: "Play me only to a battlefield you conquered this turn" (Perched Grimwyrm)', () => {
+  const text = 'Play me only to a battlefield you conquered this turn.';
+  const statics = parseStaticLines(text)?.statics ?? [];
+  const cards: CardDatabase = {
+    ...SCENARIO_CARDS,
+    'fx-grunt': { ...(SCENARIO_CARDS['fx-grunt'] as CardDef), statics },
+  };
+
+  it('reads a play-location restriction', () => {
+    // Tests Rule 584: static abilities apply while their condition holds
+    expect(statics).toEqual([{ affects: 'SELF', restrict: 'PLAY_ONLY_CONQUERED' }]);
+  });
+
+  /** p0 controls bf1 and may have conquered it this turn; returns whether playing the unit there / to the Base works. */
+  function tryPlay(conquered: boolean, where: 'bf1' | 'base'): boolean {
+    const sc = Scenario.start({}, cards);
+    sc.putUnit('p0', 'fx-ash-tank', 'bf1', { control: true });
+    if (conquered) {
+      noteTurnFlags(sc.state, cards, [
+        { type: 'BATTLEFIELD_SCORED', player: 'p0', battlefieldId: 'bf1', method: 'CONQUER' },
+      ]);
+    }
+    sc.giveRunes('p0', 4);
+    const id = sc.putInHand('p0', 'fx-grunt');
+    const location = where === 'base' ? { kind: 'base' as const } : toBf('bf1');
+    const r = reduce(sc.state, cards, {
+      type: 'PLAY_CARD',
+      playerId: 'p0',
+      cardInstanceId: id,
+      payment: sc.exhaustPlan('p0', 2),
+      location,
+    });
+    return r.ok;
+  }
+
+  it('can be played only to a battlefield conquered this turn', () => {
+    // Tests Rule 584: the restriction decides where the card may enter
+    expect(tryPlay(true, 'bf1')).toBe(true);
+    expect(tryPlay(true, 'base')).toBe(false); // never the Base
+    expect(tryPlay(false, 'bf1')).toBe(false); // not conquered this turn
   });
 });
