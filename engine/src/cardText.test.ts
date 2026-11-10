@@ -919,3 +919,20 @@ describe('takeUnlimitedCopies: "Your deck can have any number of cards named X" 
     expect(takeUnlimitedCopies('Draw 1.')).toBeNull();
   });
 });
+
+describe('parseSpellText: "Look at the top two cards ... You may recycle one or both ... back in any order" (The Candlelit Sanctum)', () => {
+  const text =
+    "Look at the top two cards of your Main Deck. You may recycle one or both of them. Put those you don't back in any order.";
+
+  it('reads the three sentences as [Predict 2]', () => {
+    // Tests Rule 820: Predict looks at the top cards and may recycle them
+    expect(parseSpellText(text)).toEqual([{ op: 'PREDICT', count: 2 }]);
+  });
+
+  it('is the conquer trigger of the battlefield', () => {
+    // Tests Rule 583: a battlefield's triggered ability
+    expect(parseBattlefieldAbilities(`When you conquer here, ${text.replace(/^L/, 'l')}`)).toEqual([
+      { on: 'CONQUER', effects: [{ op: 'PREDICT', count: 2 }] },
+    ]);
+  });
+});

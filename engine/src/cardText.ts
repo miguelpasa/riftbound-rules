@@ -459,6 +459,19 @@ export function parseLookSequence(
   sens: readonly string[],
   i: number,
 ): { effect: CardEffect; used: number } | null {
+  // [Predict N] spelled out: "Look at the top two cards. You may recycle one or both of them. Put those you don't back in any order."
+  const pr = /^Look at the top (two|three|\d+) cards? of your Main Deck$/i.exec(sens[i] ?? '');
+  if (
+    pr &&
+    /^You may recycle (?:one or both of them|any of them)$/i.test(sens[i + 1] ?? '') &&
+    /^Put (?:those|the rest) you don['’]t back in any order$/i.test(sens[i + 2] ?? '')
+  ) {
+    const w = (pr[1] ?? '').toLowerCase();
+    return {
+      effect: { op: 'PREDICT', count: w === 'two' ? 2 : w === 'three' ? 3 : Number(w) },
+      used: 3,
+    };
+  }
   const m = LOOK.exec(sens[i] ?? '');
   if (!m) return null;
   const count = Number(m[1]);
