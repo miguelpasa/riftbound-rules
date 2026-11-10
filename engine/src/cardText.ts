@@ -118,6 +118,8 @@ interface ParseState {
   locked: boolean;
   /** What "it" refers to: the last single unit chosen (index into `slots`). */
   it?: number;
+  /** A pending "Choose up to N cards from opponents' trashes" waiting for its action sentence. */
+  trashPick?: { slot: number; max: number };
 }
 
 /** Slot-free sentences (also valid inside triggers). Returns the effects or null. */
@@ -1809,6 +1811,26 @@ function parseSpellSentence(sen: string, st: ParseState, out: CardEffect[]): boo
     if (!canAdd(st, [gear])) return false;
     st.slots.push(gear);
     st.it = st.slots.length - 1;
+    return true;
+  }
+  // "Choose up to 3 cards from opponents' trashes" + "Their owners recycle them" (Disposal Order).
+  const tp = /^Choose up to (\d+) cards from opponents['’] trashes$/i.exec(sen);
+  if (tp) {
+    const pick: SlotDecl = { side: 'enemy', kind: 'trash' };
+    if (st.locked || !canAdd(st, [pick])) return false;
+    st.slots.push(pick);
+    st.trashPick = { slot: st.slots.length - 1, max: Number(tp[1]) };
+    return true;
+  }
+  if (/^Their owners recycle them$/i.test(sen) && st.trashPick) {
+    out.push({
+      op: 'RECYCLE_FROM_TRASHES',
+      side: 'enemy',
+      slot: st.trashPick.slot,
+      count: { min: 0, max: st.trashPick.max },
+    });
+    delete st.trashPick;
+    st.locked = true;
     return true;
   }
   // "Swap the Mights of two units at the same battlefield this turn" (Switcheroo).

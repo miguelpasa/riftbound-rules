@@ -894,3 +894,36 @@ describe('scenario: "Return up to 2 units from trashes to their owners\' hands" 
     expect(sc.obj(theirs).zone).toMatchObject({ kind: 'hand', player: 'p1' });
   });
 });
+
+describe('scenario: "Choose up to 3 cards from opponents\' trashes. Their owners recycle them." (Disposal Order)', () => {
+  const text = "Choose up to 3 cards from opponents' trashes. Their owners recycle them.";
+  const effects = parseSpellText(text) ?? [];
+
+  it("reads a recycle of up to three cards from the opponents' Trash only", () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      { op: 'RECYCLE_FROM_TRASHES', side: 'enemy', count: { min: 0, max: 3 } },
+    ]);
+  });
+
+  it("only cards in an opponent's Trash can be chosen", () => {
+    // Tests Rule 355.10: a target must meet the spell's requirements
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const put = (player: 'p0' | 'p1', cardId: string): string => {
+      const id = sc.putInHand(player, cardId);
+      const ps = sc.state.players[player === 'p0' ? 0 : 1] as GameState['players'][number];
+      ps.hand = ps.hand.filter((x) => x !== id);
+      ps.trash.push(id);
+      (sc.state.objects[id] as CardInstance).zone = { kind: 'trash', player };
+      return id;
+    };
+    const mine = put('p0', 'fx-grunt');
+    const theirs = put('p1', 'fx-tide-grunt');
+    const ok = (ids: string[]) => spellTargetsLegal(sc.state, cards, 'p0', effects, ids.map(obj));
+    expect(ok([theirs])).toBe(true);
+    expect(ok([mine])).toBe(false);
+    cast(sc, [obj(theirs)]);
+    expect(sc.obj(theirs).zone).toMatchObject({ kind: 'mainDeck', player: 'p1' });
+  });
+});

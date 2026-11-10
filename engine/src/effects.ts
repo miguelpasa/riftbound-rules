@@ -404,6 +404,8 @@ function legalForSpec(
   if (spec.kind === 'trash' && spec.trashAny) {
     const d = cards[u.cardId];
     if (u.zone.kind !== 'trash' || !d) return false;
+    if (spec.side === 'enemy' && u.owner === controller) return false;
+    if (spec.side === 'friendly' && u.owner !== controller) return false;
     const w = spec.trashWhat;
     return (
       w === undefined ||

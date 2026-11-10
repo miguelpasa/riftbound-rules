@@ -533,6 +533,8 @@ type CardEffectCore =
   /** "Recycle up to 4 cards from trashes": the chosen cards (any Trash, any owner) go to the bottom of their owners' Main Decks. */
   | {
       op: 'RECYCLE_FROM_TRASHES';
+      /** `enemy`: only cards in an opponent's Trash ("from opponents' trashes"). */
+      side?: TargetSide;
       slot?: number;
       count: TargetCount;
     }
