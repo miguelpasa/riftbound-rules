@@ -405,7 +405,7 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
         for (const src of Object.values(state.objects)) {
           if (src.controller !== m.controller || (!onBoard(src) && src.zone.kind !== 'legend'))
             continue;
-          add(src, 'UNIT_BECOMES_MIGHTY', src.controller);
+          add(src, 'UNIT_BECOMES_MIGHTY', src.controller, undefined, m.id);
         }
       }
     } else if (e.type === 'BECAME_EXHAUSTED' || e.type === 'BECAME_READY') {

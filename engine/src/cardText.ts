@@ -4614,7 +4614,13 @@ export function parseCardAbilities(
         : head.startsWith('when you buff')
           ? 'friendly'
           : undefined;
-      if (chosen?.target === 'friendly' || buffed === 'friendly') {
+      if (
+        chosen?.target === 'friendly' ||
+        buffed === 'friendly' ||
+        head.includes('becomes [mighty]') ||
+        head.includes('becomes mighty')
+      ) {
+        // The event's unit is preset as the target ("ready IT").
         body = body.replace(/ ready it$/i, ' ready a friendly unit');
       }
       let when: Condition | undefined;
