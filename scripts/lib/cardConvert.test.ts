@@ -678,3 +678,22 @@ describe('"Spend my buff" cost (Sett)', () => {
     expect(createCardValidator()(card)).toEqual([]);
   });
 });
+
+describe('Equip whose Energy cost is reduced by the Might of the unit (Hextech Gauntlets)', () => {
+  // Tests Rule 818: the whole Equip line, reminder included, is the Equip cost
+  it('is a full card with an equipCost that reads the Might reduction', () => {
+    const { card } = convertRow(
+      row({
+        cardType: 'Gear',
+        cardTypeLabels: ['Gear', 'Equipment'],
+        name: 'Hextech Gauntlets',
+        fullName: 'Hextech Gauntlets',
+        might: null,
+        abilityEffective:
+          "[Equip] [3][A]. This ability's Energy cost is reduced by the Might of the unit you choose. (Pay the cost: Attach this to a unit you control.)",
+      }),
+    );
+    expect(card?.supportLevel).toBe('full');
+    expect(card?.equipCost).toMatchObject({ energy: 3, anyPower: 1, energyReducedByMight: true });
+  });
+});

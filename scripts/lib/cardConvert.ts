@@ -502,7 +502,12 @@ export function convertRow(row: RawRow): ConvertResult {
   // An Equipment whose only text is an Equip line with a card-choice cost (Last Rites, Blade of the Ruined King).
   if (type === 'GEAR' && card.supportLevel === 'partial') {
     const eqLine = parseEquipCost(text);
-    if (eqLine?.card && !eqLine.nonResource && keywords.every((k) => MVP_SET.has(k.name))) {
+    if (
+      eqLine &&
+      (eqLine.card || eqLine.energyReducedByMight) &&
+      !eqLine.nonResource &&
+      keywords.every((k) => MVP_SET.has(k.name))
+    ) {
       const left = stripReminders(text.replace(/(?:^|\n)[ \t]*\[Equip\][^\n]*/i, '\n'));
       if (!/[A-Za-z0-9]/.test(left)) card.supportLevel = 'full';
     }
