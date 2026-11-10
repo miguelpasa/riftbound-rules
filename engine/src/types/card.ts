@@ -877,6 +877,8 @@ export interface StaticAbility {
     | 'ONE_CHANNEL';
   /** Battlefield card: the points needed to win are raised by this much (Aspirant's Climb). */
   victoryBonus?: number;
+  /** "You ignore [Tank] while assigning combat damage here": while this unit fights, its side assigns damage as if no enemy had Tank (Dune Surfer). */
+  ignoreTank?: boolean;
   /**
    * R104: a cost modifier for the cards its controller plays: "the Energy costs for spells you play are reduced by [1],
    * to a minimum of [1]" / "Your Dragons' Energy costs are reduced by [2], to a minimum of [1]".

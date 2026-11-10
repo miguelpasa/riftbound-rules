@@ -2655,6 +2655,11 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       statics.push({ affects: 'SELF', restrict: 'ONE_CHANNEL', ...(w ? { when: w } : {}) });
       continue;
     }
+    // "You ignore [Tank] while assigning combat damage here" (Dune Surfer).
+    if (/^You ignore \[?Tank\]? while assigning combat damage here$/i.test(body)) {
+      statics.push({ affects: 'SELF', ignoreTank: true });
+      continue;
+    }
     // "[While <condition>,] opponents can't gain points" (Tianna Crownguard).
     const np = /^(?:While (.+?), )?Opponents can['’]t gain points$/i.exec(body);
     if (np) {

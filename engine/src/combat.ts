@@ -173,8 +173,8 @@ function isDualTier(def: CardDef | undefined): boolean {
   );
 }
 
-function tierOf(def: CardDef | undefined): AssignmentTier {
-  if (def?.keywords.some((k) => k.name === 'Tank')) return 'TANK';
+function tierOf(def: CardDef | undefined, ignoreTank = false): AssignmentTier {
+  if (!ignoreTank && def?.keywords.some((k) => k.name === 'Tank')) return 'TANK';
   if (def?.keywords.some((k) => k.name === 'Backline')) return 'BACKLINE';
   return 'NORMAL';
 }
@@ -195,12 +195,16 @@ export function computeAssignmentConstraints(
 ): AssignmentConstraints {
   const c = state.flow.combat;
   if (!c) return { total: 0, ordered: [] };
+  // Dune Surfer: one of the assigner's own units here lets them ignore [Tank].
+  const ignoreTank = unitsAt(state, c.battlefieldId, assigner).some((u) =>
+    cards[u.cardId]?.statics?.some((s) => s.ignoreTank === true),
+  );
   const ordered = unitsAt(state, c.battlefieldId, opponentOf(assigner))
     .map((o) => ({
       unitId: o.id,
       lethal: lethalNeeded(state, cards, o),
-      tier: tierOverrides[o.id] ?? tierOf(defWithGrants(state, cards, o)),
-      ...(isDualTier(defWithGrants(state, cards, o)) ? { dual: true as const } : {}),
+      tier: tierOverrides[o.id] ?? tierOf(defWithGrants(state, cards, o), ignoreTank),
+      ...(!ignoreTank && isDualTier(defWithGrants(state, cards, o)) ? { dual: true as const } : {}),
     }))
     .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || objNum(a.unitId) - objNum(b.unitId));
   return { total: sideTotal(state, cards, c.battlefieldId, assigner), ordered };
