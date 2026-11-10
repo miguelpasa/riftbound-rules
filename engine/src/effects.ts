@@ -91,6 +91,8 @@ interface Spec {
   movedThisTurn?: boolean;
   /** X1: every pick must be at one battlefield. */
   sameBattlefield?: boolean;
+  /** The chosen units' Mights add up to at most this. */
+  totalMaxMight?: number;
   /** X1: every pick must share one location (a battlefield, or the same player's Base). */
   sameLocation?: boolean;
   /** Gear only: Energy cost at most this. */
@@ -203,7 +205,10 @@ function specOf(e: TargetedEffect): Spec {
   if ('atBattlefield' in e && e.atBattlefield) spec.atBattlefield = true;
   if ((e.op === 'DAMAGE_TARGET' || e.op === 'BUFF_TARGET') && e.inBase) spec.inBase = true;
   if ((e.op === 'STUN_TARGET' || e.op === 'MOVE_BASE_TARGET') && e.attacking) spec.attacking = true;
-  if (e.op === 'DAMAGE_TARGET' && e.sameBattlefield) spec.sameBattlefield = true;
+  if ((e.op === 'DAMAGE_TARGET' || e.op === 'KILL_TARGET') && e.sameBattlefield) {
+    spec.sameBattlefield = true;
+  }
+  if (e.op === 'KILL_TARGET' && e.totalMaxMight !== undefined) spec.totalMaxMight = e.totalMaxMight;
   if (e.op === 'DAMAGE_TARGET' && e.sameLocation) spec.sameLocation = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
   if (e.op === 'STUN_TARGET' && e.sameBattlefieldAsSlot !== undefined) {
@@ -642,6 +647,9 @@ export function spellTargetsLegal(
     const max = r.count ? r.count.max : 1;
     if (picks.length < min || picks.length > max) return false;
     if (r.sameBattlefield && !oneBattlefield(state, picks)) return false;
+    if (r.totalMaxMight !== undefined && totalMight(state, cards, picks) > r.totalMaxMight) {
+      return false;
+    }
     if (r.sameLocation && !oneLocation(state, picks)) return false;
     for (const id of picks) {
       if (
@@ -666,6 +674,11 @@ export function spellTargetsLegal(
     }
   }
   return true;
+}
+
+/** The summed Might of these units. */
+function totalMight(state: GameState, cards: CardDatabase, ids: readonly string[]): number {
+  return ids.reduce((n, id) => n + effectiveMight(state, cards, id, { role: null }), 0);
 }
 
 /** Both units stand at the same battlefield (a Base never counts). */
@@ -765,6 +778,7 @@ export function enumerateSpellTargets(
           ...combinations(cand, k).filter(
             (c) =>
               (!r.sameBattlefield || oneBattlefield(state, c)) &&
+              (r.totalMaxMight === undefined || totalMight(state, cards, c) <= r.totalMaxMight) &&
               (!r.sameLocation || oneLocation(state, c)),
           ),
         );

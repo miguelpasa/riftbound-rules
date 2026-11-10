@@ -909,6 +909,21 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  // "Kill any number of units at a battlefield with total Might 4 or less" (Fox-Fire).
+  m = /^Kill any number of units at a battlefield with total Might (\d+) or less$/i.exec(sen);
+  if (m) {
+    return {
+      effect: {
+        op: 'KILL_TARGET',
+        atBattlefield: true,
+        sameBattlefield: true,
+        totalMaxMight: Number(m[1]),
+        count: { min: 0, max: 99 },
+      },
+      decl: { side: 'any', atBattlefield: true },
+      multi: true,
+    };
+  }
   // "Deal N to up to three units at the same location" (Bellows Breath): they share a battlefield or a Base.
   m = /^Deal (\d+) to up to (two|three|2|3) units at the same location$/i.exec(sen);
   if (m) {

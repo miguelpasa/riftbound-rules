@@ -619,3 +619,49 @@ describe('scenario: a second unit "at the same battlefield" / "at its location" 
     expect(sc.obj(near).stunned).toBe(true);
   });
 });
+
+describe('scenario: "Kill any number of units at a battlefield with total Might 4 or less" (Fox-Fire)', () => {
+  const text = 'Kill any number of units at a battlefield with total Might 4 or less.';
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a kill of any number of units at one battlefield with a total Might limit', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      {
+        op: 'KILL_TARGET',
+        atBattlefield: true,
+        sameBattlefield: true,
+        totalMaxMight: 4,
+        count: { min: 0 },
+      },
+    ]);
+  });
+
+  it('the chosen units must share a battlefield and add up to 4 Might or less', () => {
+    // Tests Rule 355.10: every pick must meet the spell's requirements together
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const a = sc.putUnit('p1', 'fx-tide-grunt', 'bf0'); // 2 Might
+    const b = sc.putUnit('p0', 'fx-grunt', 'bf0');
+    const c = sc.putUnit('p0', 'fx-titan', 'bf0'); // 7 Might
+    const far = sc.putUnit('p1', 'fx-tide-grunt', 'bf1');
+    const m = (id: string) => effectiveMight(sc.state, cards, id, { role: null });
+    const ok = (ids: string[]) => spellTargetsLegal(sc.state, cards, 'p0', effects, ids.map(obj));
+    expect(m(a) + m(b)).toBeLessThanOrEqual(4);
+    expect(ok([a, b])).toBe(true);
+    expect(ok([a, c])).toBe(false); // total too high
+    expect(ok([a, far])).toBe(false); // two battlefields
+    expect(ok([c])).toBe(false); // a single unit above the limit
+  });
+
+  it('kills every chosen unit', () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const a = sc.putUnit('p1', 'fx-tide-grunt', 'bf0');
+    const b = sc.putUnit('p0', 'fx-grunt', 'bf0');
+    cast(sc, [obj(a), obj(b)]);
+    expect(sc.obj(a).zone.kind).toBe('trash');
+    expect(sc.obj(b).zone.kind).toBe('trash');
+  });
+});
