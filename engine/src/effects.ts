@@ -208,7 +208,9 @@ function specOf(e: TargetedEffect): Spec {
   if ((e.op === 'DAMAGE_TARGET' || e.op === 'KILL_TARGET') && e.sameBattlefield) {
     spec.sameBattlefield = true;
   }
-  if (e.op === 'KILL_TARGET' && e.totalMaxMight !== undefined) spec.totalMaxMight = e.totalMaxMight;
+  if ((e.op === 'KILL_TARGET' || e.op === 'RETURN_TARGET') && e.totalMaxMight !== undefined) {
+    spec.totalMaxMight = e.totalMaxMight;
+  }
   if (e.op === 'DAMAGE_TARGET' && e.sameLocation) spec.sameLocation = true;
   if (e.op === 'KILL_GEAR' && e.maxEnergyMyMight) spec.maxEnergyMyMight = true;
   if (e.op === 'STUN_TARGET' && e.sameBattlefieldAsSlot !== undefined) {

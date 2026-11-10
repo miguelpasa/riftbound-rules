@@ -909,6 +909,24 @@ function parseChooserBase(sen: string): Chooser | null {
       multi: true,
     };
   }
+  // "Return any number of enemy units with total Might 5 or less to their owners' hands" (Decree of Discord).
+  m = new RegExp(
+    `^Return any number of ${SIDE}units with total Might (\\d+) or less to their owners['’] hands$`,
+    'i',
+  ).exec(sen);
+  if (m) {
+    const s = side(m[1]);
+    return {
+      effect: {
+        op: 'RETURN_TARGET',
+        ...sideProp(s),
+        totalMaxMight: Number(m[2]),
+        count: { min: 0, max: 99 },
+      },
+      decl: { side: s ?? 'any' },
+      multi: true,
+    };
+  }
   // "Kill any number of units at a battlefield with total Might 4 or less" (Fox-Fire).
   m = /^Kill any number of units at a battlefield with total Might (\d+) or less$/i.exec(sen);
   if (m) {

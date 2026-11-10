@@ -470,6 +470,8 @@ type CardEffectCore =
   | ({
       op: 'RETURN_TARGET';
       side?: TargetSide;
+      /** "any number of ... units with total Might 5 or less": the chosen units' Mights add up to at most this. */
+      totalMaxMight?: number;
       /** R106: "a non-Dragon unit": units with this subtype are not allowed. */
       notSubtype?: string;
       atBattlefield?: boolean;

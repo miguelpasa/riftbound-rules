@@ -665,3 +665,49 @@ describe('scenario: "Kill any number of units at a battlefield with total Might 
     expect(sc.obj(b).zone.kind).toBe('trash');
   });
 });
+
+describe('scenario: "Return any number of enemy Order units with total Might 5 or less to their owners\' hands" (Decree of Discord)', () => {
+  const text =
+    "Return any number of enemy Order units with total Might 5 or less to their owners' hands.";
+  const effects = parseSpellText(text) ?? [];
+
+  it('reads a return of any number of enemy Order units limited by their total Might', () => {
+    // Tests Rule 355.10: a spell chooses its targets as it is played
+    expect(effects).toMatchObject([
+      {
+        op: 'RETURN_TARGET',
+        side: 'enemy',
+        domain: 'Order',
+        totalMaxMight: 5,
+        count: { min: 0 },
+      },
+    ]);
+  });
+
+  it('the units must be enemy Order units whose Mights add up to 5 or less', () => {
+    // Tests Rule 355.10: every pick must meet the spell's requirements together
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const tank = sc.putUnit('p1', 'fx-order-tank', 'base'); // Order, 3
+    const guard = sc.putUnit('p1', 'fx-order-shielder', 'base'); // Order, 2
+    const colossus = sc.putUnit('p1', 'fx-order-titan', 'base'); // Order, 7
+    const scholar = sc.putUnit('p1', 'fx-tide-grunt', 'base'); // Mind, 2
+    const mine = sc.putUnit('p0', 'fx-grunt', 'base');
+    const ok = (ids: string[]) => spellTargetsLegal(sc.state, cards, 'p0', effects, ids.map(obj));
+    expect(ok([tank, guard])).toBe(true);
+    expect(ok([tank, colossus])).toBe(false); // too much Might
+    expect(ok([guard, scholar])).toBe(false); // not Order
+    expect(ok([guard, mine])).toBe(false); // not an enemy
+  });
+
+  it("returns every chosen unit to its owner's hand", () => {
+    // Tests Rule 355.10: the spell resolves its effects on the chosen targets
+    const cards = spellWith(effects);
+    const sc = Scenario.start({}, cards);
+    const tank = sc.putUnit('p1', 'fx-order-tank', 'base');
+    const guard = sc.putUnit('p1', 'fx-order-shielder', 'base');
+    cast(sc, [obj(tank), obj(guard)]);
+    expect(sc.obj(tank).zone).toMatchObject({ kind: 'hand', player: 'p1' });
+    expect(sc.obj(guard).zone).toMatchObject({ kind: 'hand', player: 'p1' });
+  });
+});
