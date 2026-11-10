@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO_CARDS, Scenario } from '../testing/scenario.js';
-import { parseStaticLines } from '../cardText.js';
+import { parseCardAbilities, parseStaticLines } from '../cardText.js';
 import { computeAssignmentConstraints, effectiveMight } from '../combat.js';
 import type { CardDatabase, CardDef } from '../types/index.js';
 
@@ -167,5 +167,18 @@ describe('scenario: "[Empowered][>] I have +3 [M] and can\'t be dealt damage unl
     };
     expect(hit(false)).toEqual({ damage: 2, might: 3 });
     expect(hit(true)).toEqual({ damage: 0, might: 6 });
+  });
+});
+
+describe('scenario: "[Empower] — [1] or [C]" (Legion Marauder)', () => {
+  const text = '[Empower] — [1] or [C]';
+
+  it('reads one Empower ability for each of the two costs', () => {
+    // Tests Rule 145.1: an activated ability with a cost and an effect
+    const parsed = parseCardAbilities(text);
+    expect(parsed?.abilities).toEqual([
+      { cost: { energy: 1 }, effects: [{ op: 'EMPOWER_SELF' }] },
+      { cost: { power: 1 }, effects: [{ op: 'EMPOWER_SELF' }] },
+    ]);
   });
 });

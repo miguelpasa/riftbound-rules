@@ -4314,6 +4314,11 @@ export function parseCardAbilities(
       /\[(Reaction|Action)\]\s*(?:\[>\]|[—–-])\s*/gi,
       (_m, k: string) => `${k.toUpperCase()} `,
     )
+    // "[Empower] — [1] or [C]" (Legion Marauder): one Empower ability per alternative cost.
+    .replace(
+      /\[Empower\]\s*(?:\[>\]|[—–-])?\s*(\[[0-9CA]+\]) or (\[[0-9CA]+\])(?=[ \t]*[.\n(]|[ \t]*$)/gi,
+      '$1: Empower me. $2: Empower me. ',
+    )
     // R52: "[Empower] <cost>" is the activated ability "<cost>: Empower me"; "[Empowered][>] ..." prefixes an
     // ability that only exists while Empowered.
     .replace(
