@@ -2646,6 +2646,27 @@ export function parseStaticLines(text: string): { statics: StaticAbility[]; rest
       .replace(/^(Other friendly units) (have .+?) here$/i, '$1 here $2')
       .replace(/\ban additional (\+\d+ \[M\])/i, '$1')
       .replace(/^(Friendly buffed units have .+?) if they didn['’]t already$/i, '$1');
+    // "[Empowered][>] I have +3 [M] and can't be dealt damage unless I'm in combat" (Ambessa).
+    const sh = /^I have \+(\d+) \[M\] and can['’]t be dealt damage unless I['’]m in combat$/i.exec(
+      body,
+    );
+    if (sh && em) {
+      statics.push(
+        { affects: 'SELF', might: Number(sh[1]), when: { kind: 'EMPOWERED' } },
+        {
+          affects: 'SELF',
+          restrict: 'NO_DAMAGE',
+          when: {
+            kind: 'ALL',
+            conds: [
+              { kind: 'EMPOWERED' },
+              { kind: 'NOT', cond: { kind: 'COMBAT_ROLE', role: 'EITHER' } },
+            ],
+          },
+        },
+      );
+      continue;
+    }
     // "Opponents' spells cost [1] more[. If this is [Empowered], they cost [1][A] more instead]" (Helm of Suppression).
     const sur =
       /^Opponents['’] spells cost ((?:\[(?:\d+|A)\])+) more(?:\. If this is \[?Empowered\]?, they cost ((?:\[(?:\d+|A)\])+) more instead)?$/i.exec(
