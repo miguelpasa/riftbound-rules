@@ -32,6 +32,7 @@ import { deriveTurnState } from './chain.js';
 import { allocObjectId, stampEvents } from './setup.js';
 import { abilityTargetsLegal, enumerateSpellTargets, spellEffects } from './effects.js';
 import { legionActive } from './keywords.js';
+import { staticBonus } from './statics.js';
 import { costCardsPayable } from './costCards.js';
 import { itemSourceId } from './sources.js';
 import { isDeployGear } from './tokens.js';
@@ -70,6 +71,8 @@ interface Pending {
   at?: string;
   /** The source token has left the game (Bomb): its card id is read from the Chain item's `sourceCardId`. */
   ghost?: boolean;
+  /** A trigger granted by a static keyword grant ("Your Mechs have [Disarm]"); `index` is then -1. */
+  granted?: CardTrigger;
   /** A Deathknell: where the unit died ('base' or a battlefield id), the "here" of its effects. */
   diedAt?: string;
 }
@@ -174,6 +177,26 @@ function collect(state: GameState, cards: CardDatabase, events: readonly GameEve
           : {}),
       });
     });
+    // "Your Mechs have [Disarm] / [Vision]": a keyword granted by a static brings its own trigger.
+    if (obj && (kind === 'ATTACK' || kind === 'PLAY') && !pick) {
+      const own = cards[obj.cardId]?.keywords ?? [];
+      const granted = staticBonus(state, cards, obj).keywords;
+      const want = kind === 'ATTACK' ? 'Disarm' : 'Vision';
+      if (granted.some((k) => k.name === want) && !own.some((k) => k.name === want)) {
+        const n = granted.filter((k) => k.name === want).reduce((a, k) => a + (k.value ?? 1), 0);
+        out.push({
+          sourceId: obj.id,
+          cardId: obj.cardId,
+          battlefield: false,
+          index: -1,
+          controller,
+          granted:
+            want === 'Disarm'
+              ? { on: 'ATTACK', effects: [{ op: 'DEBUFF_TARGET', amount: n, side: 'enemy', here: true }] }
+              : { on: 'PLAY', effects: [{ op: 'PREDICT', count: 1 }] },
+        });
+      }
+    }
   };
   /**
    * R44: a Battlefield card's triggers ("When you hold / conquer / defend / attack here, ..."). The
@@ -623,7 +646,7 @@ export function fireTriggers(
   const raw: GameEventInput[] = [];
   let added = 0;
   for (const p of ordered) {
-    const tdef = cards[p.cardId]?.triggers?.[p.index];
+    const tdef = p.granted ?? cards[p.cardId]?.triggers?.[p.index];
     const effects = tdef?.effects;
     // A Deathknell's "here" is where the unit died: its object is already in the Trash, so remember the spot.
     if (p.diedAt !== undefined && !p.battlefield) {
@@ -689,6 +712,7 @@ export function fireTriggers(
       triggered: true,
       triggerIndex: p.index,
       ...(p.ghost ? { sourceCardId: p.cardId } : {}),
+      ...(p.granted ? { grantedTrigger: p.granted } : {}),
       ...(p.at !== undefined ? { triggerAt: p.at } : {}),
     };
     s.flow.chain.push(item);
@@ -735,6 +759,7 @@ export function triggerDefOf(
 ): CardTrigger | undefined {
   if (item.triggerIndex === undefined) return undefined;
   const cardId = triggerSourceCardId(state, item);
+  if (item.grantedTrigger) return item.grantedTrigger;
   return cardId === undefined ? undefined : cards[cardId]?.triggers?.[item.triggerIndex];
 }
 

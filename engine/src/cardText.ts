@@ -2349,7 +2349,7 @@ export function parseAdditionalCost(text: string): { cost: CostCardChoice; rest:
 
 const LEVEL_PREFIX = /^\[Level (\d+)\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
 const EMPOWERED_PREFIX = /^\[Empowered\]\s*(?:\[>\]|[^\w[\s])\s*(.*)$/i;
-const STATIC_KW = 'Deflect|Ganking|Assault|Shield|Tank';
+const STATIC_KW = 'Deflect|Ganking|Assault|Shield|Tank|Disarm|Vision';
 const STATIC_GRANT = String.raw`((?:\+\d+ \[M\](?:,? and )?)?(?:\[(?:${STATIC_KW})(?: \d+)?\](?:,? and |, )?)*)`;
 const COUNT_PHRASES: [RegExp, StaticCount][] = [
   [/^other exhausted units? you control$/i, 'OTHER_EXHAUSTED_UNIT'],
@@ -2646,7 +2646,7 @@ function staticAffects(
 function staticGrant(raw: string): Pick<StaticAbility, 'might' | 'keywords'> | null {
   const mm = /\+(\d+) \[M\]/.exec(raw);
   const keywords: KeywordInstance[] = [];
-  for (const m of raw.matchAll(/\[(Deflect|Ganking|Assault|Shield|Tank)(?: (\d+))?\]/gi)) {
+  for (const m of raw.matchAll(/\[(Deflect|Ganking|Assault|Shield|Tank|Disarm|Vision)(?: (\d+))?\]/gi)) {
     const n = (m[1] ?? '').toLowerCase();
     const name = (n.charAt(0).toUpperCase() + n.slice(1)) as KeywordInstance['name'];
     keywords.push(m[2] ? { name, value: Number(m[2]) } : { name });

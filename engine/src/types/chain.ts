@@ -1,4 +1,4 @@
-import type { CardEffect, OptionalCost } from './card.js';
+import type { CardEffect, CardTrigger, OptionalCost } from './card.js';
 import type { PlayerId } from './state.js';
 
 /** Neutral/Showdown, Open/Closed (Rules 307-310). Open = chain empty; Closed = chain non-empty. */
@@ -42,6 +42,8 @@ export interface ChainItem {
   triggered?: boolean;
   /** For triggered ABILITY items: index into the source card's `triggers`. */
   triggerIndex?: number;
+  /** A trigger the source got from a static keyword grant ("Your Mechs have [Disarm]"): not in its card's `triggers`. */
+  grantedTrigger?: CardTrigger;
   /** The battlefield a scoring trigger is about, kept for a condition that reads "at that battlefield" (set only then). */
   triggerAt?: string;
   /** For ABILITY items: index into the source's abilities. */

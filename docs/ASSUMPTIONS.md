@@ -587,3 +587,5 @@ Not verified: the keyword glossary (rules 806-832: Action, Assault, Deflect, Gan
 - **Point lock (Tianna Crownguard):** "opponents can't gain points" stops the point from a Hold / Conquer score and from a card effect that gains points. The battlefield still counts as scored this turn. The Burn Out point (432.2.c) is not stopped (UNCLEAR: it is a game rule, not a card effect).
 
 - "X, then recycle me if I was played from face down" (Elnuk Herd) is modelled as two triggers (the buff, and a face-down-only recycle). They trigger together, so the controller may order them (CHOOSE_TRIGGER_ORDER); the default order resolves the buff first, as printed.
+
+- A static that grants [Disarm] / [Vision] ("Your Mechs have [Disarm]") adds that keyword's trigger only to units that do not already have the keyword themselves; stacking several instances on one unit (831) is not modelled for granted instances.

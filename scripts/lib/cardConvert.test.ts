@@ -240,8 +240,9 @@ describe('R42 converter wiring', () => {
     );
     expect(wm?.supportLevel).toBe('full');
     expect(wm?.triggers?.[0]?.effects[0]).toMatchObject({ op: 'WEAPONMASTER_EQUIP' });
-    // Disarm mentioned in prose stays partial
-    expect(conv('Unit', 'Your Mechs have [Disarm].')?.supportLevel).toBe('partial');
+    // A granted [Disarm] is a keyword static (see grantedKeywordTriggers.test.ts), but Disarm in other prose stays partial
+    expect(conv('Unit', 'Your Mechs have [Disarm].')?.supportLevel).toBe('full');
+    expect(conv('Unit', 'When I attack, I gain [Disarm] if you control a Mech.')?.supportLevel).toBe('partial');
   });
 
   it('stores a Repeat cost on spells and keeps odd Repeat costs partial', () => {
