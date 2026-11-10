@@ -1038,6 +1038,8 @@ export interface OptionalCost {
   xp?: number;
   /** "you may kill me to ...": the source unit takes lethal damage as the cost. */
   killSelf?: boolean;
+  /** "Recycle me to ...": the source card, in its owner's Trash, goes to the bottom of the Main Deck as the cost (Deathknell). */
+  recycleSelf?: boolean;
   /** R46: cards the controller picks and pays (discard / kill / exhaust / return / recycle). */
   card?: CostCardChoice;
   /**

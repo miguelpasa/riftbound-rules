@@ -77,6 +77,7 @@ export function optionalPlan(
   if ((cost.burn ?? 0) > state.players[playerIndex(player)].mainDeck.length) return null;
   if (cost.exhaustSelf && !(state.objects[sourceId]?.ready === true)) return null;
   if (cost.killSelf && !state.objects[sourceId]) return null;
+  if (cost.recycleSelf && state.objects[sourceId]?.zone.kind !== 'trash') return null;
   if (cost.xp && (state.players[playerIndex(player)].xp ?? 0) < cost.xp) return null;
   if (cost.card && !costCardsPayable(state, cards, player, sourceId, cost.card)) return null;
   const total = optionalTotalCost(cards, sourceCardId, cost);
@@ -150,6 +151,16 @@ export function decideOptional(
     if (cost.killSelf) {
       const me = work.objects[sourceId];
       if (me) me.damage = Math.max(me.damage, 9999);
+    }
+    if (cost.recycleSelf) {
+      const me = work.objects[sourceId];
+      if (!me || me.zone.kind !== 'trash') {
+        return ruleError('ILLEGAL_TARGET', 'the card is no longer in the Trash');
+      }
+      const owner = work.players[playerIndex(me.owner)] as GameState['players'][number];
+      owner.trash = owner.trash.filter((x) => x !== me.id);
+      owner.mainDeck.push(me.id);
+      me.zone = { kind: 'mainDeck', player: me.owner };
     }
     if (cost.xp) {
       const seat = work.players[playerIndex(pc.player)] as GameState['players'][number];

@@ -125,6 +125,7 @@
               "exhaustSelf": { "type": "boolean" },
               "xp": { "type": "integer", "minimum": 1 },
               "killSelf": { "type": "boolean" },
+              "recycleSelf": { "type": "boolean" },
               "mandatory": { "type": "boolean" },
               "card": { "$ref": "#/definitions/costCardChoice" }
             }

@@ -234,6 +234,7 @@ function parseClauseWith(sen: string, allowSplit: boolean): CardEffect[] | null 
   // R72: runes.
   m = /^Ready up to (\d+) (?:friendly |your )?runes$/i.exec(sen);
   if (m) return [{ op: 'READY_RUNES', count: Number(m[1]) }];
+  if (/^Ready your runes$/i.test(sen)) return [{ op: 'READY_RUNES', count: 99 }];
   if (/^Recycle all your runes$/i.test(sen)) return [{ op: 'RECYCLE_RUNES' }];
   m = /^Recycle (\d+) from your trash$/i.exec(sen);
   if (m) return [{ op: 'RECYCLE_TRASH', count: Number(m[1]) }];
@@ -3717,7 +3718,10 @@ function splitMandatoryDiscard(
  * first one without the "you may ... to" prefix), or null when the first sentence is not that shape.
  */
 function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest: string[] } | null {
-  const first = sens[0];
+  // "Recycle me to <effect>" (Ekko) is an optional cost without the words "you may".
+  const first0 = sens[0];
+  const first =
+    first0 !== undefined && /^recycle (?:me|this) to /i.test(first0) ? 'You may ' + first0 : first0;
   const may = first === undefined ? null : /^you may (.+)$/i.exec(first);
   if (!may) return null;
   const body = may[1] as string;
@@ -3734,7 +3738,11 @@ function splitOptional(sens: readonly string[]): { optional: OptionalCost; rest:
     const spendXp = /^spend (\d+) XP(?= to | and |$)/i.exec(s);
     const exSelf = /^exhaust (?:me|this)(?= to | and |$)/i.exec(s);
     const killMe = /^kill (?:me|this)(?= to | and |$)/i.exec(s);
-    if (killMe) {
+    const recycleMe = /^recycle (?:me|this)(?= to | and |$)/i.exec(s);
+    if (recycleMe) {
+      optional.recycleSelf = true;
+      used = recycleMe[0].length;
+    } else if (killMe) {
       optional.killSelf = true;
       used = killMe[0].length;
     } else if (spendXp) {
