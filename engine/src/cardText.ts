@@ -4015,6 +4015,11 @@ export function parseCondition(raw: string): Condition | null {
   }
   if (/^I (?:didn['’]t|did not) die alone$/i.test(text)) return { kind: 'DIED_ALONE', not: true };
   if (/^it['’]s your Beginning Phase$/i.test(text)) return { kind: 'YOUR_BEGINNING_PHASE' };
+  const bfn = /^you control a battlefield with exactly (two|three|four|\d+) units there$/i.exec(text);
+  if (bfn) {
+    const w = (bfn[1] ?? '').toLowerCase();
+    return { kind: 'BATTLEFIELD_WITH_UNITS', n: w === 'two' ? 2 : w === 'three' ? 3 : w === 'four' ? 4 : Number(w) };
+  }
   if (/^an? friendly unit died during your Beginning Phase this turn$/i.test(text)) {
     return { kind: 'DIED_THIS_TURN', who: 'friendly', duringBeginning: true };
   }

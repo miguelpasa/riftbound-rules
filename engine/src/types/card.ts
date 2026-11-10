@@ -1110,6 +1110,8 @@ export type Condition =
     }
   /** "If it's your Beginning Phase" (LeBlanc). */
   | { kind: 'YOUR_BEGINNING_PHASE' }
+  /** "you control a battlefield with exactly two units there": some battlefield you control holds exactly `n` of your units. */
+  | { kind: 'BATTLEFIELD_WITH_UNITS'; n: number }
   /** "If you've discarded a card / gained XP this turn" (recorded per player and turn, only when a card asks). */
   | { kind: 'TURN_FLAG'; flag: 'discarded' | 'xpGained' }
   /** "If you've spent [4] or more to play a spell / at least [A][A] this turn": the most Energy paid for one spell, or the total Power paid. */

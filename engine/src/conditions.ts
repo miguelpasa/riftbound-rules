@@ -302,6 +302,18 @@ export function evalCondition(
             : died(controller) + died(other);
       return n > 0;
     }
+    case 'BATTLEFIELD_WITH_UNITS':
+      return state.battlefields.some(
+        (b) =>
+          b.controller === controller &&
+          Object.values(state.objects).filter(
+            (o) =>
+              o.controller === controller &&
+              o.zone.kind === 'battlefield' &&
+              o.zone.battlefieldId === b.id &&
+              isUnitDef(cards[o.cardId]),
+          ).length === cond.n,
+      );
     case 'YOUR_BEGINNING_PHASE':
       return state.turn.phase === 'BEGINNING' && state.turn.activePlayer === controller;
     case 'EXCESS_DAMAGE': {
